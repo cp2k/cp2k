@@ -842,6 +842,11 @@ CONTAINS
                work_section => section_vals_get_subs_vals3(replica_section, "COORD", i_rep_section=isec)
                CALL section_neb_coord_val_set(work_section, coords%xyz(:, isec), SIZE(coords%xyz, 1), 3*SIZE(particles%els), &
                                               3, particles%els, angstrom)
+               IF (ALLOCATED(coords%cells)) THEN
+                  ALLOCATE (wrk(9))
+                  wrk(:) = RESHAPE(coords%cells(:, :, isec), [9])
+                  CALL section_vals_val_set(replica_section, "CELL_MATRIX", r_vals_ptr=wrk, i_rep_section=isec)
+               END IF
                ! Update Collective Variables
                IF (coords%in_use == do_band_collective) THEN
                   ALLOCATE (wrk(coords%size_wrk(1)))

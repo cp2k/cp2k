@@ -187,6 +187,7 @@ CONTAINS
                                                             replica_str, title
       CHARACTER(LEN=4)                                   :: l_ener
       CHARACTER(LEN=5)                                   :: pbc_str
+      CHARACTER(LEN=8)                                   :: energy_key
       INTEGER                                            :: irep, iw
       LOGICAL                                            :: print_kind
       REAL(KIND=dp)                                      :: unit_conv
@@ -195,13 +196,15 @@ CONTAINS
 
       NULLIFY (final_band_section)
       final_band_section => section_vals_get_subs_vals(neb_env%neb_section, "FINAL_BAND")
-      CALL force_env_get(neb_env%force_env, cell=cell) ! For now NEB has constant cell
+      CALL force_env_get(neb_env%force_env, cell=cell)
       pbc_str = "F F F"
       IF (cell%perd(1) == 1) pbc_str(1:1) = "T"
       IF (cell%perd(2) == 1) pbc_str(3:3) = "T"
       IF (cell%perd(3) == 1) pbc_str(5:5) = "T"
       WRITE (UNIT=cell_str, FMT="(9(1X,F19.10))") &
          cell%hmat(:, 1)*angstrom, cell%hmat(:, 2)*angstrom, cell%hmat(:, 3)*angstrom
+      energy_key = "Energy"
+      IF (neb_env%solid_state) energy_key = "Enthalpy"
       unit_conv = cp_unit_from_cp2k(1.0_dp, "angstrom")
 
       ! Print a message to log
@@ -225,6 +228,7 @@ CONTAINS
       CALL section_vals_val_get(neb_env%neb_section, "FINAL_BAND%PRINT_ATOM_KIND", &
                                 l_val=print_kind)
       DO irep = 1, neb_env%number_of_replica
+         IF (neb_env%solid_state) WRITE (cell_str, '(9(1X,F19.10))') coords%cells(:, :, irep)*angstrom
          l_ener = "(**)"
          IF (irep > 1) THEN
             IF (energies(irep) - energies(irep - 1) > 0) THEN
@@ -255,7 +259,7 @@ CONTAINS
             'Properties=species:S:1:pos:R:3 '// &
             'pbc="'//pbc_str//'" '// &
             'Replica='//TRIM(ADJUSTL(replica_str))//' '// &
-            'Energy='//TRIM(ADJUSTL(ener_str))//' '// &
+            TRIM(energy_key)//'='//TRIM(ADJUSTL(ener_str))//' '// &
             TRIM(ADJUSTL(lm_str))
          IF (iw > 0) THEN
             ! The iw condition does not hold for certain ranks/processes
@@ -304,6 +308,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'dump_neb_info'
 
       CHARACTER(LEN=20)                                  :: mytype
+      CHARACTER(LEN=22)                                  :: energy_label, total_label
+      CHARACTER(LEN=29)                                  :: plot_label
       CHARACTER(LEN=4)                                   :: l_ener
       CHARACTER(LEN=default_string_length)               :: line, title, unit_str
       INTEGER                                            :: crd, ener, frc, handle, i, irep, n_max, &
@@ -398,6 +404,14 @@ CONTAINS
          ALLOCATE (temperatures(neb_env%number_of_replica))
          ALLOCATE (ekin(neb_env%number_of_replica))
          CALL get_temperatures(vels, particle_set, temperatures, ekin=ekin)
+         energy_label = "ENERGY [au]"
+         total_label = "BAND TOTAL ENERGY"
+         plot_label = "o-------------------------> E"
+         IF (neb_env%solid_state) THEN
+            energy_label = "ENTHALPY [au]"
+            total_label = "BAND TOTAL ENTHALPY"
+            plot_label = "o-------------------------> H"
+         END IF
          WRITE (output_unit, '(/)', ADVANCE="NO")
          WRITE (output_unit, FMT='(A,A)') ' **************************************', &
             '*****************************************'
@@ -450,10 +464,11 @@ CONTAINS
             CPASSERT(SIZE(temperatures) == neb_env%number_of_replica)
             ener_min = MINVAL(energies(:))
             ener_range = MAXVAL(energies(:)) - ener_min
+            ener_range = MAX(ener_range, TINY(1.0_dp))
             n_max = 0
             n_min = 0
             WRITE (output_unit, '(T2,A,T22,A,T35,A,T52,A)') &
-               'REPLICA', 'ENERGY [au]', 'TEMPERATURE [K]', 'o-------------------------> E'
+               'REPLICA', TRIM(energy_label), 'TEMPERATURE [K]', plot_label
             DO i = 1, SIZE(distances)
                plt = FLOOR((energies(i) - ener_min)/ener_range*25)
                l_ener = "(**)"
@@ -505,8 +520,11 @@ CONTAINS
             IF (SIZE(distances) > 4) THEN
                WRITE (output_unit, '( T17,4F16.6)') distances(5:SIZE(distances))
             END IF
-            WRITE (output_unit, '( A,T17,4F16.6)') &
-               ' ENERGIES [au] =', energies(1:MIN(4, SIZE(energies)))
+            IF (neb_env%solid_state) THEN
+               WRITE (output_unit, '(A,T20,4F16.6)') ' ENTHALPIES [au] =', energies(1:MIN(4, SIZE(energies)))
+            ELSE
+               WRITE (output_unit, '(A,T17,4F16.6)') ' ENERGIES [au] =', energies(1:MIN(4, SIZE(energies)))
+            END IF
             IF (SIZE(energies) > 4) THEN
                WRITE (output_unit, '( T17,4F16.6)') energies(5:SIZE(energies))
             END IF
@@ -520,7 +538,7 @@ CONTAINS
             END IF
          END IF
          WRITE (output_unit, '( A,T56,F25.14)') &
-            ' BAND TOTAL ENERGY [au]        =', SUM(energies(:) + ekin(:)) + &
+            ' '//TRIM(total_label)//' [au]        =', SUM(energies(:) + ekin(:)) + &
             neb_env%spring_energy
          WRITE (output_unit, FMT='(A,A)') ' **************************************', &
             '*****************************************'

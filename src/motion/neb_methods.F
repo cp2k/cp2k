@@ -21,6 +21,10 @@
 !>         Extension to a subspace of collective variables
 ! **************************************************************************************************
 MODULE neb_methods
+   USE bibliography,                    ONLY: Sheppard2012,&
+                                              cite_reference
+   USE cell_types,                      ONLY: cell_sym_none,&
+                                              cell_type
    USE colvar_utils,                    ONLY: number_of_colvar
    USE cp_external_control,             ONLY: external_control
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -31,19 +35,25 @@ MODULE neb_methods
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
-   USE cp_subsys_types,                 ONLY: cp_subsys_type
+   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                              cp_subsys_type
    USE f77_interface,                   ONLY: f_env_add_defaults,&
                                               f_env_rm_defaults,&
                                               f_env_type
-   USE force_env_types,                 ONLY: force_env_get
+   USE force_env_types,                 ONLY: force_env_get,&
+                                              use_fist_force,&
+                                              use_qs_force
    USE global_types,                    ONLY: global_environment_type
    USE header,                          ONLY: band_header
    USE input_constants,                 ONLY: band_diis_opt,&
                                               band_md_opt,&
+                                              do_ci_neb,&
+                                              do_it_neb,&
                                               do_rep_blocked,&
                                               do_sm,&
                                               pot_neb_full
    USE input_section_types,             ONLY: section_type,&
+                                              section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -71,6 +81,7 @@ MODULE neb_methods
    USE replica_methods,                 ONLY: rep_env_create
    USE replica_types,                   ONLY: rep_env_release,&
                                               replica_env_type
+   USE virial_types,                    ONLY: virial_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -99,10 +110,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'neb'
 
-      INTEGER                                            :: handle, ierr, iw, iw2, nr_replica, nrep, &
-                                                            nrep_total, output_unit, pot_type, &
-                                                            prep, proc_dist_type
-      LOGICAL                                            :: check, row_force
+      INTEGER                                            :: force_kind, handle, ierr, iw, iw2, &
+                                                            nr_replica, nrep, nrep_total, &
+                                                            output_unit, pot_type, prep, &
+                                                            proc_dist_type
+      LOGICAL                                            :: check, explicit, row_force
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(f_env_type), POINTER                          :: f_env
@@ -113,6 +126,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: diis_section, force_env_section, &
                                                             md_section, motion_section, &
                                                             neb_section, print_section
+      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
       NULLIFY (logger, subsys, f_env, rep_env)
@@ -168,6 +182,41 @@ CONTAINS
                   number_of_colvar(f_env%force_env, unique=.TRUE.))
          CPASSERT(check)
          CALL read_neb_section(neb_env, neb_section)
+         CALL section_vals_val_get(neb_section, "SOLID_STATE", l_val=neb_env%solid_state)
+         IF (neb_env%solid_state) THEN
+            CALL cite_reference(Sheppard2012)
+            CALL section_vals_val_get(neb_section, "CELL_WEIGHT", r_val=neb_env%cell_weight)
+            CALL section_vals_val_get(neb_section, "EXTERNAL_PRESSURE", r_val=neb_env%external_pressure)
+            IF (.NOT. (neb_env%cell_weight > 0.0_dp)) THEN
+               CPABORT("SOLID_STATE requires a positive CELL_WEIGHT.")
+            END IF
+            IF (nr_replica < 3 .OR. pot_type /= pot_neb_full .OR. neb_env%opt_type /= band_diis_opt .OR. &
+                (neb_env%id_type /= do_it_neb .AND. neb_env%id_type /= do_ci_neb) .OR. &
+                neb_env%optimize_end_points) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "SOLID_STATE requires at least three replicas, POT_TYPE FULL, DIIS, IT-NEB or CI-NEB, "// &
+                             "and fixed endpoints.")
+            END IF
+            CALL force_env_get(neb_env%force_env, in_use=force_kind, cell=cell)
+            CALL cp_subsys_get(subsys, virial=virial)
+            IF (force_kind /= use_qs_force .AND. force_kind /= use_fist_force) THEN
+               CPABORT("SOLID_STATE currently supports Quickstep and FIST.")
+            END IF
+            IF (.NOT. virial%pv_availability .OR. virial%pv_numer .OR. virial%pv_diagonal) THEN
+               CPABORT("SOLID_STATE requires FORCE_EVAL/STRESS_TENSOR ANALYTICAL.")
+            END IF
+            IF (ANY(cell%perd /= 1) .OR. cell%symmetry_id /= cell_sym_none .OR. cell%input_cell_canonicalized) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "SOLID_STATE requires PERIODIC XYZ, no SUBSYS/CELL symmetry, and no automatic cell rotation.")
+            END IF
+            CALL section_vals_get(section_vals_get_subs_vals(motion_section, "CONSTRAINT"), explicit=explicit)
+            IF (explicit .OR. rep_env%ndim /= 3*SIZE(particle_set)) THEN
+               CPABORT("SOLID_STATE does not support constraints or shell particles.")
+            END IF
+            ! The cell frame defines the alignment between replicas.
+            neb_env%align_frames = .FALSE.
+            neb_env%rotate_frames = .FALSE.
+         END IF
          ! Print BAND header
          iw2 = cp_print_key_unit_nr(logger, neb_section, "BANNER", extension=".nebLog")
          CALL band_header(iw2, neb_env%number_of_replica, nrep, prep)
@@ -417,6 +466,7 @@ CONTAINS
       CALL section_vals_val_get(diis_section, "NO_LS", l_val=skip_ls)
       CALL section_vals_val_get(diis_section, "MAX_SD_STEPS", i_val=max_sd_steps)
       CALL section_vals_val_get(diis_section, "CHECK_DIIS", l_val=check_diis)
+      converged = .FALSE.
       iw2 = cp_print_key_unit_nr(logger, diis_section, "DIIS_INFO", &
                                  extension=".diisLog")
       ! Initial setup for DIIS
@@ -483,6 +533,10 @@ CONTAINS
          sline%wrk = stepsize*sline%wrk
          diis_on = accept_diis_step(istep > max_sd_steps, n_diis, err, crr, set_err, sline, coords, &
                                     check_diis, iw2)
+         IF (neb_env%solid_state) THEN
+            sline%wrk(:, 1) = 0.0_dp
+            sline%wrk(:, neb_env%number_of_replica) = 0.0_dp
+         END IF
          IF (diis_on) THEN
             neb_env%opt_type_label = "DIIS"
          END IF

@@ -16,6 +16,7 @@ MODULE input_cp2k_neb
                                               Jonsson1998,&
                                               Jonsson2000_1,&
                                               Jonsson2000_2,&
+                                              Sheppard2012,&
                                               Smidstrup2014,&
                                               Wales2004
    USE cp_output_handling,              ONLY: add_last_numeric,&
@@ -67,7 +68,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="band", &
                           description="The section that controls a BAND run", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
-                          citations=[Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004])
+                          citations=[Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Sheppard2012, Wales2004])
       NULLIFY (keyword, print_key, subsection, subsubsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="NPROC_REP", &
@@ -137,6 +138,30 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="USE_COLVARS", &
                           description="Uses a version of the band scheme projected in a subspace of colvars.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SOLID_STATE", &
+                          description="Optimize atomic positions and six cell deformation coordinates per replica. "// &
+                          "Requires full periodicity, analytical stress, DIIS, IT-NEB or CI-NEB, and fixed endpoints. "// &
+                          "Provide CELL_MATRIX for each input replica. Use the same atom order and lattice "// &
+                          "correspondence with consistently oriented cells and unwrapped positions. "// &
+                          "Fixed-cell IDPP initialization is not supported.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EXTERNAL_PRESSURE", &
+                          description="Hydrostatic pressure for the solid-state enthalpy E+pV.", &
+                          unit_str="bar", default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CELL_WEIGHT", &
+                          description="Relative weight of cell deformation in the solid-state band metric. The "// &
+                          "cell scale is this weight times the mean atomic spacing times sqrt(number of atoms), "// &
+                          "evaluated at the first replica and kept fixed through the optimization.", &
+                          default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -269,6 +294,12 @@ CONTAINS
                           description="Name of the xyz file with coordinates (alternative to &COORD section)", &
                           usage="COORD_FILE_NAME <CHAR>", &
                           default_lc_val="")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="CELL_MATRIX", &
+                          description="The nine components of cell vectors A, B and C in that order. "// &
+                          "Required for solid-state bands. Coordinates are Cartesian in this cell.", &
+                          type_of_var=real_t, n_var=9, unit_str="angstrom")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       ! Coordinates and velocities

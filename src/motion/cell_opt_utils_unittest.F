@@ -35,6 +35,12 @@ PROGRAM cell_opt_utils_TEST
    USE mathconstants,                   ONLY: pi,&
                                               sqrt3,&
                                               sqrthalf
+   USE mathlib,                         ONLY: det_3x3
+   USE solid_state_coordinates,         ONLY: solid_state_force,&
+                                              solid_state_frame,&
+                                              solid_state_frame_type,&
+                                              solid_state_pack,&
+                                              solid_state_unpack
    USE space_groups_types,              ONLY: release_spgr_type,&
                                               spgr_type
    USE string_utilities,                ONLY: remove_word
@@ -66,10 +72,54 @@ PROGRAM cell_opt_utils_TEST
    CALL check_redundancy_and_pinning()
    CALL check_chart_and_pressure()
    CALL check_symmetry_and_spgr()
+   CALL check_solid_state_derivatives()
    CALL release_spgr_type(spgr)
    CALL cell_release(cell)
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Test the joint force against finite differences of a rotationally invariant enthalpy.
+! **************************************************************************************************
+   SUBROUTINE check_solid_state_derivatives()
+      REAL(KIND=dp), PARAMETER :: eps = 1.0E-5_dp, h0(3, 3) = RESHAPE([5.0_dp, 0.0_dp, 0.0_dp, &
+         0.7_dp, 4.5_dp, 0.0_dp, 0.1_dp, -0.4_dp, 5.5_dp], [3, 3]), k_cell = 0.22_dp, &
+         p = 0.013_dp, rotation(3, 3) = RESHAPE([0.6_dp, 0.8_dp, 0.0_dp, -0.8_dp, 0.6_dp, 0.0_dp, &
+         0.0_dp, 0.0_dp, 1.0_dp], [3, 3])
+
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: f(9), f_rot(9), h(3, 3), h_rot(3, 3), &
+                                                            q(9), q_rot(9), r(3), r_rot(3), &
+                                                            trial(9), values(2), w(3, 3)
+      TYPE(solid_state_frame_type)                       :: frame, frame_rot
+
+      CALL solid_state_frame(frame, h0, 1, 1.1_dp)
+      CALL solid_state_frame(frame_rot, MATMUL(rotation, h0), 1, 1.1_dp)
+      q = [1.2_dp, 0.9_dp, 2.1_dp, 0.43_dp, -0.57_dp, 0.22_dp, -0.31_dp, 0.44_dp, 0.17_dp]
+      CALL solid_state_unpack(frame, q, h, r)
+      CALL solid_state_unpack(frame_rot, q, h_rot, r_rot)
+      CALL solid_state_pack(frame_rot, h_rot, r_rot, q_rot)
+      IF (MAXVAL(ABS(q - q_rot)) > 1.0E-12_dp) ERROR STOP "Solid-state coordinate round trip"
+      IF (MAXVAL(ABS(h_rot - MATMUL(rotation, h))) > 1.0E-12_dp) ERROR STOP "Solid-state cell orientation"
+      IF (MAXVAL(ABS(r_rot - MATMUL(rotation, r))) > 1.0E-12_dp) ERROR STOP "Solid-state atom orientation"
+      w = -k_cell*MATMUL(h, TRANSPOSE(h)) - SPREAD(r, 2, 3)*SPREAD(r, 1, 3)
+      CALL solid_state_force(frame, q, -r, w, p*det_3x3(h), f)
+      CALL solid_state_force(frame_rot, q_rot, -r_rot, MATMUL(rotation, MATMUL(w, TRANSPOSE(rotation))), &
+                             p*det_3x3(h_rot), f_rot)
+      IF (MAXVAL(ABS(f_rot - f)) > 1.0E-12_dp) ERROR STOP "Solid-state force changes under rotation"
+      DO i = 1, SIZE(q)
+         trial = q
+         trial(i) = q(i) + eps
+         CALL solid_state_unpack(frame, trial, h, r)
+         values(1) = 0.5_dp*(SUM(r*r) + k_cell*SUM(h*h)) + p*det_3x3(h)
+         trial(i) = q(i) - eps
+         CALL solid_state_unpack(frame, trial, h, r)
+         values(2) = 0.5_dp*(SUM(r*r) + k_cell*SUM(h*h)) + p*det_3x3(h)
+         IF (ABS((values(1) - values(2))/(2.0_dp*eps) + f(i)) > 1.0E-8_dp) THEN
+            ERROR STOP "Solid-state enthalpy force does not match finite differences"
+         END IF
+      END DO
+   END SUBROUTINE check_solid_state_derivatives
 
 ! **************************************************************************************************
 !> \brief Check token masks, label round trips, rejections and 2D defaults.

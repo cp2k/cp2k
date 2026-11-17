@@ -1,0 +1,80 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT argon_ssneb
+  RUN_TYPE BAND
+&END GLOBAL
+
+&MOTION
+  &BAND
+    BAND_TYPE CI-NEB
+    EXTERNAL_PRESSURE 50
+    NUMBER_OF_REPLICA 3
+    SOLID_STATE
+    &CI_NEB
+      NSTEPS_IT 0
+    &END CI_NEB
+    &OPTIMIZE_BAND
+      OPT_TYPE DIIS
+      &DIIS
+        MAX_STEPS 2
+        NO_LS
+        STEPSIZE 15
+      &END DIIS
+    &END OPTIMIZE_BAND
+    &REPLICA
+      CELL_MATRIX 10 0 0 0 10 0 0 0 10
+      &COORD
+        2.0 2.0 2.0
+        5.3 3.0 2.0
+      &END COORD
+    &END REPLICA
+    &REPLICA
+      CELL_MATRIX 10.5 0 0 0.8 9.7 0 -0.3 0.4 10.2
+      &COORD
+        2.1 2.0 2.0
+        5.7 2.6 2.0
+      &END COORD
+    &END REPLICA
+    &REPLICA_INFO ON
+      FILENAME __STD_OUT__
+    &END REPLICA_INFO
+  &END BAND
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS Ar Ar
+          EPSILON 119.8
+          RCUT 4.8
+          SIGMA 3.405
+        &END LENNARD-JONES
+      &END NONBONDED
+      &SPLINE
+        EPS_SPLINE 1.0E-10
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10 10 10
+    &END CELL
+    &COORD
+      Ar 2.0 2.0 2.0
+      Ar 5.3 3.0 2.0
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
