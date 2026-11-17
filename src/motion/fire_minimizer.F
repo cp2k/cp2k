@@ -29,11 +29,11 @@ MODULE fire_minimizer
 
    TYPE fire_state_type
       PRIVATE
-      TYPE(fire_parameters_type) :: params
+      TYPE(fire_parameters_type) :: params = fire_parameters_type()
       REAL(KIND=dp), ALLOCATABLE :: velocity(:), SCALE(:)
-      REAL(KIND=dp) :: dt, alpha, alpha_start, mixing
-      INTEGER :: ncart, iterations, downhill, uphill, delay
-      LOGICAL :: fire2
+      REAL(KIND=dp) :: dt = 0.0_dp, alpha = 0.0_dp, alpha_start = 0.0_dp, mixing = 0.0_dp
+      INTEGER :: ncart = 0, iterations = 0, downhill = 0, uphill = 0, delay = 0
+      LOGICAL :: fire2 = .FALSE.
    END TYPE fire_state_type
 
 CONTAINS
