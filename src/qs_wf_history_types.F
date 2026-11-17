@@ -35,9 +35,29 @@ MODULE qs_wf_history_types
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wf_history_types'
 
-   PUBLIC :: qs_wf_snapshot_type, &
+   PUBLIC :: qs_wf_mo_state_type, qs_wf_snapshot_type, &
              qs_wf_history_type, qs_wf_history_p_type
    PUBLIC :: wfi_retain, wfi_release, wfi_clear, wfi_get_snapshot
+
+! **************************************************************************************************
+!> \brief stores scalar and occupation metadata for an MO set snapshot
+!> \param eigenvalues MO eigenvalues
+!> \param occupation_numbers MO occupation numbers
+!> \param homo index of highest occupied MO
+!> \param lfomo index of lowest fractional/empty MO
+!> \param uniform_occupation whether orbitals 1..homo share uniform occupation
+!> \param kTS electronic entropic energy contribution
+!> \param mu Fermi energy / chemical potential
+! **************************************************************************************************
+   TYPE qs_wf_mo_state_type
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: occupation_numbers
+      INTEGER :: homo = -1
+      INTEGER :: lfomo = -1
+      LOGICAL :: uniform_occupation = .FALSE.
+      REAL(KIND=dp) :: kTS = 0.0_dp
+      REAL(KIND=dp) :: mu = 0.0_dp
+   END TYPE qs_wf_mo_state_type
 
 ! **************************************************************************************************
 !> \brief represent a past snapshot of the wavefunction.
@@ -51,9 +71,9 @@ MODULE qs_wf_history_types
 !> \param wf_kp real k-point MO snapshots
 !> \param wf_kp_cfm complex k-point MO snapshots
 !> \param rho_frozen the frozen density structure
+!> \param mo_state Gamma-point MO eigenvalues and occupations per spin
+!> \param mo_state_kp k-point MO eigenvalues and occupations per local k-point and spin
 !> \param dt the time of the snapshot (wrf to te previous snapshot!)
-!> \note
-!>      keep track also of occupation numbers and energies?
 !> \par History
 !>      02.2003 created [fawzi]
 !>      02.2005 wf_mol added [MI]
@@ -70,6 +90,8 @@ MODULE qs_wf_history_types
       TYPE(cp_cfm_type), DIMENSION(:), POINTER :: overlap_cfm_kp => NULL()
       INTEGER, DIMENSION(:, :), POINTER :: kp_pbc_shift => NULL()
       TYPE(qs_rho_type), POINTER :: rho_frozen => NULL()
+      TYPE(qs_wf_mo_state_type), DIMENSION(:), ALLOCATABLE :: mo_state
+      TYPE(qs_wf_mo_state_type), DIMENSION(:, :), ALLOCATABLE :: mo_state_kp
       REAL(KIND=dp) :: dt = 0.0_dp
    END TYPE qs_wf_snapshot_type
 
@@ -168,6 +190,12 @@ CONTAINS
       IF (ASSOCIATED(snapshot%rho_frozen)) THEN
          CALL qs_rho_release(snapshot%rho_frozen)
          DEALLOCATE (snapshot%rho_frozen)
+      END IF
+      IF (ALLOCATED(snapshot%mo_state)) THEN
+         DEALLOCATE (snapshot%mo_state)
+      END IF
+      IF (ALLOCATED(snapshot%mo_state_kp)) THEN
+         DEALLOCATE (snapshot%mo_state_kp)
       END IF
 
    END SUBROUTINE wfs_release
