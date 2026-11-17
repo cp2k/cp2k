@@ -1762,7 +1762,7 @@ if spack location -i gauxc &> /dev/null; then
     fi
     if ((CUDA_SM_CODE > 0)) && [[ -z "${SKALA_CUDA_MODEL:-}" ]]; then
       echo -e "\nERROR: CUDA support is enabled but no SKALA_CUDA_MODEL file was found in ${GAUXC_MODEL_TARGET_PATH}"
-      ${EXIT_CMD} 1
+      exit 1
     fi
   fi
 fi
