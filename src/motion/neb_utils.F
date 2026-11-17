@@ -50,7 +50,7 @@ MODULE neb_utils
    USE geo_opt,                         ONLY: cp_geo_opt
    USE global_types,                    ONLY: global_environment_type
    USE input_constants,                 ONLY: &
-        band_diis_opt, do_b_neb, do_band_cartesian, do_ci_neb, do_d_neb, do_eb, do_it_neb, do_sm, &
+        band_md_opt, do_b_neb, do_band_cartesian, do_ci_neb, do_d_neb, do_eb, do_it_neb, do_sm, &
         pot_neb_fe, pot_neb_full, pot_neb_me
    USE input_cp2k_check,                ONLY: remove_restart_info
    USE input_cp2k_neb,                  ONLY: neb_li_bisect,&
@@ -428,8 +428,8 @@ CONTAINS
       END IF
       vels%wrk(:, 1) = 0.0_dp
       vels%wrk(:, neb_nr_replica) = 0.0_dp
-      ! If we perform a DIIS optimization we don't need velocities
-      IF (neb_env%opt_type == band_diis_opt) vels%wrk = 0.0_dp
+      ! Only the MD optimizer starts with velocities from the input or a thermal distribution.
+      IF (neb_env%opt_type /= band_md_opt) vels%wrk = 0.0_dp
       ! Compute distances between replicas and in case of Cartesian Coordinates
       ! Rotate the frames in order to minimize the RMSD
       DO j = 1, input_nr_replica - 1

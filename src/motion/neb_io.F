@@ -328,6 +328,8 @@ CONTAINS
       CALL timeset(routineN, handle)
       ndig = CEILING(LOG10(REAL(neb_env%number_of_replica + 1, KIND=dp)))
       CALL force_env_get(neb_env%force_env, cell=cell)
+      vel = -1
+      frc = -1
       DO irep = 1, neb_env%number_of_replica
          ndigl = CEILING(LOG10(REAL(irep + 1, KIND=dp)))
          WRITE (line, '(A,'//cp_to_string(ndig)//'("0"),T'//cp_to_string(11 + ndig + 1 - ndigl)//',I0)') "Replica_nr_", irep
@@ -403,7 +405,12 @@ CONTAINS
          CALL section_vals_val_get(run_info_section, "PLOT_REL_ENERGY", l_val=plot_rel_energy)
          ALLOCATE (temperatures(neb_env%number_of_replica))
          ALLOCATE (ekin(neb_env%number_of_replica))
-         CALL get_temperatures(vels, particle_set, temperatures, ekin=ekin)
+         IF (PRESENT(vels)) THEN
+            CALL get_temperatures(vels, particle_set, temperatures, ekin=ekin)
+         ELSE
+            temperatures = 0.0_dp
+            ekin = 0.0_dp
+         END IF
          energy_label = "ENERGY [au]"
          total_label = "BAND TOTAL ENERGY"
          plot_label = "o-------------------------> E"
