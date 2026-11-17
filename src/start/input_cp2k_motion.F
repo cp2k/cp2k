@@ -103,7 +103,7 @@ CONTAINS
       CALL create_geoopt_section(subsection, __LOCATION__, label="GEO_OPT", &
                                  description="This section sets the environment of the geometry optimizer.", &
                                  just_optimizers=.FALSE., &
-                                 use_model_hessian=.TRUE.)
+                                 use_model_hessian=.TRUE., fire_optimizer=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -781,14 +781,16 @@ CONTAINS
 !> \param description ...
 !> \param just_optimizers ...
 !> \param use_model_hessian ...
+!> \param fire_optimizer expose FIRE and FIRE2 in this section
 !> \par History
 !>      01.2020 keywords related to Space Group Symmetry added [pcazade]
 !> \author teo
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE create_geoopt_section(section, location, label, description, just_optimizers, use_model_hessian)
+   RECURSIVE SUBROUTINE create_geoopt_section(section, location, label, description, just_optimizers, &
+                                              use_model_hessian, fire_optimizer)
       TYPE(section_type), POINTER                        :: section
       CHARACTER(LEN=*), INTENT(IN)                       :: location, label, description
-      LOGICAL, INTENT(IN)                                :: just_optimizers, use_model_hessian
+      LOGICAL, INTENT(IN)                                :: just_optimizers, use_model_hessian, fire_optimizer
 
       CHARACTER(LEN=5), PARAMETER                         :: optimizers(5) = &
                                                              [CHARACTER(LEN=5) :: "BFGS", "LBFGS", "CG", "FIRE", "FIRE2"]
@@ -826,7 +828,7 @@ CONTAINS
 
       nopt = 3
       optimizer_usage = "OPTIMIZER {BFGS|LBFGS|CG}"
-      IF (label == "GEO_OPT" .OR. label == "CELL_OPT") THEN
+      IF (fire_optimizer) THEN
          nopt = SIZE(optimizers)
          optimizer_usage = "OPTIMIZER {BFGS|LBFGS|CG|FIRE|FIRE2}"
       END IF
@@ -961,7 +963,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      IF (nopt == SIZE(optimizers)) THEN
+      IF (fire_optimizer) THEN
          CALL create_fire_section(subsection, band_opt=.FALSE., cell_opt=(label == "CELL_OPT"))
          CALL section_add_subsection(section, subsection)
          CALL section_release(subsection)
@@ -1008,7 +1010,7 @@ CONTAINS
          " The optimization procedure is activated when at least one of the shell-core"// &
          " pairs becomes too elongated, i.e. when the assumption of point dipole is not longer valid.", &
          just_optimizers=.TRUE., &
-         use_model_hessian=.FALSE.)
+         use_model_hessian=.FALSE., fire_optimizer=.FALSE.)
 
       NULLIFY (print_key, subsection)
 
@@ -1049,7 +1051,7 @@ CONTAINS
                                  "upper triangular components during a cell optimization; please "// &
                                  "prepare input accordingly with these three components precisely 0 "// &
                                  "even for cases like the primitive rhombohedral cell of the FCC lattice.", &
-                                 just_optimizers=.TRUE., use_model_hessian=.FALSE.)
+                                 just_optimizers=.TRUE., use_model_hessian=.FALSE., fire_optimizer=.TRUE.)
 
       NULLIFY (keyword, print_key, subsection)
       CALL keyword_create( &
@@ -1275,7 +1277,7 @@ CONTAINS
          subsection2, __LOCATION__, label="ROT_OPT", &
          description="This section sets the environment for the optimization of the rotation of the Dimer.", &
          just_optimizers=.TRUE., &
-         use_model_hessian=.FALSE.)
+         use_model_hessian=.FALSE., fire_optimizer=.FALSE.)
       NULLIFY (subsection3)
       CALL section_create(subsection3, __LOCATION__, name="PRINT", &
                           description="Controls the printing properties during the dimer rotation optimization run", &
