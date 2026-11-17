@@ -54,8 +54,6 @@ function(ADD_FYPP_SOURCES OUTVAR)
                 "${f}" "${of}"
         MAIN_DEPENDENCY "${f}"
         VERBATIM)
-      set_source_files_properties("${of}" PROPERTIES Fortran_FORMAT FREE
-                                                     Fortran_PREPROCESS ON)
     elseif("${f}" MATCHES ".h$")
       # append the output file to the list of outputs
       list(APPEND outfiles "${of}")
