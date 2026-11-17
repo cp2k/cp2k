@@ -194,10 +194,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iunit
       TYPE(section_vals_type), POINTER                   :: powell_section
 
-      INTEGER                                            :: i, j, k, l, ll, m, n, n10, nl, nr, zval
+      INTEGER                                            :: i, j, k, l, ll, m, n, n10, zval
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: xtob
       LOGICAL                                            :: explicit, mult, penalty
-      REAL(KIND=dp)                                      :: al, crad, ear, fopt, pf, rk
+      REAL(KIND=dp)                                      :: crad, fopt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: wem
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
@@ -310,72 +310,7 @@ CONTAINS
       DO
 
          IF (ostate%state == 2) THEN
-            SELECT CASE (basis%basis_type)
-            CASE DEFAULT
-               CPABORT("Unknown basis type for atom_fit_basis")
-            CASE (GTO_BASIS)
-               IF (basis%geometrical) THEN
-                  basis%am = 0._dp
-                  DO l = 0, lmat
-                     DO i = 1, basis%nbas(l)
-                        ll = i - 1 + basis%start(l)
-                        basis%am(i, l) = x(1)*x(1)*(x(2)*x(2))**(ll)
-                     END DO
-                  END DO
-                  basis%aval = x(1)*x(1)
-                  basis%cval = x(2)*x(2)
-               ELSE
-                  DO l = 0, lmat
-                     DO i = 1, basis%nprim(l)
-                        al = x(xtob(i, l))**2
-                        basis%am(i, l) = EXP(al) - 1._dp
-                     END DO
-                  END DO
-               END IF
-               basis%bf = 0._dp
-               basis%dbf = 0._dp
-               basis%ddbf = 0._dp
-               nr = basis%grid%nr
-               DO l = 0, lmat
-                  DO i = 1, basis%nbas(l)
-                     al = basis%am(i, l)
-                     DO k = 1, nr
-                        rk = basis%grid%rad(k)
-                        ear = EXP(-al*basis%grid%rad(k)**2)
-                        basis%bf(k, i, l) = rk**l*ear
-                        basis%dbf(k, i, l) = (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear
-                        basis%ddbf(k, i, l) = (REAL(l*(l - 1), dp)*rk**(l - 2) - &
-                                               2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al**2*rk**(l + 2))*ear
-                     END DO
-                  END DO
-               END DO
-            CASE (STO_BASIS)
-               DO l = 0, lmat
-                  DO i = 1, basis%nbas(l)
-                     al = x(xtob(i, l))**2
-                     basis%as(i, l) = EXP(al) - 1._dp
-                  END DO
-               END DO
-               basis%bf = 0._dp
-               basis%dbf = 0._dp
-               basis%ddbf = 0._dp
-               nr = basis%grid%nr
-               DO l = 0, lmat
-                  DO i = 1, basis%nbas(l)
-                     al = basis%as(i, l)
-                     nl = basis%ns(i, l)
-                     pf = (2._dp*al)**nl*SQRT(2._dp*al/fac(2*nl))
-                     DO k = 1, nr
-                        rk = basis%grid%rad(k)
-                        ear = rk**(nl - 1)*EXP(-al*rk)
-                        basis%bf(k, i, l) = pf*ear
-                        basis%dbf(k, i, l) = pf*(REAL(nl - 1, dp)/rk - al)*ear
-                        basis%ddbf(k, i, l) = pf*(REAL((nl - 2)*(nl - 1), dp)/rk/rk &
-                                                  - al*REAL(2*(nl - 1), dp)/rk + al*al)*ear
-                     END DO
-                  END DO
-               END DO
-            END SELECT
+            CALL restore_basis()
             CALL basis_fit(atom_info, basis, pptype, ostate%f, 0, penalty)
             fopt = MIN(fopt, ostate%f)
          END IF
@@ -403,72 +338,7 @@ CONTAINS
       END IF
       ! Powell may return an earlier best point. Restore its basis on every rank
       ! and recompute the orbitals before exporting contraction coefficients.
-      SELECT CASE (basis%basis_type)
-      CASE DEFAULT
-         CPABORT("Unknown basis type for atom_fit_basis")
-      CASE (GTO_BASIS)
-         IF (basis%geometrical) THEN
-            basis%am = 0._dp
-            DO l = 0, lmat
-               DO i = 1, basis%nbas(l)
-                  ll = i - 1 + basis%start(l)
-                  basis%am(i, l) = x(1)*x(1)*(x(2)*x(2))**(ll)
-               END DO
-            END DO
-            basis%aval = x(1)*x(1)
-            basis%cval = x(2)*x(2)
-         ELSE
-            DO l = 0, lmat
-               DO i = 1, basis%nprim(l)
-                  al = x(xtob(i, l))**2
-                  basis%am(i, l) = EXP(al) - 1._dp
-               END DO
-            END DO
-         END IF
-         basis%bf = 0._dp
-         basis%dbf = 0._dp
-         basis%ddbf = 0._dp
-         nr = basis%grid%nr
-         DO l = 0, lmat
-            DO i = 1, basis%nbas(l)
-               al = basis%am(i, l)
-               DO k = 1, nr
-                  rk = basis%grid%rad(k)
-                  ear = EXP(-al*basis%grid%rad(k)**2)
-                  basis%bf(k, i, l) = rk**l*ear
-                  basis%dbf(k, i, l) = (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear
-                  basis%ddbf(k, i, l) = (REAL(l*(l - 1), dp)*rk**(l - 2) - &
-                                         2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al**2*rk**(l + 2))*ear
-               END DO
-            END DO
-         END DO
-      CASE (STO_BASIS)
-         DO l = 0, lmat
-            DO i = 1, basis%nprim(l)
-               al = x(xtob(i, l))**2
-               basis%as(i, l) = EXP(al) - 1._dp
-            END DO
-         END DO
-         basis%bf = 0._dp
-         basis%dbf = 0._dp
-         basis%ddbf = 0._dp
-         nr = basis%grid%nr
-         DO l = 0, lmat
-            DO i = 1, basis%nbas(l)
-               al = basis%as(i, l)
-               nl = basis%ns(i, l)
-               pf = (2._dp*al)**nl*SQRT(2._dp*al/fac(2*nl))
-               DO k = 1, nr
-                  rk = basis%grid%rad(k)
-                  ear = rk**(nl - 1)*EXP(-al*rk)
-                  basis%bf(k, i, l) = pf*ear
-                  basis%dbf(k, i, l) = pf*(REAL(nl - 1, dp)/rk - al)*ear
-                  basis%ddbf(k, i, l) = pf*(REAL((nl - 2)*(nl - 1), dp)/rk/rk &
-                                            - al*REAL(2*(nl - 1), dp)/rk + al*al)*ear
-               END DO
-            END DO
-         END DO
-      END SELECT
+      CALL restore_basis()
       CALL basis_fit(atom_info, basis, pptype, fopt, 0, penalty)
       IF (iunit > 0) THEN
          CALL atom_print_basis(basis, iunit, " Optimized Basis")
@@ -502,6 +372,84 @@ CONTAINS
          ! no basis test available
       END SELECT
 
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief Restore the radial basis and its derivatives from the Powell parameters.
+! **************************************************************************************************
+      SUBROUTINE restore_basis()
+      INTEGER                                            :: i, k, l, ll, nl, nr
+      REAL(KIND=dp)                                      :: al, ear, pf, rk
+
+         SELECT CASE (basis%basis_type)
+         CASE DEFAULT
+            CPABORT("Unknown basis type for atom_fit_basis")
+         CASE (GTO_BASIS)
+            IF (basis%geometrical) THEN
+               basis%am = 0._dp
+               DO l = 0, lmat
+                  DO i = 1, basis%nbas(l)
+                     ll = i - 1 + basis%start(l)
+                     basis%am(i, l) = x(1)*x(1)*(x(2)*x(2))**(ll)
+                  END DO
+               END DO
+               basis%aval = x(1)*x(1)
+               basis%cval = x(2)*x(2)
+            ELSE
+               DO l = 0, lmat
+                  DO i = 1, basis%nprim(l)
+                     al = x(xtob(i, l))**2
+                     basis%am(i, l) = EXP(al) - 1._dp
+                  END DO
+               END DO
+            END IF
+            basis%bf = 0._dp
+            basis%dbf = 0._dp
+            basis%ddbf = 0._dp
+            nr = basis%grid%nr
+            DO l = 0, lmat
+               DO i = 1, basis%nbas(l)
+                  al = basis%am(i, l)
+                  DO k = 1, nr
+                     rk = basis%grid%rad(k)
+                     ear = EXP(-al*basis%grid%rad(k)**2)
+                     basis%bf(k, i, l) = rk**l*ear
+                     basis%dbf(k, i, l) = (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear
+                     basis%ddbf(k, i, l) = (REAL(l*(l - 1), dp)*rk**(l - 2) - &
+                                            2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al**2*rk**(l + 2))*ear
+                  END DO
+               END DO
+            END DO
+         CASE (STO_BASIS)
+            ! The Slater parameter map is indexed by basis function.
+            DO l = 0, lmat
+               DO i = 1, basis%nbas(l)
+                  al = x(xtob(i, l))**2
+                  basis%as(i, l) = EXP(al) - 1._dp
+               END DO
+            END DO
+            basis%bf = 0._dp
+            basis%dbf = 0._dp
+            basis%ddbf = 0._dp
+            nr = basis%grid%nr
+            DO l = 0, lmat
+               DO i = 1, basis%nbas(l)
+                  al = basis%as(i, l)
+                  nl = basis%ns(i, l)
+                  pf = (2._dp*al)**nl*SQRT(2._dp*al/fac(2*nl))
+                  DO k = 1, nr
+                     rk = basis%grid%rad(k)
+                     ear = rk**(nl - 1)*EXP(-al*rk)
+                     basis%bf(k, i, l) = pf*ear
+                     basis%dbf(k, i, l) = pf*(REAL(nl - 1, dp)/rk - al)*ear
+                     basis%ddbf(k, i, l) = pf*(REAL((nl - 2)*(nl - 1), dp)/rk/rk &
+                                               - al*REAL(2*(nl - 1), dp)/rk + al*al)*ear
+                  END DO
+               END DO
+            END DO
+         END SELECT
+      END SUBROUTINE restore_basis
+
    END SUBROUTINE atom_fit_basis
 ! **************************************************************************************************
 !> \brief ...
@@ -526,8 +474,8 @@ CONTAINS
       INTEGER, DIMENSION(0:lmat)                         :: ncore
       LOGICAL                                            :: explicit, noopt_nlcc, preopt_nlcc
       REAL(KIND=dp) :: afun, charge, de, deig, drho, dx, eig, fopt, oc, pchg, peig, pv, rcm, rcov, &
-         rmax, semicore_level, step_size_scaling, t_ener, t_psir0, t_semi, t_valence, t_virt, &
-         w_ener, w_node, w_psir0, w_semi, w_valence, w_virt, wtot
+                       rmax, semicore_level, step_size_scaling, t_ener, t_psir0, t_semi, t_valence, t_virt, &
+                       w_ener, w_node, w_psir0, w_semi, w_valence, w_virt, wtot
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x, xi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: wem
       REAL(KIND=dp), ALLOCATABLE, &
