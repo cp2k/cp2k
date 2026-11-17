@@ -1,0 +1,21 @@
+# Two equivalent helium basins, one centred on a periodic boundary.
+"helium.inp"      = [
+  {matcher = "Bader_atom_1_electrons", tol = 1e-4, ref = 2.0},
+  {matcher = "Bader_atom_2_electrons", tol = 1e-4, ref = 2.0},
+  {matcher = "Bader_integrated_electrons", tol = 5e-8, ref = 4.0},
+  {matcher = "Bader_electron_balance", tol = 1e-9, ref = 0.0}
+]
+"helium_gapw.inp" = [
+  {matcher = "Bader_atom_1_electrons", tol = 1e-3, ref = 2.0},
+  {matcher = "Bader_atom_2_electrons", tol = 1e-3, ref = 2.0},
+  {matcher = "Bader_integrated_electrons", tol = 1e-8, ref = 4.0},
+  {matcher = "Bader_electron_balance", tol = 1e-9, ref = 0.0}
+]
+# Semicore pseudopotentials produce several density maxima per site.
+"rocksalt.inp"    = [
+  {matcher = "Bader_atom_1_electrons", tol = 3e-4, ref = 8.093162},
+  {matcher = "Bader_atom_5_electrons", tol = 3e-4, ref = 7.906969},
+  {matcher = "Bader_integrated_electrons", tol = 1e-6, ref = 64.0},
+  {matcher = "Bader_electron_balance", tol = 1e-9, ref = 0.0}
+]
+#EOF
