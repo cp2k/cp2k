@@ -3708,7 +3708,7 @@ CONTAINS
       CALL pw_zero(rho_g)
       CALL pw_zero(rho_r)
       CALL get_pw_grid_info(pw_grid=rho_g%pw_grid, dr=dr, vol=volume)
-      q_max = SQRT(SUM((pi/dr)**2))
+      q_max = NORM2(pi/dr)
       CALL calculate_rhotot_elec_gspace(qs_env=qs_env, auxbas_pw_pool=pool, rhotot_elec_gspace=rho_g, &
                                         q_max=q_max, rho_hard=rho_hard, rho_soft=rho_soft, fsign=fsign)
       ! Undo the grid-volume factor in the reciprocal-space coefficients.
