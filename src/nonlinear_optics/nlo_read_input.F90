@@ -359,7 +359,9 @@ CONTAINS
             END IF
             CYCLE
          END IF
-         IF (.NOT. ASSOCIATED(input_value)) CPABORT('Set all FREQ_1 through FREQ_ORDER.')
+         IF (.NOT. ASSOCIATED(input_value)) THEN
+            CPABORT('Set all FREQ_1 through FREQ_ORDER.')
+         END IF
          NULLIFY (words)
          CALL section_vals_val_get(section, frequency_name, c_vals=words)
          IF (.NOT. ASSOCIATED(words)) CPABORT('NLO frequency specification is empty.')
@@ -477,13 +479,17 @@ CONTAINS
       CASE ('VALUE')
          IF (SIZE(tokens) /= 2) CPABORT('FREQ VALUE needs one energy in eV.')
          READ (tokens(2), *, IOSTAT=io_error) frequency%start_ev
-         IF (io_error /= 0) CPABORT('FREQ VALUE requires a finite photon energy in eV.')
+         IF (io_error /= 0) THEN
+            CPABORT('FREQ VALUE requires a finite photon energy in eV.')
+         END IF
          IF (.NOT. ieee_is_finite(frequency%start_ev)) THEN
             CPABORT('FREQ VALUE requires a finite photon energy in eV.')
          END IF
          frequency%n_values = 1
       CASE ('RANGE')
-         IF (SIZE(tokens) /= 4) CPABORT('FREQ RANGE requires start, end and step in eV.')
+         IF (SIZE(tokens) /= 4) THEN
+            CPABORT('FREQ RANGE requires start, end and step in eV.')
+         END IF
          READ (tokens(2), *, IOSTAT=io_error) frequency%start_ev
          IF (io_error /= 0) CPABORT('Invalid FREQ RANGE start energy.')
          READ (tokens(3), *, IOSTAT=io_error) end_ev

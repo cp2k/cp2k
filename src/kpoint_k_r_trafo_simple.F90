@@ -304,7 +304,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(fm_gamma%matrix_struct))
-      CPASSERT(fm_gamma%matrix_struct%nrow_global == fm_gamma%matrix_struct%ncol_global)
+      IF (.NOT. (fm_gamma%matrix_struct%nrow_global == fm_gamma%matrix_struct%ncol_global)) THEN
+         CALL cp__a(__SHORT_FILE__, __LINE__)
+      END IF
       CPASSERT(SIZE(atom_from_bf) == fm_gamma%matrix_struct%nrow_global)
       CPASSERT(ALL(atom_from_bf >= 1) .AND. ALL(atom_from_bf <= SIZE(particle_set)))
       CPASSERT(SIZE(index_to_cell, 1) == 3 .AND. SIZE(index_to_cell, 2) > 0)

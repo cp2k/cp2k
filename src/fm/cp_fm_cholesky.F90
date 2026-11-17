@@ -235,7 +235,8 @@ CONTAINS
          info_out = info
       ELSE
          IF (info /= 0) &
-            CPABORT("Cholesky invert failed: the matrix is not positive definite or ill-conditioned.")
+            CALL cp_abort(__LOCATION__, &
+                          "Cholesky invert failed: the matrix is not positive definite or ill-conditioned.")
       END IF
 
       IF (PRESENT(work) .AND. info == 0) CALL cp_fm_uplo_to_full(matrix, work)

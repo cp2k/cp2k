@@ -281,7 +281,8 @@ CONTAINS
 
       ! check if the max angular momentum exceed the libint one
       IF (max_l_am > coulomb_integral_max_am) THEN
-         CPABORT("The angular momentum needed exceeds the value assumed when configuring libint.")
+         CALL cp_abort(__LOCATION__, &
+                       "The angular momentum needed exceeds the value assumed when configuring libint.")
       END IF
 
       ! Allocate stuff

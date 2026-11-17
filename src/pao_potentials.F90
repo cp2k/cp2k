@@ -136,7 +136,9 @@ CONTAINS
          new_block_V = 0.0_dp
       END IF
       IF (PRESENT(block_D)) THEN
-         CPASSERT(SIZE(block_D, 1) == N .AND. SIZE(block_D, 2) == N .AND. SIZE(block_D, 3) == 3)
+         CPASSERT(SIZE(block_D, 1) == N)
+         CPASSERT(SIZE(block_D, 2) == N)
+         CPASSERT(SIZE(block_D, 3) == 3)
          ALLOCATE (new_block_D(N, N, 3))
          new_block_D = 0.0_dp
       END IF

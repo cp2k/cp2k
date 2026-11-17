@@ -2292,7 +2292,8 @@ CONTAINS
             READ (UNIT=line, FMT=*, ERR=999) atom_index(iatom), vatom(1:3, iatom), weight(iatom)
             no_read_error = .TRUE.
 999         IF (.NOT. no_read_error) THEN
-               CPABORT("Error occurred reading &CASCADE section. Last line read <"//TRIM(line)//">")
+               CALL cp_abort(__LOCATION__, &
+                             "Error occurred reading &CASCADE section. Last line read <"//TRIM(line)//">")
             END IF
             IF ((atom_index(iatom) <= 0) .OR. ((atom_index(iatom) > nparticle))) THEN
                CPABORT("Error occurred reading &CASCADE section: Invalid atom index found")

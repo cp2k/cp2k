@@ -583,7 +583,9 @@ CONTAINS
          measure_unit = "Angstrom^3"
       END SELECT
 
-      IF (measure <= 0.0_dp) CPABORT("KUBO_TRANSPORT transport normalization measure is not positive.")
+      IF (measure <= 0.0_dp) THEN
+         CPABORT("KUBO_TRANSPORT transport normalization measure is not positive.")
+      END IF
 
    END SUBROUTINE setup_transport_geometry
 

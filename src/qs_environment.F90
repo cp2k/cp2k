@@ -647,7 +647,8 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, blacs_env=blacs_env)
       IF (do_kpoints) THEN
          IF (dft_control%qs_control%do_ls_scf) THEN
-            CPABORT("DFT%KPOINTS are not implemented with QS/LS_SCF; use a real-space supercell instead.")
+            CALL cp_abort(__LOCATION__, &
+                          "DFT%KPOINTS are not implemented with QS/LS_SCF; use a real-space supercell instead.")
          END IF
          CALL kpoint_env_initialize(kpoints, para_env, blacs_env, with_aux_fit=dft_control%do_admm)
          CALL kpoint_initialize_mos(kpoints, qs_env%mos)

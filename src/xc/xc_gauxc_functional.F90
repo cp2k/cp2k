@@ -1300,7 +1300,8 @@ CONTAINS
             CPABORT("GAPW low spin ROKS GauXC currently requires HOST execution.")
          END IF
          IF (params%use_gauxc_model .AND. .NOT. use_skala_model) THEN
-            CPABORT("GAPW low spin ROKS GauXC supports only the SKALA model or conventional XC.")
+            CALL cp_abort(__LOCATION__, &
+                          "GAPW low spin ROKS GauXC supports only the SKALA model or conventional XC.")
          END IF
          IF (use_skala_model .AND. TRIM(skala_runtime_key) == "MPI") THEN
             CPABORT("GAPW low spin ROKS Skala requires SKALA_RUNTIME AUTO or SELF.")
@@ -1569,7 +1570,8 @@ CONTAINS
             IF (img == 1) THEN
                matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
             ELSE
-               CPABORT("UNIMPLEMENTED: Handling multiple result matrices in k-point integration")
+               CALL cp_abort(__LOCATION__, &
+                             "UNIMPLEMENTED: Handling multiple result matrices in k-point integration")
             END IF
          ELSE
             CPASSERT(params%nspins == 2)
@@ -1586,7 +1588,8 @@ CONTAINS
                      1.0_dp - REAL(ispin - 1, dp)*2.0_dp)
                END DO
             ELSE
-               CPABORT("UNIMPLEMENTED: Handling multiple result matrices in k-point integration")
+               CALL cp_abort(__LOCATION__, &
+                             "UNIMPLEMENTED: Handling multiple result matrices in k-point integration")
             END IF
             CALL dbcsr_release(vxc_zeta_tmp%matrix)
             DEALLOCATE (vxc_zeta_tmp%matrix)

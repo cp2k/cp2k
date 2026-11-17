@@ -390,7 +390,8 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, __LOCATION__, "PRINT", "Controls the printing of information "// &
+      CALL section_create(subsection, __LOCATION__, &
+                          "PRINT", "Controls the printing of information "// &
                           "during RIXS calculations", repeats=.FALSE.)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="SPECTRUM", &

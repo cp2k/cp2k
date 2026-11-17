@@ -1312,7 +1312,8 @@ CONTAINS
          END IF
          IF (do_hfx) THEN
             IF (.FALSE.) THEN
-               CPWARN("KS matrix no longer correct. Check possible problems with property calculations!")
+               CALL cp_warn(__LOCATION__, &
+                            "KS matrix no longer correct. Check possible problems with property calculations!")
             END IF
          END IF
       END IF ! .NOT. just energy

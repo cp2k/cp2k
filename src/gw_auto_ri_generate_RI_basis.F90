@@ -1896,7 +1896,8 @@ CONTAINS
          VBM = MAXVAL(bs_env%eigenval_scf(bs_env%n_occ(ispin), 1:bs_env%nkp_scf_desymm, ispin))
          CBM = MINVAL(bs_env%eigenval_scf(bs_env%n_occ(ispin) + 1, 1:bs_env%nkp_scf_desymm, ispin))
          IF (.NOT. ieee_is_finite(VBM) .OR. .NOT. ieee_is_finite(CBM) .OR. CBM <= VBM) THEN
-            CPABORT('Periodic AUTO_RI k-averaged training requires a finite positive gap')
+            CALL cp_abort(__LOCATION__, &
+                          'Periodic AUTO_RI k-averaged training requires a finite positive gap')
          END IF
          E_F = 0.5_dp*(VBM + CBM)
 

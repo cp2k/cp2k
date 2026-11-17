@@ -1460,7 +1460,8 @@ CONTAINS
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
 
       IF (ik == -2) THEN
-         CALL cp_abort(__LOCATION__, "section "//TRIM(section%name)//" does not contain keyword "// &
+         CALL cp_abort(__LOCATION__, &
+                       "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
       END IF
 
@@ -1941,7 +1942,8 @@ CONTAINS
       section => coord_section%section
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
       IF (ik == -2) THEN
-         CALL cp_abort(__LOCATION__, "section "//TRIM(section%name)//" does not contain keyword "// &
+         CALL cp_abort(__LOCATION__, &
+                       "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
       END IF
       DO
@@ -2069,7 +2071,8 @@ CONTAINS
       section => ss_section%section
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
       IF (ik == -2) THEN
-         CALL cp_abort(__LOCATION__, "section "//TRIM(section%name)//" does not contain keyword "// &
+         CALL cp_abort(__LOCATION__, &
+                       "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
       END IF
       DO
@@ -2140,7 +2143,8 @@ CONTAINS
       section => ds_section%section
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
       IF (ik == -2) THEN
-         CALL cp_abort(__LOCATION__, "section "//TRIM(section%name)//" does not contain keyword "// &
+         CALL cp_abort(__LOCATION__, &
+                       "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
       END IF
       DO
@@ -2210,7 +2214,8 @@ CONTAINS
       section => ww_section%section
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
       IF (ik == -2) THEN
-         CALL cp_abort(__LOCATION__, "section "//TRIM(section%name)//" does not contain keyword "// &
+         CALL cp_abort(__LOCATION__, &
+                       "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
       END IF
       DO
@@ -2277,7 +2282,8 @@ CONTAINS
       section => invdt_section%section
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
       IF (ik == -2) THEN
-         CALL cp_abort(__LOCATION__, "section "//TRIM(section%name)//" does not contain keyword "// &
+         CALL cp_abort(__LOCATION__, &
+                       "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
       END IF
       DO

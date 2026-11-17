@@ -1392,7 +1392,9 @@ CONTAINS
       CPASSERT(PRESENT(kin_grad_out) .EQV. need_derivatives)
       need_coordinate_derivatives = PRESENT(grid_coord_grad_out)
       CPASSERT(PRESENT(grid_weight_grad_out) .EQV. need_coordinate_derivatives)
-      CPASSERT(PRESENT(atomic_grid_weight_grad_out) .EQV. need_coordinate_derivatives)
+      IF (.NOT. (PRESENT(atomic_grid_weight_grad_out) .EQV. need_coordinate_derivatives)) THEN
+         CALL cp__a(__SHORT_FILE__, __LINE__)
+      END IF
       CPASSERT(PRESENT(atom_coord_grad_out) .EQV. need_coordinate_derivatives)
       CPASSERT((.NOT. need_coordinate_derivatives) .OR. need_derivatives)
       omp_max_threads_restore = omp_get_max_threads()

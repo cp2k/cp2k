@@ -1314,7 +1314,9 @@ CONTAINS
 
       IF (do_extrapolate_kpoints) THEN
 
-         CPASSERT(qs_env%mp2_env%ri_rpa_im_time%kpoint_weights_W_method == kp_weights_W_uniform)
+         IF (.NOT. (qs_env%mp2_env%ri_rpa_im_time%kpoint_weights_W_method == kp_weights_W_uniform)) THEN
+            CALL cp__a(__SHORT_FILE__, __LINE__)
+         END IF
 
          DO i_dim = 1, 3
             IF (periodic(i_dim) == 1) nkp_grid_extra(i_dim) = nkp_grid(i_dim) + 2

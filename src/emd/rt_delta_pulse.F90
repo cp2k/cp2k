@@ -172,7 +172,9 @@ CONTAINS
                END IF
                CALL apply_delta_pulse_electric_periodic(qs_env, mos_old, mos_new, -kvec)
             ELSE
-               CPWARN_IF(periodic, "This application of the delta pulse is not compatible with PBC!")
+               IF (periodic) THEN
+                  CPWARN("This application of the delta pulse is not compatible with PBC!")
+               END IF
                IF (output_unit > 0) THEN
                   WRITE (UNIT=output_unit, FMT="(/,(T3,A,T40))") &
                      "An Electric Delta Kick within the length gauge is applied before running RTP.  "// &

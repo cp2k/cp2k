@@ -207,7 +207,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! the caller (bse_from_bs_env) read the settings afresh from the input; the entry of RI_RPA%GW reads them itself
-      IF (.NOT. ASSOCIATED(bse_env%bse_section)) CPABORT("BSE settings not read: read_bse_section comes first")
+      IF (.NOT. ASSOCIATED(bse_env%bse_section)) THEN
+         CPABORT("BSE settings not read: read_bse_section comes first")
+      END IF
 
       nspins = SIZE(homo_full)
       IF (SIZE(fm_S_ia) /= nspins .OR. SIZE(eigenval_qp, 2) /= nspins) THEN

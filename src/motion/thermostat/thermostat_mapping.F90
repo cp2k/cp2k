@@ -299,7 +299,8 @@ CONTAINS
             CPABORT("Unknown map_info%dis_type")
          END IF
          IF (nglob_cns /= 0) THEN
-            CPABORT("Molecular thermostats with global constraints are impossible!")
+            CALL cp_abort(__LOCATION__, &
+                          "Molecular thermostats with global constraints are impossible!")
          END IF
       ELSE IF (region == do_region_massive) THEN
          ! Massive Region
@@ -318,7 +319,8 @@ CONTAINS
                   last_atom = last_shell
                ELSE
                   IF ((tot_const(icount) > 0) .OR. (nglob_cns /= 0)) THEN
-                     CPABORT("Massive thermostats with constraints are impossible!")
+                     CALL cp_abort(__LOCATION__, &
+                                   "Massive thermostats with constraints are impossible!")
                   END IF
                END IF
                k = 0
@@ -739,7 +741,8 @@ CONTAINS
             CPABORT("Unknown map_info%dis_type")
          END IF
          IF (nglob_cns /= 0) THEN
-            CPABORT("Molecular thermostats with global constraints are impossible!")
+            CALL cp_abort(__LOCATION__, &
+                          "Molecular thermostats with global constraints are impossible!")
          END IF
       ELSE IF (region == do_region_massive) THEN
          ! Massive Region
@@ -758,7 +761,8 @@ CONTAINS
                   last_atom = last_shell
                ELSE
                   IF ((tot_const(icount) > 0) .OR. (nglob_cns /= 0)) THEN
-                     CPABORT("Massive thermostats with constraints are impossible!")
+                     CALL cp_abort(__LOCATION__, &
+                                   "Massive thermostats with constraints are impossible!")
                   END IF
                END IF
                k = 0

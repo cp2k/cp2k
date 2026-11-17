@@ -548,7 +548,8 @@ CONTAINS
       END IF
       IF ((MOD(ngroups, natom) /= 0) .AND. (MOD(natom, ngroups) /= 0) .AND. geometry_did_change) THEN
          IF (ngroups > 1) THEN
-            CPWARN("Better load balancing is reached if NGROUPS is a multiple/divisor of the number of atoms")
+            CALL cp_warn(__LOCATION__, &
+                         "Better load balancing is reached if NGROUPS is a multiple/divisor of the number of atoms")
          END IF
       END IF
       group_size = para_env%num_pe/ngroups
@@ -4331,7 +4332,8 @@ CONTAINS
       CALL release_neighbor_list_sets(nl_2c)
       CALL para_env%max(ri_data%nimg)
       IF (ri_data%nimg > nimg) THEN
-         CPABORT("Make sure the smallest exponent of the RI-HFX basis is larger than that of the ORB basis.")
+         CALL cp_abort(__LOCATION__, &
+                       "Make sure the smallest exponent of the RI-HFX basis is larger than that of the ORB basis.")
       END IF
 
       !Keep track of which images will not contribute, so that can be ignored before calculation

@@ -159,7 +159,8 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, energy=energy, para_env=para_env)
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, virial=virial)
       IF (do_kpoints) THEN
-         CPABORT("Local electric field with kpoints not possible. Use Berry phase periodic version")
+         CALL cp_abort(__LOCATION__, &
+                       "Local electric field with kpoints not possible. Use Berry phase periodic version")
       END IF
       ! disable stress calculation
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)

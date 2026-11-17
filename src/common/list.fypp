@@ -398,7 +398,8 @@
          END IF
          IF (new_cap > HUGE(i)) THEN
             IF (size(list%arr) == HUGE(i)) THEN
-               CPABORT("list_${valuetype}$_change_capacity: list has reached integer limit.")
+               CALL cp_abort(__LOCATION__, &
+                             "list_${valuetype}$_change_capacity: list has reached integer limit.")
             END IF
             new_cap = HUGE(i) ! grow as far as possible
          END IF

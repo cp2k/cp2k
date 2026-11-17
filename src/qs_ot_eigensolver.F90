@@ -539,7 +539,8 @@ CONTAINS
                END IF
             CASE (ot_precond_full_single)
                IF (.NOT. PRESENT(mo_set)) THEN
-                  CPABORT('Complex FULL_SINGLE eigensolver preconditioning requires MO energy labels')
+                  CALL cp_abort(__LOCATION__, &
+                                'Complex FULL_SINGLE eigensolver preconditioning requires MO energy labels')
                END IF
                CALL make_preconditioner_complex_full_single( &
                   local_preconditioner, matrix_h, matrix_h_im, matrix_s, matrix_s_im, mo_set, &

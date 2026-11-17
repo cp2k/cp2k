@@ -1223,7 +1223,8 @@ CONTAINS
       CASE ("MONKHORST-PACK", "MACDONALD", "GENERAL")
          ! supported below
       CASE DEFAULT
-         CPABORT("TREXIO%FULL_KPOINT_GRID supports only MONKHORST-PACK, MACDONALD, and GENERAL k-points.")
+         CALL cp_abort(__LOCATION__, &
+                       "TREXIO%FULL_KPOINT_GRID supports only MONKHORST-PACK, MACDONALD, and GENERAL k-points.")
       END SELECT
 
       logger => cp_get_default_logger()

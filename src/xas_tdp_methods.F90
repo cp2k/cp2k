@@ -1055,7 +1055,8 @@ CONTAINS
              (.NOT. qs_env%admm_env%purification_method == do_admm_purify_cauchy_subspace) .AND. &
              (.NOT. qs_env%admm_env%purification_method == do_admm_purify_mo_diag)) THEN
 
-            CPABORT("XAS_TDP only compatible with ADMM purification NONE, CAUCHY_SUBSPACE and MO_DIAG")
+            CALL cp_abort(__LOCATION__, &
+                          "XAS_TDP only compatible with ADMM purification NONE, CAUCHY_SUBSPACE and MO_DIAG")
 
          END IF
       END IF

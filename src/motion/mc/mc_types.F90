@@ -2094,7 +2094,8 @@ CONTAINS
 ! of units in that molecule
       DO imol_type = 1, nmol_types
          IF (mc_par%avbmc_atom(imol_type) > nunits(imol_type)) THEN
-            CPABORT('Cannot have avbmc_atom higher than the number of atoms for that molecule type!')
+            CALL cp_abort(__LOCATION__, &
+                          'Cannot have avbmc_atom higher than the number of atoms for that molecule type!')
          END IF
       END DO
 

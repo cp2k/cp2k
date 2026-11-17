@@ -1269,7 +1269,8 @@ CONTAINS
       nspins = SIZE(evects, 1)
       nstates = SIZE(evects, 2)
 
-      CPASSERT(nspins == 1) ! Other spins are not yet implemented for exciton descriptors
+      ! Other spins are not yet implemented for exciton descriptors
+      CPASSERT(nspins == 1)
 
       CALL cp_fm_get_info(gs_mos(1)%mos_occ, context=blacs_env)
       CALL dbcsr_get_info(matrix_s, nfullrows_total=nao)

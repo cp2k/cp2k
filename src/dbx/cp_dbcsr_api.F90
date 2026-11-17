@@ -258,7 +258,9 @@ CONTAINS
       IF (USE_DBCSR_BACKEND) THEN
          CALL dbcsr_add_prv(matrix_a%dbcsr, matrix_b%dbcsr, alpha_scalar, beta_scalar)
       ELSE
-         IF (alpha_scalar /= 1.0_dp .OR. beta_scalar /= 1.0_dp) CPABORT("Not yet implemented for DBM.")
+         IF (alpha_scalar /= 1.0_dp .OR. beta_scalar /= 1.0_dp) THEN
+            CPABORT("Not yet implemented for DBM.")
+         END IF
          CALL dbm_add(matrix_a%dbm, matrix_b%dbm)
       END IF
    END SUBROUTINE dbcsr_add

@@ -1624,7 +1624,9 @@ CONTAINS
       IF (my_lattice_fft /= ot_lattice_fft_off) THEN
          subsys_section => section_vals_get_subs_vals(input, "SUBSYS")
          IF (.NOT. ASSOCIATED(subsys_section)) THEN
-            IF (my_lattice_fft == ot_lattice_fft_on) CPABORT("LATTICE_FFT ON requires a SUBSYS section")
+            IF (my_lattice_fft == ot_lattice_fft_on) THEN
+               CPABORT("LATTICE_FFT ON requires a SUBSYS section")
+            END IF
             my_lattice_fft = ot_lattice_fft_off
          END IF
          IF (my_lattice_fft /= ot_lattice_fft_off) THEN

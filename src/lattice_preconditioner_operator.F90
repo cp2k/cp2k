@@ -196,7 +196,9 @@ CONTAINS
       IF (ANY(lattice_dims <= 0)) CPABORT("Lattice dimensions must be positive")
       n = SIZE(operator_matrix, 1)
       ncell = PRODUCT(lattice_dims)
-      IF (MODULO(n, ncell) /= 0) CPABORT("AO dimension does not match replicated cells")
+      IF (MODULO(n, ncell) /= 0) THEN
+         CPABORT("AO dimension does not match replicated cells")
+      END IF
       IF (local_cell_count <= 0 .OR. local_cell_count >= ncell) THEN
          CPABORT("Lattice local correction requires between one and ncell-1 cells")
       END IF
@@ -290,7 +292,9 @@ CONTAINS
       IF (ANY(lattice_dims <= 0)) CPABORT("Lattice dimensions must be positive")
       n = SIZE(operator_matrix, 1)
       ncell = PRODUCT(lattice_dims)
-      IF (MODULO(n, ncell) /= 0) CPABORT("AO dimension does not match replicated cells")
+      IF (MODULO(n, ncell) /= 0) THEN
+         CPABORT("AO dimension does not match replicated cells")
+      END IF
       block_size = n/ncell
 
       ALLOCATE (index_to_cell(3, ncell), xkp(3, ncell))
@@ -581,7 +585,8 @@ CONTAINS
       ncell = PRODUCT(lattice_dims)
       block_size = SIZE(inverse_k, 1)
       IF (SIZE(inverse_k, 2) /= block_size .OR. SIZE(inverse_k, 3) /= ncell) THEN
-         CPABORT("Inconsistent state-dependent inverse blocks in lattice preconditioner")
+         CALL cp_abort(__LOCATION__, &
+                       "Inconsistent state-dependent inverse blocks in lattice preconditioner")
       END IF
       IF (PRESENT(state_indices)) THEN
          IF (SIZE(state_indices) /= SIZE(matrix_in, 2) .OR. &
@@ -589,7 +594,8 @@ CONTAINS
             CPABORT("Invalid state indices in lattice preconditioner")
          END IF
       ELSE IF (SIZE(inverse_k, 4) /= SIZE(matrix_in, 2)) THEN
-         CPABORT("Inconsistent state-dependent inverse blocks in lattice preconditioner")
+         CALL cp_abort(__LOCATION__, &
+                       "Inconsistent state-dependent inverse blocks in lattice preconditioner")
       END IF
       IF (SIZE(matrix_in, 1) /= block_size*ncell .OR. &
           ANY(SHAPE(matrix_out) /= SHAPE(matrix_in))) THEN

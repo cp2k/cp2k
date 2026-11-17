@@ -759,7 +759,8 @@ CONTAINS
       NULLIFY (scf_control)
       CALL get_qs_env(rtbse_env%qs_env, scf_control=scf_control)
       IF (scf_control%density_guess /= restart_guess) THEN
-         CPWARN("RT_RESTART without SCF_GUESS RESTART - SCF may reconverge to a gauge-rotated MO basis.")
+         CALL cp_warn(__LOCATION__, &
+                      "RT_RESTART without SCF_GUESS RESTART - SCF may reconverge to a gauge-rotated MO basis.")
       END IF
    END SUBROUTINE read_restart_info
 ! **************************************************************************************************

@@ -305,7 +305,9 @@ CONTAINS
 
       info = tb%calc%variable_info()
       IF (info%charge > shell_resolved) CPABORT("tblite: no support for orbital resolved charge")
-      IF (info%dipole > atom_resolved) CPABORT("tblite: no support for shell resolved dipole moment")
+      IF (info%dipole > atom_resolved) THEN
+         CPABORT("tblite: no support for shell resolved dipole moment")
+      END IF
       IF (info%quadrupole > atom_resolved) THEN
          CPABORT("tblite: no support shell resolved quadrupole moment")
       END IF

@@ -354,7 +354,8 @@ CONTAINS
          ! Assertion on number of non-zero elements
          !(TODO: update when PEXSI changes to Long Int)
          IF (pexsi_env%csr_mat_s%nze_total >= INT(2, kind=int_8)**31) THEN
-            CPABORT("Total number of non-zero elements of CSR matrix is too large to be handled by PEXSI")
+            CALL cp_abort(__LOCATION__, &
+                          "Total number of non-zero elements of CSR matrix is too large to be handled by PEXSI")
          END IF
       END IF
 

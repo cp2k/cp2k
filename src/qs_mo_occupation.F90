@@ -546,7 +546,9 @@ CONTAINS
                mo_set%mu = gce_mu
                gce%prev_workfunction = gce%ref_esp - mo_set%mu
                is_large = ABS(mo_set%occupation_numbers(1) - mo_set%maxocc) > smear%eps_fermi_dirac
-               CPWARN_IF(is_large .AND. my_emit_warnings, "Fermi-Dirac smearing includes the first MO")
+               IF (is_large .AND. my_emit_warnings) THEN
+                  CPWARN("Fermi-Dirac smearing includes the first MO")
+               END IF
             END IF
             DO i = 1, SIZE(mo_set%occupation_numbers)
                IF (mo_set%occupation_numbers(i) < mo_set%maxocc) THEN

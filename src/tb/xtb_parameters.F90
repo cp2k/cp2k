@@ -634,7 +634,8 @@ CONTAINS
          param%ngauss(1:3) = number_of_primitives(:, i)
          ! check for consistency
          IF (ABS(param%zeff - SUM(param%occupation)) > 1.E-10_dp) THEN
-            CALL cp_abort(__LOCATION__, "Element <"//TRIM(param%aname)//"> has inconsistent shell occupations")
+            CALL cp_abort(__LOCATION__, &
+                          "Element <"//TRIM(param%aname)//"> has inconsistent shell occupations")
          END IF
          ! orbital energies [evolt] -> [a.u.]
          param%hen = param%hen/evolt

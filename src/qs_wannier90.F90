@@ -550,7 +550,8 @@ CONTAINS
                CPABORT("Wilson loop and transverse vectors must be linearly independent.")
             END IF
             IF (do_chern .AND. MAXVAL(ABS(transverse - NINT(transverse))) > 1.e-10_dp) THEN
-               CPABORT("CHERN requires integer WILSON_TRANSVERSE: a closed full surface, not a half-plane.")
+               CALL cp_abort(__LOCATION__, &
+                             "CHERN requires integer WILSON_TRANSVERSE: a closed full surface, not a half-plane.")
             END IF
             IF (do_z2) THEN
                IF (MAXVAL(ABS(2*loop_origin - NINT(2*loop_origin))) > 1.e-10_dp .OR. &
@@ -689,7 +690,8 @@ CONTAINS
             kpt_latt(1:3, 1:num_kpts) = xkp_source(1:3, 1:num_kpts)
             IF (mp_grid_explicit) THEN
                IF (mp_grid(1)*mp_grid(2)*mp_grid(3) /= num_kpts) THEN
-                  CPABORT("WANNIER90%MP_GRID must contain exactly as many points as the SCF GENERAL mesh.")
+                  CALL cp_abort(__LOCATION__, &
+                                "WANNIER90%MP_GRID must contain exactly as many points as the SCF GENERAL mesh.")
                END IF
             ELSE
                CALL infer_wannier_mp_grid(kpt_latt, mp_grid, mp_grid_valid)
@@ -764,7 +766,8 @@ CONTAINS
             CPABORT("Z2 requires one occupied spinor per electron; adjust EXCLUDE_BANDS.")
          END IF
          IF (num_bands == num_bands_tot .OR. MOD(num_bands, 2) /= 0) THEN
-            CPABORT("Z2 needs an even occupied spinor subspace and at least one excluded conduction band.")
+            CALL cp_abort(__LOCATION__, &
+                          "Z2 needs an even occupied spinor subspace and at least one excluded conduction band.")
          END IF
          IF (ANY(band_indices /= [(i, i=1, num_bands)])) THEN
             CPABORT("Z2 requires the lowest occupied spinor bands.")

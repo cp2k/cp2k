@@ -235,7 +235,8 @@ CONTAINS
             IF (.NOT. mtlr_kind(ikind)) CYCLE
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list)
             IF (.NOT. ANY(atom_list == qs_kind_set(ikind)%dft_plus_u%lr_atom)) THEN
-               CPABORT("INDEX_PERTURBED_ATOM does not belong to the KIND containing the MTLR section.")
+               CALL cp_abort(__LOCATION__, &
+                             "INDEX_PERTURBED_ATOM does not belong to the KIND containing the MTLR section.")
             END IF
             IF (.NOT. ALLOCATED( &
                 qs_kind_set(ikind)%dft_plus_u%perturbation_strength)) THEN

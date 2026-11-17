@@ -962,7 +962,8 @@ CONTAINS
             CALL close_file(unit_im)
          ELSE
             moments(i, :, 1:max_n) = CMPLX(0.0, 0.0, kind=dp)
-            CPWARN("Could not read at least one moments file - missing trace is set to zero.")
+            CALL cp_warn(__LOCATION__, &
+                         "Could not read at least one moments file - missing trace is set to zero.")
          END IF
       END DO
    END SUBROUTINE read_moments

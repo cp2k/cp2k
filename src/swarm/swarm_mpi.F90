@@ -115,7 +115,9 @@ CONTAINS
          CALL subgroup%from_split(swarm_mpi%world, 2)
          subgroup_size = subgroup%num_pe
          subgroup_rank = subgroup%mepos
-         IF (subgroup_size /= swarm_mpi%world%num_pe - 1) CPABORT("mp_comm_split_direct failed (worker)")
+         IF (subgroup_size /= swarm_mpi%world%num_pe - 1) THEN
+            CPABORT("mp_comm_split_direct failed (worker)")
+         END IF
       END IF
 
       ALLOCATE (swarm_mpi%wid2group(n_workers))

@@ -1328,7 +1328,8 @@ CONTAINS
       CPASSERT(ALLOCATED(auto_ri%U_Pp_atom_offset))
       CPASSERT(SIZE(auto_ri%sizes_ref_RI) > 0)
       CPASSERT(SIZE(auto_ri%sizes_ref_RI) == SIZE(auto_ri%sizes_opt_RI))
-      CPASSERT(SIZE(auto_ri%U_Pp_atom_offset) == SIZE(auto_ri%sizes_ref_RI))
+      valid_layout = SIZE(auto_ri%U_Pp_atom_offset) == SIZE(auto_ri%sizes_ref_RI)
+      CPASSERT(valid_layout)
       valid_layout = ALL(auto_ri%sizes_ref_RI > 0) .AND. ALL(auto_ri%sizes_opt_RI > 0)
       CPASSERT(valid_layout)
       CALL cp_fm_get_info(images(1), nrow_local=nr, ncol_local=nc, &
