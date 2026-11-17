@@ -2606,16 +2606,18 @@ CONTAINS
    SUBROUTINE write_mo_free_results(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_free_results'
+      CHARACTER(len=*), PARAMETER :: bader_cube_key = "DFT%PRINT%BADER%BASIN_CUBE", &
+         routineN = 'write_mo_free_results'
       CHARACTER(len=1), DIMENSION(3), PARAMETER          :: cdir = ["x", "y", "z"]
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
                                                             my_pos_voro
       CHARACTER(LEN=default_string_length)               :: name, print_density
-      INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, n_rep_hf, natom, nd(3), &
-         ngto, niso, nkind, np, nr, output_unit, print_level, should_print_bqb, should_print_voro, &
-         unit_nr, unit_nr_voro
+      INTEGER :: after, bader_cube_unit, handle, i, iat, id, ikind, img, iso, ispin, iw, l, &
+         n_rep_hf, natom, nd(3), ngto, niso, nkind, np, nr, output_unit, print_level, &
+         should_print_bqb, should_print_voro, unit_nr, unit_nr_voro
+      INTEGER, POINTER                                   :: bader_cube_stride(:)
       LOGICAL :: append_cube, append_voro, assign_nearest, do_hfx, do_kpoints, mpi_io, &
          omit_headers, print_it, rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
       LOGICAL, ALLOCATABLE                               :: bader_nucleus(:), nuclear_kind(:)
@@ -2709,6 +2711,10 @@ CONTAINS
          CALL section_vals_val_get(input, "DFT%PRINT%BADER%VACUUM_DENSITY", r_val=vacuum_density)
          CALL section_vals_val_get(input, "DFT%PRINT%BADER%ASSIGN_NEAREST_ATOM", l_val=assign_nearest)
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%BADER", extension=".bader")
+         bader_cube_unit = cp_print_key_unit_nr(logger, input, bader_cube_key, &
+                                                extension=".cube", file_status="REPLACE", file_position="REWIND", &
+                                                on_file=.TRUE.)
+         bader_cube_stride => section_get_ivals(input, bader_cube_key//"%STRIDE")
          SELECT CASE (dft_control%qs_control%method_id)
          CASE (do_method_gpw)
             DO ikind = 1, nkind
@@ -2718,7 +2724,8 @@ CONTAINS
                END IF
             END DO
             CALL print_bader_analysis(rho_r, cell, particle_set, zcharge, bader_nucleus, bader_electrons, &
-                                      "the spin-summed GPW valence density", vacuum_density, assign_nearest, unit_nr)
+                                      "the spin-summed GPW valence density", vacuum_density, assign_nearest, &
+                                      unit_nr, bader_cube_unit, bader_cube_stride)
          CASE (do_method_gapw)
             IF (do_kpoints) CPABORT("GAPW BADER does not support k-points.")
             DO ikind = 1, nkind
@@ -2735,12 +2742,14 @@ CONTAINS
             CALL reconstruct_gapw_density(qs_env, auxbas_pw_pool, rho_elec_gspace, rho_elec_rspace, &
                                           q_max, rho_hard, rho_soft)
             CALL print_bader_analysis([rho_elec_rspace], cell, particle_set, zcharge, bader_nucleus, bader_electrons, &
-                                      "the reconstructed GAPW electron density", vacuum_density, assign_nearest, unit_nr)
+                                      "the reconstructed GAPW electron density", vacuum_density, assign_nearest, &
+                                      unit_nr, bader_cube_unit, bader_cube_stride)
             CALL auxbas_pw_pool%give_back_pw(rho_elec_gspace)
             CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
          CASE DEFAULT
             CPABORT("BADER requires GPW or GAPW.")
          END SELECT
+         CALL cp_print_key_finished_output(bader_cube_unit, logger, input, bader_cube_key, on_file=.TRUE.)
          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%BADER")
       END IF
 

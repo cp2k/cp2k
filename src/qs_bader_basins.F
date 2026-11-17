@@ -38,9 +38,10 @@ CONTAINS
 !> \param atom_grid optional atom positions in grid coordinates, for nearest-atom grouping of maxima
 !> \param n_extra optional number of maxima without a unique nuclear seed
 !> \param extra optional electron population and volume of these maxima before assignment
+!> \param labels optional strongest-uphill labels (atom index, 0 for vacuum, -1 if no unique owner)
 ! **************************************************************************************************
    SUBROUTINE bader_integrate_grid(rho, n, spacing, periodic, cutoff, seeds, atomic, assigned, other, vacuum, &
-                                   n_other, atom_grid, n_extra, extra)
+                                   n_other, atom_grid, n_extra, extra, labels)
       REAL(KIND=dp), INTENT(IN)                          :: rho(:), SPACING(3), cutoff
       INTEGER, INTENT(IN)                                :: n(3), seeds(:)
       LOGICAL, INTENT(IN)                                :: periodic(3)
@@ -50,6 +51,7 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL, INTENT(IN)                :: atom_grid(:, :)
       INTEGER, OPTIONAL, INTENT(OUT)                     :: n_extra
       REAL(KIND=dp), OPTIONAL, INTENT(OUT)                :: extra(2)
+      INTEGER, OPTIONAL, INTENT(OUT)                      :: labels(:)
 
       INTEGER :: head, tail, active, i, j, k, member, root, atom, natom, ng
       INTEGER :: neighbor(6), other_neighbors(6)
@@ -63,6 +65,9 @@ CONTAINS
       CPASSERT(ALL(n > 0) .AND. ALL(spacing > 0.0_dp))
       CPASSERT(SIZE(assigned) == natom)
       CPASSERT(ALL(SHAPE(atomic) == [2, natom]))
+      IF (PRESENT(labels)) THEN
+         CPASSERT(SIZE(labels) == ng)
+      END IF
       IF (PRESENT(atom_grid)) THEN
          CPASSERT(natom > 0)
          CPASSERT(ALL(SHAPE(atom_grid) == [3, natom]))
@@ -206,6 +211,14 @@ CONTAINS
             n_other = n_other + 1
          END IF
       END DO
+      IF (PRESENT(labels)) THEN
+         labels = 0
+         DO i = 1, ng
+            IF (component(i) == 0) CYCLE
+            atom = degree(attractor(component(i)))
+            labels(i) = MERGE(atom, -1, atom > 0)
+         END DO
+      END IF
 
    CONTAINS
 
@@ -280,10 +293,12 @@ CONTAINS
          nearest = MINVAL(distance2)
          tol = 16.0_dp*EPSILON(1.0_dp)*MAX(1.0_dp, nearest)
          ties = COUNT(distance2 <= nearest + tol)
+         IF (PRESENT(labels)) degree(point) = -1
          DO a = 1, natom
             IF (distance2(a) > nearest + tol) CYCLE
             atomic(:, a) = atomic(:, a) + flow(:, point)/ties
             assigned(a) = .TRUE.
+            IF (PRESENT(labels) .AND. ties == 1) degree(point) = a
          END DO
       END SUBROUTINE add_to_nearest
 

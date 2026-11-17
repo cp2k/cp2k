@@ -955,6 +955,22 @@ CONTAINS
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      NULLIFY (sub_print_key)
+      CALL cp_print_key_section_create(sub_print_key, __LOCATION__, "BASIN_CUBE", &
+                                       description="Write a Gaussian cube of basin labels, using the strongest uphill "// &
+                                       "path to assign one discrete label per point. Positive values are the one-based "// &
+                                       "atom indices, zero denotes vacuum, and -1 denotes basins without a unique atom. "// &
+                                       "For visualization only: the table uses weighted flux, not these labels. "// &
+                                       "Enable explicitly inside BADER with BASIN_CUBE ON.", &
+                                       print_level=debug_print_level + 1, filename="bader-basins")
+      CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
+                          description="Cube sampling stride. Supply one value for all directions or three values. "// &
+                          "This does not affect the integration grid.", &
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=[1, 1, 1], type_of_var=integer_t)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(print_key, sub_print_key)
+      CALL section_release(sub_print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

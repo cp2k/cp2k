@@ -85,9 +85,11 @@ CONTAINS
 !> \param zero_tails ...
 !> \param silent ...
 !> \param mpi_io ...
+!> \param gathered_labels optional integer grid already gathered on the output rank.
+!>        In this mode only that rank calls the writer, without MPI I/O or zero-tail filtering.
 ! **************************************************************************************************
    SUBROUTINE pw_to_cube(pw, unit_nr, title, particles_r, particles_z, particles_zeff, &
-                         stride, max_file_size_mb, zero_tails, silent, mpi_io)
+                         stride, max_file_size_mb, zero_tails, silent, mpi_io, gathered_labels)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
@@ -98,6 +100,7 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: max_file_size_mb
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
+      INTEGER, INTENT(IN), OPTIONAL                      :: gathered_labels(:, :, :)
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_to_cube'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
@@ -150,6 +153,10 @@ CONTAINS
       CPASSERT(my_stride(1) > 0)
       CPASSERT(my_stride(2) > 0)
       CPASSERT(my_stride(3) > 0)
+      IF (PRESENT(gathered_labels)) THEN
+         CPASSERT(unit_nr > 0 .AND. .NOT. parallel_write .AND. .NOT. my_zero_tails)
+         CPASSERT(ALL(SHAPE(gathered_labels) == pw%pw_grid%npts))
+      END IF
 
       IF (.NOT. parallel_write) THEN
          IF (unit_nr > 0) THEN
@@ -194,6 +201,16 @@ CONTAINS
                   END DO
                END IF
             END IF
+         END IF
+
+         IF (PRESENT(gathered_labels)) THEN
+            DO I1 = 1, pw%pw_grid%npts(1), my_stride(1)
+               DO I2 = 1, pw%pw_grid%npts(2), my_stride(2)
+                  WRITE (unit_nr, cube_values_format) REAL(gathered_labels(I1, I2, 1::my_stride(3)), dp)
+               END DO
+            END DO
+            CALL timestop(handle)
+            RETURN
          END IF
 
          ! shortcut
