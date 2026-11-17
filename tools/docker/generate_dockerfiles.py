@@ -897,6 +897,7 @@ WORKDIR /opt/cp2k
 COPY ./tools/spack ./tools/spack
 COPY ./tools/docker ./tools/docker
 COPY ./make_cp2k.sh .
+COPY ./tools/make_cp2k ./tools/make_cp2k
 RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} {gcc_version_flag} -j${{NUM_PROCS}} -mpi {mpi_mode} {use_externals} {feature_flags}
 
 ###### Stage 2: Build CP2K ######
