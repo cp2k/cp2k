@@ -11,10 +11,10 @@
 - VoronoiIPZ collective variable for proton tracking
   ([#5592](https://github.com/cp2k/cp2k/pull/5592))
 - Native spin polarization for GFN1/2-xTB ([#5611](https://github.com/cp2k/cp2k/pull/5611))
-- RI-RS GW scaling ([#5621](https://github.com/cp2k/cp2k/pull/5621),
+- RI-RS GW for molecular and periodic systems ([#5621](https://github.com/cp2k/cp2k/pull/5621),
   [#5780](https://github.com/cp2k/cp2k/pull/5780), [#5918](https://github.com/cp2k/cp2k/pull/5918),
-  [#5989](https://github.com/cp2k/cp2k/pull/5989), [#6003](https://github.com/cp2k/cp2k/pull/6003),
-  [#6036](https://github.com/cp2k/cp2k/pull/6036))
+  [#6003](https://github.com/cp2k/cp2k/pull/6003), [#6036](https://github.com/cp2k/cp2k/pull/6036),
+  [#6447](https://github.com/cp2k/cp2k/pull/6447))
 - Linearized RT-BSE and open-shell BSE ([#5627](https://github.com/cp2k/cp2k/pull/5627))
 - Tensorial DFT+U+J and self-consistent minimum-tracking linear response
   ([#5631](https://github.com/cp2k/cp2k/pull/5631))
@@ -35,6 +35,9 @@
 - L-BFGS OT minimizer ([#5832](https://github.com/cp2k/cp2k/pull/5832))
 - ADIIS algorithm for diagonalization ([#5844](https://github.com/cp2k/cp2k/pull/5844),
   [#5866](https://github.com/cp2k/cp2k/pull/5866))
+- Vacuum-level output for slab dipole correction ([#5856](https://github.com/cp2k/cp2k/pull/5856))
+- NNP: Add GPU offload for Behler-Parrinello force evaluation
+  ([#5869](https://github.com/cp2k/cp2k/pull/5869))
 - Basis optimization for HOMO-LUMO gaps ([#5870](https://github.com/cp2k/cp2k/pull/5870))
 - Extend OT to k-points and fractional occupations ([#5874](https://github.com/cp2k/cp2k/pull/5874),
   [#5887](https://github.com/cp2k/cp2k/pull/5887), [#5916](https://github.com/cp2k/cp2k/pull/5916))
@@ -70,6 +73,17 @@
 - Low-spin ROKS energies and orbital derivatives with GAPW
   ([#6257](https://github.com/cp2k/cp2k/pull/6257))
 - Chargemol WFX export with OT ([#6276](https://github.com/cp2k/cp2k/pull/6276))
+- SOC dipole ([#6285](https://github.com/cp2k/cp2k/pull/6285))
+- Generalized single Determinant S^2 Estimate ([#6327](https://github.com/cp2k/cp2k/pull/6327))
+- k-point symmetry for initial basis in ADMM ([#6356](https://github.com/cp2k/cp2k/pull/6356))
+- CC4S interface for MP2, CCSD and CCSD(T) calculations
+  ([#6393](https://github.com/cp2k/cp2k/pull/6393))
+- Exact RPA diagonalization for molecular GW ([#6399](https://github.com/cp2k/cp2k/pull/6399))
+- Augmented MOLOPT basis sets for GTH ([#6403](https://github.com/cp2k/cp2k/pull/6403))
+- CELL_OPT: optimize cell in reduced constraint coordinates
+  ([#6433](https://github.com/cp2k/cp2k/pull/6433))
+- RI-HFX for GAPW low-spin ROKS ([#6496](https://github.com/cp2k/cp2k/pull/6496))
+- IDPP initialization for Cartesian bands ([#6570](https://github.com/cp2k/cp2k/pull/6570))
 - **TODO**
 
 ### New Libraries
@@ -105,7 +119,6 @@
 - Fix PAO TorchScript CUDA handling ([#5726](https://github.com/cp2k/cp2k/pull/5726))
 - Fix GauXC RKS density normalization ([#5740](https://github.com/cp2k/cp2k/pull/5740))
 - Fix DDAPC forces on empty MPI ranks ([#5776](https://github.com/cp2k/cp2k/pull/5776))
-- Fix distributed FFT scratch-buffer indexing ([#5973](https://github.com/cp2k/cp2k/pull/5973))
 - Correct mixed-CDFT targets and energies ([#6055](https://github.com/cp2k/cp2k/pull/6055))
 - Fix FIST dipoles and periodic electric-field signs
   ([#6064](https://github.com/cp2k/cp2k/pull/6064))
@@ -132,7 +145,16 @@
   ([#6253](https://github.com/cp2k/cp2k/pull/6253))
 - Fix slab-normal dipoles with partial periodicity ([#6274](https://github.com/cp2k/cp2k/pull/6274))
 - Reset Pulay history between SCF runs ([#6279](https://github.com/cp2k/cp2k/pull/6279))
+- Fix D3 two-body virial of LONG_RANGE_CORRECTION ([#6304](https://github.com/cp2k/cp2k/pull/6304),
+  [#6336](https://github.com/cp2k/cp2k/pull/6336))
+- Fix periodic-image consistency in RI/LRI neighbor lists
+  ([#6370](https://github.com/cp2k/cp2k/pull/6370))
 - Fix native D4 smooth-cutoff ([#6424](https://github.com/cp2k/cp2k/pull/6424))
+- EMD/RTP fixes ([#6431](https://github.com/cp2k/cp2k/pull/6431),
+  [#6527](https://github.com/cp2k/cp2k/pull/6527), [#6531](https://github.com/cp2k/cp2k/pull/6533))
+- GFN1 native fixes ([#6462](https://github.com/cp2k/cp2k/pull/6462))
+- NEB wfn history fixes ([#6545](https://github.com/cp2k/cp2k/pull/6545),
+  [#6578](https://github.com/cp2k/cp2k/pull/6578))
 - **TODO**
 
 ______________________________________________________________________
