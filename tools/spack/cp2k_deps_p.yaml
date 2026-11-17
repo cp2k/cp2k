@@ -209,7 +209,7 @@ spack:
 
   repos:
     builtin:
-      commit: 9e16dc370fb1ea0fa9971c6c6283b85fa414ec6a # 2026-11-13
+      commit: cac27ac842da8f3262a026f8d1c68d899bd3397f # 2026-11-17
 
   specs:
     # Build tools
@@ -235,7 +235,7 @@ spack:
     - "greenx@2.2"
     - "hdf5@2.2.0"
     - "libfabric@2.6.0"
-    - "libfci@0.1.0"
+    - "libfci@0.1.1"
     - "libgint@release_v1"
     - "libint@2.14.1-cp2k-lmax-5"
     - "libsmeagol@1.2"

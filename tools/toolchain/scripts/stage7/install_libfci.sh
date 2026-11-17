@@ -6,8 +6,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libfci_ver="0.1.0"
-libfci_sha256="63e8bd632e55f4b99dbaa3e905cdcd3c5dbc17aefdca1391b855f34a792bb29a"
+libfci_ver="0.1.1"
+libfci_sha256="4364282dc8043817e7404541a347350c6d5089ea91a70ad993a7b73ca7924577"
+libfci_archive="libfci-${libfci_ver}.tar.gz"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -30,17 +31,18 @@ case "$with_libfci" in
     if verify_checksums "${install_lock_file}"; then
       echo "libfci-${libfci_ver} is already installed, skipping it."
     else
-      retrieve_package "${libfci_sha256}" "libfci-${libfci_ver}.tar.gz"
+      retrieve_package "${libfci_sha256}" "${libfci_archive}"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d "libfci-${libfci_ver}" ] && rm -rf "libfci-${libfci_ver}"
       mkdir "libfci-${libfci_ver}"
-      tar -xzf "libfci-${libfci_ver}.tar.gz" -C "libfci-${libfci_ver}" --strip-components=1
+      tar -xzf "${libfci_archive}" -C "libfci-${libfci_ver}" --strip-components=1
 
       mkdir "libfci-${libfci_ver}/build"
       cd "libfci-${libfci_ver}/build"
       cmake \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_CXX_COMPILER="${CXX}" \
+        -DLIBFCI_USE_OPENMP=ON \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
