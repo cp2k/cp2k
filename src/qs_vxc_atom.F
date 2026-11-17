@@ -131,7 +131,10 @@ MODULE qs_vxc_atom
                                   native_grid_adjoint_max_bins_per_row = &
                                   native_grid_adjoint_max_tiles_per_direction**3
 
-   PUBLIC :: calculate_vxc_atom, &
+   PUBLIC :: add_gapw_atom_grid_interpolation_adjoint, &
+             atom_grid_image_bounds, &
+             interpolate_gapw_atom_grid_fields, &
+             calculate_vxc_atom, &
              calculate_vxc_atom_epr, &
              gapw_cdft_one_center
 
