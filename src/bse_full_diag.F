@@ -551,7 +551,7 @@ CONTAINS
       CALL cp_fm_scale_and_add(1.0_dp, fm_A_plus_B, 1.0_dp, fm_B)
 
       IF (bse_env%screening_method == bse_screening_rpa) THEN
-         ! In RPA, A-B is diagonal; neither a matrix power nor dense products are needed.
+         ! In RPA, A-B is diagonal, so its Cholesky factor is the diagonal sqrt(Δ)
          CALL cp_fm_get_info(fm_A, nrow_global=dim_mat)
          ALLOCATE (gap(dim_mat), diag_B(dim_mat))
          CALL cp_fm_get_diag(fm_A, gap)
@@ -573,7 +573,7 @@ CONTAINS
          RETURN
       END IF
 
-      ! A-B = U^T U; pdpotrf fails exactly when A-B is not positive definite
+      ! A-B = U^T U; the Cholesky factorization fails when A-B is not positive definite
       CALL cp_fm_create(fm_work, fm_A%matrix_struct)
       CALL cp_fm_to_fm(fm_A, fm_work)
       CALL cp_fm_scale_and_add(1.0_dp, fm_work, -1.0_dp, fm_B)
@@ -583,17 +583,16 @@ CONTAINS
                        "Matrix (A-B) is not positive definite. "// &
                        "Hermitian diagonalization of full ABBA matrix is ill-defined.")
       END IF
-      ! pdpotrf leaves A-B in the strict lower part; a zero there lets U enter plain GEMMs
+      ! the factorization leaves A-B in the strict lower part; a zero there lets U enter plain GEMMs
       CALL cp_fm_create(fm_chol_A_minus_B, fm_A%matrix_struct)
       CALL cp_fm_set_all(fm_chol_A_minus_B, 0.0_dp)
       CALL cp_fm_to_fm_triangular(fm_work, fm_chol_A_minus_B, "U")
 
-      ! C = U (A+B) U^T by two GEMMs, which run faster than pdtrmm despite twice its flops
+      ! C = U (A+B) U^T by two GEMMs
       CALL cp_fm_get_info(fm_A, nrow_global=dim_mat)
       CALL cp_fm_create(fm_C, fm_A%matrix_struct)
-      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_chol_A_minus_B, fm_A_plus_B, 0.0_dp, fm_C)
-      CALL parallel_gemm("N", "T", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_C, fm_chol_A_minus_B, 0.0_dp, fm_work)
-      CALL cp_fm_to_fm(fm_work, fm_C)
+      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_chol_A_minus_B, fm_A_plus_B, 0.0_dp, fm_work)
+      CALL parallel_gemm("N", "T", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_work, fm_chol_A_minus_B, 0.0_dp, fm_C)
       CALL cp_fm_release(fm_work)
 
       IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN

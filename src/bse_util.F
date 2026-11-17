@@ -387,8 +387,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Peak memory of the full diagonalization in GB, all ranks together: n_ov^2 doubles times
-!>        the matrices held at once, 2 for TDA (A and W_ijab), 10 for ABBA (B, C and the six that
-!>        build C added)
+!>        the matrices held at once, 2 for TDA (A and W_ijab), 10 for ABBA (at most six are held
+!>        while C is formed; the margin covers eigensolver work space, GEMM buffers come on top)
 !> \param n_ov_joint transition pairs in the active window, summed over spins
 !> \param do_abba full problem, not TDA
 !> \return the estimate in GB
