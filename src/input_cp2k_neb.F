@@ -16,6 +16,7 @@ MODULE input_cp2k_neb
                                               Jonsson1998,&
                                               Jonsson2000_1,&
                                               Jonsson2000_2,&
+                                              Smidstrup2014,&
                                               Wales2004
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
@@ -115,11 +116,21 @@ CONTAINS
                           "in an iterative bisection procedure: on each step, the largest distance "// &
                           "between adjacent replica is found and a new replica is inserted there by "// &
                           "taking the average of adjacent replica; this is repeated until getting "// &
-                          "requested number of replica. Please note that the number of replica is "// &
+                          "the requested number of replica. IDPP can subsequently improve these images. "// &
+                          "Please note that the number of replica is "// &
                           "always including both end points regardless of the setting of keyword "// &
                           "OPTIMIZE_END_POINTS, which should be taken into account when adjusting "// &
                           "the NPROC_REP value based on processors available on the machine.", &
                           default_i_val=10)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="IDPP", &
+                          description="Improve interpolated Cartesian images using an image-dependent pair potential "// &
+                          "without evaluating the physical potential. Explicit images are anchors. "// &
+                          "This option excludes shells and MOTION/CONSTRAINT. For periodic systems use an orthorhombic "// &
+                          "cell and supply consistently unwrapped coordinates.", citations=[Smidstrup2014], &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

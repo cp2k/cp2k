@@ -23,8 +23,10 @@ MODULE neb_utils
                                               Jonsson1998,&
                                               Jonsson2000_1,&
                                               Jonsson2000_2,&
+                                              Smidstrup2014,&
                                               Wales2004,&
                                               cite_reference
+   USE cell_types,                      ONLY: cell_type
    USE colvar_utils,                    ONLY: eval_colvar,&
                                               get_clv_force,&
                                               set_colvars_target
@@ -61,6 +63,7 @@ MODULE neb_utils
                                               dp
    USE md_run,                          ONLY: qs_mol_dyn
    USE message_passing,                 ONLY: mp_para_env_type
+   USE neb_idpp,                        ONLY: neb_initialize_idpp
    USE neb_io,                          ONLY: dump_replica_coordinates,&
                                               handle_band_file_names
    USE neb_md_utils,                    ONLY: neb_initialize_velocity
@@ -150,12 +153,13 @@ CONTAINS
       INTEGER :: handle, i_rep, iatom, ic, input_nr_replica, is, ivar, j, jtarg, k, n_rep, natom, &
          neb_nr_replica, nr_replica_to_interpolate, nval, nvar, shell_index
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rep_map
-      LOGICAL                                            :: check, explicit, skip_vel_section
+      LOGICAL                                            :: check, explicit, idpp, skip_vel_section
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distance
       REAL(KIND=dp), DIMENSION(3)                        :: r
       REAL(KIND=dp), DIMENSION(:), POINTER               :: initial_colvars, rptr
-      TYPE(section_vals_type), POINTER                   :: coord_section, replica_section, &
-                                                            vel_section
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(section_vals_type), POINTER                   :: constraint_section, coord_section, &
+                                                            replica_section, vel_section
 
       CALL timeset(routineN, handle)
       CPASSERT(ASSOCIATED(coords))
@@ -165,6 +169,21 @@ CONTAINS
       CALL section_vals_get(replica_section, n_repetition=input_nr_replica)
       ! Calculation is aborted if input replicas are more then the requested ones for the BAND..
       CPASSERT(input_nr_replica <= neb_nr_replica)
+      CALL section_vals_val_get(neb_section, "IDPP", l_val=idpp)
+      idpp = idpp .AND. (input_nr_replica < neb_nr_replica)
+      IF (idpp) THEN
+         CPASSERT(input_nr_replica >= 2)
+         IF (neb_env%use_colvar .OR. ANY(particle_set%shell_index /= 0)) THEN
+            CPABORT("BAND IDPP requires Cartesian images without shells.")
+         END IF
+         constraint_section => section_vals_get_subs_vals(neb_env%root_section, "MOTION%CONSTRAINT")
+         CALL section_vals_get(constraint_section, explicit=explicit)
+         IF (explicit) CPABORT("BAND IDPP does not currently support MOTION%CONSTRAINT.")
+         CALL force_env_get(neb_env%force_env, cell=cell)
+         IF (ANY(cell%perd /= 0) .AND. .NOT. cell%orthorhombic) THEN
+            CPABORT("BAND IDPP requires an orthorhombic periodic cell.")
+         END IF
+      END IF
       ! Read in replicas coordinates
       skip_vel_section = (input_nr_replica /= neb_nr_replica)
       IF ((iw > 0) .AND. skip_vel_section) THEN
@@ -323,7 +342,7 @@ CONTAINS
                CALL neb_replica_distance(particle_set, coords, j, j + 1, distance(j), iw, &
                                          rotate=neb_env%align_frames)
             END DO
-            jtarg = MAXLOC(distance(1:input_nr_replica), 1)
+            jtarg = MAXLOC(distance(1:input_nr_replica - 1), 1)
             IF (iw > 0) THEN
                WRITE (iw, '(/,T2,3(A,I0),A)') 'NEB| Interpolating Nr. ', &
                   nr_replica_to_interpolate, ' missing Replica; next between Replica Nr. ', &
@@ -369,8 +388,15 @@ CONTAINS
          CALL neb_replica_distance(particle_set, coords, j, j + 1, distance(j), iw, &
                                    rotate=neb_env%align_frames)
       END DO
+      IF (idpp) THEN
+         CALL cite_reference(Smidstrup2014)
+         CALL neb_initialize_idpp(coords%xyz, rep_map > 0, cell, iw)
+         DO j = 1, input_nr_replica - 1
+            CALL neb_replica_distance(particle_set, coords, j, j + 1, distance(j), iw, rotate=.FALSE.)
+         END DO
+      END IF
       ! If there are still large distances, hint that more replica may be requested
-      IF (MAXVAL(distance)/MINVAL(distance) > 1.5_dp) THEN
+      IF (MAXVAL(distance) > 1.5_dp*MINVAL(distance)) THEN
          IF (iw > 0) THEN
             WRITE (iw, '(/,T2,A)') 'NEB| After interpolating replica, the maximum distance between adjacent replica'
             WRITE (iw, '(T2,A)') 'NEB| is still larger than 1.5 times the minimum distance. In order to make the'
