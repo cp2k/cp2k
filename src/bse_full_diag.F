@@ -573,6 +573,13 @@ CONTAINS
          RETURN
       END IF
 
+      ! Final result: C = U                    (A+B)                U^T                      EQ.I
+      !                   \_/                  \___/                \_/
+      !            fm_chol_A_minus_B        fm_A_plus_B      fm_chol_A_minus_B
+      !                 (EQ.Ia)               (EQ.Ib)              (EQ.Ia)
+      ! with the upper Cholesky factor U of A-B = U^T U (EQ.Ia) and A+B built above (EQ.Ib).
+      ! Intermediate work matrix:
+      ! fm_work: A-B, overwritten by its factorization, then the product U (A+B)              EQ.II
       ! A-B = U^T U; the Cholesky factorization fails when A-B is not positive definite
       CALL cp_fm_create(fm_work, fm_A%matrix_struct)
       CALL cp_fm_to_fm(fm_A, fm_work)
