@@ -12,7 +12,8 @@
 ]
 "BSE_H2O_PBE_G0W0.inp"                    = [
   {matcher = "BSE_1st_excit_ener", tol = 2e-05, ref = 7.7251},
-  {matcher = "M114", tol = 2e-05, ref = 0.014}
+  {matcher = "M114", tol = 2e-05, ref = 0.014},
+  {matcher = "BSE_Y_ampl_n1_ABBA", tol = 1e-02, ref = 0.0372}
 ]
 "BSE_H2O_PBE_evGW0.inp"                   = [
   {matcher = "BSE_1st_excit_ener", tol = 2e-05, ref = 8.1873},
@@ -26,7 +27,10 @@
 "BSE_H2O_PBE_G0W0_NTOs.inp"               = [{matcher = "M122", tol = 2e-03, ref = 0.01164}]
 "TDA_H2O_PBE_G0W0_EXC_DESCR.inp"          = [{matcher = "M123", tol = 5e-04, ref = 1.8290}]
 "BSE_H2O_PBE_G0W0_EXC_DESCR.inp"          = [{matcher = "M123", tol = 5e-04, ref = 1.8258}]
-"BSE_H2O_PBE_evGW0_RPA_screening.inp"     = [{matcher = "BSE_1st_excit_ener", tol = 2e-05, ref = 17.5569}]
+"BSE_H2O_PBE_evGW0_RPA_screening.inp"     = [
+  {matcher = "BSE_1st_excit_ener", tol = 2e-05, ref = 17.5569},
+  {matcher = "BSE_Y_ampl_n1_ABBA", tol = 1e-02, ref = 0.0211}
+]
 "BSE_H2O_PBE_evGW0_TDHF_screening.inp"    = [{matcher = "BSE_1st_excit_ener", tol = 4e-05, ref = 6.4895}]
 "BSE_H2O_PBE_evGW0_custom_screening.inp"  = [{matcher = "BSE_1st_excit_ener", tol = 2e-05, ref = 14.9538}]
 "BSE_H2O_PBE_evGW0_spectra.inp"           = [
@@ -42,7 +46,8 @@
   {matcher = "M114", tol = 2e-05, ref = 0.014}
 ]
 "BSE_H2O_PBE_G0W0_ITERDIAG_MK_DEBUG.inp"  = [
-  {matcher = "BSE_1st_excit_ener", tol = 2e-05, ref = 7.7251}
+  {matcher = "BSE_1st_excit_ener", tol = 2e-05, ref = 7.7251},
+  {matcher = "BSE_refcheck_overlap", tol = 1e-06, ref = 1.0}
 ]
 "BSE_H2O_PBE_G0W0_bsenv-GW.inp"           = [
   {matcher = "BSE_1st_excit_ener", tol = 2e-05, ref = 7.7273},
