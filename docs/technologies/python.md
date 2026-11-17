@@ -33,10 +33,9 @@ import. The new binding uses `GPL-2.0-or-later`, not the original package's Apac
 
 ## Installation
 
-After publication of `0.3.0`, install the Python package from PyPI with
-`python -m pip install 'pycp2k[ase,mpi]==0.3.0'`. This does not install the native CP2K library or
-its data. While the release is being prepared, install the candidate from a source checkout as shown
-below.
+Install the Python package from PyPI with `python -m pip install pycp2k`. Optional adapters can be
+included with `python -m pip install 'pycp2k[ase,mpi]'`. This does not install the native CP2K
+library or its data.
 
 From a CP2K source checkout:
 
@@ -375,11 +374,11 @@ generator/protocols; parser compatibility should be coordinated with `aiida-cp2k
 its tests remain here until that ownership and transfer are agreed. Their placement in this package
 is not a technical dependency on the libcp2k binding.
 
-Geometry and cell relaxation require a CP2K executable that includes the separately maintained final
-optimization-cell frame fix in `src/motion/gopt_f_methods.F`: the final call to `write_geo_traj`
-must be followed by `write_simulation_cell`. Without that fix, converged runs can write one more
-position frame than cell frames, which the AiiDA trajectory parser rejects. This Python integration
-does not itself change the native optimizer.
+The final single-point evaluation after geometry or cell relaxation writes another frame at the
+final geometry. Since [#6062](https://github.com/cp2k/cp2k/pull/6062), CP2K's development branch
+also writes the corresponding cell frame, so frame counts match when the trajectory and cell print
+settings match. Older executables without that fix can produce unequal frame counts that the AiiDA
+trajectory parser rejects. No separate optimizer patch is needed with current development builds.
 
 Install in a separate Python environment (tested with Python 3.12):
 
