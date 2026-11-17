@@ -7,12 +7,14 @@
 PROGRAM kpoint_lattice_fft_unittest
    USE fft_tools,                       ONLY: finalize_fft,&
                                               init_fft
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
                                               k_grid_to_cell_execute,&
                                               k_grid_to_cell_prepare,&
                                               k_grid_to_cell_release,&
-                                              k_grid_to_cell_work_type
+                                              k_grid_to_cell_work_type,&
+                                              lattice_fft_profile_type
    USE lattice_preconditioner_operator, ONLY: apply_lattice_inverse_dense,&
                                               apply_lattice_state_inverse_dense,&
                                               build_lattice_inverse,&
@@ -35,7 +37,8 @@ PROGRAM kpoint_lattice_fft_unittest
    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: state_inverse_k
    COMPLEX(KIND=dp), DIMENSION(2, 3, nkp)              :: direct, transformed
    COMPLEX(KIND=dp), DIMENSION(2, 3, nselected)         :: selected_transformed
-   INTEGER                                             :: d, i, icell, info, j, jcell, ik, ix, iy, iz
+   INTEGER                                             :: d, i, icell, info, j, jcell, ik, ix, iy, iz, &
+                                                          inverse_case, inverse_nkp
    INTEGER, ALLOCATABLE, DIMENSION(:)                  :: correction_indices
    INTEGER, DIMENSION(3)                               :: base_dims, delta
    INTEGER, DIMENSION(3, base_cell)                    :: base_index
@@ -58,6 +61,9 @@ PROGRAM kpoint_lattice_fft_unittest
    TYPE(k_grid_to_cell_work_type)                      :: inverse_work
    REAL(KIND=dp), DIMENSION(9)                         :: subset_weights
    COMPLEX(KIND=dp), DIMENSION(2, 3, ncell)            :: weighted_reference, weighted_result
+   REAL(KIND=dp)                                       :: real_result(2, 3, ncell)
+   REAL(KIND=dp)                                       :: inverse_shift(3), inverse_weights(nkp)
+   TYPE(lattice_fft_profile_type)                      :: inverse_profile
 
    CALL mp_world_init(mp_comm)
    CALL check_image_reconstruction(mp_comm)
@@ -162,7 +168,98 @@ PROGRAM kpoint_lattice_fft_unittest
    IF (MAXVAL(ABS(weighted_result - weighted_reference)) > 3.0E-12_dp) THEN
       ERROR STOP "Prepared weighted inverse differs from explicit phase sum"
    END IF
+   ! A one-element FFT panel covers extraction across batch boundaries.
+   CALL k_grid_to_cell_execute(inverse_work, transformed(:, :, 1:9), values_real=real_result, &
+                               max_workspace_bytes=48_int_8*nkp)
+   IF (MAXVAL(ABS(real_result - REAL(weighted_reference, dp))) > 3.0E-12_dp) THEN
+      ERROR STOP "Tiled inverse extraction differs from the original real field"
+   END IF
+   real_result = values_rs
+   CALL k_grid_to_cell_execute(inverse_work, transformed(:, :, 1:9), values_real=real_result, &
+                               max_workspace_bytes=48_int_8*nkp)
+   IF (MAXVAL(ABS(real_result - REAL(weighted_reference, dp))) > 3.0E-12_dp) THEN
+      ERROR STOP "Repeated inverse extraction retained the previous real output"
+   END IF
+   CALL k_grid_to_cell_execute(inverse_work, transformed(1:0, :, 1:9), values_real=real_result(1:0, :, :), &
+                               used_fft=used_fft)
+   IF (.NOT. used_fft) ERROR STOP "An empty inverse panel did not complete"
    CALL k_grid_to_cell_release(inverse_work)
+
+   ! Real-output pairing preserves Re(T[A]) even for arbitrary complex input with
+   ! unequal +/-k weights. Cover Gamma, mixed half shifts, odd meshes and a quarter
+   ! shift that must retain the unpaired execution path; native k order is permuted.
+   DO inverse_case = 1, 4
+      nkp_grid = [4, 3, 2]
+      inverse_shift = 0.0_dp
+      IF (inverse_case == 2) inverse_shift = [0.5_dp, 0.0_dp, 0.5_dp]
+      IF (inverse_case == 3) THEN
+         nkp_grid = [3, 3, 1]
+         inverse_shift = [0.5_dp, 0.5_dp, 0.0_dp]
+      END IF
+      IF (inverse_case == 4) inverse_shift = [0.25_dp, 0.0_dp, 0.0_dp]
+      inverse_nkp = PRODUCT(nkp_grid)
+      ik = 0
+      DO iz = 0, nkp_grid(3) - 1
+         DO iy = 0, nkp_grid(2) - 1
+            DO ix = 0, nkp_grid(1) - 1
+               ik = ik + 1
+               j = MODULO(5*(ik - 1) + 1, inverse_nkp) + 1
+               xkp(:, j) = (REAL([ix, iy, iz], dp) + inverse_shift)/REAL(nkp_grid, dp)
+            END DO
+         END DO
+      END DO
+      DO ik = 1, inverse_nkp
+         inverse_weights(ik) = REAL(2*ik - 5, dp)/REAL(3*inverse_nkp, dp)
+         DO d = 1, 3
+            transformed(1, d, ik) = CMPLX(SIN(REAL(ik + d, dp)), COS(REAL(2*ik - d, dp)), dp)
+            transformed(2, d, ik) = CMPLX(COS(REAL(ik - d, dp)), SIN(REAL(3*ik + d, dp)), dp)
+         END DO
+      END DO
+      weighted_reference = z_zero
+      DO icell = 1, ncell
+         DO ik = 1, inverse_nkp
+            weighted_reference(:, :, icell) = weighted_reference(:, :, icell) + inverse_weights(ik)* &
+                                              EXP(-gaussi*twopi*SUM(xkp(:, ik)*REAL(index_to_cell(:, icell), dp)))* &
+                                              transformed(:, :, ik)
+         END DO
+      END DO
+      CALL k_grid_to_cell_prepare(inverse_work, xkp(:, 1:inverse_nkp), nkp_grid, index_to_cell, &
+                                  weights=inverse_weights(1:inverse_nkp))
+      inverse_profile = lattice_fft_profile_type()
+      CALL k_grid_to_cell_execute(inverse_work, transformed(:, :, 1:inverse_nkp), values_real=real_result, &
+                                  profile=inverse_profile)
+      IF (MAXVAL(ABS(real_result - REAL(weighted_reference, dp))) > 2.0E-11_dp) THEN
+         ERROR STOP "Paired real-output FFT changed the weighted real projection"
+      END IF
+      IF (inverse_profile%two_real .NEQV. (inverse_case /= 4)) ERROR STOP "Incorrect real FFT pairing eligibility"
+      IF (inverse_case /= 4 .AND. inverse_profile%transforms /= 3_int_8) ERROR STOP "Real FFT transforms were not halved"
+      CALL k_grid_to_cell_execute(inverse_work, transformed(:, :, 1:inverse_nkp), weighted_result)
+      IF (MAXVAL(ABS(weighted_result - weighted_reference)) > 2.0E-11_dp) THEN
+         ERROR STOP "Real-output pairing changed a subsequent complex inverse transform"
+      END IF
+      ! Three physical elements in two-element panels exercise a lone packed tail.
+      real_result = values_rs
+      CALL k_grid_to_cell_execute(inverse_work, transformed(1:1, :, 1:inverse_nkp), values_real=real_result(1:1, :, :), &
+                                  max_workspace_bytes=96_int_8*inverse_nkp)
+      IF (MAXVAL(ABS(real_result(1, :, :) - REAL(weighted_reference(1, :, :), dp))) > 3.0E-11_dp) THEN
+         ERROR STOP "Paired inverse extraction or odd tail changed the original real field"
+      END IF
+      CALL k_grid_to_cell_release(inverse_work)
+      CALL k_grid_to_cell_prepare(inverse_work, xkp(:, 1:inverse_nkp), nkp_grid, index_to_cell)
+      weighted_reference = z_zero
+      DO icell = 1, ncell
+         DO ik = 1, inverse_nkp
+            weighted_reference(:, :, icell) = weighted_reference(:, :, icell) + &
+                                              EXP(-gaussi*twopi*SUM(xkp(:, ik)*REAL(index_to_cell(:, icell), dp)))* &
+                                              transformed(:, :, ik)/REAL(inverse_nkp, dp)
+         END DO
+      END DO
+      CALL k_grid_to_cell_execute(inverse_work, transformed(:, :, 1:inverse_nkp), values_real=real_result)
+      IF (MAXVAL(ABS(real_result - REAL(weighted_reference, dp))) > 2.0E-11_dp) THEN
+         ERROR STOP "Paired real FFT lost the common uniform-weight normalization"
+      END IF
+      CALL k_grid_to_cell_release(inverse_work)
+   END DO
 
    ! Verify the block-circulant inverse by applying the original dense operator.
    base_dims = [4, 2, 1]

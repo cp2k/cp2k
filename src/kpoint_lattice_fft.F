@@ -43,6 +43,7 @@ MODULE kpoint_lattice_fft
    PUBLIC :: k_grid_to_cell_fft, k_grid_to_cell_prepare, k_grid_to_cell_execute, k_grid_to_cell_release
    PUBLIC :: k_grid_to_cell_work_type, lattice_fft_shape, regular_kpoint_grid
    PUBLIC :: lattice_fft_profile_type, lattice_fft_execute_pair_major, lattice_fft_prepare_geometry
+   PUBLIC :: lattice_fft_real_sink_type
 
    ! Keep pair-major grid filling in cache-sized strips of AO elements and images.
    INTEGER, PARAMETER :: fft_pack_rows = 8, fft_pack_cells = 32
@@ -51,12 +52,13 @@ MODULE kpoint_lattice_fft
    ! Keep the default pair-major workspace bounded, as in the master lattice FFT.
    INTEGER(KIND=int_8), PARAMETER :: fft_workspace_bytes = 64_int_8*1024_int_8**2
 
-   ! Optional local-panel diagnostics. Axis times include the one-shot planner.
+   ! Optional local-panel diagnostics. Axis times include any plan creation.
    TYPE lattice_fft_profile_type
       REAL(KIND=dp) :: seconds(9) = 0.0_dp
       INTEGER(KIND=int_8) :: batches = 0_int_8, elements = 0_int_8
+      INTEGER(KIND=int_8) :: transforms = 0_int_8
       INTEGER :: nfft(3) = 0, tile_min = HUGE(0), tile_max = 0
-      LOGICAL :: pair_major = .FALSE.
+      LOGICAL :: pair_major = .FALSE., two_real = .FALSE.
    END TYPE lattice_fft_profile_type
 
    ! Reusable forward lattice geometry and bounded numerical FFT workspace.
@@ -68,16 +70,45 @@ MODULE kpoint_lattice_fft
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER, PRIVATE :: fft_in(:) => NULL(), fft_out(:) => NULL()
    END TYPE cell_to_k_grid_work_type
 
-   ! Call-scoped mathematical maps and buffers. Backend plans remain owned by fft_tools.
+   ! Reusable inverse lattice maps, buffers and plans; the caller releases them after use.
    TYPE k_grid_to_cell_work_type
-      PRIVATE
-      LOGICAL :: regular = .FALSE., uniform_weights = .FALSE.
+      LOGICAL, PRIVATE :: regular = .FALSE., uniform_weights = .FALSE.
       INTEGER :: nfft(3) = 0
-      INTEGER, ALLOCATABLE :: cells(:, :), k_slot(:), cell_slot(:)
-      REAL(KIND=dp), ALLOCATABLE :: xkp(:, :), weight(:)
-      COMPLEX(KIND=dp), ALLOCATABLE :: cell_phase(:)
-      COMPLEX(KIND=dp), CONTIGUOUS, POINTER :: fft_in(:) => NULL(), fft_out(:) => NULL()
+      INTEGER, ALLOCATABLE :: k_slot(:), cell_slot(:), k_partner(:)
+      INTEGER, ALLOCATABLE, PRIVATE :: cells(:, :)
+      REAL(KIND=dp), ALLOCATABLE, PRIVATE :: xkp(:, :), weight(:)
+      COMPLEX(KIND=dp), ALLOCATABLE, PRIVATE :: cell_phase(:)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER, PRIVATE :: fft_in(:) => NULL(), fft_out(:) => NULL()
+      TYPE(fft_pair_major_plan_type), PRIVATE :: fft_plan(2)
    END TYPE k_grid_to_cell_work_type
+
+   ! A real-output consumer may finish extraction directly in its next operator's layout.
+   ! The FFT algorithm and its bounded panels remain shared with the array-output interface.
+   TYPE, ABSTRACT :: lattice_fft_real_sink_type
+   CONTAINS
+      PROCEDURE(lattice_fft_consume_real), DEFERRED :: consume
+   END TYPE lattice_fft_real_sink_type
+
+   ABSTRACT INTERFACE
+! **************************************************************************************************
+!> \brief Consume one inverse FFT panel for real output.
+!> \param sink consumer storing the output or fusing a subsequent operation
+!> \param first first flattened field index in the panel
+!> \param nbatch number of physical fields in the panel
+!> \param spectrum pair-major complex FFT output
+!> \param cell_slot FFT slot of each requested cell
+!> \param cell_phase inverse Bloch phase with any common weight
+!> \param two_real whether each complex transform packs two real fields
+! **************************************************************************************************
+      SUBROUTINE lattice_fft_consume_real(sink, first, nbatch, spectrum, cell_slot, cell_phase, two_real)
+         IMPORT :: dp, int_8, lattice_fft_real_sink_type
+         CLASS(lattice_fft_real_sink_type), INTENT(INOUT) :: sink
+         INTEGER(KIND=int_8), INTENT(IN)                  :: first
+         INTEGER, INTENT(IN)                              :: nbatch, cell_slot(:)
+         COMPLEX(KIND=dp), INTENT(IN)                     :: spectrum(:, :), cell_phase(:)
+         LOGICAL, INTENT(IN)                              :: two_real
+      END SUBROUTINE lattice_fft_consume_real
+   END INTERFACE
 
 CONTAINS
 
@@ -632,7 +663,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Prepare one inverse lattice transform for repeated matrix batches.
-!> \param work call-scoped maps, weights and buffers; no backend plan ownership
+!> \param work reusable maps, weights, buffers and backend plans
 !> \param xkp reciprocal coordinates
 !> \param nkp_grid candidate reciprocal-grid dimensions
 !> \param index_to_cell requested lattice translations
@@ -648,8 +679,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: weights
       LOGICAL, INTENT(IN), OPTIONAL                      :: allow_incomplete
 
-      INTEGER                                            :: icell, ncell, nkp
-      INTEGER, ALLOCATABLE                               :: grid_index(:, :)
+      INTEGER                                            :: half_shift(3), icell, ik, ncell, nkp, &
+                                                            partner_index(3), partner_slot
+      INTEGER, ALLOCATABLE                               :: grid_index(:, :), slot_to_k(:)
       REAL(KIND=dp), DIMENSION(3)                        :: k_offset
 
       CALL k_grid_to_cell_release(work)
@@ -673,6 +705,23 @@ CONTAINS
       ! For uniform k weights, apply the common scale once at extraction.
       work%uniform_weights = ALL(work%weight == work%weight(1))
 
+      ! Real output depends only on S(k)=[w(k)A(k)+conjg(w(-k)A(-k))]/2.
+      ! A complete inversion-closed mesh permits two such fields in one complex FFT.
+      half_shift = NINT(2.0_dp*k_offset*REAL(nkp_grid, dp))
+      IF (ALL(work%nfft == nkp_grid([3, 2, 1])) .AND. nkp == PRODUCT(nkp_grid) .AND. &
+          ALL(ABS(2.0_dp*k_offset*REAL(nkp_grid, dp) - REAL(half_shift, dp)) <= 64.0_dp*EPSILON(1.0_dp))) THEN
+         ALLOCATE (work%k_partner(nkp), slot_to_k(nkp))
+         DO ik = 1, nkp
+            slot_to_k(work%k_slot(ik)) = ik
+         END DO
+         DO ik = 1, nkp
+            partner_index = 1 + MODULO(1 - grid_index(:, ik) - half_shift([3, 2, 1]), nkp_grid([3, 2, 1]))
+            partner_slot = partner_index(1) + work%nfft(1)* &
+                           (partner_index(2) - 1 + work%nfft(2)*(partner_index(3) - 1))
+            work%k_partner(ik) = slot_to_k(partner_slot)
+         END DO
+      END IF
+
       ALLOCATE (work%cell_phase(ncell))
       DO icell = 1, ncell
          work%cell_phase(icell) = EXP(-gaussi*twopi*SUM(k_offset*REAL(index_to_cell(1:3, icell), dp)))
@@ -693,9 +742,10 @@ CONTAINS
 !> \param values_real real part of the inverse transform, instead of values_rs
 !> \param profile optional local-panel stage timings and batch counts
 !> \param max_workspace_bytes optional soft FFT workspace target (default 64 MiB)
+!> \param real_sink consume a real FFT panel directly, instead of materializing an output array
 ! **************************************************************************************************
    SUBROUTINE k_grid_to_cell_execute(work, values_k, values_rs, used_fft, require_fft, allow_direct_fallback, values_real, &
-                                     profile, max_workspace_bytes)
+                                     profile, max_workspace_bytes, real_sink)
 
       TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: values_k
@@ -708,17 +758,24 @@ CONTAINS
          OPTIONAL                                        :: profile
       INTEGER(KIND=int_8), INTENT(IN), OPTIONAL          :: max_workspace_bytes
 
-      INTEGER                                            :: handle, nbatch, output_shape(3), stat, &
-                                                            width
+      CLASS(lattice_fft_real_sink_type), INTENT(INOUT), &
+         OPTIONAL                                        :: real_sink
+
+      INTEGER                                            :: fft_count, fft_width, handle, nbatch, n_output, &
+                                                            output_shape(3), stat, width
       INTEGER(KIND=int_8)                                :: budget, first, ngrid, nvalues
+      LOGICAL                                            :: pack_real
       REAL(KIND=dp)                                      :: started
-      TYPE(fft_pair_major_plan_type)                     :: full_fft_plan, tail_fft_plan
 
       CALL timeset("k_grid_to_cell_fft", handle)
       CPASSERT(ALLOCATED(work%xkp))
-      CPASSERT(PRESENT(values_rs) .NEQV. PRESENT(values_real))
+      n_output = MERGE(1, 0, PRESENT(values_rs)) + MERGE(1, 0, PRESENT(values_real)) + MERGE(1, 0, PRESENT(real_sink))
+      CPASSERT(n_output == 1)
       IF (PRESENT(values_rs)) output_shape = SHAPE(values_rs)
       IF (PRESENT(values_real)) output_shape = SHAPE(values_real)
+      IF (PRESENT(real_sink)) THEN
+         output_shape = [SIZE(values_k, 1), SIZE(values_k, 2), SIZE(work%cells, 2)]
+      END IF
       IF (SIZE(values_k, 3) /= SIZE(work%xkp, 2) .OR. &
           ANY(output_shape /= [SIZE(values_k, 1), SIZE(values_k, 2), SIZE(work%cells, 2)])) THEN
          CALL cp_abort(__LOCATION__, "Inconsistent matrix batches in inverse lattice FFT")
@@ -743,51 +800,57 @@ CONTAINS
             CALL timestop(handle)
             RETURN
          END IF
+         pack_real = (PRESENT(values_real) .OR. PRESENT(real_sink)) .AND. ALLOCATED(work%k_partner) .AND. width > 1
+         IF (pack_real) width = 2*(width/2)
+         fft_width = width
+         IF (pack_real) fft_width = width/2
          CPASSERT(ngrid*width <= HUGE(0))
          IF (.NOT. fft_supports_arbitrary_lengths()) THEN
             CPABORT('Inverse batched lattice FFT requires FFTW3')
          END IF
          IF (PRESENT(profile)) profile%pair_major = .TRUE.
          IF (PRESENT(profile)) THEN
+            profile%two_real = pack_real
             profile%nfft = work%nfft
             started = m_walltime()
          END IF
          IF (ASSOCIATED(work%fft_in)) THEN
-            IF (SIZE(work%fft_in, KIND=int_8) < ngrid*width .OR. &
-                32_int_8*SIZE(work%fft_in, KIND=int_8) + 16_int_8*ngrid*width > budget) THEN
+            IF (SIZE(work%fft_in, KIND=int_8) < ngrid*fft_width .OR. &
+                32_int_8*SIZE(work%fft_in, KIND=int_8) + 16_int_8*ngrid*fft_width > budget) THEN
+               CALL fft_pair_major_plan_destroy(work%fft_plan(1))
+               CALL fft_pair_major_plan_destroy(work%fft_plan(2))
                CALL fft_dealloc(work%fft_in)
                CALL fft_dealloc(work%fft_out)
             END IF
          END IF
          IF (.NOT. ASSOCIATED(work%fft_in)) THEN
-            CALL fft_alloc(work%fft_in, [INT(ngrid)*width])
-            CALL fft_alloc(work%fft_out, [INT(ngrid)*width])
+            CALL fft_alloc(work%fft_in, [INT(ngrid)*fft_width])
+            CALL fft_alloc(work%fft_out, [INT(ngrid)*fft_width])
          END IF
          IF (PRESENT(profile)) profile%seconds(3) = profile%seconds(3) + m_walltime() - started
          ! Flatten both matrix dimensions so each FFT batch spans whole columns.
          DO first = 1_int_8, nvalues, INT(width, int_8)
             nbatch = INT(MIN(INT(width, int_8), nvalues - first + 1_int_8))
+            fft_count = nbatch
+            IF (pack_real) fft_count = (nbatch + 1)/2
             IF (PRESENT(profile)) THEN
                profile%batches = profile%batches + 1_int_8
                profile%elements = profile%elements + INT(nbatch, int_8)
+               profile%transforms = profile%transforms + INT(fft_count, int_8)
                profile%tile_min = MIN(profile%tile_min, nbatch)
                profile%tile_max = MAX(profile%tile_max, nbatch)
                started = m_walltime()
             END IF
-            IF (nbatch == width) THEN
-               CALL k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, stat, &
-                                                    values_rs, values_real, profile, full_fft_plan)
-            ELSE
-               CALL k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, stat, &
-                                                    values_rs, values_real, profile, tail_fft_plan)
-            END IF
+            CALL k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, stat, values_rs, values_real, &
+                                                 profile, nbatch == width, pack_real, real_sink)
             IF (stat /= 0) EXIT
          END DO
-         CALL fft_pair_major_plan_destroy(full_fft_plan)
-         CALL fft_pair_major_plan_destroy(tail_fft_plan)
       END IF
       IF (stat /= 0) work%regular = .FALSE.
       IF (.NOT. work%regular) THEN
+         IF (PRESENT(real_sink)) THEN
+            CPABORT('A lattice FFT consumer requires successful FFT execution')
+         END IF
          IF (PRESENT(require_fft)) THEN
             IF (require_fft) THEN
                CPABORT("Forced inverse lattice FFT execution failed")
@@ -820,10 +883,12 @@ CONTAINS
 !> \param values_rs ...
 !> \param values_real ...
 !> \param profile ...
-!> \param cached_plan ...
+!> \param full_batch whether this panel has the full configured width
+!> \param pack_real pack two independently symmetrized real-output transforms
+!> \param real_sink real-output consumer
 ! **************************************************************************************************
    SUBROUTINE k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, stat, values_rs, values_real, profile, &
-                                              cached_plan)
+                                              full_batch, pack_real, real_sink)
       TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
       COMPLEX(KIND=dp), INTENT(IN)                       :: values_k(:, :, :)
       INTEGER(KIND=int_8), INTENT(IN)                    :: first
@@ -833,26 +898,92 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: values_real(:, :, :)
       TYPE(lattice_fft_profile_type), INTENT(INOUT), &
          OPTIONAL                                        :: profile
-      TYPE(fft_pair_major_plan_type), INTENT(INOUT)      :: cached_plan
+      LOGICAL, INTENT(IN)                                :: full_batch, pack_real
 
+      CLASS(lattice_fft_real_sink_type), INTENT(INOUT), &
+         OPTIONAL                                        :: real_sink
+
+      COMPLEX(KIND=dp)                                   :: field_a, field_b, phase, spectrum
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :), output(:, :)
-      INTEGER                                            :: i, icell, ik, matrix_column, matrix_row, &
+      INTEGER                                            :: fft_count, i, icell, ik, ipartner, &
+                                                            matrix_column, matrix_row, &
+                                                            other_column, other_row, partner_slot, &
                                                             slot
       INTEGER(KIND=int_8)                                :: matrix_index, ngrid
       REAL(KIND=dp)                                      :: started
 
       ngrid = PRODUCT(INT(work%nfft, int_8))
-      input(1:nbatch, 1:INT(ngrid)) => work%fft_in(1:nbatch*INT(ngrid))
+      fft_count = nbatch
+      IF (pack_real) fft_count = (nbatch + 1)/2
+      input(1:fft_count, 1:INT(ngrid)) => work%fft_in(1:fft_count*INT(ngrid))
       IF (PRESENT(profile)) started = m_walltime()
       ! Missing k points and FFT padding must be zero-filled.
       IF (SIZE(values_k, 3, KIND=int_8) /= ngrid) input = z_zero
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
 !$OMP IF(INT(nbatch, int_8)*SIZE(values_k, 3, KIND=int_8) >= fft_parallel_values) &
-!$OMP SHARED(input, work, values_k, first, nbatch) &
-!$OMP PRIVATE(ik, slot, i, matrix_index, matrix_row, matrix_column)
+!$OMP SHARED(input, work, values_k, first, nbatch, fft_count, pack_real) &
+!$OMP PRIVATE(ik, slot, i, matrix_index, matrix_row, matrix_column, ipartner, partner_slot) &
+!$OMP PRIVATE(other_row, other_column, field_a, field_b)
       DO ik = 1, SIZE(values_k, 3)
          slot = work%k_slot(ik)
-         IF (SIZE(values_k, 2) == 1) THEN
+         IF (pack_real) THEN
+            ipartner = work%k_partner(ik)
+            IF (ipartner < ik) CYCLE
+            partner_slot = work%k_slot(ipartner)
+            ! Visit each +/-k pair once, so every original input is read once.
+            ! Keep the factor 1/2 in extraction, alongside the common Bloch phase.
+            IF (SIZE(values_k, 2) == 1) THEN
+               !$OMP SIMD PRIVATE(matrix_row, field_a, field_b)
+               DO i = 1, fft_count
+                  matrix_row = INT(first) + 2*i - 2
+                  IF (work%uniform_weights) THEN
+                     field_a = values_k(matrix_row, 1, ik) + CONJG(values_k(matrix_row, 1, ipartner))
+                  ELSE
+                     field_a = work%weight(ik)*values_k(matrix_row, 1, ik) + &
+                               CONJG(work%weight(ipartner)*values_k(matrix_row, 1, ipartner))
+                  END IF
+                  field_b = z_zero
+                  IF (2*i <= nbatch) THEN
+                     IF (work%uniform_weights) THEN
+                        field_b = values_k(matrix_row + 1, 1, ik) + CONJG(values_k(matrix_row + 1, 1, ipartner))
+                     ELSE
+                        field_b = work%weight(ik)*values_k(matrix_row + 1, 1, ik) + &
+                                  CONJG(work%weight(ipartner)*values_k(matrix_row + 1, 1, ipartner))
+                     END IF
+                  END IF
+                  input(i, slot) = field_a + gaussi*field_b
+                  IF (ipartner /= ik) input(i, partner_slot) = CONJG(field_a) + gaussi*CONJG(field_b)
+               END DO
+            ELSE
+               DO i = 1, fft_count
+                  matrix_index = first + INT(2*i - 3, int_8)
+                  matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_k, 1), int_8))) + 1
+                  matrix_column = INT(matrix_index/INT(SIZE(values_k, 1), int_8)) + 1
+                  IF (work%uniform_weights) THEN
+                     field_a = values_k(matrix_row, matrix_column, ik) + &
+                               CONJG(values_k(matrix_row, matrix_column, ipartner))
+                  ELSE
+                     field_a = work%weight(ik)*values_k(matrix_row, matrix_column, ik) + &
+                               CONJG(work%weight(ipartner)*values_k(matrix_row, matrix_column, ipartner))
+                  END IF
+                  field_b = z_zero
+                  IF (2*i <= nbatch) THEN
+                     matrix_index = matrix_index + 1_int_8
+                     other_row = INT(MODULO(matrix_index, INT(SIZE(values_k, 1), int_8))) + 1
+                     other_column = INT(matrix_index/INT(SIZE(values_k, 1), int_8)) + 1
+                     IF (work%uniform_weights) THEN
+                        field_b = values_k(other_row, other_column, ik) + &
+                                  CONJG(values_k(other_row, other_column, ipartner))
+                     ELSE
+                        field_b = work%weight(ik)*values_k(other_row, other_column, ik) + &
+                                  CONJG(work%weight(ipartner)*values_k(other_row, other_column, ipartner))
+                     END IF
+                  END IF
+                  input(i, slot) = field_a + gaussi*field_b
+                  IF (ipartner /= ik) input(i, partner_slot) = CONJG(field_a) + gaussi*CONJG(field_b)
+               END DO
+            END IF
+         ELSE IF (SIZE(values_k, 2) == 1) THEN
             IF (work%uniform_weights) THEN
                input(:, slot) = values_k(INT(first):INT(first) + nbatch - 1, 1, ik)
             ELSE
@@ -873,17 +1004,44 @@ CONTAINS
       END DO
 !$OMP END PARALLEL DO
       IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
-      CALL lattice_fft_execute_pair_major(FWFFT, work%nfft, nbatch, work%fft_in, work%fft_out, stat, &
-                                          profile, cached_plan)
+      CALL lattice_fft_execute_pair_major(FWFFT, work%nfft, fft_count, work%fft_in, work%fft_out, stat, &
+                                          profile, work%fft_plan(MERGE(1, 2, full_batch)))
       IF (stat /= 0) RETURN
-      output(1:nbatch, 1:INT(ngrid)) => work%fft_in(1:nbatch*INT(ngrid))
+      output(1:fft_count, 1:INT(ngrid)) => work%fft_in(1:fft_count*INT(ngrid))
       IF (PRESENT(profile)) started = m_walltime()
+      IF (PRESENT(real_sink)) THEN
+         CALL real_sink%consume(first, nbatch, output, work%cell_slot, work%cell_phase, pack_real)
+         IF (PRESENT(profile)) profile%seconds(8) = profile%seconds(8) + m_walltime() - started
+         RETURN
+      END IF
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
 !$OMP IF(INT(nbatch, int_8)*SIZE(work%cells, 2, KIND=int_8) >= fft_parallel_values) &
-!$OMP SHARED(output, work, values_rs, values_real, values_k, first, nbatch) &
-!$OMP PRIVATE(icell, slot, i, matrix_index, matrix_row, matrix_column)
+!$OMP SHARED(output, work, values_rs, values_real, values_k, first, nbatch, fft_count, pack_real) &
+!$OMP PRIVATE(icell, slot, i, matrix_index, matrix_row, matrix_column, phase, spectrum)
       DO icell = 1, SIZE(work%cells, 2)
          slot = work%cell_slot(icell)
+         IF (pack_real) THEN
+            phase = 0.5_dp*work%cell_phase(icell)
+            IF (SIZE(values_k, 2) == 1) THEN
+               !$OMP SIMD PRIVATE(matrix_row, spectrum)
+               DO i = 1, fft_count
+                  matrix_row = INT(first) + 2*i - 2
+                  spectrum = phase*output(i, slot)
+                  values_real(matrix_row, 1, icell) = REAL(spectrum, dp)
+                  IF (2*i <= nbatch) values_real(matrix_row + 1, 1, icell) = AIMAG(spectrum)
+               END DO
+            ELSE
+               DO i = 1, nbatch
+                  matrix_index = first + INT(i - 2, int_8)
+                  matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_k, 1), int_8))) + 1
+                  matrix_column = INT(matrix_index/INT(SIZE(values_k, 1), int_8)) + 1
+                  spectrum = phase*output((i + 1)/2, slot)
+                  values_real(matrix_row, matrix_column, icell) = &
+                     MERGE(REAL(spectrum, dp), AIMAG(spectrum), MODULO(i, 2) == 1)
+               END DO
+            END IF
+            CYCLE
+         END IF
          IF (SIZE(values_k, 2) == 1) THEN
             IF (PRESENT(values_rs)) THEN
                values_rs(INT(first):INT(first) + nbatch - 1, 1, icell) = &
@@ -910,17 +1068,20 @@ CONTAINS
    END SUBROUTINE k_grid_to_cell_pair_major_batch
 
 ! **************************************************************************************************
-!> \brief Release call-scoped inverse lattice maps and FFT buffers.
+!> \brief Release inverse lattice plans before their buffers and shared geometry.
 !> \param work ...
 ! **************************************************************************************************
    SUBROUTINE k_grid_to_cell_release(work)
 
       TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
 
+      CALL fft_pair_major_plan_destroy(work%fft_plan(1))
+      CALL fft_pair_major_plan_destroy(work%fft_plan(2))
       IF (ASSOCIATED(work%fft_in)) CALL fft_dealloc(work%fft_in)
       IF (ASSOCIATED(work%fft_out)) CALL fft_dealloc(work%fft_out)
       IF (ALLOCATED(work%xkp)) DEALLOCATE (work%xkp, work%cells, work%weight)
       IF (ALLOCATED(work%k_slot)) DEALLOCATE (work%k_slot)
+      IF (ALLOCATED(work%k_partner)) DEALLOCATE (work%k_partner)
       IF (ALLOCATED(work%cell_slot)) DEALLOCATE (work%cell_slot, work%cell_phase)
       work%regular = .FALSE.
       work%uniform_weights = .FALSE.
