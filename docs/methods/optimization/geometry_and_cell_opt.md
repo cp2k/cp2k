@@ -181,9 +181,11 @@ The [OPTIMIZER](#CP2K_INPUT.MOTION.GEO_OPT.OPTIMIZER) keyword selects the algori
 the geometry and, for `CELL_OPT`, the cell. The most useful optimizer-specific controls are the
 trust radius for quasi-Newton methods and the line-search settings for conjugate gradients.
 
-- `BFGS` is the default and is usually efficient for small and medium-sized systems. It builds an
-  approximate Hessian and can converge rapidly when the starting structure is already reasonable. If
-  the optimization takes overly large steps, oscillates, or becomes unstable, the
+- `BFGS` is the default and is usually efficient for small and medium-sized systems. It normally
+  updates the inverse Hessian directly (`BFGS/METHOD INVERSE`), avoiding a full diagonalization at
+  every step. Use `METHOD DIRECT` to update the Hessian instead. If `USE_RAT_FUN_OPT` is enabled and
+  `METHOD` is omitted, CP2K selects `DIRECT` automatically. If the optimization takes overly large
+  steps, oscillates, or becomes unstable, the
   [TRUST_RADIUS](#CP2K_INPUT.MOTION.GEO_OPT.BFGS.TRUST_RADIUS) in the `BFGS` subsection is often the
   first parameter to reduce. A smaller trust radius makes the optimization more conservative; an
   excessively small value can make convergence slow. The number of required iterations can often be

@@ -140,8 +140,8 @@ CONTAINS
                                                             matrix_method, maxiter, ndf, &
                                                             output_unit
       LOGICAL                                            :: conv, hesrest, hess_reset, inverse, &
-                                                            shell_present, should_stop, &
-                                                            use_mod_hes, use_rfo
+                                                            method_explicit, shell_present, &
+                                                            should_stop, use_mod_hes, use_rfo
       REAL(KIND=dp)                                      :: ediff, emin, eold, etot, pred, rad, rat, &
                                                             step, t_diff, t_now, t_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dg, dr, dx, eigval, gold, work, xold
@@ -164,7 +164,9 @@ CONTAINS
       CALL timeset(routineN, handle)
       CALL section_vals_val_get(geo_section, "BFGS%TRUST_RADIUS", r_val=rad)
       print_key => section_vals_get_subs_vals(geo_section, "BFGS%RESTART")
-      CALL section_vals_val_get(geo_section, "BFGS%METHOD", i_val=matrix_method)
+      CALL section_vals_val_get(geo_section, "BFGS%METHOD", i_val=matrix_method, explicit=method_explicit)
+      CALL section_vals_val_get(geo_section, "BFGS%USE_RAT_FUN_OPT", l_val=use_rfo)
+      IF (use_rfo .AND. .NOT. method_explicit) matrix_method = bfgs_direct
       inverse = matrix_method == bfgs_inverse
       maxiter = gopt_param%max_iter
       conv = .FALSE.
@@ -177,7 +179,6 @@ CONTAINS
          CPABORT("BFGS method not yet working with DIMER")
       END SELECT
 
-      CALL section_vals_val_get(geo_section, "BFGS%USE_RAT_FUN_OPT", l_val=use_rfo)
       CALL section_vals_val_get(geo_section, "BFGS%USE_MODEL_HESSIAN", l_val=use_mod_hes)
       CALL section_vals_val_get(geo_section, "BFGS%RESTART_HESSIAN", l_val=hesrest)
       IF (inverse .AND. use_rfo) THEN

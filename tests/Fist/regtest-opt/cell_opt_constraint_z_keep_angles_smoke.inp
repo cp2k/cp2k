@@ -26,9 +26,9 @@
     PRESSURE_TOLERANCE [bar] 1.0E-1  # Disable this convergence check
     RMS_DR 0.0003
     RMS_FORCE 0.00003
-    &LBFGS
-      TRUST_RADIUS [Angstrom] 0.1
-    &END LBFGS
+    &BFGS
+      METHOD DIRECT
+    &END BFGS
   &END CELL_OPT
   &PRINT
     &CELL on

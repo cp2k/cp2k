@@ -1323,10 +1323,11 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
                           description="Matrix updated by full-memory BFGS. DIRECT updates the Hessian; "// &
-                          "INVERSE updates its inverse without a full diagonalization at each step.", &
+                          "INVERSE updates its inverse without a full diagonalization at each step. "// &
+                          "If METHOD is omitted and USE_RAT_FUN_OPT is enabled, DIRECT is used instead.", &
                           usage="METHOD INVERSE", &
                           enum_c_vals=s2a("DIRECT", "INVERSE"), &
-                          enum_i_vals=[bfgs_direct, bfgs_inverse], default_i_val=bfgs_direct)
+                          enum_i_vals=[bfgs_direct, bfgs_inverse], default_i_val=bfgs_inverse)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
