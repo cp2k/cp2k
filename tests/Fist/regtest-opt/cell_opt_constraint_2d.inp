@@ -20,7 +20,7 @@
     &BFGS
       TRUST_RADIUS 0.1
       USE_MODEL_HESSIAN no
-      USE_RAT_FUN_OPT on
+      USE_RAT_FUN_OPT on  ! No METHOD: exercise the direct-Hessian fallback.
     &END BFGS
   &END CELL_OPT
   &PRINT

@@ -9,6 +9,7 @@
     MAX_ITER 50
     OPTIMIZER BFGS
     &BFGS
+      METHOD DIRECT
       &RESTART
       &END RESTART
     &END BFGS

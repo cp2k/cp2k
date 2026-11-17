@@ -7,6 +7,9 @@
 &MOTION
   &GEO_OPT
     MAX_ITER 3
+    &BFGS
+      METHOD DIRECT
+    &END BFGS
   &END GEO_OPT
 &END MOTION
 

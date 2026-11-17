@@ -18,6 +18,7 @@
     RMS_DR 0.0003
     RMS_FORCE 0.00003
     &BFGS
+      METHOD DIRECT
       USE_MODEL_HESSIAN no
     &END BFGS
     &PRINT
