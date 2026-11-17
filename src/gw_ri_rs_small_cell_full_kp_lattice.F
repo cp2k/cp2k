@@ -39,6 +39,7 @@ MODULE gw_ri_rs_small_cell_full_kp_lattice
    USE kpoint_types,                    ONLY: kpoint_type
    USE mathconstants,                   ONLY: pi,&
                                               twopi,&
+                                              z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: indco,&
@@ -72,6 +73,12 @@ MODULE gw_ri_rs_small_cell_full_kp_lattice
              build_ri_2c_lattice, &
              complex_bytes, &
              gamma_auxiliary_charges, &
+             grid_pair_indices, &
+             grid_pair_gemm, &
+             grid_pair_multiply, &
+             grid_pair_shift, &
+             grid_pair_stencil_weight, &
+             image_weight, &
              owned_mo_coefficients, &
              real_bytes, &
              ri_2c_lattice_to_kp, &
@@ -79,8 +86,215 @@ MODULE gw_ri_rs_small_cell_full_kp_lattice
 
    ! Bytes per stored real and complex number.
    REAL(KIND=dp), PARAMETER :: real_bytes = REAL(dp_size, dp), complex_bytes = 2.0_dp*real_bytes
+   INTEGER, PARAMETER, PUBLIC :: grid_pair_stencil_denominator = 4**3
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Decode an unordered grid pair p=i+j*(j-1)/2, 1<=i<=j.
+!> Integer corrections keep the triangular boundaries exact for large grids.
+!> \param ipair packed upper-triangle index
+!> \param il row
+!> \param ilp column
+! **************************************************************************************************
+   PURE SUBROUTINE grid_pair_indices(ipair, il, ilp)
+      INTEGER, INTENT(IN)                                :: ipair
+      INTEGER, INTENT(OUT)                               :: il, ilp
+
+      INTEGER(KIND=int_8)                                :: column, pair
+
+      pair = INT(ipair, int_8)
+      column = INT((1.0_dp + SQRT(8.0_dp*REAL(pair, dp) - 7.0_dp))/2.0_dp, int_8)
+      DO WHILE (column*(column + 1_int_8)/2_int_8 < pair)
+         column = column + 1_int_8
+      END DO
+      DO WHILE (column*(column - 1_int_8)/2_int_8 >= pair)
+         column = column - 1_int_8
+      END DO
+      ilp = INT(column)
+      il = INT(pair - column*(column - 1_int_8)/2_int_8)
+   END SUBROUTINE grid_pair_indices
+
+! **************************************************************************************************
+!> \brief Nearest lattice image of an unordered grid pair, including both half-cell ties.
+!> \param il row of the unordered pair
+!> \param ilp column of the unordered pair
+!> \param fractional_grid periodic fractional grid coordinates
+!> \param pair_shift lower nearest image on a tie
+!> \param pair_tie directions with two equidistant images
+! **************************************************************************************************
+   PURE SUBROUTINE grid_pair_shift(il, ilp, fractional_grid, pair_shift, pair_tie)
+      INTEGER, INTENT(IN)                                :: il, ilp
+      REAL(KIND=dp), INTENT(IN)                          :: fractional_grid(:, :)
+      INTEGER, INTENT(OUT)                               :: pair_shift(3)
+      LOGICAL, INTENT(OUT)                               :: pair_tie(3)
+
+      INTEGER                                            :: idir
+      REAL(KIND=dp)                                      :: delta(3), half_boundary, tolerance
+
+      delta = fractional_grid(:, il) - fractional_grid(:, ilp)
+      pair_shift = NINT(delta)
+      pair_tie = .FALSE.
+      DO idir = 1, 3
+         half_boundary = ANINT(delta(idir) - 0.5_dp) + 0.5_dp
+         tolerance = 64.0_dp*EPSILON(1.0_dp)*MAX(1.0_dp, ABS(delta(idir)))
+         IF (ABS(delta(idir) - half_boundary) <= tolerance) THEN
+            pair_shift(idir) = NINT(half_boundary - 0.5_dp)
+            pair_tie(idir) = .TRUE.
+         END IF
+      END DO
+   END SUBROUTINE grid_pair_shift
+
+! **************************************************************************************************
+!> \brief Upper triangle of A B^H in packed pair order, using bounded column panels.
+!> \param n grid points
+!> \param ninner contracted dimension
+!> \param left A
+!> \param right B; the caller supplies a Hermitian product
+!> \param pairs packed upper triangle
+! **************************************************************************************************
+   SUBROUTINE grid_pair_gemm(n, ninner, left, right, pairs)
+      INTEGER, INTENT(IN)                                :: n, ninner
+      COMPLEX(KIND=dp), INTENT(IN)                       :: left(n, ninner), right(n, ninner)
+      COMPLEX(KIND=dp), INTENT(OUT)                      :: pairs(:)
+
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :)
+      INTEGER                                            :: first, j, offset, width
+
+      CPASSERT(SIZE(pairs, KIND=int_8) == INT(n, int_8)*(n + 1)/2)
+      ALLOCATE (panel(n, MIN(32, n)))
+      DO first = 1, n, 32
+         width = MIN(32, n - first + 1)
+         CALL zgemm('N', 'C', first + width - 1, width, ninner, z_one, left, n, &
+                    right(first, 1), n, z_zero, panel, n)
+         DO j = first, first + width - 1
+            offset = INT(INT(j, int_8)*(j - 1)/2)
+            pairs(offset + 1:offset + j) = panel(1:j, j - first + 1)
+            pairs(offset + j) = CMPLX(REAL(pairs(offset + j), dp), 0.0_dp, dp)
+         END DO
+      END DO
+   END SUBROUTINE grid_pair_gemm
+
+! **************************************************************************************************
+!> \brief Y=H Z from the unordered pairs of a Hermitian H, without expanding its lower triangle.
+!> Off-diagonal panels update both row blocks; diagonal panels use Hermitian BLAS.
+!> \param n grid points
+!> \param nrhs right-hand sides
+!> \param pairs packed upper triangle of H
+!> \param Z dense right-hand sides
+!> \param Y result
+! **************************************************************************************************
+   SUBROUTINE grid_pair_multiply(n, nrhs, pairs, Z, Y)
+      INTEGER, INTENT(IN)                                :: n, nrhs
+      COMPLEX(KIND=dp), INTENT(IN)                       :: pairs(:), Z(n, nrhs)
+      COMPLEX(KIND=dp), INTENT(OUT)                      :: Y(n, nrhs)
+
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :)
+      INTEGER                                            :: first, j, offset, width
+
+      CPASSERT(SIZE(pairs, KIND=int_8) == INT(n, int_8)*(n + 1)/2)
+      ALLOCATE (panel(n, MIN(32, n)))
+      Y = z_zero
+      DO first = 1, n, 32
+         width = MIN(32, n - first + 1)
+         DO j = first, first + width - 1
+            offset = INT(INT(j, int_8)*(j - 1)/2)
+            panel(1:j, j - first + 1) = pairs(offset + 1:offset + j)
+         END DO
+         IF (first > 1) THEN
+            CALL zgemm('N', 'N', first - 1, nrhs, width, z_one, panel, n, Z(first, 1), n, z_one, Y, n)
+            CALL zgemm('C', 'N', width, nrhs, first - 1, z_one, panel, n, Z, n, z_one, Y(first, 1), n)
+         END IF
+         CALL zhemm('L', 'U', width, nrhs, z_one, panel(first, 1), n, Z(first, 1), n, z_one, Y(first, 1), n)
+      END DO
+   END SUBROUTINE grid_pair_multiply
+
+! **************************************************************************************************
+!> \brief Finite-supercell image weight, averaged over equidistant pair centers.
+!> \param c image relative to the lower pair center
+!> \param n_mesh mesh length
+!> \param tie two equidistant centers
+!> \param boundary weight of a supercell endpoint
+!> \return image weight
+! **************************************************************************************************
+   PURE REAL(KIND=dp) FUNCTION image_weight(c, n_mesh, tie, boundary) RESULT(weight)
+      INTEGER, INTENT(IN)                                :: c, n_mesh
+      LOGICAL, INTENT(IN)                                :: tie
+      REAL(KIND=dp), INTENT(IN)                          :: boundary
+
+      INTEGER                                            :: i_center, n_centers
+
+      n_centers = MERGE(2, 1, tie)
+      weight = 0.0_dp
+      DO i_center = 0, n_centers - 1
+         IF (2*ABS(c - i_center) < n_mesh) THEN
+            weight = weight + 1.0_dp/REAL(n_centers, dp)
+         ELSE IF (2*ABS(c - i_center) == n_mesh) THEN
+            weight = weight + boundary/REAL(n_centers, dp)
+         END IF
+      END DO
+   END FUNCTION image_weight
+
+! **************************************************************************************************
+!> \brief Signed stencil numerator on an inversion-closed mesh, with denominator 64.
+!> All centered images share exp(2*pi*i*offset*cell); their remaining phases are signs.
+!> Each one-axis image weight is a multiple of 1/4, including half-cell averaging.
+!> \param cell canonical source cell
+!> \param shift lower pair center
+!> \param tie half-cell ties
+!> \param nmesh Born-von Karman mesh
+!> \param half_shift twice the mesh-scaled reciprocal offset
+!> \param displacement grid-point displacement in Cartesian coordinates
+!> \param hmat lattice matrix
+!> \param cutoff_squared squared distance cutoff; nonpositive disables truncation
+!> \return signed image-weight numerator
+! **************************************************************************************************
+   PURE INTEGER FUNCTION grid_pair_stencil_weight(cell, shift, tie, nmesh, half_shift, &
+                                                  displacement, hmat, cutoff_squared) RESULT(numerator)
+      INTEGER, INTENT(IN)                                :: cell(3), shift(3)
+      LOGICAL, INTENT(IN)                                :: tie(3)
+      INTEGER, INTENT(IN)                                :: nmesh(3), half_shift(3)
+      REAL(KIND=dp), INTENT(IN)                          :: displacement(3), hmat(3, 3), &
+                                                            cutoff_squared
+
+      INTEGER                                            :: base(3), ix, iy, iz, translated(3), &
+                                                            weight, weights(0:1, 3)
+      REAL(KIND=dp)                                      :: boundary(3), distance(3)
+
+      ! Periodic image weights partition unity when every supercell phase is one.
+      IF (cutoff_squared <= 0.0_dp .AND. ALL(MODULO(half_shift, 2) == 0)) THEN
+         numerator = grid_pair_stencil_denominator
+         RETURN
+      END IF
+      base = MODULO(cell - shift + nmesh/2, nmesh) - nmesh/2
+      boundary = 0.5_dp*REAL(1 - MODULO(half_shift, 2), dp)
+      DO ix = 1, 3
+         weights(:, ix) = NINT(4.0_dp*[image_weight(base(ix), nmesh(ix), tie(ix), boundary(ix)), &
+                                       image_weight(base(ix) + nmesh(ix), nmesh(ix), tie(ix), boundary(ix))])
+      END DO
+      ! Without a distance cutoff, the image sum separates into three one-axis sums.
+      IF (cutoff_squared <= 0.0_dp) THEN
+         numerator = PRODUCT(weights(0, :) + (1 - 2*MODULO(half_shift, 2))*weights(1, :))
+         IF (MODULO(DOT_PRODUCT(half_shift, (shift + base - cell)/nmesh), 2) /= 0) numerator = -numerator
+         RETURN
+      END IF
+      numerator = 0
+      DO iz = 0, 1
+         IF (weights(iz, 3) == 0) CYCLE
+         DO iy = 0, 1
+            IF (weights(iy, 2) == 0) CYCLE
+            DO ix = 0, 1
+               weight = weights(ix, 1)*weights(iy, 2)*weights(iz, 3)
+               IF (weight == 0) CYCLE
+               translated = shift + base + nmesh*[ix, iy, iz]
+               distance = displacement - MATMUL(hmat, REAL(translated, dp))
+               IF (SUM(distance**2) > cutoff_squared) CYCLE
+               IF (MODULO(DOT_PRODUCT(half_shift, (translated - cell)/nmesh), 2) /= 0) weight = -weight
+               numerator = numerator + weight
+            END DO
+         END DO
+      END DO
+   END FUNCTION grid_pair_stencil_weight
 
 ! **************************************************************************************************
 !> \brief Assembles the q-independent, atom-diagonal AA contraction from stored coefficients.
@@ -487,7 +701,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Return the contiguous part of 1..n owned by one rank of a block distribution.
-!> \param n Number of distributed items (grid rows or ordered grid pairs).
+!> \param n Number of distributed items (grid rows or unordered grid pairs).
 !> \param rank ...
 !> \param n_rank ...
 !> \param first First owned item.

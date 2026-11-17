@@ -42,6 +42,7 @@ MODULE kpoint_lattice_fft
    PUBLIC :: cell_to_k_grid_fft, cell_to_k_grid_prepare, cell_to_k_grid_release, cell_to_k_grid_work_type
    PUBLIC :: k_grid_to_cell_fft, k_grid_to_cell_prepare, k_grid_to_cell_execute, k_grid_to_cell_release
    PUBLIC :: k_grid_to_cell_work_type, lattice_fft_shape, regular_kpoint_grid
+   PUBLIC :: k_grid_to_cell_panel_width
    PUBLIC :: lattice_fft_profile_type, lattice_fft_execute_pair_major, lattice_fft_prepare_geometry
    PUBLIC :: lattice_fft_real_sink_type
 
@@ -51,6 +52,7 @@ MODULE kpoint_lattice_fft
    INTEGER(KIND=int_8), PARAMETER :: fft_parallel_values = 32768_int_8
    ! Keep the default pair-major workspace bounded, as in the master lattice FFT.
    INTEGER(KIND=int_8), PARAMETER :: fft_workspace_bytes = 64_int_8*1024_int_8**2
+   INTEGER(KIND=int_8), PARAMETER :: fft_panel_element_bytes = 48_int_8
 
    ! Optional local-panel diagnostics. Axis times include any plan creation.
    TYPE lattice_fft_profile_type
@@ -669,8 +671,9 @@ CONTAINS
 !> \param index_to_cell requested lattice translations
 !> \param weights final k weights, otherwise 1/number-of-points
 !> \param allow_incomplete allow missing grid points, with zero values
+!> \param cell_phase_forward unweighted forward Bloch phases, returned for a regular grid
 ! **************************************************************************************************
-   SUBROUTINE k_grid_to_cell_prepare(work, xkp, nkp_grid, index_to_cell, weights, allow_incomplete)
+   SUBROUTINE k_grid_to_cell_prepare(work, xkp, nkp_grid, index_to_cell, weights, allow_incomplete, cell_phase_forward)
 
       TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
@@ -678,6 +681,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: weights
       LOGICAL, INTENT(IN), OPTIONAL                      :: allow_incomplete
+      COMPLEX(KIND=dp), INTENT(OUT), OPTIONAL            :: cell_phase_forward(:)
 
       INTEGER                                            :: half_shift(3), icell, ik, ncell, nkp, &
                                                             partner_index(3), partner_slot
@@ -723,12 +727,38 @@ CONTAINS
       END IF
 
       ALLOCATE (work%cell_phase(ncell))
+      IF (PRESENT(cell_phase_forward)) THEN
+         CPASSERT(SIZE(cell_phase_forward) == ncell)
+      END IF
       DO icell = 1, ncell
          work%cell_phase(icell) = EXP(-gaussi*twopi*SUM(k_offset*REAL(index_to_cell(1:3, icell), dp)))
+         IF (PRESENT(cell_phase_forward)) cell_phase_forward(icell) = CONJG(work%cell_phase(icell))
          IF (work%uniform_weights) work%cell_phase(icell) = work%weight(1)*work%cell_phase(icell)
       END DO
 
    END SUBROUTINE k_grid_to_cell_prepare
+
+! **************************************************************************************************
+!> \brief Physical fields per inverse FFT panel, including two-real alignment.
+!> \param work prepared inverse FFT geometry
+!> \param nvalues number of physical fields
+!> \param budget workspace limit in bytes
+!> \param real_output whether the inverse uses the real-output path
+!> \return panel width, zero for an empty input
+! **************************************************************************************************
+   FUNCTION k_grid_to_cell_panel_width(work, nvalues, budget, real_output) RESULT(width)
+      TYPE(k_grid_to_cell_work_type), INTENT(IN)         :: work
+      INTEGER(KIND=int_8), INTENT(IN)                    :: nvalues, budget
+      LOGICAL, INTENT(IN)                                :: real_output
+      INTEGER                                            :: width
+
+      INTEGER(KIND=int_8)                                :: ngrid
+
+      ngrid = PRODUCT(INT(work%nfft, int_8))
+      CPASSERT(ngrid > 0 .AND. ngrid <= HUGE(0))
+      width = INT(MIN(nvalues, MAX(1_int_8, budget/(fft_panel_element_bytes*ngrid)), INT(HUGE(0), int_8)/ngrid))
+      IF (real_output .AND. ALLOCATED(work%k_partner) .AND. width > 1) width = 2*(width/2)
+   END FUNCTION k_grid_to_cell_panel_width
 
 ! **************************************************************************************************
 !> \brief Execute a matrix batch using the prepared inverse lattice transform.
@@ -764,7 +794,7 @@ CONTAINS
       INTEGER                                            :: fft_count, fft_width, handle, nbatch, n_output, &
                                                             output_shape(3), stat, width
       INTEGER(KIND=int_8)                                :: budget, first, ngrid, nvalues
-      LOGICAL                                            :: pack_real
+      LOGICAL                                            :: pack_real, real_output
       REAL(KIND=dp)                                      :: started
 
       CALL timeset("k_grid_to_cell_fft", handle)
@@ -791,17 +821,16 @@ CONTAINS
          ngrid = PRODUCT(INT(work%nfft, int_8))
          nvalues = SIZE(values_k, 1, KIND=int_8)*SIZE(values_k, 2, KIND=int_8)
          budget = fft_workspace_bytes
-         IF (PRESENT(max_workspace_bytes)) budget = MAX(48_int_8*ngrid, max_workspace_bytes)
-         CPASSERT(ngrid <= HUGE(0))
-         width = INT(MIN(nvalues, MAX(1_int_8, budget/(48_int_8*ngrid)), &
-                         INT(HUGE(0), int_8)/ngrid))
+         IF (PRESENT(max_workspace_bytes)) budget = max_workspace_bytes
+         real_output = PRESENT(values_real) .OR. PRESENT(real_sink)
+         width = k_grid_to_cell_panel_width(work, nvalues, budget, real_output)
+         budget = MAX(fft_panel_element_bytes*ngrid, budget)
          IF (width == 0) THEN
             IF (PRESENT(used_fft)) used_fft = .TRUE.
             CALL timestop(handle)
             RETURN
          END IF
-         pack_real = (PRESENT(values_real) .OR. PRESENT(real_sink)) .AND. ALLOCATED(work%k_partner) .AND. width > 1
-         IF (pack_real) width = 2*(width/2)
+         pack_real = real_output .AND. ALLOCATED(work%k_partner) .AND. width > 1
          fft_width = width
          IF (pack_real) fft_width = width/2
          CPASSERT(ngrid*width <= HUGE(0))
