@@ -21,7 +21,7 @@ MODULE solid_state_coordinates
    INTEGER, PARAMETER :: row(ss_cell_dof) = [1, 2, 3, 1, 1, 2], col(ss_cell_dof) = [1, 2, 3, 2, 3, 3]
 
    TYPE, PUBLIC :: solid_state_frame_type
-      REAL(KIND=dp) :: rotation(3, 3), reference(3, 3), width
+      REAL(KIND=dp) :: rotation(3, 3) = 0.0_dp, reference(3, 3) = 0.0_dp, width = 0.0_dp
    END TYPE solid_state_frame_type
 
    PUBLIC :: solid_state_frame, solid_state_pack, solid_state_unpack, solid_state_force

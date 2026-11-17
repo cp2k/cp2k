@@ -59,7 +59,7 @@ MODULE neb_types
       REAL(KIND=dp) :: K = 0.0_dp, spring_energy = 0.0_dp, avg_distance = 0.0_dp
       REAL(KIND=dp) :: smoothing = 0.0_dp
       REAL(KIND=dp) :: external_pressure = 0.0_dp, cell_weight = 1.0_dp
-      TYPE(solid_state_frame_type) :: solid_frame
+      TYPE(solid_state_frame_type) :: solid_frame = solid_state_frame_type()
       CHARACTER(LEN=default_string_length) :: opt_type_label = ""
       ! Section used for restart
       TYPE(force_env_type), POINTER        :: force_env => NULL()
