@@ -2623,9 +2623,10 @@ CONTAINS
          unit_nr, unit_nr_voro
       LOGICAL :: append_cube, append_voro, assign_nearest, do_hfx, do_kpoints, mpi_io, &
          omit_headers, print_it, rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
-      REAL(KIND=dp)                                      :: norm_factor, q_max, rho_hard, rho_soft, &
-                                                            rho_total, rho_total_rspace, udvol, &
-                                                            vacuum_density
+      LOGICAL, ALLOCATABLE                               :: bader_nucleus(:), nuclear_kind(:)
+      REAL(KIND=dp)                                      :: bader_electrons, norm_factor, q_max, &
+                                                            rho_hard, rho_soft, rho_total, &
+                                                            rho_total_rspace, udvol, vacuum_density
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: bfun
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: aedens, ccdens, ppdens
@@ -2699,6 +2700,15 @@ CONTAINS
       CALL get_effective_core_charges(qs_env, zcharge)
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, "DFT%PRINT%BADER"), cp_p_file)) THEN
+         ALLOCATE (bader_nucleus(natom), nuclear_kind(nkind))
+         DO ikind = 1, nkind
+            nuclear_kind(ikind) = .NOT. (qs_kind_set(ikind)%ghost .OR. qs_kind_set(ikind)%floating)
+         END DO
+         DO iat = 1, natom
+            CALL get_atomic_kind(particle_set(iat)%atomic_kind, kind_number=ikind)
+            bader_nucleus(iat) = nuclear_kind(ikind)
+         END DO
+         bader_electrons = SUM(zcharge, MASK=bader_nucleus) - REAL(dft_control%charge, dp)
          CALL qs_rho_get(rho, rho_r_valid=rho_r_valid)
          IF (.NOT. rho_r_valid) CPABORT("BADER requires the real-space electron density.")
          CALL section_vals_val_get(input, "DFT%PRINT%BADER%VACUUM_DENSITY", r_val=vacuum_density)
@@ -2707,15 +2717,17 @@ CONTAINS
          SELECT CASE (dft_control%qs_control%method_id)
          CASE (do_method_gpw)
             DO ikind = 1, nkind
+               IF (.NOT. nuclear_kind(ikind)) CYCLE
                IF (.NOT. ASSOCIATED(qs_kind_set(ikind)%gth_potential)) THEN
                   CPABORT("GPW BADER requires GTH pseudopotentials.")
                END IF
             END DO
-            CALL print_bader_analysis(rho_r, cell, particle_set, zcharge, &
+            CALL print_bader_analysis(rho_r, cell, particle_set, zcharge, bader_nucleus, bader_electrons, &
                                       "the spin-summed GPW valence density", vacuum_density, assign_nearest, unit_nr)
          CASE (do_method_gapw)
             IF (do_kpoints) CPABORT("GAPW BADER does not support k-points.")
             DO ikind = 1, nkind
+               IF (.NOT. nuclear_kind(ikind)) CYCLE
                IF (.NOT. ASSOCIATED(qs_kind_set(ikind)%all_potential) .AND. &
                    .NOT. ASSOCIATED(qs_kind_set(ikind)%gth_potential)) THEN
                   CPABORT("GAPW BADER requires all-electron or GTH kinds.")
@@ -2727,7 +2739,7 @@ CONTAINS
             CALL auxbas_pw_pool%create_pw(pw=rho_elec_gspace)
             CALL reconstruct_gapw_density(qs_env, auxbas_pw_pool, rho_elec_gspace, rho_elec_rspace, &
                                           q_max, rho_hard, rho_soft)
-            CALL print_bader_analysis([rho_elec_rspace], cell, particle_set, zcharge, &
+            CALL print_bader_analysis([rho_elec_rspace], cell, particle_set, zcharge, bader_nucleus, bader_electrons, &
                                       "the reconstructed GAPW electron density", vacuum_density, assign_nearest, unit_nr)
             CALL auxbas_pw_pool%give_back_pw(rho_elec_gspace)
             CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)

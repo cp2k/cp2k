@@ -937,13 +937,15 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, "BADER", &
                                        description="Weighted Bader integration of the GPW valence density or the "// &
                                        "reconstructed GAPW electron density. Requires a Cartesian orthorhombic cell. "// &
+                                       "Ghost atoms and floating basis centres are excluded from basin assignment. "// &
                                        "GAPW reconstruction does not support k-points. "// &
                                        "The gathered grid is limited to eight million points. "// &
                                        "Enable explicitly with BADER ON.", &
                                        print_level=debug_print_level + 1, filename="__STD_OUT__", &
                                        citations=[YuTrinkle2011])
       CALL keyword_create(keyword, __LOCATION__, name="VACUUM_DENSITY", &
-                          description="Assign points at or below this electron density (e/bohr^3) to vacuum.", &
+                          description="Assign points at or below this electron density (e/bohr^3) to vacuum. "// &
+                          "Check basin volumes for sensitivity to the grid and this threshold, especially for GAPW.", &
                           default_r_val=1.0E-8_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)

@@ -30,16 +30,21 @@ CONTAINS
 !> \param cell simulation cell
 !> \param particles atoms in the same order as ionic_charge
 !> \param ionic_charge nuclear charge or pseudopotential ionic charge in electron units
+!> \param nuclear_center true for physical nuclei, false for basis-only centres
+!> \param nominal_electrons electron count from physical nuclear charges and DFT charge
 !> \param density_label description of the density used to define and integrate basins
 !> \param cutoff density cutoff for vacuum integration
 !> \param assign_nearest group maxima by proximity rather than unique nuclear seed
 !> \param iw print unit, positive only on the output rank
 ! **************************************************************************************************
-   SUBROUTINE print_bader_analysis(rho, cell, particles, ionic_charge, density_label, cutoff, assign_nearest, iw)
+   SUBROUTINE print_bader_analysis(rho, cell, particles, ionic_charge, nuclear_center, nominal_electrons, &
+                                   density_label, cutoff, assign_nearest, iw)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho(:)
       TYPE(cell_type), INTENT(IN)                        :: cell
       TYPE(particle_type), INTENT(IN)                    :: particles(:)
       REAL(KIND=dp), INTENT(IN)                          :: ionic_charge(:)
+      LOGICAL, INTENT(IN)                                :: nuclear_center(:)
+      REAL(KIND=dp), INTENT(IN)                          :: nominal_electrons
       CHARACTER(LEN=*), INTENT(IN)                       :: density_label
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       LOGICAL, INTENT(IN)                                :: assign_nearest
@@ -47,16 +52,20 @@ CONTAINS
 
       INTEGER, PARAMETER                                 :: max_grid_points = 8000000
 
-      INTEGER                                            :: d, i, n(3), n_extra, n_other, ng, q(3)
+      INTEGER                                            :: a, d, i, n(3), n_extra, n_other, ng, &
+                                                            nnuc, q(3)
       INTEGER, ALLOCATABLE                               :: seeds(:)
       LOGICAL                                            :: periodic(3)
       LOGICAL, ALLOCATABLE                               :: assigned(:)
-      REAL(KIND=dp)                                      :: other(2), SPACING(3), vacuum(2)
+      REAL(KIND=dp)                                      :: extra(2), integrated, other(2), &
+                                                            SPACING(3), vacuum(2)
       REAL(KIND=dp), ALLOCATABLE                         :: atom_grid(:, :), basins(:, :)
       REAL(KIND=dp), ALLOCATABLE, TARGET                 :: density(:, :, :)
       REAL(KIND=dp), POINTER                             :: values(:)
 
       IF (.NOT. cell%orthorhombic) CPABORT("BADER requires a Cartesian orthorhombic cell.")
+      nnuc = COUNT(nuclear_center)
+      IF (nnuc == 0) CPABORT("BADER requires at least one physical nucleus.")
       periodic = cell%perd /= 0
       IF (.NOT. (cutoff >= 0.0_dp)) CPABORT("BADER requires a nonnegative VACUUM_DENSITY.")
       IF (rho(1)%pw_grid%ngpts > max_grid_points) THEN
@@ -67,22 +76,25 @@ CONTAINS
       CALL collect_density(rho, iw, density)
       IF (iw <= 0) RETURN
 
-      ALLOCATE (seeds(SIZE(particles)), assigned(SIZE(particles)), basins(2, SIZE(particles)))
-      IF (assign_nearest) ALLOCATE (atom_grid(3, SIZE(particles)))
+      ALLOCATE (seeds(nnuc), assigned(nnuc), basins(2, nnuc))
+      IF (assign_nearest) ALLOCATE (atom_grid(3, nnuc))
       spacing = [rho(1)%pw_grid%dh(1, 1), rho(1)%pw_grid%dh(2, 2), rho(1)%pw_grid%dh(3, 3)]
       seeds = 0
+      a = 0
       DO i = 1, SIZE(particles)
-         IF (assign_nearest) atom_grid(:, i) = particles(i)%r/spacing
+         IF (.NOT. nuclear_center(i)) CYCLE
+         a = a + 1
+         IF (assign_nearest) atom_grid(:, a) = particles(i)%r/spacing
          q = NINT(particles(i)%r/spacing)
          DO d = 1, 3
             IF (periodic(d)) q(d) = MODULO(q(d), n(d))
          END DO
          IF (ANY(q < 0) .OR. ANY(q >= n)) CYCLE
-         seeds(i) = 1 + q(1) + n(1)*(q(2) + n(2)*q(3))
+         seeds(a) = 1 + q(1) + n(1)*(q(2) + n(2)*q(3))
       END DO
       values(1:ng) => density
       CALL bader_integrate_grid(values, n, spacing, periodic, cutoff, seeds, basins, assigned, other, vacuum, &
-                                n_other, atom_grid=atom_grid, n_extra=n_extra)
+                                n_other, atom_grid=atom_grid, n_extra=n_extra, extra=extra)
 
       WRITE (iw, '(/,T2,A)') "BADER| Weighted basins of "//density_label
       IF (assign_nearest) THEN
@@ -91,11 +103,19 @@ CONTAINS
          WRITE (iw, '(T2,A)') "BADER| Atom assignment: unique nuclear seed only"
       END IF
       WRITE (iw, '(T2,A,I10)') "BADER| Maxima without a unique nuclear seed ", n_extra
+      WRITE (iw, '(T2,A,F20.10)') "BADER| Electrons without a unique nuclear seed ", extra(1)
+      WRITE (iw, '(T2,A,F20.10)') "BADER| Volume without a unique nuclear seed [bohr^3] ", extra(2)
       WRITE (iw, '(T2,A,ES20.10)') "BADER| Vacuum density [e/bohr^3] ", cutoff
       WRITE (iw, '(T2,A)') "BADER| Atom                 Electrons        Net charge [e]       Volume [bohr^3]"
+      a = 0
       DO i = 1, SIZE(particles)
-         IF (assigned(i)) THEN
-            WRITE (iw, '(T2,A,I7,3F23.10)') "BADER|", i, basins(1, i), ionic_charge(i) - basins(1, i), basins(2, i)
+         IF (.NOT. nuclear_center(i)) THEN
+            WRITE (iw, '(T2,A,I7,2X,A)') "BADER|", i, "Basis-only centre (excluded)"
+            CYCLE
+         END IF
+         a = a + 1
+         IF (assigned(a)) THEN
+            WRITE (iw, '(T2,A,I7,3F23.10)') "BADER|", i, basins(1, a), ionic_charge(i) - basins(1, a), basins(2, a)
          ELSE
             WRITE (iw, '(T2,A,I7,2X,A)') "BADER|", i, "No unique basin"
          END IF
@@ -105,9 +125,11 @@ CONTAINS
       WRITE (iw, '(T2,A,F20.10)') "BADER| Vacuum electrons        ", vacuum(1)
       WRITE (iw, '(T2,A,F20.10)') "BADER| Unassigned volume [bohr^3] ", other(2)
       WRITE (iw, '(T2,A,F20.10)') "BADER| Vacuum volume [bohr^3]      ", vacuum(2)
-      WRITE (iw, '(T2,A,F20.10)') "BADER| Integrated electrons    ", SUM(basins(1, :)) + other(1) + vacuum(1)
-      WRITE (iw, '(T2,A,ES20.10)') "BADER| Electron balance error   ", &
-         SUM(basins(1, :)) + other(1) + vacuum(1) - SUM(values)*PRODUCT(spacing)
+      integrated = SUM(basins(1, :)) + other(1) + vacuum(1)
+      WRITE (iw, '(T2,A,F20.10)') "BADER| Integrated electrons    ", integrated
+      WRITE (iw, '(T2,A,F20.10)') "BADER| Nominal electrons        ", nominal_electrons
+      WRITE (iw, '(T2,A,ES20.10)') "BADER| Density minus nominal electrons ", integrated - nominal_electrons
+      WRITE (iw, '(T2,A,ES20.10)') "BADER| Electron balance error   ", integrated - SUM(values)*PRODUCT(spacing)
    END SUBROUTINE print_bader_analysis
 
 ! **************************************************************************************************
