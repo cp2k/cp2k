@@ -42,7 +42,7 @@ case "$with_libfci" in
       cmake \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_CXX_COMPILER="${CXX}" \
-        -DLIBFCI_USE_OPENMP="$([ "${ENABLE_OMP}" = "__TRUE__" ] && echo ON || echo OFF)" \
+        -DLIBFCI_USE_OPENMP=ON \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
