@@ -41,6 +41,9 @@ MODULE kpoint_unfolding
                                               kpoint_env_type,&
                                               kpoint_type
    USE mathconstants,                   ONLY: twopi
+   USE mathlib,                         ONLY: det_3x3,&
+                                              inv_3x3,&
+                                              vector_product
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
@@ -243,16 +246,17 @@ CONTAINS
       INTEGER                                            :: handle, i
       REAL(KIND=dp)                                      :: plane_d_min
       REAL(KIND=dp), DIMENSION(3)                        :: plane_distance
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: minv
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: m_dp, minv
 
       CALL timeset(routineN, handle)
 
       uf%transmat = transmat
       uf%symm_tol = symm_tol
-      uf%m = ABS(int_det3(transmat))
+      m_dp = REAL(transmat, KIND=dp)
+      uf%m = ABS(NINT(det_3x3(m_dp)))
       IF (uf%m == 0) CPABORT("UNFOLD_BAND| TRANSFORMATION_MATRIX is singular")
 
-      minv = inverse_int3(transmat)
+      minv = inv_3x3(m_dp)
       DO i = 1, 3
          uf%h_pc(1:3, i) = MATMUL(cart_hmat(1:3, 1:3), minv(1:3, i))
       END DO
@@ -344,6 +348,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: max_res, res, res_cand
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: s_pbc
       REAL(KIND=dp), DIMENSION(3)                        :: dcart, ds, r_pbc
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: m_dp
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
 
       CALL timeset(routineN, handle)
@@ -411,8 +416,11 @@ CONTAINS
       max_res = 0.0_dp
       ! integer adjugate and determinant: two translations n, n' belong to the same
       ! coset of the primitive lattice iff adj . (n - n') is divisible by det(M)
-      adj = adj_int3(uf%transmat)
-      idet = int_det3(uf%transmat)
+      m_dp = REAL(uf%transmat, KIND=dp)
+      adj(1, 1:3) = NINT(vector_product(m_dp(1:3, 2), m_dp(1:3, 3)))
+      adj(2, 1:3) = NINT(vector_product(m_dp(1:3, 3), m_dp(1:3, 1)))
+      adj(3, 1:3) = NINT(vector_product(m_dp(1:3, 1), m_dp(1:3, 2)))
+      idet = NINT(det_3x3(m_dp))
       nref = 0
       uf%n_sets = 0
       uf%n_channels = 0
@@ -437,7 +445,7 @@ CONTAINS
                              s_pbc(1:3, iatom) - s_pbc(1:3, jatom))
             n_int(1:3) = NINT(ds(1:3))
             dcart(1:3) = MATMUL(uf%h_pc(1:3, 1:3), ds(1:3) - REAL(n_int(1:3), KIND=dp))
-            res = SQRT(DOT_PRODUCT(dcart(1:3), dcart(1:3)))
+            res = NORM2(dcart(1:3))
             IF (res >= uf%symm_tol) CYCLE
             DO nmemb = 1, slot_count(j)
                dn(1:3) = n_int(1:3) - slot_n(1:3, nmemb, j)
@@ -778,7 +786,7 @@ CONTAINS
       ! p = M^T f - K with f in [0,1): component r of M^T f lies between the sums of
       ! the negative and positive entries of column r of M; shifting by the K range
       ! [-0.5, 0.5) keeps these integer bounds exact (no slack needed)
-      minvt = TRANSPOSE(inverse_int3(uf%transmat))
+      minvt = TRANSPOSE(inv_3x3(REAL(uf%transmat, KIND=dp)))
       DO r = 1, 3
          plo(r) = SUM(MIN(uf%transmat(1:3, r), 0))
          phi(r) = SUM(MAX(uf%transmat(1:3, r), 0))
@@ -860,8 +868,8 @@ CONTAINS
          tsum(1:uf%n_channels, 1:nmo) = (0.0_dp, 0.0_dp)
          DO iao = 1, nao
             IF (uf%channel_of_ao(iao) == 0) CYCLE
-            arg = twopi*DOT_PRODUCT(fqs(1:3, iq), REAL(uf%n_of_ao(1:3, iao), KIND=dp))
-            phase = CMPLX(COS(arg), -SIN(arg), KIND=dp)
+            arg = -twopi*DOT_PRODUCT(fqs(1:3, iq), REAL(uf%n_of_ao(1:3, iao), KIND=dp))
+            phase = EXP(CMPLX(0.0_dp, arg, KIND=dp))
             ich = uf%channel_of_ao(iao)
             tsum(ich, 1:nmo) = tsum(ich, 1:nmo) + phase*cbuf(iao, 1:nmo)
          END DO
@@ -898,60 +906,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: j, k
       REAL(KIND=dp)                                      :: d
 
-      REAL(KIND=dp)                                      :: det
-      REAL(KIND=dp), DIMENSION(3)                        :: cross_jk
-
-      cross_jk(1) = h(2, j)*h(3, k) - h(3, j)*h(2, k)
-      cross_jk(2) = h(3, j)*h(1, k) - h(1, j)*h(3, k)
-      cross_jk(3) = h(1, j)*h(2, k) - h(2, j)*h(1, k)
-      det = h(1, 1)*(h(2, 2)*h(3, 3) - h(3, 2)*h(2, 3)) - h(2, 1)*(h(1, 2)*h(3, 3) - h(3, 2)*h(1, 3)) &
-            + h(3, 1)*(h(1, 2)*h(2, 3) - h(2, 2)*h(1, 3))
-      d = ABS(det)/SQRT(DOT_PRODUCT(cross_jk, cross_jk))
+      d = ABS(det_3x3(h))/NORM2(vector_product(h(1:3, j), h(1:3, k)))
    END FUNCTION plane_dist_of
-
-! **************************************************************************************************
-!> \brief Integer adjugate of a 3x3 matrix (transpose of cofactors)
-!> \param a ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION adj_int3(a) RESULT(adj)
-      INTEGER, DIMENSION(3, 3), INTENT(IN)               :: a
-      INTEGER, DIMENSION(3, 3)                           :: adj
-
-      adj(1, 1) = a(2, 2)*a(3, 3) - a(2, 3)*a(3, 2)
-      adj(1, 2) = a(1, 3)*a(3, 2) - a(1, 2)*a(3, 3)
-      adj(1, 3) = a(1, 2)*a(2, 3) - a(1, 3)*a(2, 2)
-      adj(2, 1) = a(2, 3)*a(3, 1) - a(2, 1)*a(3, 3)
-      adj(2, 2) = a(1, 1)*a(3, 3) - a(1, 3)*a(3, 1)
-      adj(2, 3) = a(1, 3)*a(2, 1) - a(1, 1)*a(2, 3)
-      adj(3, 1) = a(2, 1)*a(3, 2) - a(2, 2)*a(3, 1)
-      adj(3, 2) = a(1, 2)*a(3, 1) - a(1, 1)*a(3, 2)
-      adj(3, 3) = a(1, 1)*a(2, 2) - a(1, 2)*a(2, 1)
-   END FUNCTION adj_int3
-
-! **************************************************************************************************
-!> \brief Determinant of a 3x3 integer matrix
-!> \param a ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION int_det3(a) RESULT(det)
-      INTEGER, DIMENSION(3, 3), INTENT(IN)               :: a
-      INTEGER                                            :: det
-
-      det = a(1, 1)*a(2, 2)*a(3, 3) + a(1, 2)*a(2, 3)*a(3, 1) + a(1, 3)*a(2, 1)*a(3, 2) &
-            - a(1, 3)*a(2, 2)*a(3, 1) - a(1, 1)*a(2, 3)*a(3, 2) - a(1, 2)*a(2, 1)*a(3, 3)
-   END FUNCTION int_det3
-
-! **************************************************************************************************
-!> \brief Real inverse of a 3x3 integer matrix (adjugate / determinant)
-!> \param a ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION inverse_int3(a) RESULT(ainv)
-      INTEGER, DIMENSION(3, 3), INTENT(IN)               :: a
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: ainv
-
-      ainv = REAL(adj_int3(a), KIND=dp)/REAL(int_det3(a), KIND=dp)
-   END FUNCTION inverse_int3
 
 END MODULE kpoint_unfolding
