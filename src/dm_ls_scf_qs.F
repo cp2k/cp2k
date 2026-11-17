@@ -221,7 +221,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_qs_to_ls'
 
       INTEGER                                            :: handle
-      INTEGER, DIMENSION(:), POINTER                     :: pao_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: pao_blk_sizes
       TYPE(dbcsr_type)                                   :: matrix_pao, matrix_tmp
       TYPE(dbcsr_type), POINTER                          :: matrix_trafo
 
@@ -316,7 +316,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_ls_to_qs'
 
       INTEGER                                            :: handle
-      INTEGER, DIMENSION(:), POINTER                     :: pao_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: pao_blk_sizes
       LOGICAL                                            :: my_keep_sparsity
       TYPE(dbcsr_type)                                   :: matrix_declustered, matrix_tmp1, &
                                                             matrix_tmp2

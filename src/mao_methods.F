@@ -94,7 +94,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iolevel, iw
 
       INTEGER                                            :: i, iatom, info, jatom, lwork, m, n, nblk
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, mao_blk, row_blk, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_sizes, mao_blk, row_blk, &
                                                             row_blk_sizes
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w, work
@@ -323,7 +323,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: mao_coef, mao_grad, qmat, smat
 
       INTEGER                                            :: i, iatom, jatom, m, n
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_sizes
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: eval_error, q_shift
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: qinv, qsmat

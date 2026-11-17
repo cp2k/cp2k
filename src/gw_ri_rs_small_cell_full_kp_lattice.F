@@ -284,7 +284,7 @@ CONTAINS
                                                             ix, iy, iz, ncells
       INTEGER, ALLOCATABLE                               :: occupied(:, :, :), occupied_flat(:), &
                                                             sizes(:)
-      INTEGER, POINTER                                   :: col_sizes(:), row_sizes(:)
+      INTEGER, CONTIGUOUS, POINTER                       :: col_sizes(:), row_sizes(:)
       LOGICAL                                            :: use_reference_basis
       TYPE(cp_blacs_env_type), POINTER                   :: blacs
       TYPE(cp_fm_struct_type), POINTER                   :: reference_matrix_struct

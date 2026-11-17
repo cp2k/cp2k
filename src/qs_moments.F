@@ -1167,7 +1167,7 @@ CONTAINS
       INTEGER :: handle, i, iatom, ic, icol, ikind, inode, irow, iset, jatom, jkind, jset, &
                  ldsa, ldsb, ldwork, natom, ncoa, ncob, nimg, nkind, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(3)                              :: icell
-      INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
+      INTEGER, DIMENSION(:), CONTIGUOUS, POINTER                     :: row_blk_sizes
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: found, full_pairs, stable_images, use_cell_mapping
       REAL(dp), DIMENSION(:, :), POINTER                 :: cblock, sblock, work

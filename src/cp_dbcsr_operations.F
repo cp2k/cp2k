@@ -283,7 +283,7 @@ CONTAINS
       INTEGER                                            :: col, handle, ncol_block, ncol_global, &
                                                             nrow_block, nrow_global, row
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_col, first_row, last_col, last_row
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, row_blk_size
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dbcsr_block, fm_block
       TYPE(dbcsr_distribution_type)                      :: bc_dist
@@ -353,7 +353,7 @@ CONTAINS
       INTEGER                                            :: group_handle, handle, ncol_block, &
                                                             nfullcols_total, nfullrows_total, &
                                                             nrow_block
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, row_blk_size
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: validate_plan
       TYPE(dbcsr_distribution_type)                      :: bc_dist, dist
@@ -1252,7 +1252,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: template
 
       INTEGER                                            :: k_in
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_right_in, row_blk_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size_right_in, row_blk_size
       TYPE(dbcsr_distribution_type)                      :: dist_right_in, tmpl_dist
 
       CALL cp_fm_get_info(fm_in, ncol_global=k_in)

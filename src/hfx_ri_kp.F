@@ -4789,8 +4789,8 @@ CONTAINS
       INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:) :: bsizes_RI_ext, bsizes_RI_ext_split, dist_AO_1, &
          dist_AO_2, dist_RI, dist_RI_ext, dummy_end, dummy_start, end_blocks, start_blocks
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_bsize, row_bsize
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
-      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       REAL(dp)                                           :: occ
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_type)                                   :: dbcsr_template

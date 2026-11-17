@@ -175,7 +175,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'setup_xas_tdp_prob'
 
       INTEGER                                            :: handle
-      INTEGER, DIMENSION(:), POINTER                     :: submat_blk_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: submat_blk_size
       LOGICAL                                            :: do_coul, do_hfx, do_os, do_sc, do_sf, &
                                                             do_sg, do_tda, do_tp, do_xc
       REAL(dp)                                           :: eps_filter, sx
@@ -1092,7 +1092,7 @@ CONTAINS
 
       INTEGER                                            :: handle, iblk, imo, ispin, jblk, &
                                                             nblk_row, ndo_mo, nspins
-      INTEGER, DIMENSION(:), POINTER                     :: blk_size_q, row_blk_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_size_q, row_blk_size
       LOGICAL                                            :: found_block, my_dosf
       REAL(dp), DIMENSION(:, :), POINTER                 :: work_block
       TYPE(dbcsr_distribution_type), POINTER             :: dist_q
@@ -1180,7 +1180,7 @@ CONTAINS
 
       INTEGER                                            :: handle, iblk, imo, ispin, jblk, &
                                                             nblk_row, ndo_mo, nspins
-      INTEGER, DIMENSION(:), POINTER                     :: blk_size_a, row_blk_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_size_a, row_blk_size
       LOGICAL                                            :: found_block, my_dosf
       REAL(dp), DIMENSION(:, :), POINTER                 :: work_block
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist, dist_a
@@ -1311,7 +1311,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, iblk, jblk, nao, nblk_row, &
                                                             ndo_mo, nspins
-      INTEGER, DIMENSION(:), POINTER                     :: blk_size_g, row_blk_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_size_g, row_blk_size
       LOGICAL                                            :: found_block, my_do_inv
       REAL(dp), DIMENSION(:, :), POINTER                 :: work_block
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env

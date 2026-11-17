@@ -140,8 +140,8 @@ CONTAINS
       INTEGER                                            :: i, n_electrons, n_proj, natom, nspin, &
                                                             output_unit, spin, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: row_blk_sizes
       INTEGER, DIMENSION(2)                              :: nelectron_spin
-      INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       LOGICAL                                            :: new_file
       REAL(dp)                                           :: orthonormality, strace, tot_rho_r, trace
       REAL(kind=dp), DIMENSION(3)                        :: field, reference_point, vec_pot

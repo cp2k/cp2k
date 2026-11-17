@@ -190,7 +190,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE test_complex_ref_rotation(dist, row_n, row_k, col_k, para_env, nfail)
       TYPE(dbcsr_distribution_type), INTENT(IN)          :: dist
-      INTEGER, DIMENSION(:), POINTER                     :: row_n, row_k, col_k
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: row_n, row_k, col_k
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(INOUT)                             :: nfail
 
@@ -498,7 +498,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE test_complex_strict_derivative(dist, row_n, row_k, col_k, para_env, nfail)
       TYPE(dbcsr_distribution_type), INTENT(IN)          :: dist
-      INTEGER, DIMENSION(:), INTENT(INOUT), POINTER      :: row_n, row_k, col_k
+      INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(INOUT), &
+         POINTER                                         :: row_n, row_k, col_k
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(INOUT)                             :: nfail
 
@@ -722,7 +723,8 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       CHARACTER(LEN=*), INTENT(IN)                       :: name
       TYPE(dbcsr_distribution_type), INTENT(IN)          :: dist
-      INTEGER, DIMENSION(:), INTENT(INOUT), POINTER      :: row_size, col_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(INOUT), &
+         POINTER                                         :: row_size, col_size
 
       CALL dbcsr_create(matrix, name, dist, dbcsr_type_no_symmetry, row_size, col_size)
       CALL dbcsr_reserve_blocks(matrix, rows=[1], cols=[1])
