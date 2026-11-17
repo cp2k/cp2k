@@ -13,4 +13,8 @@
   {matcher = "IDPP_min_distance_before", tol = 1e-10, ref = 0.0},
   {matcher = "IDPP_min_distance_after", tol = 0.02, ref = 2.43}
 ]
+"argon_fire2.inp"       = [
+  {matcher = "NEB_optimization_converged"},
+  {matcher = "M010", tol = 1e-6, ref = -0.0284450152}
+]
 #EOF

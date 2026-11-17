@@ -78,7 +78,9 @@ MODULE input_constants
                                                CHARGE_SCALE_FACTOR = 1.00_dp
    ! BAND
    INTEGER, PARAMETER, PUBLIC               :: band_md_opt = 0, &
-                                               band_diis_opt = 1
+                                               band_diis_opt = 1, &
+                                               band_fire_opt = 2, &
+                                               band_fire2_opt = 3
 
    INTEGER, PARAMETER, PUBLIC               :: do_band_cartesian = 0, &
                                                do_band_collective = 1
@@ -577,7 +579,9 @@ MODULE input_constants
 
    INTEGER, PARAMETER, PUBLIC               :: default_lbfgs_method_id = 1, &
                                                default_bfgs_method_id = 2, &
-                                               default_cg_method_id = 3
+                                               default_cg_method_id = 3, &
+                                               default_fire_method_id = 4, &
+                                               default_fire2_method_id = 5
 
    INTEGER, PARAMETER, PUBLIC               :: bfgs_direct = 1, bfgs_inverse = 2
 

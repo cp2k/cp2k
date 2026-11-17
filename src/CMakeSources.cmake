@@ -316,6 +316,7 @@ list(
   input_cp2k_mm.F
   input_cp2k_motion_print.F
   input_cp2k_mp2.F
+  input_cp2k_fire.F
   input_cp2k_neb.F
   input_cp2k_negf.F
   input_cp2k_nnp.F
@@ -1206,6 +1207,8 @@ list(
   motion/dimer_methods.F
   motion/dimer_types.F
   motion/dimer_utils.F
+  motion/fire_minimizer.F
+  motion/fire_optimizer.F
   motion/free_energy_methods.F
   motion/geo_opt.F
   motion/glbopt_callback.F
