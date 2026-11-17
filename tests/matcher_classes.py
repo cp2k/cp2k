@@ -2,7 +2,7 @@ import math
 import re
 import sys
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 if sys.version_info >= (3, 8):
     from typing import Literal, Protocol
@@ -21,6 +21,38 @@ class MatchResult:
 # ======================================================================================
 class Matcher(Protocol):
     def run(self, output: str, **kwargs: Any) -> MatchResult: ...
+
+
+# ======================================================================================
+def _compare_value(value: float, tol: float, ref: float) -> MatchResult:
+    diff = value - ref
+    error = abs(diff / ref if ref != 0.0 else diff)
+    if error > tol:
+        return MatchResult(
+            "WRONG RESULT",
+            f"Difference too large: {error:.2e} > {tol}, value: {value}.\n",
+            value,
+        )
+    return MatchResult("OK", error=None, value=value)
+
+
+# ======================================================================================
+class ComputedValueMatcher(Matcher):
+    """Compare a value derived from the output with a reference."""
+
+    def __init__(self, compute: Callable[[str], float]):
+        self.compute = compute
+
+    def run(self, output: str, **kwargs: Any) -> MatchResult:
+        try:
+            value = self.compute(output)
+        except ValueError as error:
+            return MatchResult("WRONG RESULT", f"{error}\n", None)
+        if not math.isfinite(value):
+            return MatchResult(
+                "WRONG RESULT", f"Result is not finite: '{value}'.\n", value
+            )
+        return _compare_value(value, kwargs["tol"], kwargs.get("ref", 0.0))
 
 
 # ======================================================================================
@@ -74,14 +106,53 @@ class GenericMatcher(Matcher):
             error = f"Result is not finite: '{value_str}'.\n"
             return MatchResult("WRONG RESULT", error, value)
 
-        # compare result to reference
-        diff = value - ref
-        rel_error = abs(diff / ref if ref != 0.0 else diff)
-        if rel_error > tol:
-            error = f"Difference too large: {rel_error:.2e} > {tol}, value: {value}.\n"
-            return MatchResult("WRONG RESULT", error, value)
+        return _compare_value(value, tol, ref)
 
-        return MatchResult("OK", error=None, value=value)  # passed
+
+# ======================================================================================
+def restricted_fcidump_energy_offset(output: str) -> float:
+    """Reconstruct the restricted reference determinant energy independently."""
+    headers = list(
+        re.finditer(
+            r"^&FCI\s+NORB=\s*(\d+),NELEC=\s*(\d+),MS2=\s*(\d+),[^/]*?/",
+            output,
+            re.M,
+        )
+    )
+    if not headers or re.search(r"UHF=\s*1", headers[-1].group()):
+        raise ValueError("No restricted FCIDUMP found.")
+    norb, nelec, ms2 = map(int, headers[-1].groups())
+    na, nb = (nelec + ms2) // 2, (nelec - ms2) // 2
+    if not 0 <= nb <= na <= norb or na + nb != nelec:
+        raise ValueError("Invalid FCIDUMP occupations.")
+
+    # CP2K writes one record per integral permutation class.
+    energy = 0.0
+    for line in output[headers[-1].end() :].strip().splitlines():
+        value, *indices = line.split()
+        i, j, k, l = map(int, indices)
+        integral = float(value.replace("D", "E"))
+        if i == j == k == l == 0:
+            energy += integral
+            break
+        if k == l == 0 and i == j:
+            energy += ((i <= na) + (i <= nb)) * integral
+        elif i == j and k == l:
+            if i == k:
+                energy += (i <= nb) * integral
+            else:
+                energy += ((i <= na) + (i <= nb)) * ((k <= na) + (k <= nb)) * integral
+        elif (i, j) == (k, l):
+            energy -= ((max(i, j) <= na) + (max(i, j) <= nb)) * integral
+    else:
+        raise ValueError("Missing FCIDUMP constant.")
+
+    scf = GenericMatcher("ENERGY| Total FORCE_EVAL", col=9).run(
+        output, tol=math.inf, ref=0.0
+    )
+    if scf.status != "OK" or scf.value is None:
+        raise ValueError((scf.error or "No SCF energy found.").rstrip())
+    return energy - scf.value
 
 
 # ======================================================================================
