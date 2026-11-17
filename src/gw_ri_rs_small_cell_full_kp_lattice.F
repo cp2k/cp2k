@@ -75,7 +75,7 @@ MODULE gw_ri_rs_small_cell_full_kp_lattice
              gamma_auxiliary_charges, &
              grid_pair_indices, &
              grid_pair_gemm, &
-             grid_pair_multiply, &
+             grid_pair_upper_multiply, &
              grid_pair_shift, &
              grid_pair_stencil_weight, &
              image_weight, &
@@ -87,6 +87,7 @@ MODULE gw_ri_rs_small_cell_full_kp_lattice
    ! Bytes per stored real and complex number.
    REAL(KIND=dp), PARAMETER :: real_bytes = REAL(dp_size, dp), complex_bytes = 2.0_dp*real_bytes
    INTEGER, PARAMETER, PUBLIC :: grid_pair_stencil_denominator = 4**3
+   INTEGER, PARAMETER, PUBLIC :: grid_pair_panel_cols = 32
 
 CONTAINS
 
@@ -152,19 +153,18 @@ CONTAINS
 !> \param left A
 !> \param right B; the caller supplies a Hermitian product
 !> \param pairs packed upper triangle
+!> \param panel reusable thread-local workspace
 ! **************************************************************************************************
-   SUBROUTINE grid_pair_gemm(n, ninner, left, right, pairs)
+   SUBROUTINE grid_pair_gemm(n, ninner, left, right, pairs, panel)
       INTEGER, INTENT(IN)                                :: n, ninner
       COMPLEX(KIND=dp), INTENT(IN)                       :: left(n, ninner), right(n, ninner)
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: pairs(:)
+      COMPLEX(KIND=dp), INTENT(OUT) :: pairs(:), panel(n, MIN(grid_pair_panel_cols, n))
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :)
       INTEGER                                            :: first, j, offset, width
 
       CPASSERT(SIZE(pairs, KIND=int_8) == INT(n, int_8)*(n + 1)/2)
-      ALLOCATE (panel(n, MIN(32, n)))
-      DO first = 1, n, 32
-         width = MIN(32, n - first + 1)
+      DO first = 1, n, grid_pair_panel_cols
+         width = MIN(grid_pair_panel_cols, n - first + 1)
          CALL zgemm('N', 'C', first + width - 1, width, ninner, z_one, left, n, &
                     right(first, 1), n, z_zero, panel, n)
          DO j = first, first + width - 1
@@ -176,38 +176,35 @@ CONTAINS
    END SUBROUTINE grid_pair_gemm
 
 ! **************************************************************************************************
-!> \brief Y=H Z from the unordered pairs of a Hermitian H, without expanding its lower triangle.
-!> Off-diagonal panels update both row blocks; diagonal panels use Hermitian BLAS.
+!> \brief Y=U Z with U=triu(H,1)+diag(H)/2, so that H=U+U^H.
+!> Hermitian projections reconstruct the adjoint after contraction, saving the lower multiply.
 !> \param n grid points
 !> \param nrhs right-hand sides
 !> \param pairs packed upper triangle of H
 !> \param Z dense right-hand sides
 !> \param Y result
+!> \param panel reusable thread-local workspace
 ! **************************************************************************************************
-   SUBROUTINE grid_pair_multiply(n, nrhs, pairs, Z, Y)
+   SUBROUTINE grid_pair_upper_multiply(n, nrhs, pairs, Z, Y, panel)
       INTEGER, INTENT(IN)                                :: n, nrhs
       COMPLEX(KIND=dp), INTENT(IN)                       :: pairs(:), Z(n, nrhs)
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: Y(n, nrhs)
+      COMPLEX(KIND=dp), INTENT(OUT) :: Y(n, nrhs), panel(n, MIN(grid_pair_panel_cols, n))
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :)
       INTEGER                                            :: first, j, offset, width
 
       CPASSERT(SIZE(pairs, KIND=int_8) == INT(n, int_8)*(n + 1)/2)
-      ALLOCATE (panel(n, MIN(32, n)))
       Y = z_zero
-      DO first = 1, n, 32
-         width = MIN(32, n - first + 1)
+      DO first = 1, n, grid_pair_panel_cols
+         width = MIN(grid_pair_panel_cols, n - first + 1)
          DO j = first, first + width - 1
             offset = INT(INT(j, int_8)*(j - 1)/2)
             panel(1:j, j - first + 1) = pairs(offset + 1:offset + j)
+            panel(j, j - first + 1) = CMPLX(0.5_dp*REAL(panel(j, j - first + 1), dp), 0.0_dp, dp)
+            panel(j + 1:first + width - 1, j - first + 1) = z_zero
          END DO
-         IF (first > 1) THEN
-            CALL zgemm('N', 'N', first - 1, nrhs, width, z_one, panel, n, Z(first, 1), n, z_one, Y, n)
-            CALL zgemm('C', 'N', width, nrhs, first - 1, z_one, panel, n, Z, n, z_one, Y(first, 1), n)
-         END IF
-         CALL zhemm('L', 'U', width, nrhs, z_one, panel(first, 1), n, Z(first, 1), n, z_one, Y(first, 1), n)
+         CALL zgemm('N', 'N', first + width - 1, nrhs, width, z_one, panel, n, Z(first, 1), n, z_one, Y, n)
       END DO
-   END SUBROUTINE grid_pair_multiply
+   END SUBROUTINE grid_pair_upper_multiply
 
 ! **************************************************************************************************
 !> \brief Finite-supercell image weight, averaged over equidistant pair centers.

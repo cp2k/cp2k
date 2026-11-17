@@ -40,9 +40,9 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
    USE gw_ri_rs_small_cell_full_kp_lattice,ONLY: &
         assemble_AA_contraction, block_range, build_full_cell_grid, build_ri_2c_lattice, &
         complex_bytes, gamma_auxiliary_charges, grid_pair_gemm, grid_pair_indices, &
-        grid_pair_multiply, grid_pair_shift, grid_pair_stencil_denominator, grid_pair_stencil_weight, &
-        image_weight, owned_mo_coefficients, real_bytes, &
-        ri_2c_lattice_to_kp, ri_metric_head_zero
+        grid_pair_panel_cols, grid_pair_shift, grid_pair_stencil_denominator, &
+        grid_pair_stencil_weight, grid_pair_upper_multiply, image_weight, owned_mo_coefficients, &
+        real_bytes, ri_2c_lattice_to_kp, ri_metric_head_zero
    USE gw_ri_rs_small_cell_full_kp_q0_corr,ONLY: add_gamma_corr_pairs,&
                                               gamma_point_correction,&
                                               q_mesh_and_gamma_shell_average,&
@@ -687,7 +687,8 @@ CONTAINS
                       REAL((bs_env%nkp_bs_and_DOS + i_group_size - 1)/i_group_size, dp) + &
                       MAX(complex_bytes*REAL(n_grid, dp)*REAL(n_grid + 1, dp)*REAL(n_local_k, dp)/2.0_dp + &
                           complex_bytes*REAL(n_aux, dp)**2*REAL(n_local_k, dp) + &
-                          complex_bytes*REAL(n_threads, dp)*REAL(n_grid, dp)*REAL(n_ao + n_aux, dp), &
+                          complex_bytes*REAL(n_threads, dp)*REAL(n_grid, dp)* &
+                          REAL(n_ao + n_aux + MIN(n_grid, grid_pair_panel_cols), dp), &
                           projection_workspace_bytes(n_grid, i_group_size, &
                                                      PRODUCT(bs_env%kpoints_scf_desymm%nkp_grid + 2), n_ao, n_threads)) + &
                       2.0_dp*complex_bytes*REAL(n_threads*n_k, dp) + library_bytes
@@ -834,7 +835,7 @@ CONTAINS
                                                             G_grid_k(:, :, :)
       COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: psi_time(:, :, :, :), Z_group(:, :, :)
       COMPLEX(KIND=dp), POINTER                          :: psi_values(:, :, :, :), Z_time(:, :, :)
-      INTEGER :: first_pair, handle, i_group, i_needed, i_q_world, i_rank, i_root, i_size, &
+      INTEGER :: first_pair, handle, i_aux, i_group, i_needed, i_q_world, i_rank, i_root, i_size, &
          i_source, i_t, i_tag, i_time_group, i_time_local, iq, iq_local, ispin, n_aux, n_cells, &
          n_grid, n_groups, n_local, n_needed_local, n_pairs_local, n_q_local, n_threads, &
          n_time_local, n_world, q_batch, unit_nr
@@ -903,7 +904,7 @@ CONTAINS
                           complex_bytes*REAL(n_threads, dp)*REAL(n_grid, dp)*REAL(bs_env%n_ao + 32, dp), &
                           real_bytes*(n_pair_max + 1.0_dp)*REAL(n_cells, dp) + &
                           complex_bytes*n_pair_max*REAL(SIZE(needed_q), dp) + q_bytes + &
-                          complex_bytes*REAL(n_grid, dp)*REAL(n_aux + 32, dp)* &
+                          complex_bytes*REAL(n_grid, dp)*REAL(n_aux + MIN(n_grid, grid_pair_panel_cols), dp)* &
                           MAX(1.0_dp, MIN(REAL(n_threads, dp), n_q_max, REAL(q_batch, dp)))) + &
                       REAL(int_1_size, dp)*n_pair_max*REAL(n_cells, dp) + &
                       MAX(REAL(fft_panel_bytes, dp), 3.0_dp*complex_bytes*REAL(n_cells, dp)) + &
@@ -1009,9 +1010,13 @@ CONTAINS
             END IF
             CALL count_time_loop_k_points(bs_env, INT(COUNT(needed), int_8))
          END DO
+         ! The spin sum lives in the upper triangle. Complete each stored time slice once.
          DO i_needed = 1, n_needed_local
             iq_local = needed_local(i_needed)
-            chi_partial(iq_local)%values(:, :, i_time_local) = chi_q(:, :, i_needed)
+            DO i_aux = 1, n_aux
+               chi_partial(iq_local)%values(:i_aux, i_aux, i_time_local) = chi_q(:i_aux, i_aux, i_needed)
+               chi_partial(iq_local)%values(i_aux + 1:, i_aux, i_time_local) = CONJG(chi_q(i_aux, i_aux + 1:, i_needed))
+            END DO
          END DO
       END DO
       CALL k_grid_to_cell_release(fft_stencil_work%inverse)
@@ -1254,7 +1259,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Sigma_x_from_V'
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: G_grid_k(:, :, :), head_cell_factor(:), &
-                                                            q_pairs(:, :), ZK(:, :)
+                                                            panel(:, :), q_pairs(:, :), ZK(:, :)
       INTEGER                                            :: first_pair, handle, iq_local, ispin, &
                                                             n_grid, n_pairs_local, n_q_local, n_RI
       INTEGER, ALLOCATABLE                               :: full_cells(:, :)
@@ -1280,16 +1285,16 @@ CONTAINS
       ALLOCATE (q_pairs(INT(INT(n_grid, int_8)*(n_grid + 1)/2), n_q_local))
       ! V_ll'(q) = Z(q) K(q) K(q)† Z(q)† = (ZK)(ZK)† with the metric-Coulomb factor K.
       !$OMP PARALLEL DEFAULT(NONE) SHARED(gwkp_env, q_pairs, n_q_local, n_grid, n_RI) &
-      !$OMP PRIVATE(iq_local, ZK)
-      ALLOCATE (ZK(n_grid, n_RI))
+      !$OMP PRIVATE(iq_local, panel, ZK)
+      ALLOCATE (ZK(n_grid, n_RI), panel(n_grid, MIN(n_grid, grid_pair_panel_cols)))
       !$OMP DO SCHEDULE(STATIC)
       DO iq_local = 1, n_q_local
          CALL zgemm('N', 'N', n_grid, n_RI, n_RI, z_one, gwkp_env%Z_lP_q(:, :, iq_local), n_grid, &
                     gwkp_env%metric_coulomb_factor(:, :, iq_local), n_RI, z_zero, ZK, n_grid)
-         CALL grid_pair_gemm(n_grid, n_RI, ZK, ZK, q_pairs(:, iq_local))
+         CALL grid_pair_gemm(n_grid, n_RI, ZK, ZK, q_pairs(:, iq_local), panel)
       END DO
       !$OMP END DO
-      DEALLOCATE (ZK)
+      DEALLOCATE (ZK, panel)
       !$OMP END PARALLEL
       DEALLOCATE (gwkp_env%metric_coulomb_factor)
       CALL build_full_cell_grid(bs_env, full_cells)
@@ -2085,7 +2090,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'self_energy_pairs_to_Bloch'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: sigma_k(:, :), work(:, :)
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :), sigma_k(:, :), work(:, :)
       COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: send_buffer(:)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: sent(:), sigma_columns(:, :)
       COMPLEX(KIND=dp), TARGET                           :: unused_send(1)
@@ -2151,24 +2156,24 @@ CONTAINS
          END DO
          !$OMP PARALLEL DEFAULT(NONE) &
          !$OMP SHARED(bs_env, env, i_first, m, n_batch, n_grid, n_kp, n_rank, orbitals, sigma_band, sigma_k) &
-         !$OMP PRIVATE(i_band, i_batch, i_kp, j, work)
-         ALLOCATE (work(n_grid, n_batch))
+         !$OMP PRIVATE(i_band, i_batch, i_kp, j, panel, work)
+         ALLOCATE (work(n_grid, n_batch), panel(n_grid, MIN(n_grid, grid_pair_panel_cols)))
          !$OMP DO COLLAPSE(2) SCHEDULE(DYNAMIC)
          DO j = 1, m
             DO i_batch = 1, bs_env%n_ao, n_batch
                i_kp = i_first + (j - 1)*n_rank + env%mepos
                IF (i_kp > n_kp) CYCLE
-               CALL grid_pair_multiply(n_grid, MIN(n_batch, bs_env%n_ao - i_batch + 1), sigma_k(:, j), &
-                                       orbitals(:, i_batch:MIN(i_batch + n_batch - 1, bs_env%n_ao), (i_kp - 1)/n_rank + 1), &
-                                       work(:, 1:MIN(n_batch, bs_env%n_ao - i_batch + 1)))
+               CALL grid_pair_upper_multiply(n_grid, MIN(n_batch, bs_env%n_ao - i_batch + 1), sigma_k(:, j), &
+                                             orbitals(:, i_batch:MIN(i_batch + n_batch - 1, bs_env%n_ao), (i_kp - 1)/n_rank + 1), &
+                                             work(:, 1:MIN(n_batch, bs_env%n_ao - i_batch + 1)), panel)
                DO i_band = i_batch, MIN(i_batch + n_batch - 1, bs_env%n_ao)
-                  sigma_band(i_band, i_kp) = REAL(SUM(CONJG(orbitals(:, i_band, (i_kp - 1)/n_rank + 1))* &
-                                                      work(:, i_band - i_batch + 1)), dp)
+                  sigma_band(i_band, i_kp) = 2.0_dp*REAL(SUM(CONJG(orbitals(:, i_band, (i_kp - 1)/n_rank + 1))* &
+                                                             work(:, i_band - i_batch + 1)), dp)
                END DO
             END DO
          END DO
          !$OMP END DO
-         DEALLOCATE (work)
+         DEALLOCATE (work, panel)
          !$OMP END PARALLEL
          CALL count_time_loop_k_points(bs_env, INT(n_round, int_8))
       END DO
@@ -2201,7 +2206,7 @@ CONTAINS
       n_round = m*REAL(n_rank, dp)
       bytes = complex_bytes*m*REAL(n_grid, dp)*REAL(n_grid + 1, dp) + complex_bytes*n_round*REAL(n_images, dp) + &
               projection_workspace + &
-              REAL(n_threads, dp)*(complex_bytes*REAL(n_grid, dp)*REAL(MIN(16, n_ao) + 32, dp) + &
+              REAL(n_threads, dp)*(complex_bytes*REAL(n_grid, dp)*REAL(MIN(16, n_ao) + MIN(n_grid, grid_pair_panel_cols), dp) + &
                                    real_bytes*REAL(pair_batch_size, dp)*REAL(n_images, dp) + &
                                    complex_bytes*REAL(pair_batch_size, dp)*n_round)
       bytes = MAX(bytes, projection_workspace + &
@@ -2882,7 +2887,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'project_fft_pairs_to_chi'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: work(:, :, :)
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :, :), work(:, :, :)
       COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: q_pairs(:, :)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: received(:), sent(:)
       COMPLEX(KIND=dp), TARGET                           :: unused_receive(1), unused_send(1)
@@ -2914,7 +2919,8 @@ CONTAINS
       CALL grid_pair_blocks(n_grid, n_rank, pair_counts, pair_displs)
       ALLOCATE (recv_counts(0:n_rank - 1), &
                 send_counts(0:n_rank - 1), send_displs(0:n_rank - 1), local_q(capacity), &
-                q_pairs(INT(INT(n_grid, int_8)*(n_grid + 1)/2), capacity), work(n_grid, n_aux, n_workers))
+                q_pairs(INT(INT(n_grid, int_8)*(n_grid + 1)/2), capacity), work(n_grid, n_aux, n_workers), &
+                panel(n_grid, MIN(n_grid, grid_pair_panel_cols), n_workers))
       unused_receive = z_zero
       unused_send = z_zero
       i_column = 0
@@ -2959,18 +2965,20 @@ CONTAINS
          END DO
          IF (n_buffer == 0) CYCLE
          started = m_walltime()
-         ! Distinct q matrices remain independent; each thread reuses one GEMM workspace.
+         ! Distinct q matrices remain independent; each thread reuses its GEMM workspace.
          !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) IF(n_buffer > 1) NUM_THREADS(n_workers) &
-         !$OMP SHARED(n_buffer, n_grid, n_aux, q_pairs, local_q, Z_q, chi_q, work, i_local, compact_z) &
+         !$OMP SHARED(n_buffer, n_grid, n_aux, q_pairs, local_q, Z_q, chi_q, panel, work, i_local, compact_z) &
          !$OMP PRIVATE(i_buffer, i_thread, i_needed, i_z)
          DO i_buffer = 1, n_buffer
             i_thread = 1
 !$          i_thread = omp_get_thread_num() + 1
             i_needed = i_local - n_buffer + i_buffer
             i_z = MERGE(i_needed, local_q(i_buffer), compact_z)
-            CALL grid_pair_multiply(n_grid, n_aux, q_pairs(:, i_buffer), Z_q(:, :, i_z), work(:, :, i_thread))
-            CALL zgemm('C', 'N', n_aux, n_aux, n_grid, z_one, Z_q(:, :, i_z), n_grid, &
-                       work(:, :, i_thread), n_grid, z_one, chi_q(:, :, i_needed), n_aux)
+            CALL grid_pair_upper_multiply(n_grid, n_aux, q_pairs(:, i_buffer), Z_q(:, :, i_z), &
+                                          work(:, :, i_thread), panel(:, :, i_thread))
+            ! Z^H H Z = Z^H (U Z) + (U Z)^H Z; accumulate only the Hermitian upper triangle.
+            CALL zher2k('U', 'C', n_aux, n_grid, z_one, Z_q(:, :, i_z), n_grid, &
+                        work(:, :, i_thread), n_grid, 1.0_dp, chi_q(:, :, i_needed), n_aux)
          END DO
          !$OMP END PARALLEL DO
          projection_seconds = projection_seconds + m_walltime() - started
@@ -3001,7 +3009,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'project_auxiliary_time_q_to_fft_pairs'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: q_pairs(:, :), ZW(:, :)
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :), q_pairs(:, :), ZW(:, :)
       INTEGER                                            :: handle, i_q_local, n_grid, n_q_local, &
                                                             n_RI
 
@@ -3013,16 +3021,16 @@ CONTAINS
       CPASSERT(SIZE(interaction_q) == n_q_local)
       ALLOCATE (q_pairs(INT(INT(n_grid, int_8)*(n_grid + 1)/2), n_q_local))
       !$OMP PARALLEL DEFAULT(NONE) SHARED(Z_q, interaction_q, itime, q_pairs, n_q_local, n_grid, n_RI) &
-      !$OMP PRIVATE(i_q_local, ZW)
-      ALLOCATE (ZW(n_grid, n_RI))
+      !$OMP PRIVATE(i_q_local, panel, ZW)
+      ALLOCATE (ZW(n_grid, n_RI), panel(n_grid, MIN(n_grid, grid_pair_panel_cols)))
       !$OMP DO SCHEDULE(STATIC)
       DO i_q_local = 1, n_q_local
          CALL zgemm('N', 'N', n_grid, n_RI, n_RI, z_one, Z_q(:, :, i_q_local), n_grid, &
                     interaction_q(i_q_local)%values(:, :, itime), n_RI, z_zero, ZW, n_grid)
-         CALL grid_pair_gemm(n_grid, n_RI, ZW, Z_q(:, :, i_q_local), q_pairs(:, i_q_local))
+         CALL grid_pair_gemm(n_grid, n_RI, ZW, Z_q(:, :, i_q_local), q_pairs(:, i_q_local), panel)
       END DO
       !$OMP END DO
-      DEALLOCATE (ZW)
+      DEALLOCATE (ZW, panel)
       !$OMP END PARALLEL
       CALL q_matrices_to_fft_pairs(q_pairs, n_grid, para_env, k_batch, fft_pairs)
 
