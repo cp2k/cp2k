@@ -295,6 +295,7 @@ QS/regtest-gapw-3
 NNP/regtest-1
 QS/regtest-dft-d2-auto-ref                                  libint
 QS/regtest-gamma-frozen-density
+QS/regtest-bader
 QS/regtest-mom-2                                            libint
 xTB/regtest-tblite-gfn2-3                                   tblite spglib
 QS/regtest-polar

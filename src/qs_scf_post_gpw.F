@@ -89,8 +89,9 @@ MODULE qs_scf_post_gpw
                                               iao_read_input
    USE input_constants,                 ONLY: &
         do_loc_both, do_loc_homo, do_loc_jacobi, do_loc_lumo, do_loc_mixed, do_loc_none, &
-        moments_format_trajectory, ot_precond_full_all, ot_precond_full_all_covariant, &
-        radius_covalent, radius_user, ref_charge_atomic, ref_charge_mulliken
+        do_method_gapw, do_method_gpw, moments_format_trajectory, ot_precond_full_all, &
+        ot_precond_full_all_covariant, radius_covalent, radius_user, ref_charge_atomic, &
+        ref_charge_mulliken
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
@@ -145,6 +146,7 @@ MODULE qs_scf_post_gpw
                                               pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
+   USE qs_bader_analysis,               ONLY: print_bader_analysis
    USE qs_chargemol,                    ONLY: write_wfx
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
@@ -2619,15 +2621,15 @@ CONTAINS
       INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, n_rep_hf, natom, nd(3), &
          ngto, niso, nkind, np, nr, output_unit, print_level, should_print_bqb, should_print_voro, &
          unit_nr, unit_nr_voro
-      LOGICAL :: append_cube, append_voro, do_hfx, do_kpoints, mpi_io, omit_headers, print_it, &
-         rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
+      LOGICAL :: append_cube, append_voro, assign_nearest, do_hfx, do_kpoints, mpi_io, &
+         omit_headers, print_it, rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
       REAL(KIND=dp)                                      :: norm_factor, q_max, rho_hard, rho_soft, &
                                                             rho_total, rho_total_rspace, udvol, &
-                                                            volume
+                                                            vacuum_density
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: bfun
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: aedens, ccdens, ppdens
-      REAL(KIND=dp), DIMENSION(3)                        :: checksum_hr, dr
+      REAL(KIND=dp), DIMENSION(3)                        :: checksum_hr
       REAL(KIND=dp), DIMENSION(:), POINTER               :: my_Q0
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -2695,6 +2697,45 @@ CONTAINS
       CALL qs_rho_get(rho, rho_r=rho_r)
 
       CALL get_effective_core_charges(qs_env, zcharge)
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, "DFT%PRINT%BADER"), cp_p_file)) THEN
+         CALL qs_rho_get(rho, rho_r_valid=rho_r_valid)
+         IF (.NOT. rho_r_valid) CPABORT("BADER requires the real-space electron density.")
+         CALL section_vals_val_get(input, "DFT%PRINT%BADER%VACUUM_DENSITY", r_val=vacuum_density)
+         CALL section_vals_val_get(input, "DFT%PRINT%BADER%ASSIGN_NEAREST_ATOM", l_val=assign_nearest)
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%BADER", extension=".bader")
+         SELECT CASE (dft_control%qs_control%method_id)
+         CASE (do_method_gpw)
+            DO ikind = 1, nkind
+               IF (.NOT. ASSOCIATED(qs_kind_set(ikind)%gth_potential)) THEN
+                  CPABORT("GPW BADER requires GTH pseudopotentials.")
+               END IF
+            END DO
+            CALL print_bader_analysis(rho_r, cell, particle_set, zcharge, &
+                                      "the spin-summed GPW valence density", vacuum_density, assign_nearest, unit_nr)
+         CASE (do_method_gapw)
+            IF (do_kpoints) CPABORT("GAPW BADER does not support k-points.")
+            DO ikind = 1, nkind
+               IF (.NOT. ASSOCIATED(qs_kind_set(ikind)%all_potential) .AND. &
+                   .NOT. ASSOCIATED(qs_kind_set(ikind)%gth_potential)) THEN
+                  CPABORT("GAPW BADER requires all-electron or GTH kinds.")
+               END IF
+            END DO
+            CALL get_qs_env(qs_env, pw_env=pw_env)
+            CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+            CALL auxbas_pw_pool%create_pw(pw=rho_elec_rspace)
+            CALL auxbas_pw_pool%create_pw(pw=rho_elec_gspace)
+            CALL reconstruct_gapw_density(qs_env, auxbas_pw_pool, rho_elec_gspace, rho_elec_rspace, &
+                                          q_max, rho_hard, rho_soft)
+            CALL print_bader_analysis([rho_elec_rspace], cell, particle_set, zcharge, &
+                                      "the reconstructed GAPW electron density", vacuum_density, assign_nearest, unit_nr)
+            CALL auxbas_pw_pool%give_back_pw(rho_elec_gspace)
+            CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
+         CASE DEFAULT
+            CPABORT("BADER requires GPW or GAPW.")
+         END SELECT
+         CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%BADER")
+      END IF
 
       ! Print the total density (electronic + core charge)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
@@ -2901,27 +2942,10 @@ CONTAINS
                             auxbas_pw_pool=auxbas_pw_pool, &
                             pw_pools=pw_pools)
             CALL auxbas_pw_pool%create_pw(pw=rho_elec_rspace)
-            CALL pw_zero(rho_elec_rspace)
             CALL auxbas_pw_pool%create_pw(pw=rho_elec_gspace)
-            CALL pw_zero(rho_elec_gspace)
-            CALL get_pw_grid_info(pw_grid=rho_elec_gspace%pw_grid, &
-                                  dr=dr, &
-                                  vol=volume)
-            q_max = SQRT(SUM((pi/dr(:))**2))
-            CALL calculate_rhotot_elec_gspace(qs_env=qs_env, &
-                                              auxbas_pw_pool=auxbas_pw_pool, &
-                                              rhotot_elec_gspace=rho_elec_gspace, &
-                                              q_max=q_max, &
-                                              rho_hard=rho_hard, &
-                                              rho_soft=rho_soft)
+            CALL reconstruct_gapw_density(qs_env, auxbas_pw_pool, rho_elec_gspace, rho_elec_rspace, &
+                                          q_max, rho_hard, rho_soft)
             rho_total = rho_hard + rho_soft
-            CALL get_pw_grid_info(pw_grid=rho_elec_gspace%pw_grid, &
-                                  vol=volume)
-            ! rhotot pw coefficients are by default scaled by grid volume
-            ! need to undo this to get proper charge from printed cube
-            CALL pw_scale(rho_elec_gspace, 1.0_dp/volume)
-
-            CALL pw_transfer(rho_elec_gspace, rho_elec_rspace)
             rho_total_rspace = pw_integrate_function(rho_elec_rspace, isign=-1)
             filename = "TOTAL_ELECTRON_DENSITY"
             mpi_io = .TRUE.
@@ -2961,22 +2985,10 @@ CONTAINS
                                                              e_density_section%absolute_section_key, mpi_io=mpi_io)
             ! Print total spin density for spin-polarized systems
             IF (dft_control%nspins > 1) THEN
-               CALL pw_zero(rho_elec_gspace)
-               CALL pw_zero(rho_elec_rspace)
-               CALL calculate_rhotot_elec_gspace(qs_env=qs_env, &
-                                                 auxbas_pw_pool=auxbas_pw_pool, &
-                                                 rhotot_elec_gspace=rho_elec_gspace, &
-                                                 q_max=q_max, &
-                                                 rho_hard=rho_hard, &
-                                                 rho_soft=rho_soft, &
-                                                 fsign=-1.0_dp)
+               CALL reconstruct_gapw_density(qs_env, auxbas_pw_pool, rho_elec_gspace, rho_elec_rspace, &
+                                             q_max, rho_hard, rho_soft, fsign=-1.0_dp)
                rho_total = rho_hard + rho_soft
 
-               ! rhotot pw coefficients are by default scaled by grid volume
-               ! need to undo this to get proper charge from printed cube
-               CALL pw_scale(rho_elec_gspace, 1.0_dp/volume)
-
-               CALL pw_transfer(rho_elec_gspace, rho_elec_rspace)
                rho_total_rspace = pw_integrate_function(rho_elec_rspace, isign=-1)
                filename = "TOTAL_SPIN_DENSITY"
                mpi_io = .TRUE.
@@ -3655,6 +3667,38 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE write_mo_free_results
+
+! **************************************************************************************************
+!> \brief Reconstruct the GAPW electron or spin density on the real-space output grid.
+!> \param qs_env Quickstep environment
+!> \param pool plane-wave pool for the auxiliary grid
+!> \param rho_g reciprocal-space work grid
+!> \param rho_r reconstructed real-space density
+!> \param q_max largest reciprocal-space wave number represented by the grid
+!> \param rho_hard integrated hard electronic density
+!> \param rho_soft integrated soft electronic density
+!> \param fsign sign of second spin contribution (default: +1)
+! **************************************************************************************************
+   SUBROUTINE reconstruct_gapw_density(qs_env, pool, rho_g, rho_r, q_max, rho_hard, rho_soft, fsign)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(pw_pool_type), POINTER                        :: pool
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_g
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho_r
+      REAL(KIND=dp), INTENT(OUT)                         :: q_max, rho_hard, rho_soft
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fsign
+
+      REAL(KIND=dp)                                      :: dr(3), volume
+
+      CALL pw_zero(rho_g)
+      CALL pw_zero(rho_r)
+      CALL get_pw_grid_info(pw_grid=rho_g%pw_grid, dr=dr, vol=volume)
+      q_max = SQRT(SUM((pi/dr)**2))
+      CALL calculate_rhotot_elec_gspace(qs_env=qs_env, auxbas_pw_pool=pool, rhotot_elec_gspace=rho_g, &
+                                        q_max=q_max, rho_hard=rho_hard, rho_soft=rho_soft, fsign=fsign)
+      ! Undo the grid-volume factor in the reciprocal-space coefficients.
+      CALL pw_scale(rho_g, 1.0_dp/volume)
+      CALL pw_transfer(rho_g, rho_r)
+   END SUBROUTINE reconstruct_gapw_density
 
 ! **************************************************************************************************
 !> \brief Calculates Hirshfeld charges
