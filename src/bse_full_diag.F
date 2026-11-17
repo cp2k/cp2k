@@ -697,6 +697,7 @@ CONTAINS
 
       ! First, Eq. I from (A10) from Furche with (A-B)^0.5 -> U^T: (X+Y)_n = (Ω_n)^-0.5 U^T T_n
       CALL cp_fm_create(fm_mat_eigvec_transform_sum, fm_C%matrix_struct)
+      CALL cp_fm_set_all(fm_mat_eigvec_transform_sum, 0.0_dp)
       CALL parallel_gemm(transa="T", transb="N", m=n_ov_joint, n=n_ov_joint, k=n_ov_joint, alpha=1.0_dp, &
                          matrix_a=fm_chol_A_minus_B, matrix_b=fm_eigvec_Z, beta=0.0_dp, &
                          matrix_c=fm_mat_eigvec_transform_sum)
@@ -706,12 +707,15 @@ CONTAINS
       CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_sum, Exc_ens, -0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
 
       ! Second, Eq. II from (A10) from Furche, (X-Y)_n = (Ω_n)^0.5 U^-1 T_n, taken from
-      ! (A+B)(X+Y)_n = Ω_n (X-Y)_n: a GEMM instead of the triangular solve, same normalization
+      ! (A+B)(X+Y)_n = Ω_n (X-Y)_n, so no inverse of U is needed
       CALL cp_fm_create(fm_mat_eigvec_transform_diff, fm_C%matrix_struct)
+      CALL cp_fm_set_all(fm_mat_eigvec_transform_diff, 0.0_dp)
       CALL parallel_gemm(transa="N", transb="N", m=n_ov_joint, n=n_ov_joint, k=n_ov_joint, alpha=1.0_dp, &
                          matrix_a=fm_A_plus_B, matrix_b=fm_mat_eigvec_transform_sum, beta=0.0_dp, &
                          matrix_c=fm_mat_eigvec_transform_diff)
       CALL cp_fm_release(fm_A_plus_B)
+
+      ! This normalizes the eigenvectors; the factor Ω_n^-1 carries the normalization of (X+Y)_n
       CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_diff, Exc_ens, -1.0_dp, gamma=1.0_dp, do_transpose=.TRUE.)
 
       ! Now, we add the two equations to obtain X_n
