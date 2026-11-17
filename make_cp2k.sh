@@ -1726,6 +1726,7 @@ fi
 
 # Install Skala resource files if needed
 export SKALA_MODEL="(not available)"
+unset SKALA_CUDA_MODEL
 if spack location -i gauxc &> /dev/null; then
   GAUXC_PATH="share/gauxc/onedft_models"
   GAUXC_PREFIX="$(spack location -i gauxc)"
@@ -1739,18 +1740,42 @@ if spack location -i gauxc &> /dev/null; then
       echo -e "\nERROR: No GauXC model files found in source folder ${GAUXC_MODEL_SOURCE_PATH}"
       exit 1
     fi
+    # Distinguish the CPU model (skala*.fun) from the CUDA model (skala*-cuda.fun).
+    # Both match a plain skala* glob, so assign them to the dedicated variables
+    # that CP2K expects: SKALA_MODEL for host and SKALA_CUDA_MODEL for device runs.
     shopt -s nullglob
-    MATCHES=("${GAUXC_MODEL_TARGET_PATH}"/skala*)
+    SKALA_MODEL_FILES=("${GAUXC_MODEL_TARGET_PATH}"/skala*.fun)
     shopt -u nullglob
-    if ((${#MATCHES[@]} > 0)); then
-      export SKALA_MODEL="${MATCHES[${#MATCHES[@]} - 1]}"
-    else
+    for skala_file in "${SKALA_MODEL_FILES[@]}"; do
+      case "$(basename "${skala_file}")" in
+        *-cuda.fun)
+          export SKALA_CUDA_MODEL="${skala_file}"
+          ;;
+        *)
+          export SKALA_MODEL="${skala_file}"
+          ;;
+      esac
+    done
+    if [[ "${SKALA_MODEL}" == "(not available)" ]]; then
       echo -e "\nERROR: Failed to resolve SKALA_MODEL in target path ${GAUXC_MODEL_TARGET_PATH}"
       exit 1
+    fi
+    if ((CUDA_SM_CODE > 0)) && [[ -z "${SKALA_CUDA_MODEL:-}" ]]; then
+      echo -e "\nERROR: CUDA support is enabled but no SKALA_CUDA_MODEL file was found in ${GAUXC_MODEL_TARGET_PATH}"
+      ${EXIT_CMD} 1
     fi
   fi
 fi
 echo -e "\nSKALA_MODEL = ${SKALA_MODEL}"
+echo -e "SKALA_CUDA_MODEL = ${SKALA_CUDA_MODEL:-not available}"
+
+# Emit the Skala model exports for the generated environment scripts
+write_skala_model_exports() {
+  echo "export SKALA_MODEL=\"${SKALA_MODEL}\""
+  if [[ -n "${SKALA_CUDA_MODEL:-}" ]]; then
+    echo "export SKALA_CUDA_MODEL=\"${SKALA_CUDA_MODEL}\""
+  fi
+}
 
 # Collect and compress all log files when building within a container
 if [[ "${IN_CONTAINER}" == "yes" ]]; then
@@ -1854,7 +1879,8 @@ export TESTOPTS
 # Create launch script for environment setup
 LAUNCH_SCRIPT="${INSTALL_PREFIX}"/bin/launch
 export LAUNCH_SCRIPT
-cat << *** > "${LAUNCH_SCRIPT}"
+{
+  cat << ***
 #!/bin/bash
 ulimit -c 0 -s unlimited
 export ASAN_OPTIONS="detect_leaks=1"
@@ -1866,22 +1892,29 @@ export OMP_STACKSIZE=256M
 [[ -f ${INSTALL_PREFIX}/ase/config.ini ]] && export ASE_CONFIG_PATH="${INSTALL_PREFIX}/ase/config.ini"
 [[ -f ${INSTALL_PREFIX}/bin/GMXRC ]] && source ${INSTALL_PREFIX}/bin/GMXRC
 ${OMPI_VARS}
-export SKALA_MODEL=${SKALA_MODEL}
+***
+  write_skala_model_exports
+  cat << ***
 exec "\$@"
 ***
+} > "${LAUNCH_SCRIPT}"
 chmod 750 "${LAUNCH_SCRIPT}"
 
 # Create shortcut for launching the CP2K regression tests
-cat << *** > "${INSTALL_PREFIX}"/bin/run_tests
+{
+  cat << ***
 #!/bin/bash
 if [[ "${VERSION}" =~ ^(s|p)dbg$ ]] || [[ "${CMAKE_PRESET}" == "asan" ]]; then
   echo "ASAN_OPTIONS = \${ASAN_OPTIONS}"
   echo "LSAN_OPTIONS = \${LSAN_OPTIONS}"
 fi
 ldd -- ${INSTALL_PREFIX}/bin/cp2k.${VERSION} 2>&1 | grep -E 'not ' | sort | uniq
-export SKALA_MODEL=${SKALA_MODEL}
+***
+  write_skala_model_exports
+  cat << ***
 ${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${VERSION}
 ***
+} > "${INSTALL_PREFIX}"/bin/run_tests
 chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
 
 # Collect information from coding convention checks
