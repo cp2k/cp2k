@@ -541,7 +541,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_hermitian_form_of_ABBA'
 
       INTEGER                                            :: chol_info, dim_mat, handle
-      REAL(KIND=dp), ALLOCATABLE                         :: diag_B(:), gap(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: chol_pivot(:), diag_B(:), gap(:)
       TYPE(cp_fm_type)                                   :: fm_work
 
       CALL timeset(routineN, handle)
@@ -588,8 +588,17 @@ CONTAINS
       CALL cp_fm_set_all(fm_chol_A_minus_B, 0.0_dp)
       CALL cp_fm_to_fm_triangular(fm_work, fm_chol_A_minus_B, "U")
 
-      ! C = U (A+B) U^T by two GEMMs
+      ! each U_ii^2 is a Schur complement of A-B, so min_i U_ii^2 >= smallest eigenvalue of A-B
       CALL cp_fm_get_info(fm_A, nrow_global=dim_mat)
+      ALLOCATE (chol_pivot(dim_mat))
+      CALL cp_fm_get_diag(fm_chol_A_minus_B, chol_pivot)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4,T7,A,T65,F16.6)') 'BSE|', &
+            'Upper bound to smallest eigenvalue of A-B (eV)', MINVAL(chol_pivot**2)*evolt
+      END IF
+      DEALLOCATE (chol_pivot)
+
+      ! C = U (A+B) U^T by two GEMMs
       CALL cp_fm_create(fm_C, fm_A%matrix_struct)
       CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_chol_A_minus_B, fm_A_plus_B, 0.0_dp, fm_work)
       CALL parallel_gemm("N", "T", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_work, fm_chol_A_minus_B, 0.0_dp, fm_C)
