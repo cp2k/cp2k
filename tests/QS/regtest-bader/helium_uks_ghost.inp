@@ -21,6 +21,10 @@
     &END POISSON
     &PRINT
       &BADER ON
+        &BASIN_CUBE ON
+          FILENAME =helium_uks_basins.cube
+          STRIDE 2 2 2
+        &END BASIN_CUBE
       &END BADER
     &END PRINT
     &QS

@@ -9,6 +9,7 @@
 !> \brief Integrate Bader basins directly from the Quickstep density.
 ! **************************************************************************************************
 MODULE qs_bader_analysis
+   USE atomic_kind_types,               ONLY: get_atomic_kind
    USE cell_types,                      ONLY: cell_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type
@@ -16,6 +17,7 @@ MODULE qs_bader_analysis
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_bader_basins,                 ONLY: bader_integrate_grid
+   USE realspace_grid_cube,             ONLY: pw_to_cube
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -36,9 +38,11 @@ CONTAINS
 !> \param cutoff density cutoff for vacuum integration
 !> \param assign_nearest group maxima by proximity rather than unique nuclear seed
 !> \param iw print unit, positive only on the output rank
+!> \param cube_unit basin cube unit, positive only on the output rank when requested
+!> \param cube_stride stride used only to write the basin cube
 ! **************************************************************************************************
    SUBROUTINE print_bader_analysis(rho, cell, particles, ionic_charge, nuclear_center, nominal_electrons, &
-                                   density_label, cutoff, assign_nearest, iw)
+                                   density_label, cutoff, assign_nearest, iw, cube_unit, cube_stride)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho(:)
       TYPE(cell_type), INTENT(IN)                        :: cell
       TYPE(particle_type), INTENT(IN)                    :: particles(:)
@@ -48,18 +52,23 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: density_label
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       LOGICAL, INTENT(IN)                                :: assign_nearest
-      INTEGER, INTENT(IN)                                :: iw
+      INTEGER, INTENT(IN)                                :: iw, cube_unit
+      INTEGER, POINTER                                   :: cube_stride(:)
 
       INTEGER, PARAMETER                                 :: max_grid_points = 8000000
 
       INTEGER                                            :: a, d, i, n(3), n_extra, n_other, ng, &
                                                             nnuc, q(3)
-      INTEGER, ALLOCATABLE                               :: seeds(:)
+      INTEGER, ALLOCATABLE                               :: atom_indices(:), atomic_numbers(:), &
+                                                            seeds(:)
+      INTEGER, ALLOCATABLE, TARGET                       :: labels(:, :, :)
+      INTEGER, POINTER                                   :: labels_flat(:)
       LOGICAL                                            :: periodic(3)
       LOGICAL, ALLOCATABLE                               :: assigned(:)
       REAL(KIND=dp)                                      :: extra(2), integrated, other(2), &
                                                             SPACING(3), vacuum(2)
-      REAL(KIND=dp), ALLOCATABLE                         :: atom_grid(:, :), basins(:, :)
+      REAL(KIND=dp), ALLOCATABLE                         :: atom_grid(:, :), basins(:, :), &
+                                                            positions(:, :)
       REAL(KIND=dp), ALLOCATABLE, TARGET                 :: density(:, :, :)
       REAL(KIND=dp), POINTER                             :: values(:)
 
@@ -93,8 +102,35 @@ CONTAINS
          seeds(a) = 1 + q(1) + n(1)*(q(2) + n(2)*q(3))
       END DO
       values(1:ng) => density
+      NULLIFY (labels_flat)
+      IF (cube_unit > 0) THEN
+         IF (SIZE(particles) > 99999 .OR. ANY(n > 99999)) THEN
+            CPABORT("BADER basin cube exceeds the cube header limits.")
+         END IF
+         ALLOCATE (labels(n(1), n(2), n(3)))
+         labels_flat(1:ng) => labels
+      END IF
       CALL bader_integrate_grid(values, n, spacing, periodic, cutoff, seeds, basins, assigned, other, vacuum, &
-                                n_other, atom_grid=atom_grid, n_extra=n_extra, extra=extra)
+                                n_other, atom_grid=atom_grid, n_extra=n_extra, extra=extra, labels=labels_flat)
+
+      IF (cube_unit > 0) THEN
+         ALLOCATE (atom_indices(nnuc), atomic_numbers(SIZE(particles)), positions(3, SIZE(particles)))
+         a = 0
+         DO i = 1, SIZE(particles)
+            CALL get_atomic_kind(particles(i)%atomic_kind, z=atomic_numbers(i))
+            positions(:, i) = particles(i)%r
+            IF (.NOT. nuclear_center(i)) CYCLE
+            a = a + 1
+            atom_indices(a) = i
+         END DO
+         DO i = 1, ng
+            a = labels_flat(i)
+            IF (a > 0) labels_flat(i) = atom_indices(a)
+         END DO
+         CALL pw_to_cube(rho(1), cube_unit, title="Bader basin labels: atom index, 0 vacuum, -1 no unique owner", &
+                         particles_r=positions, particles_z=atomic_numbers, particles_zeff=ionic_charge, &
+                         stride=cube_stride, gathered_labels=labels)
+      END IF
 
       WRITE (iw, '(/,T2,A)') "BADER| Weighted basins of "//density_label
       IF (assign_nearest) THEN

@@ -19,7 +19,8 @@
   {matcher = "Bader_basis_only_excluded"},
   {matcher = "Bader_nominal_electrons", tol = 1e-12, ref = 3.0},
   {matcher = "Bader_density_minus_nominal", tol = 1e-6, ref = 0.0},
-  {matcher = "Bader_electron_balance", tol = 1e-9, ref = 0.0}
+  {matcher = "Bader_electron_balance", tol = 1e-9, ref = 0.0},
+  {matcher = "Bader_cube_labels", file = "helium_uks_basins.cube", labels = [0, 1, 3]}
 ]
 # Semicore pseudopotentials produce several density maxima per site.
 "rocksalt.inp"         = [
