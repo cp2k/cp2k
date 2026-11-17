@@ -177,5 +177,10 @@ common/cp_data_dir.c: function 'getenv' is banned; it should not be used https:/
 dbm/dbm_miniapp.c: function 'getenv' is banned; it should not be used https://cp2k.org/conv#bugprone-unsafe-functions
 dbm/dbm_multiply.c: function 'getenv' is banned; it should not be used https://cp2k.org/conv#bugprone-unsafe-functions
 torch_c_api.cpp: function 'getenv' is banned; it should not be used https://cp2k.org/conv#bugprone-unsafe-functions
+sockets.c: function 'accept' is banned; it should not be used https://cp2k.org/conv#bugprone-unsafe-functions
+sockets.c: function 'bind' is banned; it should not be used https://cp2k.org/conv#bugprone-unsafe-functions
+sockets.c: function 'connect' is banned; it should not be used https://cp2k.org/conv#bugprone-unsafe-functions
+sockets.c: function 'listen' is banned; it should not be used https://cp2k.org/conv#bugprone-unsafe-functions
+sockets.c: function 'socket' is banned; it should not be used https://cp2k.org/conv#bugprone-unsafe-functions
 
 # EOF

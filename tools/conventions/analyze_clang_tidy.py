@@ -13,7 +13,7 @@ def main() -> None:
 
     for d in doc["Diagnostics"]:
         m = d["DiagnosticMessage"]
-        filename = m["FilePath"].split("/cp2k/src/", 1)[1]
+        filename = m["FilePath"].split("/src/", 1)[1]
         message = m["Message"]
         name = d["DiagnosticName"]
         print(f"{filename}: {message} https://cp2k.org/conv#{name}")
