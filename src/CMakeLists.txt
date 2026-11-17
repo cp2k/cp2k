@@ -321,11 +321,6 @@ endif()
 
 target_link_libraries(cp2k PUBLIC cp2k_link_libs)
 
-if(CP2K_USE_ACCEL MATCHES "CUDA"
-   AND CP2K_LIBXC_CUDA_SUPPORT
-   AND NOT CP2K_ENABLE_LIBXC_GPU)
-  target_compile_definitions(cp2k PUBLIC __NO_OFFLOAD_LIBXC)
-endif()
 target_compile_definitions(
   cp2k
   PUBLIC
@@ -404,7 +399,8 @@ if(CP2K_USE_CUDA
            $<$<NOT:$<BOOL:${CP2K_ENABLE_GRID_GPU}>>:__NO_OFFLOAD_GRID>
            $<$<NOT:$<BOOL:${CP2K_ENABLE_DBM_GPU}>>:__NO_OFFLOAD_DBM>
            $<$<NOT:$<BOOL:${CP2K_ENABLE_PW_GPU}>>:__NO_OFFLOAD_PW>
-           $<$<NOT:$<BOOL:${CP2K_ENABLE_NNP_GPU}>>:__NO_OFFLOAD_NNP>)
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_NNP_GPU}>>:__NO_OFFLOAD_NNP>
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_LIBXC_GPU}>>:__NO_OFFLOAD_LIBXC>)
 endif()
 
 add_dependencies(cp2k cp2k_build_info)
