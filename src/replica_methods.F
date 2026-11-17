@@ -51,7 +51,8 @@ MODULE replica_methods
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_wf_history_methods,           ONLY: wfi_create,&
-                                              wfi_create_for_kp
+                                              wfi_create_for_kp,&
+                                              wfi_enable_prev_wf_storage
    USE qs_wf_history_types,             ONLY: wfi_retain
    USE replica_types,                   ONLY: rep_env_sync,&
                                               rep_env_sync_results,&
@@ -317,7 +318,9 @@ CONTAINS
          CALL force_env_get(f_env%force_env, in_use=in_use)
          IF (in_use == use_qs_force) THEN
             CALL force_env_get(f_env%force_env, qs_env=qs_env)
-            CALL get_qs_env(qs_env, dft_control=dft_control)
+            CALL get_qs_env(qs_env, dft_control=dft_control, &
+                            has_unit_metric=has_unit_metric, &
+                            do_kpoints=do_kpoints)
             ALLOCATE (rep_env%wf_history(rep_env%n_wf_history))
             DO i = 1, SIZE(rep_env%wf_history)
                NULLIFY (rep_env%wf_history(i)%wf_history)
@@ -326,8 +329,6 @@ CONTAINS
                                   wf_history=rep_env%wf_history(i)%wf_history)
                   CALL wfi_retain(rep_env%wf_history(i)%wf_history)
                ELSE
-                  CALL get_qs_env(qs_env, has_unit_metric=has_unit_metric, &
-                                  do_kpoints=do_kpoints)
                   CALL wfi_create(rep_env%wf_history(i)%wf_history, &
                                   interpolation_method_nr= &
                                   dft_control%qs_control%wf_interpolation_method_nr, &
@@ -336,6 +337,9 @@ CONTAINS
                   IF (do_kpoints) THEN
                      CALL wfi_create_for_kp(rep_env%wf_history(i)%wf_history)
                   END IF
+               END IF
+               IF (rep_env%n_wf_history > 1 .AND. .NOT. do_kpoints) THEN
+                  CALL wfi_enable_prev_wf_storage(rep_env%wf_history(i)%wf_history)
                END IF
             END DO
          ELSE

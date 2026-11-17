@@ -101,6 +101,7 @@ MODULE qs_wf_history_methods
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_density_matrices,             ONLY: calculate_density_matrix
+   USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -116,13 +117,15 @@ MODULE qs_wf_history_methods
                                               make_basis_simple,&
                                               make_basis_sm
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_type
+                                              mo_set_type,&
+                                              set_mo_set
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: ot_method_nr,&
                                               qs_scf_env_type
    USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
+                                              qs_wf_mo_state_type,&
                                               qs_wf_snapshot_type,&
                                               wfi_get_snapshot,&
                                               wfi_release
@@ -136,8 +139,9 @@ MODULE qs_wf_history_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wf_history_methods'
 
    PUBLIC :: wfi_create, wfi_update, wfi_create_for_kp, &
-             wfi_extrapolate, wfi_get_method_label, &
-             reorthogonalize_vectors, wfi_purge_history
+             wfi_enable_prev_wf_storage, wfi_extrapolate, &
+             wfi_get_method_label, reorthogonalize_vectors, &
+             wfi_purge_history
 
 CONTAINS
 
@@ -225,12 +229,15 @@ CONTAINS
                                          name="ws_snap-ws")
             CPASSERT(nspins == SIZE(snapshot%wf))
          END IF
+         IF (.NOT. ALLOCATED(snapshot%mo_state)) ALLOCATE (snapshot%mo_state(nspins))
          DO ispin = 1, nspins
             CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
             CALL cp_fm_to_fm(mo_coeff, snapshot%wf(ispin))
+            CALL wfs_save_mo_state(mos(ispin), snapshot%mo_state(ispin))
          END DO
       ELSE
          CALL fm_pools_give_back_fm_vect(ao_mo_pools, snapshot%wf)
+         IF (ALLOCATED(snapshot%mo_state)) DEALLOCATE (snapshot%mo_state)
       END IF
 
       IF (wf_history%store_rho_r) THEN
@@ -329,6 +336,9 @@ CONTAINS
                ELSE
                   ALLOCATE (snapshot%wf_kp_cfm(kplocal, nspin_kp))
                END IF
+               IF (.NOT. ALLOCATED(snapshot%mo_state_kp)) THEN
+                  ALLOCATE (snapshot%mo_state_kp(kplocal, nspin_kp))
+               END IF
                DO ikp = 1, kplocal
                   kp => kpoints%kp_env(ikp)%kpoint_env
                   DO ispin = 1, nspin_kp
@@ -342,8 +352,11 @@ CONTAINS
                                            kp%mos(ispin)%cmo_coeff%matrix_struct, name="wfkp_snap")
                         CALL cp_cfm_to_cfm(kp%mos(ispin)%cmo_coeff, snapshot%wf_kp_cfm(ikp, ispin))
                      END IF
+                     CALL wfs_save_mo_state(kp%mos(ispin), snapshot%mo_state_kp(ikp, ispin))
                   END DO
                END DO
+            ELSE IF (ALLOCATED(snapshot%mo_state_kp)) THEN
+               DEALLOCATE (snapshot%mo_state_kp)
             END IF
 
             IF (wf_history%store_overlap_kp) CALL wfs_overlap_kp(snapshot, qs_env)
@@ -576,6 +589,27 @@ CONTAINS
    END SUBROUTINE wfi_create_for_kp
 
 ! **************************************************************************************************
+!> \brief Stores one Gamma-point MO snapshot for USE_PREV_WF when multiple images share one qs_env.
+!> \param wf_history ...
+! **************************************************************************************************
+   SUBROUTINE wfi_enable_prev_wf_storage(wf_history)
+      TYPE(qs_wf_history_type), POINTER                  :: wf_history
+
+      INTEGER                                            :: i
+
+      CPASSERT(ASSOCIATED(wf_history))
+      IF (wf_history%interpolation_method_nr == wfi_use_prev_wf_method_nr) THEN
+         wf_history%memory_depth = 1
+         wf_history%store_wf = .TRUE.
+         IF (ASSOCIATED(wf_history%past_states)) DEALLOCATE (wf_history%past_states)
+         ALLOCATE (wf_history%past_states(wf_history%memory_depth))
+         DO i = 1, SIZE(wf_history%past_states)
+            NULLIFY (wf_history%past_states(i)%snapshot)
+         END DO
+      END IF
+   END SUBROUTINE wfi_enable_prev_wf_storage
+
+! **************************************************************************************************
 !> \brief returns a string describing the interpolation method
 !> \param method_nr ...
 !> \return ...
@@ -657,10 +691,11 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao, rho_frozen_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_wf_snapshot_type), POINTER                 :: t0_state, t1_state
 
-      NULLIFY (mos, ao_mo_fm_pools, t0_state, t1_state, mo_coeff, &
+      NULLIFY (energy, mos, ao_mo_fm_pools, t0_state, t1_state, mo_coeff, &
                rho, rho_ao, rho_frozen_ao)
 
       use_overlap = wf_history%store_overlap
@@ -674,7 +709,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(wf_history))
       CPASSERT(wf_history%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
-      CALL get_qs_env(qs_env, mos=mos, rho=rho, do_kpoints=do_kpoints)
+      CALL get_qs_env(qs_env, energy=energy, mos=mos, rho=rho, do_kpoints=do_kpoints)
       CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
       ! chooses the method for this extrapolation
       IF (wf_history%snapshot_count < 1) THEN
@@ -702,6 +737,24 @@ CONTAINS
          extrapolation_method_nr = actual_extrapolation_method_nr
       END IF
       my_orthogonal_wf = .FALSE.
+
+      IF (.NOT. do_kpoints .AND. wf_history%store_wf .AND. wf_history%snapshot_count > 0) THEN
+         t1_state => wfi_get_snapshot(wf_history, wf_index=1)
+         IF (ALLOCATED(t1_state%mo_state)) THEN
+            IF (ASSOCIATED(energy)) THEN
+               energy%kTS = 0.0_dp
+               energy%efermi = 0.0_dp
+            END IF
+            DO ispin = 1, SIZE(mos)
+               CALL wfs_restore_mo_state(t1_state%mo_state(ispin), mos(ispin))
+               IF (ASSOCIATED(energy)) THEN
+                  energy%kTS = energy%kTS + mos(ispin)%kTS
+                  energy%efermi = energy%efermi + mos(ispin)%mu
+               END IF
+            END DO
+            IF (ASSOCIATED(energy)) energy%efermi = energy%efermi/REAL(SIZE(mos), KIND=dp)
+         END IF
+      END IF
 
       SELECT CASE (actual_extrapolation_method_nr)
       CASE (wfi_frozen_method_nr)
@@ -755,9 +808,15 @@ CONTAINS
          IF (do_kpoints) THEN
             CALL wfi_use_prev_wf_kp(qs_env, io_unit, print_level)
          ELSE
+            NULLIFY (t1_state)
+            IF (wf_history%store_wf .AND. wf_history%snapshot_count > 0) THEN
+               t1_state => wfi_get_snapshot(wf_history, wf_index=1)
+               CPASSERT(ASSOCIATED(t1_state%wf))
+            END IF
             CALL qs_rho_get(rho, rho_ao=rho_ao)
             DO ispin = 1, SIZE(mos)
                CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
+               IF (ASSOCIATED(t1_state)) CALL cp_fm_to_fm(t1_state%wf(ispin), mo_coeff)
                CALL reorthogonalize_vectors(qs_env, v_matrix=mo_coeff, n_col=nmo)
                CALL calculate_density_matrix(mo_set=mos(ispin), density_matrix=rho_ao(ispin)%matrix)
             END DO
@@ -1270,22 +1329,25 @@ CONTAINS
       wf_history => qs_env%wf_history
       reload_snapshot_wf = .FALSE.
       IF (PRESENT(load_snapshot_wf)) reload_snapshot_wf = load_snapshot_wf
+      NULLIFY (t1_state)
+      IF (ASSOCIATED(wf_history)) THEN
+         IF (wf_history%store_wf_kp .AND. wf_history%snapshot_count > 0) THEN
+            t1_state => wfi_get_snapshot(wf_history, wf_index=1)
+         END IF
+      END IF
       IF (PRESENT(pbc_shift_ref)) THEN
          ALLOCATE (pbc_shift_src(3, SIZE(pbc_shift_ref, 2)))
          pbc_shift_src(:, :) = pbc_shift_ref(:, :)
          use_pbc_phase_ref = .TRUE.
       ELSE
          use_pbc_phase_ref = .FALSE.
-         IF (ASSOCIATED(wf_history)) THEN
-            IF (wf_history%store_wf_kp .AND. wf_history%snapshot_count > 0) THEN
-               t1_state => wfi_get_snapshot(wf_history, wf_index=1)
-               CPASSERT(ASSOCIATED(t1_state%wf_kp_cfm))
-               CPASSERT(ASSOCIATED(t1_state%kp_pbc_shift))
-               reload_snapshot_wf = .TRUE.
-               ALLOCATE (pbc_shift_src(3, SIZE(t1_state%kp_pbc_shift, 2)))
-               pbc_shift_src(:, :) = t1_state%kp_pbc_shift(:, :)
-               use_pbc_phase_ref = .TRUE.
-            END IF
+         IF (ASSOCIATED(t1_state)) THEN
+            CPASSERT(ASSOCIATED(t1_state%wf_kp_cfm))
+            CPASSERT(ASSOCIATED(t1_state%kp_pbc_shift))
+            reload_snapshot_wf = .TRUE.
+            ALLOCATE (pbc_shift_src(3, SIZE(t1_state%kp_pbc_shift, 2)))
+            pbc_shift_src(:, :) = t1_state%kp_pbc_shift(:, :)
+            use_pbc_phase_ref = .TRUE.
          END IF
       END IF
       IF (use_pbc_phase_ref) CALL wfi_compute_kp_pbc_shift(qs_env, pbc_shift_cur)
@@ -1380,9 +1442,21 @@ CONTAINS
       END DO
       DEALLOCATE (eigenvalues)
 
-      ! Phase C: Rebuild Density Matrix P(R)
+      ! Phase C: Images sharing one kp%mos need the current image's own spectrum for smearing.
       ! Fixed-occupation OT must preserve its occupied rank after extrapolation; its energy
       ! labels and any padded UKS columns are not a spectrum for refilling the bands.
+      IF (ASSOCIATED(t1_state)) THEN
+         IF (ALLOCATED(t1_state%mo_state_kp)) THEN
+            CPASSERT(SIZE(t1_state%mo_state_kp, 1) == kplocal)
+            CPASSERT(SIZE(t1_state%mo_state_kp, 2) == nspin)
+            DO ikp = 1, kplocal
+               kp => kpoints%kp_env(ikp)%kpoint_env
+               DO ispin = 1, nspin
+                  CALL wfs_restore_mo_state(t1_state%mo_state_kp(ikp, ispin), kp%mos(ispin))
+               END DO
+            END DO
+         END IF
+      END IF
       CALL qs_kpoint_state_commit(qs_env, update_occupations=.TRUE., &
                                   fixed_occupations=scf_env%method == ot_method_nr .AND. &
                                   .NOT. (dft_control%smear .OR. scf_control%smear%do_smear))
@@ -2517,5 +2591,61 @@ CONTAINS
       DEALLOCATE (A, b)
 
    END SUBROUTINE tr_fitting
+
+! **************************************************************************************************
+!> \brief Saves scalar and occupation metadata from mo_set into a wavefunction snapshot.
+!> \param mo_set ...
+!> \param state ...
+! **************************************************************************************************
+   SUBROUTINE wfs_save_mo_state(mo_set, state)
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
+      TYPE(qs_wf_mo_state_type), INTENT(INOUT)           :: state
+
+      INTEGER                                            :: nmo
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers
+
+      NULLIFY (eigenvalues, occupation_numbers)
+      CALL get_mo_set(mo_set, nmo=nmo, eigenvalues=eigenvalues, &
+                      occupation_numbers=occupation_numbers, homo=state%homo, &
+                      lfomo=state%lfomo, uniform_occupation=state%uniform_occupation, &
+                      kTS=state%kTS, mu=state%mu)
+      CPASSERT(ASSOCIATED(eigenvalues))
+      CPASSERT(ASSOCIATED(occupation_numbers))
+      IF (ALLOCATED(state%eigenvalues)) DEALLOCATE (state%eigenvalues)
+      ALLOCATE (state%eigenvalues(nmo))
+      IF (ALLOCATED(state%occupation_numbers)) DEALLOCATE (state%occupation_numbers)
+      ALLOCATE (state%occupation_numbers(nmo))
+      state%eigenvalues(1:nmo) = eigenvalues(1:nmo)
+      state%occupation_numbers(1:nmo) = occupation_numbers(1:nmo)
+
+   END SUBROUTINE wfs_save_mo_state
+
+! **************************************************************************************************
+!> \brief Restores scalar and occupation metadata from a wavefunction snapshot into mo_set.
+!> \param state ...
+!> \param mo_set ...
+! **************************************************************************************************
+   SUBROUTINE wfs_restore_mo_state(state, mo_set)
+      TYPE(qs_wf_mo_state_type), INTENT(IN)              :: state
+      TYPE(mo_set_type), INTENT(INOUT)                   :: mo_set
+
+      INTEGER                                            :: nmo
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers
+
+      NULLIFY (eigenvalues, occupation_numbers)
+      CALL get_mo_set(mo_set, nmo=nmo, eigenvalues=eigenvalues, &
+                      occupation_numbers=occupation_numbers)
+      CPASSERT(ASSOCIATED(eigenvalues))
+      CPASSERT(ASSOCIATED(occupation_numbers))
+      CPASSERT(ALLOCATED(state%eigenvalues))
+      CPASSERT(ALLOCATED(state%occupation_numbers))
+      CPASSERT(SIZE(state%eigenvalues) == nmo)
+      CPASSERT(SIZE(state%occupation_numbers) == nmo)
+      eigenvalues(1:nmo) = state%eigenvalues(1:nmo)
+      occupation_numbers(1:nmo) = state%occupation_numbers(1:nmo)
+      CALL set_mo_set(mo_set, homo=state%homo, lfomo=state%lfomo, &
+                      uniform_occupation=state%uniform_occupation, kTS=state%kTS, mu=state%mu)
+
+   END SUBROUTINE wfs_restore_mo_state
 
 END MODULE qs_wf_history_methods
