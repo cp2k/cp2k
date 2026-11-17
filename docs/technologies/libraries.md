@@ -291,6 +291,13 @@ COSMA is an alternative for the pdgemm routine included in ScaLAPACK. The librar
 and GPUs.
 
 - Pass `-DCP2K_USE_COSMA=ON` to CMake to enable support for COSMA.
+- COSMA (as of version 2.8.4) keeps a memory pool sized for its largest multiplication until the run
+  ends. In runs with large dense matrix products, such as the full (non-TDA) BSE or RPA and SOS-MP2
+  gradients of large systems, this pool can set the peak memory. The environment variable
+  [`COSMA_CPU_MAX_MEMORY`](https://github.com/eth-cscs/COSMA#tunable-parameters) caps it per MPI
+  rank (in MB), at some cost in runtime; see
+  [COSMA#118](https://github.com/eth-cscs/COSMA/issues/118) and
+  [COSMA#174](https://github.com/eth-cscs/COSMA/pull/174) for the state upstream.
 - See <https://github.com/eth-cscs/COSMA> for more information.
 
 ## LibVori (Voronoi Integration for Electrostatic Properties from Electron Density)
