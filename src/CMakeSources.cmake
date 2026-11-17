@@ -1242,6 +1242,7 @@ list(
   motion/md_run.F
   motion/md_util.F
   motion/md_vel_utils.F
+  motion/neb_idpp.F
   motion/neb_io.F
   motion/neb_md_utils.F
   motion/neb_methods.F

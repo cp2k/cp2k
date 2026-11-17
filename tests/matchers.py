@@ -231,6 +231,12 @@ registry["Vib_frc_const"] = GenericMatcher(r"VIB|Frc consts", col=4)  # M128
 
 registry["M009"] = GenericMatcher(r"PINT| Total energy =", col=5)
 registry["M010"] = GenericMatcher(r"BAND TOTAL ENERGY [au]", col=6)
+registry["IDPP_min_distance_before"] = GenericMatcher(
+    r"NEB| IDPP minimum pair distance [angstrom]:", col=7
+)
+registry["IDPP_min_distance_after"] = GenericMatcher(
+    r"NEB| IDPP minimum pair distance [angstrom]:", col=9
+)
 registry["M011"] = GenericMatcher(r"ENERGY| Total FORCE_EVAL", col=9)
 registry["FIST_periodic_dipole_x"] = GenericMatcher(
     r"MM_DIPOLE| Moment [a.u.]", col=4, first=True

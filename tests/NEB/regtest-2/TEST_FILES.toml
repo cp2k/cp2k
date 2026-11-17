@@ -9,4 +9,8 @@
 "2gly_DIIS-SD-2.inp"    = [{matcher = "M010", tol = 1e-08, ref = -1.0649077579087201}]
 "2gly_DIIS-DNEB.inp"    = [{matcher = "M010", tol = 8e-12, ref = -1.9198933736066299}]
 "2gly_DIIS-SM.inp"      = [{matcher = "M010", tol = 1e-11, ref = 1.7582064129930699}]
+"argon_idpp.inp"        = [
+  {matcher = "IDPP_min_distance_before", tol = 1e-10, ref = 0.0},
+  {matcher = "IDPP_min_distance_after", tol = 0.02, ref = 2.43}
+]
 #EOF
