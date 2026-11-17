@@ -47,7 +47,8 @@ MODULE gopt_f_methods
                                               pack_subsys_particles,&
                                               unpack_subsys_particles
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE dimer_methods,                   ONLY: cp_eval_at_ts
+   USE dimer_methods,                   ONLY: cp_eval_at_ts,&
+                                              dimer_apply_solid_state_geometry
    USE dimer_types,                     ONLY: dimer_env_type
    USE dimer_utils,                     ONLY: update_dimer_vec
    USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -82,6 +83,8 @@ MODULE gopt_f_methods
    USE particle_types,                  ONLY: particle_type
    USE qmmm_util,                       ONLY: apply_qmmm_translate
    USE qmmmx_util,                      ONLY: apply_qmmmx_translate
+   USE solid_state_coordinates,         ONLY: solid_state_pack,&
+                                              ss_cell_dof
    USE space_groups,                    ONLY: identify_space_group,&
                                               print_spgr,&
                                               spgr_apply_rotations_coord,&
@@ -127,6 +130,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
 
       INTEGER                                            :: ndof_cell, nparticle, output_unit
+      REAL(KIND=dp), ALLOCATABLE                         :: cartesian(:)
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -141,8 +145,15 @@ CONTAINS
          ! before starting we handle the case of translating coordinates (QM/MM)
          CALL apply_qmmm_translation(gopt_env)
          nparticle = force_env_get_nparticle(gopt_env%force_env)
-         ALLOCATE (x0(3*nparticle))
-         CALL pack_subsys_particles(subsys=subsys, r=x0)
+         IF (gopt_env%solid_state_dimer) THEN
+            CALL force_env_get(gopt_env%force_env, cell=cell)
+            ALLOCATE (x0(3*nparticle + ss_cell_dof), cartesian(3*nparticle))
+            CALL pack_subsys_particles(subsys=subsys, r=cartesian)
+            CALL solid_state_pack(gopt_env%dimer_env%frame, cell%hmat, cartesian, x0)
+         ELSE
+            ALLOCATE (x0(3*nparticle))
+            CALL pack_subsys_particles(subsys=subsys, r=x0)
+         END IF
          IF (gopt_env%spgr%keep_space_group) THEN
             logger => cp_get_default_logger()
             output_unit = cp_print_key_unit_nr(logger, gopt_env%geo_section, &
@@ -269,7 +280,11 @@ CONTAINS
 
       SELECT CASE (gopt_env%type_id)
       CASE (default_minimization_method_id, default_ts_method_id)
-         CALL unpack_subsys_particles(subsys=subsys, r=x)
+         IF (gopt_env%solid_state_dimer) THEN
+            CALL dimer_apply_solid_state_geometry(gopt_env, x)
+         ELSE
+            CALL unpack_subsys_particles(subsys=subsys, r=x)
+         END IF
          CALL write_structure_data(particles%els, cell, gopt_env%motion_section)
          SELECT CASE (gopt_env%type_id)
          CASE (default_minimization_method_id)
@@ -293,7 +308,11 @@ CONTAINS
             END IF
          CASE (default_ts_method_id)
             ! Transition State Optimization
-            ALLOCATE (gradient_ts(particles%n_els*3))
+            IF (gopt_env%solid_state_dimer) THEN
+               ALLOCATE (gradient_ts(SIZE(x)))
+            ELSE
+               ALLOCATE (gradient_ts(3*particles%n_els))
+            END IF
             ! Real calculation of energy and forces for transition state optimization:
             ! When doing dimer methods forces have to be always computed since the function
             ! to minimize is not the energy but the effective force
@@ -312,7 +331,15 @@ CONTAINS
          END SELECT
          ! This call is necessary for QM/MM if a Translation is applied
          ! this makes the geometry optimizer consistent
-         CALL unpack_subsys_particles(subsys=subsys, r=x)
+         IF (gopt_env%solid_state_dimer) THEN
+            CALL dimer_apply_solid_state_geometry(gopt_env, x)
+            IF (.NOT. gopt_env%dimer_rotation) THEN
+               CALL unpack_subsys_particles(subsys, f=gopt_env%dimer_env%centre_force)
+               virial = gopt_env%dimer_env%centre_virial
+            END IF
+         ELSE
+            CALL unpack_subsys_particles(subsys=subsys, r=x)
+         END IF
       CASE (default_cell_method_id)
          ! Check for VIRIAL
          IF (.NOT. virial%pv_availability) THEN
@@ -631,8 +658,13 @@ CONTAINS
       CASE (default_ts_method_id, default_minimization_method_id)
          ! Geometry Optimization (Minimization and Transition State Search)
          IF (.NOT. gopt_env%dimer_rotation) THEN
-            CALL geo_opt_io(force_env=force_env, root_section=root_section, &
-                            motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy)
+            IF (gopt_env%solid_state_dimer) THEN
+               CALL geo_opt_io(force_env=force_env, root_section=root_section, motion_section=gopt_env%motion_section, &
+                               its=its, opt_energy=gopt_env%dimer_env%enthalpy)
+            ELSE
+               CALL geo_opt_io(force_env=force_env, root_section=root_section, &
+                               motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy)
+            END IF
             CALL write_cycle_infos(output_unit, &
                                    it=its, &
                                    etot=opt_energy, &
@@ -652,8 +684,13 @@ CONTAINS
                CPASSERT(PRESENT(ndf))
                CPASSERT(PRESENT(dx))
                CPASSERT(PRESENT(xi))
-               CALL check_and_report_convergence(output_unit, gopt_param, ndf, dx, xi, conv, &
-                                                 max_memory, stress_unit)
+               IF (gopt_env%solid_state_dimer) THEN
+                  CALL check_and_report_convergence(output_unit, gopt_param, ndf, dx, xi, conv, &
+                                                    max_memory, stress_unit, curvature=gopt_env%dimer_env%rot%curvature)
+               ELSE
+                  CALL check_and_report_convergence(output_unit, gopt_param, ndf, dx, xi, conv, &
+                                                    max_memory, stress_unit)
+               END IF
             END IF
          ELSE
             CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section)
@@ -1146,9 +1183,10 @@ CONTAINS
 !> \param pres_diff ...
 !> \param pres_tol ...
 !> \param pres_diff_constr ...
+!> \param curvature if present, require a negative dimer curvature
 ! **************************************************************************************************
    SUBROUTINE check_and_report_convergence(output_unit, gopt_param, ndf, dr, g, conv, &
-                                           max_memory, stress_unit, pres_diff, pres_tol, pres_diff_constr)
+                                           max_memory, stress_unit, pres_diff, pres_tol, pres_diff_constr, curvature)
 
       INTEGER, INTENT(IN)                                :: output_unit
       TYPE(gopt_param_type), POINTER                     :: gopt_param
@@ -1157,7 +1195,8 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: conv
       INTEGER(KIND=int_8), INTENT(IN)                    :: max_memory
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: stress_unit
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pres_diff, pres_tol, pres_diff_constr
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pres_diff, pres_tol, pres_diff_constr, &
+                                                            curvature
 
       LOGICAL                                            :: conv_dx, conv_g, conv_p, conv_rdx, &
                                                             conv_rg
@@ -1166,6 +1205,10 @@ CONTAINS
       CALL check_converg(ndf, dr, g, gopt_param, conv, conv_dx, conv_rdx, conv_g, conv_rg, &
                          conv_p, max_dr, rms_dr, max_grad, rms_grad, pres_diff, pres_tol, &
                          pres_diff_constr)
+      IF (PRESENT(curvature)) THEN
+         conv = conv .AND. curvature < 0.0_dp
+         IF (output_unit > 0) WRITE (output_unit, '(T2,A,1X,L1)') "SS-DIMER| Negative curvature:", curvature < 0.0_dp
+      END IF
       CALL write_convergence_infos(output_unit, gopt_param, conv, conv_dx, conv_rdx, conv_g, &
                                    conv_rg, conv_p, max_dr, rms_dr, max_grad, rms_grad, &
                                    max_memory, stress_unit, pres_diff, pres_tol, pres_diff_constr)
@@ -1276,6 +1319,7 @@ CONTAINS
 
          CALL cp_eval_at(gopt_env, x0, f=etot, master=master, &
                          para_env=para_env)
+         IF (gopt_env%solid_state_dimer) etot = gopt_env%dimer_env%enthalpy
          CALL write_geo_traj(force_env, root_section, it, etot)
          CALL write_simulation_cell(cell, motion_section, it, 0.0_dp)
       END IF

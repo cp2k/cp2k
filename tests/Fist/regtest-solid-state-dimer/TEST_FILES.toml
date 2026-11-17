@@ -1,0 +1,7 @@
+# The analytic pair potential has a saddle at r = 6.3 bohr with one unstable joint mode.
+"double-well.inp" = [
+  {matcher = "Ssdimer_curvature", tol = 2e-3, ref = -0.0135384948},
+  {matcher = "Ssdimer_joint_force_norm", tol = 1e-7, ref = 0.0},
+  {matcher = "Ssdimer_completed"}
+]
+#EOF
