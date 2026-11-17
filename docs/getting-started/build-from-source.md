@@ -329,8 +329,8 @@ dependency builds; see `--use_cache` for the available cache backends.
 `make_cp2k.sh` performs the build in four steps. Only the first step is part of `make_cp2k.sh`
 itself, the other steps are separate scripts in the folder `tools/make_cp2k`:
 
-1. `make_cp2k.sh` parses the flags, checks the settings, removes folders if requested (`-bd`, `-rc`),
-   and writes the resolved configuration to `install/config/options.conf`.
+1. `make_cp2k.sh` parses the flags, checks the settings, removes folders if requested (`-bd`,
+   `-rc`), and writes the resolved configuration to `install/config/options.conf`.
 1. `build_deps.sh` builds the CP2K dependencies with Spack if needed and writes
    `install/config/deps.conf`.
 1. `build_cp2k.sh` configures, builds, and installs CP2K with CMake and writes
