@@ -337,7 +337,7 @@ CONTAINS
 
       INTEGER                                            :: handle, iatom, natoms, pgrid_cols, &
                                                             pgrid_rows
-      INTEGER, DIMENSION(:), POINTER                     :: diag_col_dist, diag_row_dist
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: diag_col_dist, diag_row_dist
       TYPE(dbcsr_distribution_type)                      :: main_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 

@@ -50,7 +50,7 @@ PROGRAM qs_ot_complex_ref_unittest
    INTEGER, PARAMETER                                 :: k = 2, n = 3
 
    INTEGER                                            :: io_unit, mynode, nfail
-   INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_k, row_dist, row_k, row_n
+   INTEGER, DIMENSION(:), CONTIGUOUS, POINTER                     :: col_dist, col_k, row_dist, row_k, row_n
    INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
    TYPE(cp_logger_type), POINTER                      :: logger
    TYPE(dbcsr_distribution_type)                     :: dist
@@ -429,7 +429,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: nfail
 
       COMPLEX(KIND=dp)                                   :: expected, value
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_size, row_dist, row_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, col_size, row_dist, row_size
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: error

@@ -88,7 +88,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_bse_ri_rs_ensure_V_grid'
 
       INTEGER                                            :: handle
-      INTEGER, DIMENSION(:), POINTER                     :: blk_aux, dist_row_aux
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_aux, dist_row_aux
       REAL(KIND=dp)                                      :: t1
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_Vtr_Gamma
       TYPE(dbcsr_distribution_type)                      :: dist_aux_aux
@@ -152,7 +152,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_bse_ri_rs_ensure_W0_grid'
 
       INTEGER                                            :: handle
-      INTEGER, DIMENSION(:), POINTER                     :: blk_aux, blk_grid, dist_col_grid, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_aux, blk_grid, dist_col_grid, &
                                                             dist_row_aux
       LOGICAL                                            :: use_cutoff_w0
       REAL(KIND=dp)                                      :: fnorm_w0, occ_w0, t1
@@ -283,7 +283,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_sigma_ri_rs'
 
       INTEGER                                            :: handle, n_grid
-      INTEGER, DIMENSION(:), POINTER                     :: blk_ao, dist_row_ao
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_ao, dist_row_ao
       REAL(KIND=dp), ALLOCATABLE                         :: diag_local(:)
       TYPE(dbcsr_distribution_type)                      :: dist_ao_ao
       TYPE(dbcsr_type)                                   :: matrix_rho_AO, matrix_rho_grid, &
@@ -428,7 +428,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_hartree_ri_rs'
 
       INTEGER                                            :: handle, n_grid
-      INTEGER, DIMENSION(:), POINTER                     :: blk_ao, blk_grid, dist_col_grid, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_ao, blk_grid, dist_col_grid, &
                                                             dist_row_ao
       REAL(KIND=dp), ALLOCATABLE                         :: n_vec(:)
       TYPE(dbcsr_distribution_type)                      :: dist_ao_ao, dist_grid_grid
@@ -496,7 +496,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hartree_potential_from_diag_ri_rs'
 
       INTEGER                                            :: handle
-      INTEGER, DIMENSION(:), POINTER                     :: blk_ao, dist_row_ao
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_ao, dist_row_ao
       REAL(KIND=dp), ALLOCATABLE                         :: u_ri(:), v_vec(:), w_ri(:)
       TYPE(dbcsr_distribution_type)                      :: dist_ao_ao
       TYPE(dbcsr_type)                                   :: matrix_Phi, matrix_V_H_AO

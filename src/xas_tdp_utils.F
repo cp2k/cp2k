@@ -1019,7 +1019,7 @@ CONTAINS
 
       INTEGER                                            :: group, i, nao, nblk_row, ndo_mo, nspins, &
                                                             scol_dist, srow_dist
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_dist_sub, row_blk_size, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, col_dist_sub, row_blk_size, &
                                                             row_dist, row_dist_sub, submat_blk_size
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist, submat_dist
@@ -1512,7 +1512,7 @@ CONTAINS
       INTEGER                                            :: group, handle, homo, iex, isc, isf, nao, &
                                                             ndo_mo, ndo_so, nex, npcols, nprows, &
                                                             nsc, nsf, ntot, tas(2), tbs(2)
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist, row_dist_new
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: do_roks, do_uks
@@ -1949,7 +1949,7 @@ CONTAINS
       INTEGER                                            :: group, handle, iex, isg, itp, nao, &
                                                             ndo_mo, nex, npcols, nprows, nsg, &
                                                             ntot, ntp
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist, row_dist_new
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       REAL(dp)                                           :: eps_filter, soc_gst, sqrt2

@@ -280,7 +280,7 @@ CONTAINS
       CHARACTER                                          :: matrix_type
       INTEGER                                            :: atom, image(3), img, io, mode, neighbor, &
                                                             orientation, owner
-      INTEGER, POINTER                                   :: col_dist(:), process_grid(:, :), &
+      INTEGER, CONTIGUOUS, POINTER                       :: col_dist(:), process_grid(:, :), &
                                                             row_dist(:), sizes(:)
       REAL(dp)                                           :: expanded(1, 5, 5, 3), expected(5, 5, 3), &
                                                             sign, values(2, 3)

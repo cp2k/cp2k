@@ -51,8 +51,8 @@ MODULE cp_dbcsr_api
         dbcsr_valid_index_prv => dbcsr_valid_index, &
         dbcsr_verify_matrix_prv => dbcsr_verify_matrix, dbcsr_work_create_prv => dbcsr_work_create
    USE dbm_api,                         ONLY: &
-        dbm_add, dbm_clear, dbm_copy, dbm_distribution_obj, dbm_iterator, dbm_redistribute, &
-        dbm_scale, dbm_type, dbm_zero
+        dbm_add, dbm_clear, dbm_copy, dbm_distribution_new, dbm_distribution_obj, dbm_iterator, &
+        dbm_redistribute, dbm_scale, dbm_type, dbm_zero
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathconstants,                   ONLY: gaussi,&
@@ -618,8 +618,11 @@ CONTAINS
          OPTIONAL                                        :: template
       INTEGER, INTENT(IN), OPTIONAL                      :: group
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: pgrid
-      INTEGER, DIMENSION(:), INTENT(INOUT), POINTER      :: row_dist, col_dist
+      INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(INOUT), &
+         POINTER                                         :: row_dist, col_dist
       LOGICAL, INTENT(IN), OPTIONAL                      :: reuse_arrays
+
+      TYPE(mp_comm_type)                                 :: mp_comm
 
       IF (USE_DBCSR_BACKEND) THEN
          IF (PRESENT(template)) THEN
@@ -631,7 +634,8 @@ CONTAINS
                                             reuse_arrays=reuse_arrays)
          END IF
       ELSE
-         CPABORT("Not yet implemented for DBM.")
+         CALL mp_comm%set_handle(group)
+         CALL dbm_distribution_new(dist%dbm, mp_comm, row_dist_block=row_dist, col_dist_block=col_dist)
       END IF
    END SUBROUTINE dbcsr_distribution_new
 

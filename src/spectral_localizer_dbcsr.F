@@ -188,7 +188,7 @@ CONTAINS
       TYPE(localizer_matrix_type), INTENT(OUT)           :: matrix
 
       INTEGER                                            :: blocks
-      INTEGER, POINTER                                   :: col_dist(:), expanded_cols(:), &
+      INTEGER, CONTIGUOUS, POINTER                       :: col_dist(:), expanded_cols(:), &
                                                             expanded_rows(:), expanded_sizes(:), &
                                                             row_dist(:), sizes(:)
       TYPE(dbcsr_distribution_type)                      :: distribution, expanded_distribution
@@ -321,7 +321,7 @@ CONTAINS
                                                             sy(:, :), sz(:, :)
       INTEGER                                            :: blocks, component, components, nspin, &
                                                             physical_blocks
-      INTEGER, POINTER                                   :: col_dist(:), expanded_cols(:), &
+      INTEGER, CONTIGUOUS, POINTER                       :: col_dist(:), expanded_cols(:), &
                                                             expanded_rows(:), expanded_sizes(:), &
                                                             row_dist(:), sizes(:)
       TYPE(dbcsr_distribution_type)                      :: distribution, expanded_distribution

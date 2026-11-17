@@ -168,7 +168,7 @@ CONTAINS
          n_ref_ri, n_small, natom, npcol_phi, num_grid_chunks, phase_hi
       INTEGER, ALLOCATABLE, DIMENSION(:) :: ao_atoms, ao_col_start, big_list, local_grid_idx, &
          my_atoms_A, my_atoms_B, n_local_grid_atom, ref_blk_sizes, row_offset, small_list
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist_ri, r_blk_sizes, ri_blk_sizes, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist_ri, r_blk_sizes, ri_blk_sizes, &
                                                             row_dist_grid
       LOGICAL                                            :: do_scatter, use_dist
       LOGICAL, ALLOCATABLE                               :: ao_nonzero(:, :)

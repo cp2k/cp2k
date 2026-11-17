@@ -110,7 +110,7 @@ CONTAINS
       INTEGER                                            :: handle, iatom, imol, jatom, natom, nmol
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: atom_to_cluster, atom_to_cluster_primus, &
                                                             clustered_blk_sizes, primus_of_mol
-      INTEGER, DIMENSION(:), POINTER                     :: clustered_col_dist, clustered_row_dist, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: clustered_col_dist, clustered_row_dist, &
                                                             ls_blk_sizes, ls_col_dist, ls_row_dist
       TYPE(dbcsr_distribution_type)                      :: ls_dist, ls_dist_clustered
 

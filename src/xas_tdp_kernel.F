@@ -672,7 +672,7 @@ CONTAINS
       INTEGER                                            :: group, iblk, iso, jblk, jso, nblk, &
                                                             ndo_mo, ndo_so, nsgfa, nsgfp, ri_atom, &
                                                             source
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_dist_work, row_dist, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, col_dist_work, row_dist, &
                                                             row_dist_work
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: do_roks, do_uks, found
