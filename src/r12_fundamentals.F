@@ -18,10 +18,14 @@ MODULE r12_fundamentals
    USE gamma,                           ONLY: deallocate_md_ftable,&
                                               fgamma => fgamma_0,&
                                               init_md_ftable
-   USE input_constants,                 ONLY: &
-        do_potential_TShPSC, do_potential_coulomb, do_potential_gaussian, do_potential_long, &
-        do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, do_potential_short, &
-        do_potential_truncated
+   USE input_constants,                 ONLY: do_potential_coulomb,&
+                                              do_potential_gaussian,&
+                                              do_potential_long,&
+                                              do_potential_mix_cl,&
+                                              do_potential_mix_cl_trunc,&
+                                              do_potential_mix_lg,&
+                                              do_potential_short,&
+                                              do_potential_truncated
    USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: default_path_length,&
                                               dp
@@ -31,9 +35,6 @@ MODULE r12_fundamentals
                                               get_lmax_init,&
                                               init_truncated_table => init,&
                                               t_c_g0_n
-   USE t_sh_p_s_c,                      ONLY: free_tshpsc_table => free_C0,&
-                                              init_tshpsc_table => init,&
-                                              trunc_CS_poly_n20
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -41,8 +42,7 @@ MODULE r12_fundamentals
 
    PUBLIC :: compute_r12_fundamentals, r12_fundamentals_init, r12_fundamentals_cleanup
 
-   INTEGER, SAVE :: tshpsc_lmax = -1
-   CHARACTER(default_path_length), SAVE :: truncated_filename = "", tshpsc_filename = ""
+   CHARACTER(default_path_length), SAVE :: truncated_filename = ""
 
 CONTAINS
 
@@ -59,32 +59,22 @@ CONTAINS
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
       INTEGER                                            :: table_order, unit_id
-      LOGICAL                                            :: truncated, tshpsc
 
       CALL init_md_ftable(m_max)
-      truncated = .FALSE.
-      tshpsc = .FALSE.
       SELECT CASE (potential_parameter%potential_type)
       CASE (do_potential_truncated, do_potential_mix_cl_trunc)
-         truncated = m_max > get_lmax_init() .OR. potential_parameter%filename /= truncated_filename
-      CASE (do_potential_TShPSC)
-         tshpsc = m_max > tshpsc_lmax .OR. potential_parameter%filename /= tshpsc_filename
+         IF (m_max <= get_lmax_init() .AND. potential_parameter%filename == truncated_filename) RETURN
+      CASE DEFAULT
+         RETURN
       END SELECT
-      IF (.NOT. truncated .AND. .NOT. tshpsc) RETURN
 
       unit_id = -1
       IF (para_env%is_source()) THEN
          CALL open_file(unit_number=unit_id, file_name=discover_file(potential_parameter%filename))
       END IF
-      IF (truncated) THEN
-         table_order = MAX(m_max, get_lmax_init())
-         CALL init_truncated_table(table_order, unit_id, para_env%mepos, para_env)
-         truncated_filename = potential_parameter%filename
-      ELSE
-         tshpsc_lmax = MAX(m_max, tshpsc_lmax)
-         CALL init_tshpsc_table(tshpsc_lmax, unit_id, para_env%mepos, para_env)
-         tshpsc_filename = potential_parameter%filename
-      END IF
+      table_order = MAX(m_max, get_lmax_init())
+      CALL init_truncated_table(table_order, unit_id, para_env%mepos, para_env)
+      truncated_filename = potential_parameter%filename
       IF (para_env%is_source()) CALL close_file(unit_id)
    END SUBROUTINE r12_fundamentals_init
 
@@ -93,11 +83,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE r12_fundamentals_cleanup()
       CALL free_truncated_table()
-      CALL free_tshpsc_table()
       CALL deallocate_md_ftable()
-      tshpsc_lmax = -1
       truncated_filename = ""
-      tshpsc_filename = ""
    END SUBROUTINE r12_fundamentals_cleanup
 
 ! **************************************************************************************************
@@ -218,7 +205,7 @@ CONTAINS
 !> \param T reduced squared distance between Gaussian product centers
 !> \param work reusable scratch space for composing radial kernels
 !> \param omega range-separation parameter; Gaussian operators use alpha=omega**2
-!> \param cutoff_radius cutoff parameter for truncated Coulomb and TShPSC
+!> \param cutoff_radius cutoff parameter for truncated Coulomb
 !> \param scale_coulomb Coulomb coefficient in mixed operators
 !> \param scale_longrange long-range coefficient in mixed operators
 !> \param scale_gaussian Gaussian coefficient in mixed operators
@@ -235,7 +222,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: omega, cutoff_radius, scale_coulomb, &
                                                             scale_longrange, scale_gaussian
 
-      REAL(dp)                                           :: gaussian_normalization, R
+      REAL(dp)                                           :: gaussian_normalization
 
       normalization = 2.0_dp*pi/rho
       SELECT CASE (potential_type)
@@ -243,10 +230,6 @@ CONTAINS
          CALL compute_coulomb_fundamentals(F, m_max, T)
       CASE (do_potential_truncated)
          CALL compute_truncated_fundamentals(F, m_max, rho, T, cutoff_radius)
-      CASE (do_potential_TShPSC)
-         R = cutoff_radius*SQRT(rho)
-         F = 0.0_dp
-         CALL trunc_CS_poly_n20(F, R, T, m_max)
       CASE (do_potential_short)
          CALL compute_short_range_fundamentals(F, m_max, rho, T, omega, work)
       CASE (do_potential_long)

@@ -1072,7 +1072,6 @@ list(
   common/timings.F
   common/timings_report.F
   common/timings_types.F
-  common/t_sh_p_s_c.F
   common/util.F
   common/xmgrace.F
   common/erf_complex.F

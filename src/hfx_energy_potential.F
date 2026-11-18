@@ -67,7 +67,6 @@ MODULE hfx_energy_potential
 
    USE input_constants, ONLY: do_potential_mix_cl_trunc, &
                               do_potential_truncated, &
-                              do_potential_TShPSC, &
                               do_potential_short, &
                               do_potential_coulomb, &
                               hfx_do_eval_energy, &
