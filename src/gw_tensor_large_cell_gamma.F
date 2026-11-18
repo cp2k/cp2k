@@ -47,7 +47,8 @@ MODULE gw_tensor_large_cell_Gamma
                                               get_W_MIC
    USE gw_utils,                        ONLY: G_occ_vir,&
                                               analyt_conti_and_print,&
-                                              de_init_bs_env
+                                              de_init_bs_env,&
+                                              gw_qp_summary_type
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
                                               fm_contract_ABA
    USE hfx_types,                       ONLY: alloc_containers
@@ -1586,6 +1587,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_ikp_n_time
       TYPE(cp_cfm_type)                                  :: cfm_ks_ikp, cfm_mos_ikp, cfm_s_ikp, &
                                                             cfm_work_ikp
+      TYPE(gw_qp_summary_type)                           :: qp_summary
 
       CALL timeset(routineN, handle)
 
@@ -1596,6 +1598,7 @@ CONTAINS
       ALLOCATE (Sigma_c_ikp_n_time(bs_env%n_ao, bs_env%num_time_freq_points, 2))
       ALLOCATE (Sigma_c_ikp_n_freq(bs_env%n_ao, bs_env%num_freq_points_fit))
 
+      qp_summary%n_kpoints = bs_env%nkp_bs_and_DOS
       DO ispin = 1, bs_env%n_spin
 
          DO ikp = 1, bs_env%nkp_bs_and_DOS
@@ -1637,7 +1640,7 @@ CONTAINS
             ! 8. Analytic continuation Σ^c_nn(k_i,iω) -> Σ^c_nn(k_i,ϵ) and
             !    ϵ_nk_i^GW = ϵ_nk_i^DFT + Σ^c_nn(k_i,ϵ) + Σ^x_nn(k_i) - v^xc_nn(k_i)
             CALL analyt_conti_and_print(bs_env, Sigma_c_ikp_n_freq, Sigma_x_ikp_n, V_xc_ikp_n, &
-                                        bs_env%eigenval_scf(:, ikp, ispin), ikp, ispin)
+                                        bs_env%eigenval_scf(:, ikp, ispin), ikp, ispin, qp_summary)
 
          END DO ! ikp_DOS
 

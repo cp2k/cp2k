@@ -90,7 +90,8 @@ MODULE gw_utils
    USE kpoint_types,                    ONLY: kpoint_create,&
                                               kpoint_release,&
                                               kpoint_type
-   USE machine,                         ONLY: m_walltime
+   USE machine,                         ONLY: m_flush,&
+                                              m_walltime
    USE mathlib,                         ONLY: erfc_cutoff,&
                                               gcd
    USE message_passing,                 ONLY: mp_cart_type,&
@@ -152,9 +153,20 @@ MODULE gw_utils
              add_R, &
              is_cell_in_index_to_cell, &
              rtbse_resolve_rirs_flag, &
-             G_occ_vir
+             G_occ_vir, &
+             gw_qp_summary_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils'
+
+!> \brief Nevanlinna diagnostics for one GW cycle. n_kpoints is the number of target k-points per spin.
+   TYPE gw_qp_summary_type
+      PRIVATE
+      INTEGER, PUBLIC                                    :: n_kpoints = 1
+      INTEGER(KIND=int_8)                               :: n_unstable = 0_int_8, n_multi = 0_int_8, &
+                                                            n_pade = 0_int_8
+      INTEGER(KIND=int_8)                               :: n_frontier_unstable = 0_int_8, n_frontier_multi = 0_int_8
+      REAL(KIND=dp)                                      :: pick_min = 0.0_dp
+   END TYPE gw_qp_summary_type
 
 CONTAINS
 
@@ -3652,15 +3664,17 @@ CONTAINS
 !> \param eigenval_scf ...
 !> \param ikp ...
 !> \param ispin ...
+!> \param summary Nevanlinna diagnostics, accumulated over one GW cycle.
 !> \param i_iter ...
 ! **************************************************************************************************
    SUBROUTINE analyt_conti_and_print(bs_env, Sigma_c_ikp_n_freq, Sigma_x_ikp_n, V_xc_ikp_n, &
-                                     eigenval_scf, ikp, ispin, i_iter)
+                                     eigenval_scf, ikp, ispin, summary, i_iter)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: Sigma_c_ikp_n_freq
       REAL(KIND=dp), DIMENSION(:)                        :: Sigma_x_ikp_n, V_xc_ikp_n, eigenval_scf
       INTEGER                                            :: ikp, ispin
+      TYPE(gw_qp_summary_type), INTENT(INOUT)             :: summary
       INTEGER, INTENT(IN), OPTIONAL                      :: i_iter
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'analyt_conti_and_print'
@@ -3724,6 +3738,11 @@ CONTAINS
 
       IF (do_nevanlinna) THEN
 
+         IF (ikp == 1 .AND. ispin == 1 .AND. bs_env%unit_nr > 0) THEN
+            WRITE (bs_env%unit_nr, '(T2,A)') 'Starting GW Nevanlinna analytic continuation'
+            CALL m_flush(bs_env%unit_nr)
+         END IF
+
          CALL cite_reference(Fei2021)
 
          ! Nevanlinna continuation through all imaginary frequencies, then the median over fit
@@ -3770,7 +3789,6 @@ CONTAINS
                                      eigenval_G, eigenval_scf, ispin, Sigma_c_ikp_n_qp, unstable, &
                                      multi, n_window)
          CALL propagate_unstable_marks(unstable, multi, bs_env%n_occ(ispin))
-         CALL print_qp_marks(bs_env, unstable, multi, n_window, ikp, ispin)
 
       ELSE
 
@@ -3895,6 +3913,9 @@ CONTAINS
 
       END IF
 
+      IF (do_nevanlinna) CALL report_nevanlinna_progress(bs_env, summary, unstable, multi, &
+                                                        n_window, n_ac_pade, pick_min, ikp, ispin)
+
       CALL timestop(handle)
 
    END SUBROUTINE analyt_conti_and_print
@@ -3972,12 +3993,7 @@ CONTAINS
       END DO
 
       ! without at least two fit windows there is no error estimate: all levels are marked
-      IF (n_window < 2) THEN
-         CALL cp_warn(__LOCATION__, "Fewer than two fit windows for the Nevanlinna continuation, "// &
-                      "so no error estimate; all GW levels are marked as not reliable. "// &
-                      "Increase NUM_TIME_FREQ_POINTS.")
-         unstable(:) = .TRUE.
-      END IF
+      IF (n_window < 2) unstable(:) = .TRUE.
       IF (n_window == 0) THEN
          DEALLOCATE (order, window_size)
          CALL timestop(handle)
@@ -4088,51 +4104,76 @@ CONTAINS
    END SUBROUTINE propagate_unstable_marks
 
 ! **************************************************************************************************
-!> \brief print the number of marked levels and warn if the HOMO or the LUMO is marked
-!> \param bs_env ...
-!> \param unstable ...
-!> \param multi ...
-!> \param n_window ...
-!> \param ikp ...
-!> \param ispin ...
+!> \brief Report progress over k-points and spins, then summarize the Nevanlinna diagnostics.
+!> \param bs_env Band-structure environment.
+!> \param summary Diagnostics accumulated over the current GW cycle.
+!> \param unstable Levels marked unreliable at this k-point and spin.
+!> \param multi Levels with a second quasiparticle solution of comparable weight.
+!> \param n_window Number of fit windows.
+!> \param n_pade Number of full-frequency fits that fell back to Padé.
+!> \param pick_min Smallest relative Pick eigenvalue of the full-frequency fits, capped at zero.
+!> \param ikp Current k-point index.
+!> \param ispin Current spin index.
 ! **************************************************************************************************
-   SUBROUTINE print_qp_marks(bs_env, unstable, multi, n_window, ikp, ispin)
+   SUBROUTINE report_nevanlinna_progress(bs_env, summary, unstable, multi, n_window, n_pade, pick_min, ikp, ispin)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(gw_qp_summary_type), INTENT(INOUT)             :: summary
       LOGICAL, DIMENSION(:), INTENT(IN)                  :: unstable, multi
-      INTEGER, INTENT(IN)                                :: n_window, ikp, ispin
+      INTEGER, INTENT(IN)                                :: n_window, n_pade, ikp, ispin
+      REAL(KIND=dp), INTENT(IN)                          :: pick_min
 
-      INTEGER                                            :: homo, u
+      INTEGER, PARAMETER                                 :: n_progress_steps = 10
 
-      homo = bs_env%n_occ(ispin)
+      CHARACTER(LEN=2*default_string_length)             :: message
+      INTEGER                                            :: first_frontier, last_frontier, nkp, u
+      INTEGER(KIND=int_8)                                :: done, step, total
+
+      nkp = summary%n_kpoints
+      done = INT(ispin - 1, KIND=int_8)*nkp + ikp
+      total = INT(nkp, KIND=int_8)*bs_env%n_spin
       u = bs_env%unit_nr
 
+      IF (done == 1 .AND. n_window < 2) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "Fewer than two Nevanlinna fit windows. All GW levels are marked unreliable. "// &
+                      "Increase NUM_TIME_FREQ_POINTS to obtain an error estimate.")
+      END IF
+
+      first_frontier = MAX(1, bs_env%n_occ(ispin))
+      last_frontier = MIN(SIZE(unstable), bs_env%n_occ(ispin) + 1)
+      summary%n_unstable = summary%n_unstable + COUNT(unstable)
+      summary%n_multi = summary%n_multi + COUNT(multi)
+      summary%n_pade = summary%n_pade + n_pade
+      summary%pick_min = MIN(summary%pick_min, pick_min)
+      summary%n_frontier_unstable = summary%n_frontier_unstable + COUNT(unstable(first_frontier:last_frontier))
+      summary%n_frontier_multi = summary%n_frontier_multi + COUNT(multi(first_frontier:last_frontier))
+
+      IF (u > 0 .AND. total >= n_progress_steps) THEN
+         step = (n_progress_steps*done)/total
+         IF (step > (n_progress_steps*(done - 1))/total) THEN
+            WRITE (u, '(T2,A,I0,A,I0,A,I0,A)') 'GW analytic continuation: ', (100*step)/n_progress_steps, &
+               '% (', done, '/', total, ')'
+            CALL m_flush(u)
+         END IF
+      END IF
+
+      IF (done /= total) RETURN
+
       IF (u > 0) THEN
-         WRITE (u, '(T2,A,I6,A,I2,A,I4,A)') 'GW analytic continuation (k-point', ikp, ', spin', &
-            ispin, '): Nevanlinna, median over', n_window, ' fit windows'
-         WRITE (u, '(T2,A,I49)') 'Levels marked * (not reliable)', COUNT(unstable)
-         WRITE (u, '(T2,A,I47)') 'Levels marked m (multi-solution)', COUNT(multi)
-         WRITE (u, '(T2,A)') ' '
+         WRITE (u, '(T2,A,I0,A,I0,A,I0,A)') 'GW Nevanlinna, ', n_window, ' fit windows: * ', &
+            summary%n_unstable, ' unreliable, m ', summary%n_multi, ' multi-solution'
+         WRITE (u, '(T2,A,I0,A,I0,A,ES10.2)') 'GW full fits: Padé fallback ', summary%n_pade, '/', &
+            total*SIZE(unstable), ', min. rel. Pick eig. ', summary%pick_min
+         CALL m_flush(u)
+      END IF
+      IF (summary%n_frontier_unstable > 0 .OR. summary%n_frontier_multi > 0) THEN
+         WRITE (message, '(A,I0,A,I0,A)') 'GW HOMO/LUMO levels: ', summary%n_frontier_unstable, &
+            ' marked unreliable (*), ', summary%n_frontier_multi, ' with multiple solutions (m).'
+         CPWARN(TRIM(message))
       END IF
 
-      IF (homo >= 1) THEN
-         IF (unstable(homo)) THEN
-            CPWARN("Analytic continuation unstable for the HOMO; its G0W0 energy is not reliable.")
-         END IF
-         IF (multi(homo)) THEN
-            CPWARN("The HOMO has a second quasiparticle solution of comparable weight.")
-         END IF
-      END IF
-      IF (homo < SIZE(unstable)) THEN
-         IF (unstable(homo + 1)) THEN
-            CPWARN("Analytic continuation unstable for the LUMO; its G0W0 energy is not reliable.")
-         END IF
-         IF (multi(homo + 1)) THEN
-            CPWARN("The LUMO has a second quasiparticle solution of comparable weight.")
-         END IF
-      END IF
-
-   END SUBROUTINE print_qp_marks
+   END SUBROUTINE report_nevanlinna_progress
 
 ! **************************************************************************************************
 !> \brief ...

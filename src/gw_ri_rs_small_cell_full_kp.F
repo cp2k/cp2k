@@ -18,7 +18,8 @@ MODULE gw_ri_rs_small_cell_full_kp
                                               prepare_ri_rs,&
                                               release_gw_work
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
-                                              de_init_bs_env
+                                              de_init_bs_env,&
+                                              gw_qp_summary_type
    USE input_constants,                 ONLY: evGW0
    USE kinds,                           ONLY: dp
    USE physcon,                         ONLY: evolt
@@ -341,6 +342,7 @@ CONTAINS
       INTEGER                                            :: handle, ikp, ispin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Sigma_x_ikp_n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_ikp_n_time
+      TYPE(gw_qp_summary_type)                           :: qp_summary
 
       CALL timeset(routineN, handle)
       CPASSERT(SIZE(sigma_x_bands, 1) == bs_env%n_ao)
@@ -356,6 +358,7 @@ CONTAINS
       ALLOCATE (Sigma_c_ikp_n_time(bs_env%n_ao, bs_env%num_time_freq_points, 2))
       ALLOCATE (Sigma_c_ikp_n_freq(bs_env%n_ao, bs_env%num_freq_points_fit))
 
+      qp_summary%n_kpoints = bs_env%nkp_bs_and_DOS
       DO ispin = 1, bs_env%n_spin
 
          DO ikp = 1, bs_env%nkp_bs_and_DOS
@@ -374,7 +377,7 @@ CONTAINS
                                         Sigma_c_ikp_n_freq, &
                                         Sigma_x_ikp_n, &
                                         bs_env%v_xc_n(:, ikp, ispin), &
-                                        bs_env%eigenval_scf(:, ikp, ispin), ikp, ispin, i_iter)
+                                        bs_env%eigenval_scf(:, ikp, ispin), ikp, ispin, qp_summary, i_iter)
 
          END DO ! ikp
 

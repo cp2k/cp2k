@@ -25,7 +25,8 @@ MODULE gw_ri_rs_non_periodic
                                               get_mat_chi_Gamma_tau
    USE gw_tensor_large_cell_Gamma,      ONLY: delete_unnecessary_files
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
-                                              de_init_bs_env
+                                              de_init_bs_env,&
+                                              gw_qp_summary_type
    USE gw_utils_fm,                     ONLY: fm_contract_ABA
    USE input_constants,                 ONLY: G0W0,&
                                               evGW0
@@ -522,6 +523,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Sigma_x_n, V_xc_n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_n_time
       TYPE(cp_fm_type)                                   :: fm_ks, fm_mos, fm_s, fm_work
+      TYPE(gw_qp_summary_type)                           :: qp_summary
 
       CALL timeset(routineN, handle)
 
@@ -559,7 +561,7 @@ CONTAINS
 
          ! 5. Analytic continuation Σ^c_nn(iω) -> Σ^c_nn(ϵ) and the QP levels
          CALL analyt_conti_and_print(bs_env, Sigma_c_n_freq, Sigma_x_n, V_xc_n, &
-                                     bs_env%eigenval_scf(:, 1, ispin), 1, ispin, i_iter)
+                                     bs_env%eigenval_scf(:, 1, ispin), 1, ispin, qp_summary, i_iter)
 
       END DO ! ispin
 
