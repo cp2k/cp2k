@@ -20,7 +20,8 @@ MODULE gw_utils
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type,&
                                               init_orb_basis_set
-   USE bibliography,                    ONLY: Graml2024,&
+   USE bibliography,                    ONLY: Fei2021,&
+                                              Graml2024,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc,&
@@ -3668,8 +3669,8 @@ CONTAINS
       CHARACTER(len=3)                                   :: occ_vir
       CHARACTER(len=default_path_length)                 :: fname
       CHARACTER(len=default_string_length)               :: gw_label
-      INTEGER :: ac_used, handle, i_central, i_mo, i_order, icycle, ikp_for_print, iunit, &
-         n_ac_nevanlinna, n_ac_pade, n_central, n_mo, n_orders, n_window, nkp
+      INTEGER :: ac_used, first_mo, handle, i_central, i_mo, i_order, icycle, ikp_for_print, &
+         iunit, n_ac_nevanlinna, n_ac_pade, n_central, n_mo, n_orders, n_window, nkp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: multi_count
       INTEGER, DIMENSION(max_pade_orders)                :: order_index
       LOGICAL                                            :: do_nevanlinna, is_bandstruc_kpoint, &
@@ -3723,10 +3724,16 @@ CONTAINS
 
       IF (do_nevanlinna) THEN
 
+         CALL cite_reference(Fei2021)
+
          ! Nevanlinna continuation through all imaginary frequencies, then the median over fit
          ! windows and the marks of unreliable (*) and multi-solution (m) levels
-         DO i_mo = 1, n_mo
-            IF (MODULO(i_mo, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
+         first_mo = MODULO(bs_env%para_env%mepos - 1, bs_env%para_env%num_pe) + 1
+         !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) IF (n_mo - first_mo >= bs_env%para_env%num_pe) &
+         !$OMP SHARED(bs_env, first_mo, n_mo, ispin, Sigma_c_ikp_n_qp, z_value, m_value, Sigma_c_ikp_n_freq, &
+         !$OMP        Sigma_x_ikp_n, V_xc_ikp_n, eigenval_G, eigenval_scf, multi_count) &
+         !$OMP PRIVATE(ac_used, ac_pick, multi_i) REDUCTION(+:n_ac_nevanlinna, n_ac_pade) REDUCTION(MIN:pick_min)
+         DO i_mo = first_mo, n_mo, bs_env%para_env%num_pe
             CALL continuation_pade(Sigma_c_ikp_n_qp, &
                                    bs_env%imag_freq_points_fit, z_value, m_value, &
                                    Sigma_c_ikp_n_freq(:, 1:bs_env%num_freq_points_fit), &
@@ -3750,6 +3757,7 @@ CONTAINS
             END IF
             pick_min = MIN(pick_min, ac_pick)
          END DO
+         !$OMP END PARALLEL DO
 
          CALL bs_env%para_env%sum(Sigma_c_ikp_n_qp)
          CALL bs_env%para_env%sum(n_ac_nevanlinna)
@@ -3924,8 +3932,8 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: max_abs_sigma = 1.0E3_dp
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: sig_sel
-      INTEGER                                            :: handle, i_mo, i_win, j, k_w, n_mo, &
-                                                            n_valid, n_w
+      INTEGER                                            :: first_mo, handle, i_mo, i_win, j, k_w, &
+                                                            n_mo, n_valid, n_w
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: multi_count, order, window_size
       LOGICAL                                            :: multi_i
       REAL(KIND=dp)                                      :: v
@@ -3981,6 +3989,7 @@ CONTAINS
       q_win(:, :) = 0.0_dp
       multi_count(:) = 0
 
+      first_mo = MODULO(bs_env%para_env%mepos - 1, bs_env%para_env%num_pe) + 1
       DO i_win = 1, n_window
          k_w = window_size(i_win)
          ALLOCATE (w_sel(k_w), sig_sel(n_mo, k_w))
@@ -3989,8 +3998,10 @@ CONTAINS
             sig_sel(:, j) = Sigma_c_ikp_n_freq(:, order(j))
          END DO
          Sigma_c_win(:) = 0.0_dp
-         DO i_mo = 1, n_mo
-            IF (MODULO(i_mo, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
+         !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) IF (n_mo - first_mo >= bs_env%para_env%num_pe) &
+         !$OMP SHARED(bs_env, first_mo, n_mo, ispin, i_win, k_w, Sigma_c_win, w_sel, z_dummy, m_dummy, sig_sel, &
+         !$OMP        Sigma_x_ikp_n, V_xc_ikp_n, eigenval_G, eigenval_scf, q_win, multi_count) PRIVATE(multi_i)
+         DO i_mo = first_mo, n_mo, bs_env%para_env%num_pe
             CALL continuation_pade(Sigma_c_win, w_sel, z_dummy, m_dummy, sig_sel, &
                                    Sigma_x_ikp_n(:) - V_xc_ikp_n(:), &
                                    eigenval_G(:), eigenval_scf(:), &
@@ -4005,6 +4016,7 @@ CONTAINS
             q_win(i_mo, i_win) = Sigma_c_win(i_mo)
             IF (multi_i) multi_count(i_mo) = multi_count(i_mo) + 1
          END DO
+         !$OMP END PARALLEL DO
          DEALLOCATE (w_sel, sig_sel)
       END DO
 

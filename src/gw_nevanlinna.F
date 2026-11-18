@@ -18,8 +18,6 @@
 !>      11.2026 created
 ! **************************************************************************************************
 MODULE gw_nevanlinna
-   USE bibliography,                    ONLY: Fei2021,&
-                                              cite_reference
    USE double_double,                   ONLY: &
         zdd, zdd_abs2, zdd_add, zdd_conjg, zdd_div, zdd_i, zdd_mul, zdd_one, zdd_sub, zdd_to_dp, &
         zdd_type, zdd_zero
@@ -104,8 +102,6 @@ CONTAINS
       TYPE(zdd_type), ALLOCATABLE, DIMENSION(:)          :: lams, phis, xis
 
       CALL timeset(routineN, handle)
-
-      CALL cite_reference(Fei2021)
 
       need_pick = .TRUE.
       IF (PRESENT(compute_pick)) need_pick = compute_pick
