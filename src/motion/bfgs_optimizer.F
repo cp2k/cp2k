@@ -133,16 +133,16 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'geoopt_bfgs'
-      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, &
-                                                            primal_step_tol = 1.0E-10_dp, &
-                                                            zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       CHARACTER(LEN=5)                                   :: wildcard
       INTEGER                                            :: handle, info, iter_nr, its, &
                                                             matrix_method, maxiter, ndf, &
                                                             output_unit
-      LOGICAL :: conv, hesrest, hess_reset, inverse, method_explicit, shell_present, should_stop, &
-         use_mod_hes, use_primal_damping, use_rfo
+      LOGICAL                                            :: conv, hesrest, hess_reset, inverse, &
+                                                            method_explicit, shell_present, &
+                                                            should_stop, step_on_ray, use_mod_hes, &
+                                                            use_rfo
       REAL(KIND=dp)                                      :: ediff, emin, eold, etot, pred, rad, rat, &
                                                             step, t_diff, t_now, t_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: b_dx, dg, dr, dx, eigval, gold, s_raw, &
@@ -172,6 +172,7 @@ CONTAINS
       inverse = matrix_method == bfgs_inverse
       maxiter = gopt_param%max_iter
       conv = .FALSE.
+      step_on_ray = .FALSE.
       rat = 0.0_dp
       wildcard = " BFGS"
 
@@ -350,10 +351,8 @@ CONTAINS
             dx(:) = x0(:) - xold(:)
             dg(:) = g(:) - gold(:)
             IF (inverse) THEN
-               use_primal_damping = MAXVAL(ABS(dx(:) - s_raw(:))) <= &
-                  primal_step_tol*MAX(MAXVAL(ABS(dx(:))), TINY(one))
-               CALL para_env%bcast(use_primal_damping, para_env%source)
-               IF (use_primal_damping) THEN
+               ! Reuse step_on_ray checked when step dx = x0 - xold was accepted on the previous pass.
+               IF (step_on_ray) THEN
                   CALL bfgs_inverse_update(ndf, dx, dg, hess_mat, work, b_dx=b_dx, &
                                            output_unit=output_unit)
                ELSE
@@ -446,8 +445,15 @@ CONTAINS
          dr(:) = x0(:) - xold(:)
          step = MAXVAL(ABS(dr))
 
-         ! This diagnostic requires B, not H. It is optional in gopt_f_io.
-         IF (.NOT. inverse) CALL energy_predict(ndf, work, hess_mat, dr, gold, pred, para_env)
+         IF (inverse) THEN
+            step_on_ray = is_step_on_ray(x0, xold, s_raw, dr)
+            CALL para_env%bcast(step_on_ray, para_env%source)
+            ! When dr stays on the ray rat*(-H*gold), B*dr = -rat*gold holds without forming B.
+            IF (step_on_ray) pred = (one - 0.5_dp*rat)*DOT_PRODUCT(gold, dr)
+         ELSE
+            CALL energy_predict(ndf, work, hess_mat, dr, gold, pred, para_env)
+            step_on_ray = .TRUE.
+         END IF
 
          ediff = etot - eold
 
@@ -462,14 +468,14 @@ CONTAINS
          t_now = m_walltime()
          t_diff = t_now - t_old
          t_old = t_now
-         IF (inverse) THEN
-            CALL gopt_f_io(gopt_env, force_env, root_section, its, etot, output_unit, &
-                           eold, emin, wildcard, gopt_param, ndf, dr, g, conv, &
-                           rat=rat, step=step, rad=rad, used_time=t_diff)
-         ELSE
+         IF (step_on_ray) THEN
             CALL gopt_f_io(gopt_env, force_env, root_section, its, etot, output_unit, &
                            eold, emin, wildcard, gopt_param, ndf, dr, g, conv, pred, rat, &
                            step, rad, used_time=t_diff)
+         ELSE
+            CALL gopt_f_io(gopt_env, force_env, root_section, its, etot, output_unit, &
+                           eold, emin, wildcard, gopt_param, ndf, dr, g, conv, &
+                           rat=rat, step=step, rad=rad, used_time=t_diff)
          END IF
 
          IF (conv .OR. (its == maxiter)) EXIT
@@ -511,6 +517,30 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE geoopt_bfgs
+
+! **************************************************************************************************
+!> \brief Check whether the accepted geometry x0 remains on xold + s_raw.
+!> \param x0 Accepted coordinates after projection and evaluation
+!> \param xold Coordinates at the start of the step
+!> \param s_raw Scaled inverse-Newton trial displacement
+!> \param step_vec Accepted displacement x0 - xold
+!> \return True when constraints or projections did not deflect the step off the ray
+! **************************************************************************************************
+   PURE FUNCTION is_step_on_ray(x0, xold, s_raw, step_vec) RESULT(on_ray)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: x0, xold, s_raw, step_vec
+      LOGICAL                                            :: on_ray
+
+      REAL(KIND=dp), PARAMETER :: coord_roundoff_tol = 64.0_dp*EPSILON(1.0_dp), &
+         primal_step_tol = 1.0E-10_dp
+
+      REAL(KIND=dp)                                      :: tol
+
+      ! Compare x0 against xold + s_raw directly so small steps avoid cancellation noise, while
+      ! still allowing coordinate-scale roundoff from projection transforms.
+      tol = MAX(primal_step_tol*MAXVAL(ABS(step_vec)), &
+                coord_roundoff_tol*MAXVAL(ABS(x0)), TINY(1.0_dp))
+      on_ray = MAXVAL(ABS(x0 - (xold + s_raw))) <= tol
+   END FUNCTION is_step_on_ray
 
 ! **************************************************************************************************
 !> \brief Damped inverse-BFGS update, using only a matvec and local rank-two updates.
