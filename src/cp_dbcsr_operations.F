@@ -808,7 +808,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type), INTENT(OUT)         :: dist
 
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, row_dist
-      INTEGER, DIMENSION(:, :), POINTER                  :: col_dist_data, pgrid, row_dist_data
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: col_dist_data, pgrid, row_dist_data
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(distribution_2d_type), POINTER                :: dist2d_p
       TYPE(mp_para_env_type), POINTER                    :: para_env

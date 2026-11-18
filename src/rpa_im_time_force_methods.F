@@ -2700,8 +2700,8 @@ CONTAINS
          sgfa, ub_RI
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, iproc_map, kind_of, &
                                                             sizes_RI
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, la_max, la_min, npgfa, nsgfa, &
-                                                            row_dist
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, row_dist
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, pgrid
       LOGICAL                                            :: found, one_proc_group
       REAL(dp)                                           :: cutoff_old, radius, relative_cutoff_old

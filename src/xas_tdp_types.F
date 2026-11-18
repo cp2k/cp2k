@@ -275,7 +275,8 @@ MODULE xas_tdp_types
       INTEGER                                 :: ndo_mo = 0
       CHARACTER(LEN=default_string_length)    :: at_symbol = ""
       INTEGER                                 :: state_type = 0
-      INTEGER, DIMENSION(:), POINTER          :: blk_size => NULL()
+      INTEGER, DIMENSION(:), &
+         CONTIGUOUS, POINTER                  :: blk_size => NULL()
       REAL(dp), DIMENSION(:, :), POINTER      :: energy_evals => NULL()
       REAL(dp), DIMENSION(:, :), POINTER      :: gw2x_evals => NULL()
       INTEGER, DIMENSION(:, :), POINTER       :: mo_indices => NULL()
