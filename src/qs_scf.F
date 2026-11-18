@@ -1331,7 +1331,7 @@ CONTAINS
                                                             nkpoint, nmo, nocc, nspin_ot
       INTEGER, DIMENSION(2)                              :: kp_range
       LOGICAL :: do_adiis, do_kpoints, do_rotation, do_smear, fixed_density_prepared, &
-         has_unit_metric, kp_diis_step, kpoint_mos_initialized
+         full_all_rotation, has_unit_metric, kp_diis_step, kpoint_mos_initialized
       REAL(KIND=dp)                                      :: u_ramping
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -1750,28 +1750,24 @@ CONTAINS
                END DO
             END IF
 
-            ! might need the KS matrix to init properly
+            ! The first KS derivatives and the new OT reference must use the same orbitals.
+            DO ispin = 1, SIZE(mos)
+               CALL copy_fm_to_dbcsr(mos(ispin)%mo_coeff, mos(ispin)%mo_coeff_b)
+            END DO
             CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., &
                                      calculate_forces=.FALSE.)
 
-            ! if an old preconditioner is still around (i.e. outer SCF is active),
-            ! remove it if this could be worthwhile
-            IF (.NOT. reuse_precond) THEN
+            ! A column-dependent FULL_ALL must use the same reference as the new OT environment.
+            full_all_rotation = scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all .AND. &
+                                scf_env%qs_ot_env(1)%settings%do_rotation
+            IF (.NOT. reuse_precond .OR. full_all_rotation) THEN
                CALL restart_preconditioner(qs_env, scf_env%ot_preconditioner, &
-                                           scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                                           dft_control%nspins)
-            END IF
-
-            !
-            ! preconditioning still needs to be done correctly with has_unit_metric
-            ! notice that a big part of the preconditioning (S^-1) is fine anyhow
-            !
-            IF (.NOT. reuse_precond) THEN
+                                           scf_env%qs_ot_env(1)%settings%preconditioner_type, nspin_ot)
                CALL prepare_preconditioner(qs_env, mos, matrix_ks, matrix_s, scf_env%ot_preconditioner, &
                                            scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                                            scf_env%qs_ot_env(1)%settings%precond_solver_type, &
-                                           scf_env%qs_ot_env(1)%settings%energy_gap, dft_control%nspins, &
-                                           has_unit_metric=has_unit_metric, &
+                                           scf_env%qs_ot_env(1)%settings%energy_gap, nspin_ot, &
+                                           has_unit_metric=has_unit_metric, full_all_rotation=full_all_rotation, &
                                            chol_type=scf_env%qs_ot_env(1)%settings%cholesky_type, &
                                            chebyshev_degree=scf_env%qs_ot_env(1)%settings%chebyshev_degree, &
                                            low_rank_base=scf_env%qs_ot_env(1)%settings%low_rank_base, &
@@ -1781,7 +1777,7 @@ CONTAINS
                                            lattice_fft_local_cells= &
                                            scf_env%qs_ot_env(1)%settings%lattice_fft_local_cells)
             END IF
-            IF (reuse_precond) reuse_precond = .FALSE.
+            reuse_precond = .FALSE.
 
             CALL ot_scf_init(mo_array=mos, matrix_s=orthogonality_metric, &
                              broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma, &
@@ -1861,7 +1857,7 @@ CONTAINS
 
       INTEGER                                            :: ikpoint, ispin, local_kpoint, &
                                                             number_of_OT_envs, ot_channel
-      LOGICAL                                            :: do_rotation, do_smear, is_full_all
+      LOGICAL                                            :: do_smear
       REAL(KIND=dp)                                      :: kpoint_weight
 
       CPASSERT(.NOT. ASSOCIATED(scf_env%qs_ot_env))
@@ -1975,15 +1971,6 @@ CONTAINS
          END IF
       ELSE
          scf_env%qs_ot_env(:)%restricted = .FALSE.
-      END IF
-
-      ! This will rotate the MOs to be eigen states, which is not compatible with rotation.
-      ! e.g. mo_derivs here do not yet include potentially different occupation numbers.
-      do_rotation = scf_env%qs_ot_env(1)%settings%do_rotation
-      ! Only full all needs rotation.
-      is_full_all = scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all
-      IF (do_rotation .AND. is_full_all .AND. .NOT. do_kpoints) THEN
-         CPABORT('PRECONDITIONER FULL_ALL is not compatible with ROTATION.')
       END IF
 
       DO ikpoint = 1, nkpoint

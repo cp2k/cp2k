@@ -13,17 +13,18 @@
 ! **************************************************************************************************
 MODULE qs_ot_scf
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
-   USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, &
-        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
+                                              dbcsr_get_info,&
+                                              dbcsr_multiply,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release_p,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
                                               dbcsr_dot,&
                                               dbcsr_get_diag,&
                                               dbcsr_scale_by_vector,&
                                               dbcsr_set_diag
-   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                              cp_dbcsr_m_by_n_from_row_template
-   USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -362,7 +363,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief initialises qs_ot_env so that mo_coeff is the current point
 !>        and that the minization can be started.
-!> \param mo_array ...
+!> \param mo_array physical orbitals with synchronized full and sparse coefficients
 !> \param matrix_s ...
 !> \param qs_ot_env ...
 !> \param matrix_ks ...
@@ -378,33 +379,17 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_scf_init'
 
-      INTEGER                                            :: handle, ispin, k, n, nspin
+      INTEGER                                            :: handle, ispin, nspin
       LOGICAL                                            :: is_equal, optimize_virtuals
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff_fm
-      TYPE(dbcsr_type), POINTER                          :: mo_coeff
 
       CALL timeset(routineN, handle)
-
-      DO ispin = 1, SIZE(mo_array)
-         IF (.NOT. ASSOCIATED(mo_array(ispin)%mo_coeff_b)) THEN
-            CPABORT("Shouldn't get there")
-            ! we do ot then copy fm to dbcsr
-            ! allocate that somewhere else ! fm -> dbcsr
-            CALL dbcsr_init_p(mo_array(ispin)%mo_coeff_b)
-            CALL cp_dbcsr_m_by_n_from_row_template(mo_array(ispin)%mo_coeff_b, template=matrix_ks, &
-                                                   n=mo_array(ispin)%nmo, &
-                                                   sym=dbcsr_type_no_symmetry)
-         END IF
-      END DO
 
       ! *** set a history for broyden
       DO ispin = 1, SIZE(qs_ot_env)
          qs_ot_env(ispin)%broyden_adaptive_sigma = broyden_adaptive_sigma
       END DO
 
-      ! **** SCP
-      ! **** SCP
-      ! adapted for work with the restricted keyword
+      ! Restricted spins share one set of OT orbitals.
       nspin = SIZE(qs_ot_env)
       optimize_virtuals = .NOT. qs_ot_env(1)%settings%do_ener .AND. &
                           ANY(mo_array(:)%nmo > mo_array(:)%homo)
@@ -413,18 +398,12 @@ CONTAINS
 
          CALL qs_ot_set_context(qs_ot_env(ispin), spin_index=ispin)
 
-         NULLIFY (mo_coeff)
-         CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff_b=mo_coeff, mo_coeff=mo_coeff_fm)
-         CALL copy_fm_to_dbcsr(mo_coeff_fm, mo_coeff) !fm -> dbcsr
-
-         CALL dbcsr_get_info(mo_coeff, nfullrows_total=n, nfullcols_total=k)
-
          ! allocate
-         CALL qs_ot_allocate(qs_ot_env(ispin), matrix_ks, mo_coeff_fm%matrix_struct, &
+         CALL qs_ot_allocate(qs_ot_env(ispin), matrix_ks, mo_array(ispin)%mo_coeff%matrix_struct, &
                              optimize_virtuals=optimize_virtuals)
 
          ! set c0,sc0
-         CALL dbcsr_copy(qs_ot_env(ispin)%matrix_c0, mo_coeff)
+         CALL dbcsr_copy(qs_ot_env(ispin)%matrix_c0, mo_array(ispin)%mo_coeff_b)
          IF (ASSOCIATED(matrix_s)) THEN
             CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, qs_ot_env(ispin)%matrix_c0, &
                                 0.0_dp, qs_ot_env(ispin)%matrix_sc0)
