@@ -226,7 +226,8 @@ MODULE qs_scf_post_gpw
    USE qs_wannier90,                    ONLY: wannier90_interface
    USE s_square_methods,                ONLY: compute_s_square,&
                                               compute_s_square_kp
-   USE scf_control_types,               ONLY: scf_control_type
+   USE scf_control_types,               ONLY: has_fixed_ot_virtuals,&
+                                              scf_control_type
    USE stm_images,                      ONLY: th_stm_image
    USE transport,                       ONLY: qs_scf_post_transport
    USE trexio_utils,                    ONLY: write_trexio
@@ -1323,29 +1324,31 @@ CONTAINS
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
 
-      reuse_virtuals = scf_control%use_ot .AND. ANY(scf_control%added_mos > 0) .AND. &
-                       .NOT. (dft_control%smear .OR. scf_control%smear%do_smear)
+      reuse_virtuals = has_fixed_ot_virtuals(scf_control, dft_control%smear)
       append = .FALSE.
       IF (PRESENT(append_to_mos)) append = append_to_mos
       DO ispin = 1, dft_control%nspins
          NULLIFY (unoccupied_evals(ispin)%array)
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo)
          CALL cp_fm_get_info(mo_coeff, nrow_global=n)
-         nlumos = MAX(1, MIN(nlumo, nao - nmo))
-         IF (reuse_virtuals .AND. append) nlumos = MAX(0, MIN(nlumo - (nmo - homo), nao - nmo))
-         IF (nlumo == -1) nlumos = nao - nmo
          nstored = 0
-         IF (reuse_virtuals .AND. .NOT. append) THEN
-            nlumos = MAX(0, MIN(nlumo, nao - homo))
-            IF (nlumo == -1) nlumos = nao - homo
+         IF (reuse_virtuals) THEN
+            nlumos = nao - homo
+            IF (nlumo /= -1) nlumos = MAX(0, MIN(nlumo, nlumos))
             nstored = MIN(nlumos, nmo - homo)
+            IF (append) THEN
+               nlumos = nlumos - nstored
+               nstored = 0
+            END IF
+         ELSE
+            nlumos = nao - nmo
+            IF (nlumo /= -1) nlumos = MAX(1, MIN(nlumo, nlumos))
          END IF
          ALLOCATE (unoccupied_evals(ispin)%array(nlumos))
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=n, ncol_global=nlumos)
          CALL cp_fm_create(unoccupied_orbs(ispin), fm_struct_tmp, name="lumos")
          CALL cp_fm_struct_release(fm_struct_tmp)
-         IF (nlumos == 0) CYCLE
          IF (nstored > 0) THEN
             CALL cp_fm_to_fm(mo_coeff, unoccupied_orbs(ispin), nstored, homo + 1, 1)
             unoccupied_evals(ispin)%array(1:nstored) = mos(ispin)%eigenvalues(homo + 1:homo + nstored)
@@ -1360,12 +1363,12 @@ CONTAINS
             CALL cp_fm_create(extra_orbs, unoccupied_orbs(ispin)%matrix_struct, ncol=nlumos - nstored)
             lumo_coeff => extra_orbs
          END IF
-         IF (output_unit > 0) WRITE (output_unit, *) " "
-         IF (output_unit > 0) WRITE (output_unit, *) &
-            " Using OT eigensolver for additional unoccupied orbitals spin ", ispin
-         IF (output_unit > 0) WRITE (output_unit, *) &
-            " Lowest Eigenvalues of the unoccupied subspace spin ", ispin
-         IF (output_unit > 0) WRITE (output_unit, FMT='(1X,A)') "-----------------------------------------------------"
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, *) " "
+            WRITE (output_unit, *) " Using OT eigensolver for additional unoccupied orbitals spin ", ispin
+            WRITE (output_unit, *) " Lowest Eigenvalues of the unoccupied subspace spin ", ispin
+            WRITE (output_unit, '(1X,A)') "-----------------------------------------------------"
+         END IF
          CALL cp_fm_init_random(lumo_coeff, nlumos - nstored)
 
          ! FULL_ALL has column-dependent occupied-state weights and cannot be reused here.
@@ -2393,8 +2396,7 @@ CONTAINS
       CALL get_qs_env(qs_env, rho=rho)
       CALL qs_rho_get(rho, rho_r=rho_r)
 
-      scf_virtuals = scf_control%use_ot .AND. ANY(scf_control%added_mos > 0) .AND. &
-                     .NOT. (dft_control%smear .OR. scf_control%smear%do_smear)
+      scf_virtuals = has_fixed_ot_virtuals(scf_control, dft_control%smear)
 
       ! k points
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints)

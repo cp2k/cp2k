@@ -14,7 +14,7 @@
 MODULE qs_ot_scf
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_copy, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, &
         dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
                                               dbcsr_dot,&
@@ -147,7 +147,8 @@ CONTAINS
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: expectation_values, occupation_numbers, &
                                                             scaling_factor
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_dedc_physical, matrix_dedc_scaled
+      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: matrix_dedc_physical
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_dedc_scaled
       TYPE(dbcsr_type), POINTER                          :: mo_coeff
 
       CALL timeset(routineN, handle)
@@ -266,39 +267,33 @@ CONTAINS
       END IF
 
       ! The minimizer does not read derivative matrices on an energy-only trial.
-      matrix_dedc_scaled => matrix_dedc
-      NULLIFY (matrix_dedc_physical)
       IF (need_gradient) THEN
          ALLOCATE (matrix_dedc_scaled(SIZE(matrix_dedc)))
-         IF (unweighted_search) THEN
+         IF (qs_ot_env(1)%optimize_virtuals .OR. (unweighted_search .AND. &
+                                       (qs_ot_env(1)%settings%ot_method == "CG" .OR. qs_ot_env(1)%settings%ot_method == "SD"))) THEN
             ALLOCATE (matrix_dedc_physical(SIZE(matrix_dedc)))
          END IF
          DO ispin = 1, SIZE(matrix_dedc)
             ALLOCATE (matrix_dedc_scaled(ispin)%matrix)
             CALL dbcsr_copy(matrix_dedc_scaled(ispin)%matrix, matrix_dedc(ispin)%matrix)
 
-            IF (unweighted_search) THEN
+            IF (ALLOCATED(matrix_dedc_physical)) THEN
                ALLOCATE (matrix_dedc_physical(ispin)%matrix)
                CALL dbcsr_copy(matrix_dedc_physical(ispin)%matrix, matrix_dedc(ispin)%matrix)
                CALL dbcsr_scale_by_vector(matrix_dedc_physical(ispin)%matrix, &
                                           alpha=2.0_dp*occupation_numbers(ispin)%array, side='right')
-               scaling_factor(ispin)%array = 2.0_dp
             END IF
+            IF (unweighted_search) scaling_factor(ispin)%array(:) = 2.0_dp
             CALL dbcsr_scale_by_vector(matrix_dedc_scaled(ispin)%matrix, alpha=scaling_factor(ispin)%array, side='right')
          END DO
+      ELSE
+         matrix_dedc_scaled => matrix_dedc
       END IF
 
       ! notice we use qs_ot_env(1) for driving all output and the minimization in case of LSD
       qs_ot_env(1)%etotal = energy + ener_nondiag
 
-      IF (ASSOCIATED(matrix_dedc_physical) .AND. &
-          (qs_ot_env(1)%settings%ot_method == "CG" .OR. &
-           qs_ot_env(1)%settings%ot_method == "SD" .OR. qs_ot_env(1)%optimize_virtuals)) THEN
-         CALL ot_mini(qs_ot_env, matrix_dedc_scaled, matrix_hc_physical=matrix_dedc_physical, &
-                      restart_history=restart_history)
-      ELSE
-         CALL ot_mini(qs_ot_env, matrix_dedc_scaled, restart_history=restart_history)
-      END IF
+      CALL ot_mini(qs_ot_env, matrix_dedc_scaled, matrix_hc_physical=matrix_dedc_physical, restart_history=restart_history)
 
       delta = qs_ot_env(1)%delta
       energy_only = qs_ot_env(1)%energy_only
@@ -354,17 +349,10 @@ CONTAINS
       DEALLOCATE (occupation_numbers)
       IF (need_gradient) THEN
          DO ispin = 1, SIZE(matrix_dedc_scaled)
-            CALL dbcsr_release(matrix_dedc_scaled(ispin)%matrix)
-            DEALLOCATE (matrix_dedc_scaled(ispin)%matrix)
+            CALL dbcsr_release_p(matrix_dedc_scaled(ispin)%matrix)
+            IF (ALLOCATED(matrix_dedc_physical)) CALL dbcsr_release_p(matrix_dedc_physical(ispin)%matrix)
          END DO
          DEALLOCATE (matrix_dedc_scaled)
-      END IF
-      IF (ASSOCIATED(matrix_dedc_physical)) THEN
-         DO ispin = 1, SIZE(matrix_dedc_physical)
-            CALL dbcsr_release(matrix_dedc_physical(ispin)%matrix)
-            DEALLOCATE (matrix_dedc_physical(ispin)%matrix)
-         END DO
-         DEALLOCATE (matrix_dedc_physical)
       END IF
 
       CALL timestop(handle)

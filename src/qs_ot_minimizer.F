@@ -249,8 +249,9 @@ CONTAINS
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: matrix_hc_im, matrix_hc_physical, &
-                                                            matrix_hc_physical_im
+         POINTER                                         :: matrix_hc_im
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: matrix_hc_physical, matrix_hc_physical_im
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
       LOGICAL, INTENT(IN), OPTIONAL                      :: gradient_only, gradient_prepared, &
                                                             restart_history
@@ -456,8 +457,9 @@ CONTAINS
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: matrix_hc_im, matrix_hc_physical, &
-                                                            matrix_hc_physical_im
+         POINTER                                         :: matrix_hc_im
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: matrix_hc_physical, matrix_hc_physical_im
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
       LOGICAL, INTENT(IN), OPTIONAL                      :: restart_history
 

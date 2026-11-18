@@ -123,13 +123,13 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_energies
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_mos_molden'
-      CHARACTER(LEN=molden_lmax+1), PARAMETER            :: angmom = "spdfg"
+      CHARACTER(LEN=molden_lmax + 1), PARAMETER            :: angmom = "spdfg"
 
       CHARACTER(LEN=15)                                  :: fmtstr1, fmtstr2
       CHARACTER(LEN=2)                                   :: element_symbol
-      INTEGER :: gto_kind, handle, i, iatom, icgf, icol, ikind, ipgf, irow, irow_in, iset, isgf, &
-         ishell, ispin, iw, lshell, ncgf, ncol_global, ndigits, nrow_global, nset, nsgf, numos, &
-         unit_choice, z
+      INTEGER :: gto_kind, handle, i, ikind, ipgf, iset, ishell, ispin, iw, lshell, ncgf, ndigits, &
+                 nset, nshell_basis, unit_choice, z
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: shell_l
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
       INTEGER, DIMENSION(molden_ncomax, 0:molden_lmax)   :: orbmap
@@ -137,7 +137,6 @@ CONTAINS
                                                             mark_ghost, print_warn, write_cell, &
                                                             write_pseudo
       REAL(KIND=dp)                                      :: expzet, prefac, scale_factor, zeff
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmatrix, smatrix
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
@@ -222,6 +221,9 @@ CONTAINS
             END IF
 
             WRITE (iw, '(T2,A)') "[GTO]"
+            CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nshell=nshell_basis)
+            ALLOCATE (shell_l(nshell_basis))
+            nshell_basis = 0
 
             DO i = 1, SIZE(particle_set)
                CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind, kind_number=ikind, &
@@ -240,6 +242,8 @@ CONTAINS
                   DO iset = 1, nset
                      DO ishell = 1, nshell(iset)
                         lshell = l(ishell, iset)
+                        nshell_basis = nshell_basis + 1
+                        shell_l(nshell_basis) = lshell
                         IF (lshell <= molden_lmax) THEN
                            WRITE (UNIT=iw, FMT='(T25,A2,4X,I4,4X,F4.2)') &
                               angmom(lshell + 1:lshell + 1), npgf(iset), 1.0_dp
@@ -320,10 +324,9 @@ CONTAINS
             END IF
          END IF
 
+         do_calc_energies = .FALSE.
+         IF (PRESENT(calc_energies)) do_calc_energies = calc_energies
          DO ispin = 1, SIZE(mos)
-            do_calc_energies = .FALSE.
-            IF (PRESENT(calc_energies)) do_calc_energies = calc_energies
-
             IF (PRESENT(qs_env) .AND. do_calc_energies) THEN
                CALL get_qs_env(qs_env, matrix_ks=ks, dft_control=dft_control)
 
@@ -355,220 +358,14 @@ CONTAINS
                END IF
             END IF
 
-            CALL cp_fm_get_info(mos(ispin)%mo_coeff, &
-                                nrow_global=nrow_global, &
-                                ncol_global=ncol_global)
-            ALLOCATE (smatrix(nrow_global, ncol_global))
-            CALL cp_fm_get_submatrix(mos(ispin)%mo_coeff, smatrix)
-
-            IF (iw > 0) THEN
-               IF (gto_kind == gto_cartesian) THEN
-                  CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
-
-                  ALLOCATE (cmatrix(ncgf, ncgf))
-
-                  cmatrix = 0.0_dp
-
-                  ! Transform spherical MOs to Cartesian MOs
-
-                  icgf = 1
-                  isgf = 1
-                  DO iatom = 1, SIZE(particle_set)
-                     NULLIFY (orb_basis_set)
-                     CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-                     CALL get_qs_kind(qs_kind_set(ikind), &
-                                      basis_set=orb_basis_set)
-                     IF (ASSOCIATED(orb_basis_set)) THEN
-                        CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
-                                               nset=nset, &
-                                               nshell=nshell, &
-                                               l=l)
-                        DO iset = 1, nset
-                           DO ishell = 1, nshell(iset)
-                              lshell = l(ishell, iset)
-                              CALL dgemm("T", "N", nco(lshell), mos(ispin)%nmo, nso(lshell), 1.0_dp, &
-                                         orbtramat(lshell)%c2s, nso(lshell), &
-                                         smatrix(isgf, 1), nsgf, 0.0_dp, &
-                                         cmatrix(icgf, 1), ncgf)
-                              icgf = icgf + nco(lshell)
-                              isgf = isgf + nso(lshell)
-                           END DO
-                        END DO
-                     END IF
-                  END DO ! iatom
-               END IF
-
-               DO icol = 1, mos(ispin)%nmo
-                  ! index of the first basis function for the given atom, set, and shell
-                  irow = 1
-
-                  ! index of the first basis function in MOLDEN file.
-                  ! Due to limitation of the MOLDEN format, basis functions with l > molden_lmax
-                  ! cannot be exported, so we need to renumber atomic orbitals
-                  irow_in = 1
-
-                  WRITE (iw, '(A,ES20.10)') 'Ene=', mos(ispin)%eigenvalues(icol)
-                  IF (ispin < 2) THEN
-                     WRITE (iw, '(A)') 'Spin= Alpha'
-                  ELSE
-                     WRITE (iw, '(A)') 'Spin= Beta'
-                  END IF
-                  WRITE (iw, '(A,F12.7)') 'Occup=', mos(ispin)%occupation_numbers(icol)
-
-                  DO iatom = 1, SIZE(particle_set)
-                     NULLIFY (orb_basis_set)
-                     CALL get_atomic_kind(particle_set(iatom)%atomic_kind, &
-                                          element_symbol=element_symbol, kind_number=ikind)
-                     CALL get_qs_kind(qs_kind_set(ikind), &
-                                      basis_set=orb_basis_set)
-                     IF (ASSOCIATED(orb_basis_set)) THEN
-                        CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
-                                               nset=nset, &
-                                               nshell=nshell, &
-                                               l=l)
-
-                        IF (gto_kind == gto_cartesian) THEN
-                           ! ----------------------------------------------
-                           ! Use cartesian (6D, 10F, 15G) representation.
-                           ! ----------------------------------------------
-                           icgf = 1
-                           DO iset = 1, nset
-                              DO ishell = 1, nshell(iset)
-                                 lshell = l(ishell, iset)
-
-                                 IF (lshell <= molden_lmax) THEN
-                                    CALL print_coeffs(iw, fmtstr1, ndigits, irow_in, orbmap(:, lshell), &
-                                                      cmatrix(irow:irow + nco(lshell) - 1, icol))
-                                    irow_in = irow_in + nco(lshell)
-                                 END IF
-
-                                 irow = irow + nco(lshell)
-                              END DO ! ishell
-                           END DO
-
-                        ELSE IF (gto_kind == gto_spherical) THEN
-                           ! ----------------------------------------------
-                           ! Use spherical (5D, 7F, 9G) representation.
-                           ! ----------------------------------------------
-                           DO iset = 1, nset
-                              DO ishell = 1, nshell(iset)
-                                 lshell = l(ishell, iset)
-
-                                 IF (lshell <= molden_lmax) THEN
-                                    CALL print_coeffs(iw, fmtstr1, ndigits, irow_in, orbmap(:, lshell), &
-                                                      smatrix(irow:irow + nso(lshell) - 1, icol))
-                                    irow_in = irow_in + nso(lshell)
-                                 END IF
-
-                                 irow = irow + nso(lshell)
-                              END DO
-                           END DO
-                        END IF
-
-                     END IF
-                  END DO ! iatom
-               END DO
-            END IF
-
-            IF (ALLOCATED(cmatrix)) DEALLOCATE (cmatrix)
-            IF (ALLOCATED(smatrix)) DEALLOCATE (smatrix)
+            CALL write_mo_block(ispin, mos(ispin)%mo_coeff, mos(ispin)%eigenvalues(:mos(ispin)%nmo), &
+                                mos(ispin)%occupation_numbers)
          END DO
 
-         ! Write unoccupied (virtual) orbitals if provided; only used with OT
          IF (PRESENT(unoccupied_orbs) .AND. PRESENT(unoccupied_evals)) THEN
             DO ispin = 1, SIZE(unoccupied_orbs)
-               CALL cp_fm_get_info(unoccupied_orbs(ispin), &
-                                   nrow_global=nrow_global, &
-                                   ncol_global=numos)
-               ALLOCATE (smatrix(nrow_global, numos))
-               CALL cp_fm_get_submatrix(unoccupied_orbs(ispin), smatrix)
-
-               IF (iw > 0) THEN
-                  IF (gto_kind == gto_cartesian) THEN
-                     CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
-                     ALLOCATE (cmatrix(ncgf, numos))
-                     cmatrix = 0.0_dp
-
-                     icgf = 1
-                     isgf = 1
-                     DO iatom = 1, SIZE(particle_set)
-                        NULLIFY (orb_basis_set)
-                        CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-                        CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
-                        IF (ASSOCIATED(orb_basis_set)) THEN
-                           CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
-                                                  nset=nset, nshell=nshell, l=l)
-                           DO iset = 1, nset
-                              DO ishell = 1, nshell(iset)
-                                 lshell = l(ishell, iset)
-                                 CALL dgemm("T", "N", nco(lshell), numos, nso(lshell), 1.0_dp, &
-                                            orbtramat(lshell)%c2s, nso(lshell), &
-                                            smatrix(isgf, 1), nsgf, 0.0_dp, &
-                                            cmatrix(icgf, 1), ncgf)
-                                 icgf = icgf + nco(lshell)
-                                 isgf = isgf + nso(lshell)
-                              END DO
-                           END DO
-                        END IF
-                     END DO
-                  END IF
-
-                  DO icol = 1, numos
-                     irow = 1
-                     irow_in = 1
-
-                     WRITE (iw, '(A,ES20.10)') 'Ene=', unoccupied_evals(ispin)%array(icol)
-                     IF (ispin < 2) THEN
-                        WRITE (iw, '(A)') 'Spin= Alpha'
-                     ELSE
-                        WRITE (iw, '(A)') 'Spin= Beta'
-                     END IF
-                     WRITE (iw, '(A,F12.7)') 'Occup=', 0.0_dp
-
-                     DO iatom = 1, SIZE(particle_set)
-                        NULLIFY (orb_basis_set)
-                        CALL get_atomic_kind(particle_set(iatom)%atomic_kind, &
-                                             element_symbol=element_symbol, kind_number=ikind)
-                        CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
-                        IF (ASSOCIATED(orb_basis_set)) THEN
-                           CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
-                                                  nset=nset, nshell=nshell, l=l)
-
-                           IF (gto_kind == gto_cartesian) THEN
-                              icgf = 1
-                              DO iset = 1, nset
-                                 DO ishell = 1, nshell(iset)
-                                    lshell = l(ishell, iset)
-                                    IF (lshell <= molden_lmax) THEN
-                                       CALL print_coeffs(iw, fmtstr1, ndigits, irow_in, orbmap(:, lshell), &
-                                                         cmatrix(irow:irow + nco(lshell) - 1, icol))
-                                       irow_in = irow_in + nco(lshell)
-                                    END IF
-                                    irow = irow + nco(lshell)
-                                 END DO
-                              END DO
-                           ELSE IF (gto_kind == gto_spherical) THEN
-                              DO iset = 1, nset
-                                 DO ishell = 1, nshell(iset)
-                                    lshell = l(ishell, iset)
-                                    IF (lshell <= molden_lmax) THEN
-                                       CALL print_coeffs(iw, fmtstr1, ndigits, irow_in, orbmap(:, lshell), &
-                                                         smatrix(irow:irow + nso(lshell) - 1, icol))
-                                       irow_in = irow_in + nso(lshell)
-                                    END IF
-                                    irow = irow + nso(lshell)
-                                 END DO
-                              END DO
-                           END IF
-
-                        END IF
-                     END DO ! iatom
-                  END DO ! icol
-               END IF
-
-               IF (ALLOCATED(cmatrix)) DEALLOCATE (cmatrix)
-               IF (ALLOCATED(smatrix)) DEALLOCATE (smatrix)
-            END DO ! ispin
+               CALL write_mo_block(ispin, unoccupied_orbs(ispin), unoccupied_evals(ispin)%array)
+            END DO
          END IF
 
          CALL cp_print_key_finished_output(iw, logger, print_section, "")
@@ -576,6 +373,69 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief Gather and write one spin block in Molden basis order.
+!> \param spin spin index
+!> \param mo_coeffs distributed spherical MO coefficients
+!> \param eigenvalues energies of the orbitals to write
+!> \param occupations orbital occupations, zero for an additional virtual block
+! **************************************************************************************************
+      SUBROUTINE write_mo_block(spin, mo_coeffs, eigenvalues, occupations)
+      INTEGER, INTENT(IN)                                :: spin
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeffs
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: occupations
+
+      INTEGER                                            :: icgf, icol, irow, isgf, ish, ll, &
+                                                            molden_row, nfunc, nmo, nrow
+      REAL(KIND=dp)                                      :: occupation
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cart, coeff
+
+         nmo = SIZE(eigenvalues)
+         IF (nmo == 0) RETURN
+         CALL cp_fm_get_info(mo_coeffs, nrow_global=nrow)
+         ALLOCATE (coeff(nrow, nmo))
+         CALL cp_fm_get_submatrix(mo_coeffs, coeff)
+         IF (iw <= 0) RETURN
+
+         IF (gto_kind == gto_cartesian) THEN
+            ALLOCATE (cart(ncgf, nmo))
+            icgf = 1
+            isgf = 1
+            DO ish = 1, nshell_basis
+               ll = shell_l(ish)
+               CALL dgemm("T", "N", nco(ll), nmo, nso(ll), 1.0_dp, orbtramat(ll)%c2s, nso(ll), &
+                          coeff(isgf, 1), nrow, 0.0_dp, cart(icgf, 1), ncgf)
+               icgf = icgf + nco(ll)
+               isgf = isgf + nso(ll)
+            END DO
+            CALL MOVE_ALLOC(cart, coeff)
+         END IF
+
+         DO icol = 1, nmo
+            occupation = 0.0_dp
+            IF (PRESENT(occupations)) occupation = occupations(icol)
+            WRITE (iw, '(A,ES20.10)') 'Ene=', eigenvalues(icol)
+            WRITE (iw, '(A)') 'Spin= '//TRIM(MERGE('Alpha', 'Beta ', spin == 1))
+            WRITE (iw, '(A,F12.7)') 'Occup=', occupation
+
+            irow = 1
+            molden_row = 1
+            DO ish = 1, nshell_basis
+               ll = shell_l(ish)
+               nfunc = MERGE(nco(ll), nso(ll), gto_kind == gto_cartesian)
+               IF (ll <= molden_lmax) THEN
+                  CALL print_coeffs(iw, fmtstr1, ndigits, molden_row, orbmap(:, ll), coeff(irow:irow + nfunc - 1, icol))
+                  molden_row = molden_row + nfunc
+               END IF
+               ! The CP2K basis also contains the shells omitted from the Molden file.
+               irow = irow + nfunc
+            END DO
+         END DO
+      END SUBROUTINE write_mo_block
 
    END SUBROUTINE write_mos_molden
 
@@ -597,11 +457,9 @@ CONTAINS
 
       INTEGER                                            :: orbital
 
-      DO orbital = 1, molden_ncomax
-         IF (orbmap(orbital) /= 0) THEN
-            IF (ABS(mo_coeff(orbmap(orbital))) >= 10.0_dp**(-ndigits)) THEN
-               WRITE (iw, fmtstr1) irow_in + orbital - 1, mo_coeff(orbmap(orbital))
-            END IF
+      DO orbital = 1, SIZE(mo_coeff)
+         IF (ABS(mo_coeff(orbmap(orbital))) >= 10.0_dp**(-ndigits)) THEN
+            WRITE (iw, fmtstr1) irow_in + orbital - 1, mo_coeff(orbmap(orbital))
          END IF
       END DO
 

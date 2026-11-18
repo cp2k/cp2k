@@ -244,7 +244,8 @@ MODULE qs_scf
    USE qs_vxc_atom,                     ONLY: gapw_cdft_one_center
    USE qs_wf_history_methods,           ONLY: wfi_purge_history,&
                                               wfi_update
-   USE scf_control_types,               ONLY: scf_control_type
+   USE scf_control_types,               ONLY: has_fixed_ot_virtuals,&
+                                              scf_control_type
    USE smeagol_interface,               ONLY: run_smeagol_bulktrans,&
                                               run_smeagol_emtrans
    USE tblite_interface,                ONLY: tb_get_energy,&
@@ -520,8 +521,7 @@ CONTAINS
                       results=results, &
                       pw_env=pw_env, &
                       para_env=para_env)
-      fixed_ot_virtuals = scf_control%use_ot .AND. ANY(scf_control%added_mos > 0) .AND. &
-                          .NOT. (dft_control%smear .OR. scf_control%smear%do_smear)
+      fixed_ot_virtuals = has_fixed_ot_virtuals(scf_control, dft_control%smear)
       tblite_native_mixer = dft_control%qs_control%xtb_control%do_tblite .AND. &
                             scf_env%method /= ot_method_nr .AND. &
                             tb_native_scc_mixer_active(dft_control)

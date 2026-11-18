@@ -81,7 +81,8 @@ MODULE qs_scf_output
    USE qs_scf_types,                    ONLY: ot_method_nr,&
                                               qs_scf_env_type,&
                                               special_diag_method_nr
-   USE scf_control_types,               ONLY: scf_control_type
+   USE scf_control_types,               ONLY: has_fixed_ot_virtuals,&
+                                              scf_control_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -265,8 +266,7 @@ CONTAINS
       END IF
 
       do_printout = .TRUE.
-      scf_virtuals = scf_control%use_ot .AND. ANY(scf_control%added_mos > 0) .AND. &
-                     .NOT. (dft_control%smear .OR. scf_control%smear%do_smear)
+      scf_virtuals = has_fixed_ot_virtuals(scf_control, dft_control%smear)
       nspin = dft_control%nspins
       nmos_occ = 0
 
@@ -378,12 +378,9 @@ CONTAINS
                   ! Retrieve the index of the last MO for which a printout is requested
                   mo_index_range => section_get_ivals(dft_section, "PRINT%MO%MO_INDEX_RANGE")
                   CPASSERT(ASSOCIATED(mo_index_range))
-                  IF (mo_index_range(2) < 0) THEN
-                     numo = nao - homo
-                  ELSE
-                     numo = MIN(mo_index_range(2) - homo, nao - homo)
-                  END IF
-                  IF (scf_virtuals) numo = MAX(0, numo - (nmo - homo))
+                  numo = nao
+                  IF (mo_index_range(2) >= 0) numo = MIN(mo_index_range(2), nao)
+                  numo = numo - MERGE(nmo, homo, scf_virtuals)
 
                   ! Calculate the unoccupied MO set (umo_set) with OT if needed
                   IF (numo > 0) THEN
