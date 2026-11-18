@@ -122,8 +122,6 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
    TYPE gw_pair_fft_batch_type
       INTEGER(KIND=int_1), ALLOCATABLE :: weight(:, :)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER :: input(:) => NULL()
-   CONTAINS
-      FINAL :: release_pair_fft_batch
    END TYPE gw_pair_fft_batch_type
 
    TYPE gw_pair_fft_work_type
@@ -137,7 +135,7 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
       LOGICAL, ALLOCATABLE :: diagonal(:)
       TYPE(k_grid_to_cell_work_type) :: inverse
       TYPE(gw_pair_fft_batch_type), ALLOCATABLE :: batches(:)
-      TYPE(lattice_fft_profile_type) :: profile
+      TYPE(lattice_fft_profile_type) :: profile = lattice_fft_profile_type()
       REAL(KIND=dp) :: setup_seconds = 0.0_dp
    END TYPE gw_pair_fft_work_type
 
@@ -151,17 +149,33 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
       PROCEDURE :: consume => extract_grid_pairs
    END TYPE gw_pair_extraction_type
 
+   TYPE pair_segment_type
+      INTEGER :: rank = -1, first_row = 0, last_row = 0, displacement = 0
+   END TYPE pair_segment_type
+
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Release the aligned input owned by one persistent FFT panel.
-!> \param batch ...
+!> \brief Release the inverse FFT workspace and the aligned inputs of the product panels.
+!> \param work ...
 ! **************************************************************************************************
-   IMPURE ELEMENTAL SUBROUTINE release_pair_fft_batch(batch)
-      TYPE(gw_pair_fft_batch_type), INTENT(INOUT)        :: batch
+   SUBROUTINE release_pair_fft(work)
+      TYPE(gw_pair_fft_work_type), INTENT(INOUT)         :: work
 
-      IF (ASSOCIATED(batch%input)) CALL fft_dealloc(batch%input)
-   END SUBROUTINE release_pair_fft_batch
+      INTEGER                                            :: ibatch
+
+      CALL k_grid_to_cell_release(work%inverse)
+      IF (ALLOCATED(work%batches)) THEN
+         DO ibatch = 1, SIZE(work%batches)
+            IF (ASSOCIATED(work%batches(ibatch)%input)) CALL fft_dealloc(work%batches(ibatch)%input)
+         END DO
+         DEALLOCATE (work%batches, work%product_phase, work%grid_linear, work%partner_linear, &
+                     work%extract_q, work%extract_partner, work%mirror_cell, work%diagonal, work%input_to_native)
+      END IF
+      work%profile = lattice_fft_profile_type()
+      work%setup_seconds = 0.0_dp
+      work%cache_hit = .FALSE.
+   END SUBROUTINE release_pair_fft
 
 ! **************************************************************************************************
 !> \brief Consume K2R spectra once: original Green norms, physical output and next-FFT input.
@@ -173,14 +187,12 @@ CONTAINS
 !> \param spectrum pair-major FFT output
 !> \param cell_slot FFT slot of each physical cell
 !> \param cell_phase common inverse-transform phase and normalization
-!> \param two_real whether real and imaginary channels contain independent real fields
 ! **************************************************************************************************
-   SUBROUTINE extract_grid_pairs(sink, first, nbatch, spectrum, cell_slot, cell_phase, two_real)
+   SUBROUTINE extract_grid_pairs(sink, first, nbatch, spectrum, cell_slot, cell_phase)
       CLASS(gw_pair_extraction_type), INTENT(INOUT) :: sink
       INTEGER(KIND=int_8), INTENT(IN) :: first
       INTEGER, INTENT(IN) :: nbatch, cell_slot(:)
       COMPLEX(KIND=dp), INTENT(IN) :: spectrum(:, :), cell_phase(:)
-      LOGICAL, INTENT(IN) :: two_real
 
       COMPLEX(KIND=dp) :: input_phase, phase, raw, saved
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER :: input(:, :)
@@ -191,7 +203,7 @@ CONTAINS
       TYPE(gw_pair_fft_work_type), POINTER :: plan
 
       fft_count = (nbatch + 1)/2
-      IF (.NOT. two_real) THEN
+      IF (.NOT. sink%two_real) THEN
          CPASSERT(nbatch == 1)
       END IF
       NULLIFY (input, batch)
@@ -203,13 +215,13 @@ CONTAINS
          input(1:fft_count, 1:INT(plan%nfft_grid)) => batch%input
       END IF
       !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-      !$OMP SHARED(sink, first, nbatch, fft_count, spectrum, cell_slot, cell_phase, two_real, plan, batch, input) &
+      !$OMP SHARED(sink, first, nbatch, fft_count, spectrum, cell_slot, cell_phase, plan, batch, input) &
       !$OMP SHARED(collect_norm) &
       !$OMP PRIVATE(icell, slot, phase, i, ia, ib, ipair, jpair, raw, saved, A, b, product_a, product_b, norm, offnorm) &
       !$OMP PRIVATE(input_phase)
       DO icell = 1, SIZE(cell_slot)
          slot = cell_slot(icell)
-         phase = MERGE(0.5_dp, 1.0_dp, two_real)*cell_phase(icell)
+         phase = MERGE(0.5_dp, 1.0_dp, sink%two_real)*cell_phase(icell)
          norm = 0.0_dp
          offnorm = 0.0_dp
          IF (sink%product) input_phase = plan%product_phase(icell)
@@ -1019,7 +1031,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      CALL k_grid_to_cell_release(fft_stencil_work%inverse)
+      CALL release_pair_fft(fft_stencil_work)
       bs_env%gwkp_env%k_points_total = 0
 
       IF (ALLOCATED(psi_time)) DEALLOCATE (psi_time)
@@ -1326,7 +1338,7 @@ CONTAINS
                                          gwkp_env%band_orbitals(:, :, :, ispin), &
                                          gwkp_env%sigma_x_bands(:, :, ispin), .FALSE.)
       END DO
-      CALL k_grid_to_cell_release(fft_stencil_work%inverse)
+      CALL release_pair_fft(fft_stencil_work)
 
       DEALLOCATE (full_cells, G_grid_k, Sigma_grid_R, V_grid_R, cell_active)
 
@@ -1347,13 +1359,15 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: G_grid_k(:, :, :)
       INTEGER                                            :: first_pair, handle, i_component, i_t, &
-                                                            i_time_local, ispin, n_grid, n_pairs_local, &
-                                                            n_time_local
+                                                            i_time_local, ispin, n_grid, &
+                                                            n_pairs_local, n_time_local
       INTEGER, ALLOCATABLE                               :: full_cells(:, :)
       LOGICAL, ALLOCATABLE                               :: cell_active(:)
       REAL(KIND=dp)                                      :: tau
-      REAL(KIND=dp), ALLOCATABLE :: green_norms(:), sigma_band(:, :), Sigma_grid_R(:, :, :), &
-         sigma_result_buffer(:), W_grid_R(:, :, :)
+      REAL(KIND=dp), ALLOCATABLE                         :: green_norms(:), sigma_band(:, :), &
+                                                            Sigma_grid_R(:, :, :), &
+                                                            sigma_result_buffer(:), &
+                                                            W_grid_R(:, :, :)
       TYPE(gw_pair_fft_work_type)                        :: fft_stencil_work
 
       CALL timeset(routineN, handle)
@@ -1407,7 +1421,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      CALL k_grid_to_cell_release(fft_stencil_work%inverse)
+      CALL release_pair_fft(fft_stencil_work)
       gwkp_env%k_points_total = 0
 
       ALLOCATE (sigma_result_buffer(SIZE(gwkp_env%sigma_c_bands)))
@@ -1507,23 +1521,19 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_green_pairs'
 
-      TYPE pair_segment_type
-         INTEGER :: rank, first_row, last_row, displacement
-      END TYPE pair_segment_type
-
       COMPLEX(KIND=dp), ALLOCATABLE                      :: gram(:, :), scaled_coeff(:, :), sent(:)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: received(:)
       COMPLEX(KIND=dp), TARGET                           :: unused_receive(1)
       INTEGER :: first_band, handle, i_band, i_batch, i_col, i_first, i_rank, ikp, j_col, &
-                 n_active, n_bands, n_cols, n_grid, n_k, n_local, n_owned, n_pairs, n_rank, n_round, &
-                 n_segments, n_workers, offset, pair_first, pair_last, rank_end, row_first, row_last, segment, unit_nr
+         n_active, n_bands, n_cols, n_grid, n_k, n_local, n_owned, n_pairs, n_rank, n_round, &
+         n_segments, n_workers, offset, pair_first, pair_last, rank_end, row_first, row_last, &
+         segment, unit_nr
       INTEGER(KIND=int_8)                                :: active_bands, possible_bands
-      INTEGER, ALLOCATABLE                               :: column_segments(:), pair_counts(:), pair_displs(:), &
-                                                            recv_counts(:), recv_displs(:), &
-                                                            send_counts(:), send_displs(:)
+      INTEGER, ALLOCATABLE :: column_segments(:), pair_counts(:), pair_displs(:), recv_counts(:), &
+         recv_displs(:), send_counts(:), send_displs(:)
       REAL(KIND=dp)                                      :: seconds(4), started, tau_E, total_started
       TYPE(gwkp_type), POINTER                           :: gwkp_env
-      TYPE(pair_segment_type), ALLOCATABLE                :: segments(:)
+      TYPE(pair_segment_type), ALLOCATABLE               :: segments(:)
 
       CALL timeset(routineN, handle)
       IF (fft_profile_enabled) total_started = m_walltime()
@@ -2908,9 +2918,9 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: q_pairs(:, :)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: received(:), sent(:)
       COMPLEX(KIND=dp), TARGET                           :: unused_receive(1), unused_send(1)
-      INTEGER :: capacity, first_round, handle, i_buffer, i_column, i_first, i_local, i_needed, i_rank, &
-         i_round, i_thread, i_z, iq, n_aux, n_buffer, n_grid, n_local, n_needed_local, n_q, &
-         n_rank, n_round, n_selected, n_workers
+      INTEGER :: capacity, first_round, handle, i_buffer, i_column, i_first, i_local, i_needed, &
+         i_rank, i_round, i_thread, i_z, iq, n_aux, n_buffer, n_grid, n_local, n_needed_local, &
+         n_q, n_rank, n_round, n_selected, n_workers
       INTEGER, ALLOCATABLE                               :: local_q(:), pair_counts(:), &
                                                             pair_displs(:), recv_counts(:), &
                                                             send_counts(:), send_displs(:)

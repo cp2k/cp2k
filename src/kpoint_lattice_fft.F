@@ -90,6 +90,8 @@ MODULE kpoint_lattice_fft
    ! A real-output consumer may finish extraction directly in its next operator's layout.
    ! The FFT algorithm and its bounded panels remain shared with the array-output interface.
    TYPE, ABSTRACT :: lattice_fft_real_sink_type
+      ! Whether each complex transform in the supplied panel packs two real fields.
+      LOGICAL :: two_real = .FALSE.
    CONTAINS
       PROCEDURE(lattice_fft_consume_real), DEFERRED :: consume
    END TYPE lattice_fft_real_sink_type
@@ -103,15 +105,13 @@ MODULE kpoint_lattice_fft
 !> \param spectrum pair-major complex FFT output
 !> \param cell_slot FFT slot of each requested cell
 !> \param cell_phase inverse Bloch phase with any common weight
-!> \param two_real whether each complex transform packs two real fields
 ! **************************************************************************************************
-      SUBROUTINE lattice_fft_consume_real(sink, first, nbatch, spectrum, cell_slot, cell_phase, two_real)
+      SUBROUTINE lattice_fft_consume_real(sink, first, nbatch, spectrum, cell_slot, cell_phase)
          IMPORT :: dp, int_8, lattice_fft_real_sink_type
          CLASS(lattice_fft_real_sink_type), INTENT(INOUT) :: sink
          INTEGER(KIND=int_8), INTENT(IN)                  :: first
          INTEGER, INTENT(IN)                              :: nbatch, cell_slot(:)
          COMPLEX(KIND=dp), INTENT(IN)                     :: spectrum(:, :), cell_phase(:)
-         LOGICAL, INTENT(IN)                              :: two_real
       END SUBROUTINE lattice_fft_consume_real
    END INTERFACE
 
@@ -1042,7 +1042,8 @@ CONTAINS
       output(1:fft_count, 1:INT(ngrid)) => work%fft_in(1:fft_count*INT(ngrid))
       IF (PRESENT(profile)) started = m_walltime()
       IF (PRESENT(real_sink)) THEN
-         CALL real_sink%consume(first, nbatch, output, work%cell_slot, work%cell_phase, pack_real)
+         real_sink%two_real = pack_real
+         CALL real_sink%consume(first, nbatch, output, work%cell_slot, work%cell_phase)
          IF (PRESENT(profile)) profile%seconds(8) = profile%seconds(8) + m_walltime() - started
          RETURN
       END IF
