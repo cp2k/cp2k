@@ -1,0 +1,8 @@
+"si_u_fcc.inp"    = [
+  {matcher = "E_total", tol = 1.0E-10, ref = -31.218529097291960},
+  {matcher = "Unfold_band1_energy", file = "si_u_fcc.bs", tol = 1.0E-6, ref = -6.77901460}
+]
+"si_u_atoms2.inp" = [
+  {matcher = "E_total", tol = 1.0E-10, ref = -30.842134209204598},
+  {matcher = "Unfold_band1_energy", file = "si_u_atoms2.bs", tol = 1.0E-6, ref = -6.54480022}
+]

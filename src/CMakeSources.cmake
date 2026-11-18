@@ -361,6 +361,7 @@ list(
   kpoint_transform.F
   kpoint_transitional.F
   kpoint_types.F
+  kpoint_unfolding.F
   kpsym.F
   libgrpp_integrals.F
   libint_2c_3c.F
