@@ -320,6 +320,13 @@ CONTAINS
       CALL section_vals_val_get(cohsex_sec, "SCALE_OCC", r_val=bs_env%cohsex_scale_occ)
       CALL section_vals_val_get(cohsex_sec, "SCALE_VIRT", r_val=bs_env%cohsex_scale_virt)
       CALL read_rirs_input(bs_env%ri_rs, ri_rs_sec)
+      IF (bs_env%ri_rs%tikhonov < 0.0_dp) THEN
+         IF (bs_env%gw_implementation == ri_rs_small_cell_full_kp) THEN
+            bs_env%ri_rs%tikhonov = 1.0E-4_dp
+         ELSE
+            bs_env%ri_rs%tikhonov = 1.0E-8_dp
+         END IF
+      END IF
       CALL read_rirs_grid_opt(bs_env%ri_rs, grid_opt_sec)
       CALL read_evgw0_input(bs_env, evgw0_sec, do_evgw0)
       CALL read_auto_ri_input(bs_env%auto_ri, auto_ri_sec)
@@ -466,9 +473,6 @@ CONTAINS
          END IF
       END IF
       IF (bs_env%do_gw_ri_rs) THEN
-         IF (bs_env%ri_rs%tikhonov < 0.0_dp) THEN
-            CPABORT("RI_RS%TIKHONOV must not be negative")
-         END IF
          IF (bs_env%gw_implementation == ri_rs_small_cell_full_kp) THEN
             IF (.NOT. bs_env%ri_rs%grid_opt%enabled) THEN
                CPABORT("Full-k RI-RS GW requires RI_RS%GRID_OPTIMIZATION")

@@ -119,9 +119,6 @@ CONTAINS
       IF (bs_env%ri_rs%grid_opt%max_iter < 1) THEN
          CPABORT("GRID_OPTIMIZATION%MAX_ITER must be positive")
       END IF
-      IF (bs_env%ri_rs%tikhonov < 0.0_dp) THEN
-         CPABORT("RI_RS%TIKHONOV must not be negative")
-      END IF
 
       DO iatom = 1, bs_env%n_atom
          ikind = bs_env%ri_rs%particle_set(iatom)%atomic_kind%kind_number

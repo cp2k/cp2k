@@ -2855,9 +2855,11 @@ CONTAINS
                           description="Regularization parameter $\alpha$ used to stabilize "// &
                           "the inversion of the grid-overlap matrix "// &
                           "$D$ in the RI-RS method. "// &
-                          "See Equation (9) in \[Duchemin2019\].", &
+                          "See Equation (9) in \[Duchemin2019\]. A negative value selects "// &
+                          "the context-dependent default: 1.0E-4 for periodic full-k RI-RS GW "// &
+                          "and 1.0E-8 otherwise.", &
                           usage="TIKHONOV 1.0E-8", &
-                          default_r_val=1.0E-08_dp)
+                          default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
