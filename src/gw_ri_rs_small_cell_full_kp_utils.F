@@ -637,7 +637,7 @@ CONTAINS
       REAL(KIND=dp) :: available_GB, budget, input_bytes, live_bytes, n_pair_max, n_q_max, peak, &
          q_bytes, rows_bytes, step_start, tau, time_bytes
       REAL(KIND=dp), ALLOCATABLE                         :: chi_grid_R(:, :, :), G_occ_R(:, :, :), &
-                                                            qpoints(:, :), step_times(:)
+                                                            qpoints(:, :)
       TYPE(gw_pair_fft_work_type)                        :: fft_stencil_work
       TYPE(mp_comm_type)                                 :: column_env
       TYPE(mp_para_env_type), POINTER                    :: chi_env
@@ -728,7 +728,8 @@ CONTAINS
       END DO
       ALLOCATE (chi_q(n_aux, n_aux, n_needed_local))
 
-      ALLOCATE (step_times(bs_env%num_time_freq_points), SOURCE=0.0_dp)
+      ! Rank 0 prints the time points of its own group as soon as each one is done.
+      IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
       DO i_t = i_group + 1, bs_env%num_time_freq_points, n_groups
          step_start = m_walltime()
          tau = bs_env%time_frequency_grid%imaginary_time(i_t)
@@ -785,20 +786,13 @@ CONTAINS
             iq_local = needed_local(i_needed)
             chi_partial(iq_local)%values(:, :, i_time_local) = chi_q(:, :, i_needed)
          END DO
-         IF (chi_env%mepos == 0) step_times(i_t) = m_walltime() - step_start
-      END DO
-
-      CALL bs_env%para_env%sum(step_times)
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(A)') ' '
-         DO i_t = 1, bs_env%num_time_freq_points
+         IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(T2,A,I3,A,I0,T57,A,T71,F10.1,A)') &
                'GW χ(iτ) point ', i_t, ' / ', bs_env%num_time_freq_points, &
-               'Exec. time:', step_times(i_t), ' s'
-         END DO
-         CALL m_flush(bs_env%unit_nr)
-      END IF
-      DEALLOCATE (step_times)
+               'Exec. time:', m_walltime() - step_start, ' s'
+            CALL m_flush(bs_env%unit_nr)
+         END IF
+      END DO
 
       IF (ALLOCATED(psi_time)) DEALLOCATE (psi_time)
       n_local = COUNT([(MODULO(iq, n_world) == gwkp_env%group_env%mepos, iq=1, bs_env%nkp_scf_desymm)])
@@ -1135,9 +1129,11 @@ CONTAINS
       INTEGER                                            :: first_pair, handle, i_group, i_t, ispin, &
                                                             n_grid, n_pairs_local
       INTEGER, ALLOCATABLE                               :: full_cells(:, :)
-      REAL(KIND=dp)                                      :: step_elapsed, step_start, tau
-      REAL(KIND=dp), ALLOCATABLE :: qpoints(:, :), sigma_band(:, :), Sigma_grid_R(:, :, :), &
-         sigma_result_buffer(:), step_times(:), W_grid_R(:, :, :)
+      REAL(KIND=dp)                                      :: step_start, tau
+      REAL(KIND=dp), ALLOCATABLE                         :: qpoints(:, :), sigma_band(:, :), &
+                                                            Sigma_grid_R(:, :, :), &
+                                                            sigma_result_buffer(:), &
+                                                            W_grid_R(:, :, :)
       TYPE(gw_pair_fft_work_type)                        :: fft_stencil_work
 
       CALL timeset(routineN, handle)
@@ -1156,9 +1152,9 @@ CONTAINS
       ALLOCATE (sigma_band(bs_env%n_ao, bs_env%nkp_bs_and_DOS))
       ALLOCATE (gwkp_env%sigma_c_bands(bs_env%n_ao, bs_env%nkp_bs_and_DOS, &
                                        bs_env%num_time_freq_points, 2, bs_env%n_spin))
-      ALLOCATE (step_times(bs_env%num_time_freq_points), SOURCE=0.0_dp)
       gwkp_env%sigma_c_bands = 0.0_dp
 
+      ! Rank 0 prints the time points of its own group as soon as each one is done.
       DO i_t = gwkp_env%my_group + 1, bs_env%num_time_freq_points, gwkp_env%ngroups
          step_start = m_walltime()
          i_group = (i_t - gwkp_env%my_group - 1)/gwkp_env%ngroups + 1
@@ -1200,19 +1196,13 @@ CONTAINS
                                             gwkp_env%band_orbitals(:, :, :, ispin), sigma_band)
             IF (gwkp_env%group_env%mepos == 0) gwkp_env%sigma_c_bands(:, :, i_t, 1, ispin) = sigma_band
          END DO
-         step_elapsed = m_walltime() - step_start
-         IF (gwkp_env%group_env%mepos == 0) step_times(i_t) = step_elapsed
-      END DO
-
-      CALL bs_env%para_env%sum(step_times)
-      IF (bs_env%unit_nr > 0) THEN
-         DO i_t = 1, bs_env%num_time_freq_points
+         IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(T2,A,I3,A,I0,T57,A,T71,F10.1,A)') &
                'GW Σ_c(iτ) point ', i_t, ' / ', bs_env%num_time_freq_points, &
-               'Exec. time:', step_times(i_t), ' s'
-         END DO
-         CALL m_flush(bs_env%unit_nr)
-      END IF
+               'Exec. time:', m_walltime() - step_start, ' s'
+            CALL m_flush(bs_env%unit_nr)
+         END IF
+      END DO
 
       ALLOCATE (sigma_result_buffer(SIZE(gwkp_env%sigma_c_bands)))
       sigma_result_buffer(:) = RESHAPE(gwkp_env%sigma_c_bands, [SIZE(gwkp_env%sigma_c_bands)])
@@ -1220,8 +1210,7 @@ CONTAINS
       gwkp_env%sigma_c_bands(:, :, :, :, :) = RESHAPE(sigma_result_buffer, SHAPE(gwkp_env%sigma_c_bands))
 
       DEALLOCATE (full_cells, G_grid_k, qpoints, &
-                  sigma_band, sigma_result_buffer, Sigma_grid_R, &
-                  step_times, W_grid_R)
+                  sigma_band, sigma_result_buffer, Sigma_grid_R, W_grid_R)
 
       CALL timestop(handle)
 
