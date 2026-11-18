@@ -59,15 +59,52 @@ CP2K inserts replicas by bisection in the joint atomic and cell coordinates. Thi
 logarithmic cell stretches, not Cartesian positions and raw cell matrices independently. Inspect the
 resulting structures for close contacts and inappropriate atom mapping.
 
-The following is the complete, deliberately short integration-test example. It exercises a sheared
-cell and a finite pressure but is not a physical crystal-transformation calculation. For production
-calculations, replace the model and endpoints and increase the optimization budget.
+### Production input for a variable-cell band
 
-```{literalinclude} ../../../tests/NEB/regtest-solid-state/argon.inp
----
-language: none
----
+For a pair of endpoints relaxed at zero external pressure, the following `MOTION` section starts
+with seven replicas and turns on the climbing image after ten improved-tangent iterations. Supply
+`initial.xyz` and `final.xyz` in matching atom order. Replace the example cell matrices with the
+respective relaxed cells. Use the same force-evaluation settings as in the endpoint calculations,
+including analytical stress.
+
+```none
+&MOTION
+  &BAND
+    SOLID_STATE TRUE
+    BAND_TYPE CI-NEB
+    NUMBER_OF_REPLICA 7
+    EXTERNAL_PRESSURE [bar] 0
+    CELL_WEIGHT 1.0
+    &CI_NEB
+      NSTEPS_IT 10
+    &END CI_NEB
+    &OPTIMIZE_BAND
+      OPT_TYPE DIIS
+      OPTIMIZE_END_POINTS FALSE
+      &DIIS
+        MAX_STEPS 200
+      &END DIIS
+    &END OPTIMIZE_BAND
+    &CONVERGENCE_CONTROL
+      MAX_FORCE 4.5E-4
+      RMS_FORCE 3.0E-4
+      MAX_DR 2.0E-4
+      RMS_DR 1.0E-4
+    &END CONVERGENCE_CONTROL
+    &REPLICA
+      COORD_FILE_NAME initial.xyz
+      CELL_MATRIX 10 0 0 0 10 0 0 0 10
+    &END REPLICA
+    &REPLICA
+      COORD_FILE_NAME final.xyz
+      CELL_MATRIX 10.5 0 0 0.8 9.7 0 -0.3 0.4 10.2
+    &END REPLICA
+  &END BAND
+&END MOTION
 ```
+
+Check the reported convergence of the joint atomic and cell coordinates. Increase the replica count
+and tighten the force thresholds until the activation enthalpy is stable at the required accuracy.
 
 For Quickstep, keep the basis, functional, occupations, k-point sampling and other electronic
 settings consistent along the band. A suitable
