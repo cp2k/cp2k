@@ -4232,6 +4232,7 @@ CONTAINS
 !> \param qp_maxz_radius if > 0, take the solution of largest weight Z within this distance of the
 !>        Newton solution (Hartree)
 !> \param qp_multi a second solution within qp_maxz_radius carries more than a quarter of the weight
+!> \param window_fit precomputed Nevanlinna fit for this window when no Pick diagnostic is requested
 ! **************************************************************************************************
    SUBROUTINE continuation_pade(vec_gw_energ, vec_omega_fit_gw, &
                                 z_value, m_value, vec_Sigma_c_gw, vec_Sigma_x_minus_vxc_gw, &
@@ -4243,7 +4244,7 @@ CONTAINS
                                 min_level_self_energy, max_level_self_energy, &
                                 dos_eta, dos_min, dos_max, e_fermi_ext, output_spin, output_kpoint, &
                                 ac_method, ac_used, ac_pick, num_fit_points_pade, qp_start_eigenval, &
-                                qp_newton_max_step, qp_maxz_radius, qp_multi)
+                                qp_newton_max_step, qp_maxz_radius, qp_multi, window_fit)
 
       ! Optional arguments for spectral function
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_gw_energ
@@ -4273,6 +4274,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: qp_start_eigenval
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: qp_newton_max_step, qp_maxz_radius
       LOGICAL, INTENT(OUT), OPTIONAL                     :: qp_multi
+      TYPE(nevanlinna_type), INTENT(IN), OPTIONAL, &
+         TARGET                                          :: window_fit
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'continuation_pade'
 
@@ -4288,7 +4291,8 @@ CONTAINS
                                                             self_energy_re, vec_omega_fit_gw_sign, &
                                                             vec_omega_fit_gw_sign_reorder
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(nevanlinna_type)                              :: nev
+      TYPE(nevanlinna_type), POINTER                     :: nev
+      TYPE(nevanlinna_type), TARGET                      :: local_fit
 
       CALL timeset(routineN, handle)
 
@@ -4352,10 +4356,15 @@ CONTAINS
       !*** Nevanlinna interpolant through all fit points; the Pade approximant above is kept as
       !*** fallback for levels whose samples admit no causal interpolant
       IF (PRESENT(ac_pick)) ac_pick = 0.0_dp
+      nev => local_fit
       IF (PRESENT(ac_method)) THEN
          IF (ac_method == gw_ac_nevanlinna) THEN
-            CALL nevanlinna_create(nev, gaussi*vec_omega_fit_gw_sign_reorder(1:num_fit_points), &
-                                   Sigma_c_gw_reorder(1:num_fit_points), pick_min=ac_pick)
+            IF (PRESENT(window_fit) .AND. .NOT. PRESENT(ac_pick)) THEN
+               nev => window_fit
+            ELSE
+               CALL nevanlinna_create(local_fit, gaussi*vec_omega_fit_gw_sign_reorder(1:num_fit_points), &
+                                      Sigma_c_gw_reorder(1:num_fit_points), pick_min=ac_pick)
+            END IF
          END IF
       END IF
       IF (PRESENT(ac_used)) ac_used = MERGE(gw_ac_nevanlinna, gw_ac_pade, nev%solvable)
@@ -4501,7 +4510,7 @@ CONTAINS
       END IF
       END IF
 
-      CALL nevanlinna_release(nev)
+      CALL nevanlinna_release(local_fit)
       DEALLOCATE (vec_omega_fit_gw_sign)
       DEALLOCATE (Sigma_c_gw_reorder)
       DEALLOCATE (vec_omega_fit_gw_sign_reorder)

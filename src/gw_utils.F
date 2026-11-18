@@ -66,6 +66,10 @@ MODULE gw_utils
    USE gw_auto_ri_generate_RI_basis,    ONLY: generate_auto_ri_basis
    USE gw_auto_ri_types,                ONLY: auto_ri_type
    USE gw_compute_V_and_W,              ONLY: get_V_tr_R
+   USE gw_nevanlinna,                   ONLY: nevanlinna_create_windows,&
+                                              nevanlinna_prepare_window_grid,&
+                                              nevanlinna_type,&
+                                              nevanlinna_window_grid_type
    USE gw_ri_rs_small_cell_full_kp_q0_corr,ONLY: prepare_ri_rs_gamma_correction
    USE gw_utils_compute_integrals,      ONLY: build_3c_integral_block
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
@@ -3949,6 +3953,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: v
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: m_dummy, q_sorted, w_sel, z_dummy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: q_win
+      TYPE(nevanlinna_type), ALLOCATABLE, DIMENSION(:)   :: fits
+      TYPE(nevanlinna_window_grid_type)                  :: window_grid
 
       CALL timeset(routineN, handle)
 
@@ -3976,6 +3982,7 @@ CONTAINS
       END IF
 
       ! Every window takes a prefix of these samples.
+      CALL nevanlinna_prepare_window_grid(window_grid, w_sel(1:window_size(n_window)))
       ALLOCATE (sig_sel(n_mo, window_size(n_window)))
       DO j = 1, SIZE(sig_sel, 2)
          sig_sel(:, j) = Sigma_c_ikp_n_freq(:, order(j))
@@ -3984,12 +3991,15 @@ CONTAINS
       q_win(:, :) = 0.0_dp
       multi_count(:) = 0
 
-      DO i_win = 1, n_window
-         k_w = window_size(i_win)
-         !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) IF (n_mo - first_mo >= n_ranks) &
-         !$OMP SHARED(bs_env, first_mo, n_mo, n_ranks, ispin, i_win, k_w, w_sel, z_dummy, m_dummy, sig_sel, &
-         !$OMP        Sigma_x_minus_vxc, eigenval_G, eigenval_scf, q_win, multi_count) PRIVATE(multi_i)
-         DO i_mo = first_mo, n_mo, n_ranks
+      ALLOCATE (fits(n_window))
+      !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) IF (n_mo - first_mo >= n_ranks) &
+      !$OMP SHARED(bs_env, first_mo, n_mo, n_ranks, ispin, window_grid, n_window, window_size, w_sel, &
+      !$OMP        z_dummy, m_dummy, sig_sel, Sigma_x_minus_vxc, eigenval_G, eigenval_scf, q_win, multi_count) &
+      !$OMP PRIVATE(fits, i_win, k_w, multi_i)
+      DO i_mo = first_mo, n_mo, n_ranks
+         CALL nevanlinna_create_windows(fits, window_grid, sig_sel(i_mo, :), i_mo <= bs_env%n_occ(ispin), window_size(1:n_window))
+         DO i_win = 1, n_window
+            k_w = window_size(i_win)
             CALL continuation_pade(q_win(:, i_win), w_sel(1:k_w), z_dummy, m_dummy, sig_sel(:, 1:k_w), &
                                    Sigma_x_minus_vxc, eigenval_G, eigenval_scf, &
                                    bs_env%do_hedin_shift, &
@@ -3999,11 +4009,11 @@ CONTAINS
                                    0.0_dp, .TRUE., .FALSE., 1, e_fermi_ext=bs_env%e_fermi(ispin), &
                                    ac_method=gw_ac_nevanlinna, qp_start_eigenval=.TRUE., &
                                    qp_newton_max_step=bs_env%nevanlinna%qp_newton_max_step, &
-                                   qp_maxz_radius=bs_env%nevanlinna%qp_maxz_radius, qp_multi=multi_i)
+                                   qp_maxz_radius=bs_env%nevanlinna%qp_maxz_radius, qp_multi=multi_i, window_fit=fits(i_win))
             IF (multi_i) multi_count(i_mo) = multi_count(i_mo) + 1
          END DO
-         !$OMP END PARALLEL DO
       END DO
+      !$OMP END PARALLEL DO
 
       CALL bs_env%para_env%sum(q_win)
       CALL bs_env%para_env%sum(multi_count)

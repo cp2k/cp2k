@@ -39,6 +39,7 @@ MODULE gw_nevanlinna
 
    PUBLIC :: gw_nevanlinna_env_type, nevanlinna_type, nevanlinna_create, nevanlinna_evaluate, &
              nevanlinna_evaluate_real_grid, nevanlinna_release
+   PUBLIC :: nevanlinna_window_grid_type, nevanlinna_prepare_window_grid, nevanlinna_create_windows
 
 ! **************************************************************************************************
 !> \brief Parameters of the quasiparticle solution with the Nevanlinna continuation; they are set
@@ -71,6 +72,16 @@ MODULE gw_nevanlinna
       COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE        :: xis, phis
    END TYPE nevanlinna_type
 
+! **************************************************************************************************
+!> \brief Frequency-dependent Schur factors shared by the bands and fit windows of a k-point.
+! **************************************************************************************************
+   TYPE nevanlinna_window_grid_type
+      PRIVATE
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: omega
+      TYPE(zdd_type), ALLOCATABLE, DIMENSION(:)          :: xis
+      TYPE(zdd_type), ALLOCATABLE, DIMENSION(:, :)       :: factors
+   END TYPE nevanlinna_window_grid_type
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -89,21 +100,20 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'nevanlinna_create'
 
-      COMPLEX(KIND=dp)                                   :: s
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: xx, yy
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: pick, pick_vec
-      INTEGER                                            :: handle, i, i_delta, k, n
+      INTEGER                                            :: handle, i, i_delta, k, n, n_valid
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: order
       REAL(KIND=dp)                                      :: scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pick_eig
-      TYPE(zdd_type), ALLOCATABLE, DIMENSION(:)          :: lams, phis, xis
+      TYPE(zdd_type), ALLOCATABLE, DIMENSION(:)          :: phis, xis
 
       CALL timeset(routineN, handle)
 
       IF (PRESENT(pick_min)) pick_min = 0.0_dp
       n = SIZE(x)
       nev%n = n
-      ALLOCATE (nev%xis(n), nev%phis(n), xis(n), phis(n), lams(n), xx(n), yy(n), order(n))
+      ALLOCATE (nev%xis(n), nev%phis(n), xis(n), phis(n), xx(n), yy(n), order(n))
       nev%xis(:) = (0.0_dp, 0.0_dp)
       nev%phis(:) = (0.0_dp, 0.0_dp)
 
@@ -118,7 +128,7 @@ CONTAINS
       END IF
 
       IF (n == 0 .OR. .NOT. (ALL(ABS(xx) < HUGE(1.0_dp)) .AND. ALL(ABS(yy) < HUGE(1.0_dp)))) THEN
-         DEALLOCATE (xis, phis, lams, xx, yy, order)
+         DEALLOCATE (xis, phis, xx, yy, order)
          CALL timestop(handle)
          RETURN
       END IF
@@ -134,9 +144,7 @@ CONTAINS
 
       DO i_delta = 1, SIZE(nevanlinna_deltas)
          DO i = 1, n
-            s = yy(order(i)) - CMPLX(0.0_dp, nevanlinna_deltas(i_delta)*scale, KIND=dp)
-            ! -Sigma is the function that maps the upper half plane into itself
-            lams(i) = moebius(zdd(-s))
+            phis(i) = shifted_sample(yy(order(i)), nevanlinna_deltas(i_delta)*scale)
          END DO
 
          IF (i_delta == 1 .AND. PRESENT(pick_min)) THEN
@@ -145,7 +153,7 @@ CONTAINS
             ALLOCATE (pick(n, n), pick_vec(n, n), pick_eig(n))
             DO k = 1, n
                DO i = 1, n
-                  pick(i, k) = zdd_to_dp(zdd_div(zdd_sub(zdd_one, zdd_mul(lams(i), zdd_conjg(lams(k)))), &
+                  pick(i, k) = zdd_to_dp(zdd_div(zdd_sub(zdd_one, zdd_mul(phis(i), zdd_conjg(phis(k)))), &
                                                  zdd_sub(zdd_one, zdd_mul(xis(i), zdd_conjg(xis(k))))))
                END DO
             END DO
@@ -155,7 +163,8 @@ CONTAINS
             DEALLOCATE (pick, pick_vec, pick_eig)
          END IF
 
-         nev%solvable = schur_parameters(xis, lams, phis)
+         n_valid = schur_prefix(xis, phis)
+         nev%solvable = n_valid == n
          IF (nev%solvable) EXIT
       END DO
 
@@ -164,11 +173,113 @@ CONTAINS
          IF (nev%solvable) nev%phis(i) = zdd_to_dp(phis(i))
       END DO
 
-      DEALLOCATE (xis, phis, lams, xx, yy, order)
+      DEALLOCATE (xis, phis, xx, yy, order)
 
       CALL timestop(handle)
 
    END SUBROUTINE nevanlinna_create
+
+! **************************************************************************************************
+!> \brief Prepare the Moebius nodes and triangular table of Blaschke factors for a prefix grid.
+!> \param grid shared frequency data
+!> \param omega imaginary frequencies in window order
+! **************************************************************************************************
+   SUBROUTINE nevanlinna_prepare_window_grid(grid, omega)
+      TYPE(nevanlinna_window_grid_type), INTENT(OUT)     :: grid
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: omega
+
+      INTEGER                                            :: j, k, n
+
+      n = SIZE(omega)
+      ALLOCATE (grid%omega(n))
+      grid%omega(:) = ABS(omega)
+      ! With a zero frequency the occupied-state mirror convention changes. An unordered
+      ! grid can also give different sorted prefixes. Use the single-window path in either case.
+      IF (.NOT. ALL(grid%omega > 0.0_dp .AND. grid%omega < HUGE(1.0_dp))) RETURN
+      IF (ANY(grid%omega(2:n) < grid%omega(1:n - 1))) RETURN
+      ALLOCATE (grid%xis(n))
+      grid%xis(:) = moebius(zdd(CMPLX(0.0_dp, grid%omega, KIND=dp)))
+      IF (ANY(zdd_abs2(grid%xis) >= 1.0_dp)) RETURN
+      ALLOCATE (grid%factors(n, n))
+      DO k = 1, n
+         DO j = 1, k - 1
+            grid%factors(j, k) = blaschke_factor(grid%xis(j), grid%xis(k))
+         END DO
+      END DO
+   END SUBROUTINE nevanlinna_prepare_window_grid
+
+! **************************************************************************************************
+!> \brief Fit nested windows for a single band, reusing Schur parameters at equal absolute shifts.
+!> \param fits one interpolant per window, with solvable false if all shifts failed
+!> \param grid frequency data shared across bands
+!> \param y self-energy samples in the same order as the grid
+!> \param occupied whether the samples were taken on the negative imaginary axis
+!> \param sizes positive window lengths in increasing order
+! **************************************************************************************************
+   SUBROUTINE nevanlinna_create_windows(fits, grid, y, occupied, sizes)
+      TYPE(nevanlinna_type), DIMENSION(:), INTENT(OUT)   :: fits
+      TYPE(nevanlinna_window_grid_type), INTENT(IN)      :: grid
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: y
+      LOGICAL, INTENT(IN)                                :: occupied
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'nevanlinna_create_windows'
+      COMPLEX(KIND=dp), PARAMETER                        :: ii = (0.0_dp, 1.0_dp)
+
+      COMPLEX(KIND=dp), DIMENSION(SIZE(y))               :: yy
+      INTEGER                                            :: handle, i, i_delta, n, n_valid
+      REAL(KIND=dp)                                      :: previous_shift, shift, sign_freq
+      REAL(KIND=dp), DIMENSION(SIZE(sizes))              :: window_scale
+      REAL(KIND=dp), DIMENSION(SIZE(y))                  :: abs_y
+      TYPE(zdd_type), DIMENSION(SIZE(y))                 :: phis
+
+      CALL timeset(routineN, handle)
+      abs_y(:) = ABS(y)
+      IF (.NOT. ALLOCATED(grid%factors) .OR. .NOT. ALL(abs_y < HUGE(1.0_dp))) THEN
+         ! A bad sample in a longer window must not invalidate its shorter prefixes.
+         sign_freq = MERGE(-1.0_dp, 1.0_dp, occupied)
+         DO i = 1, SIZE(sizes)
+            n = sizes(i)
+            CALL nevanlinna_create(fits(i), ii*(sign_freq*grid%omega(1:n)), y(1:n))
+         END DO
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      yy(:) = y
+      IF (occupied) yy(:) = CONJG(y)
+      DO i = 1, SIZE(sizes)
+         n = sizes(i)
+         fits(i)%n = n
+         fits(i)%mirrored = occupied
+         window_scale(i) = MAXVAL(abs_y(1:n))
+         IF (window_scale(i) == 0.0_dp) window_scale(i) = 1.0_dp
+      END DO
+
+      DO i_delta = 1, SIZE(nevanlinna_deltas)
+         previous_shift = -1.0_dp
+         n_valid = 0
+         DO i = SIZE(sizes), 1, -1
+            IF (fits(i)%solvable) CYCLE
+            n = sizes(i)
+            shift = nevanlinna_deltas(i_delta)*window_scale(i)
+            ! A shorter window at this exact shift has the same parameters up to the
+            ! first failed Schur step, even if the longer window needs another shift.
+            IF (shift /= previous_shift) THEN
+               phis(1:n) = shifted_sample(yy(1:n), shift)
+               n_valid = schur_prefix(grid%xis(1:n), phis(1:n), grid%factors)
+               previous_shift = shift
+            END IF
+            IF (n > n_valid) CYCLE
+            fits(i)%solvable = .TRUE.
+            ALLOCATE (fits(i)%xis(n), fits(i)%phis(n))
+            fits(i)%xis(:) = zdd_to_dp(grid%xis(1:n))
+            fits(i)%phis(:) = zdd_to_dp(phis(1:n))
+         END DO
+         IF (ALL(fits%solvable)) EXIT
+      END DO
+      CALL timestop(handle)
+   END SUBROUTINE nevanlinna_create_windows
 
 ! **************************************************************************************************
 !> \brief Evaluates the interpolant on the real axis
@@ -334,44 +445,72 @@ CONTAINS
    END FUNCTION moebius
 
 ! **************************************************************************************************
-!> \brief Schur recursion; fails if an intermediate value leaves the unit disk, i.e. if no
-!>        contractive interpolant of the samples exists
-!> \param xis Moebius images of the sample points, sorted by imaginary part
-!> \param lams Moebius images of the function values
-!> \param phis Schur parameters
-!> \return .TRUE. if the recursion stayed inside the unit disk
+!> \brief Map the shifted -Sigma sample to the unit disk.
+!> \param y self-energy sample in the upper half plane
+!> \param shift absolute imaginary shift
+!> \return Moebius image of the shifted sample
 ! **************************************************************************************************
-   FUNCTION schur_parameters(xis, lams, phis) RESULT(ok)
-      TYPE(zdd_type), DIMENSION(:), INTENT(IN)           :: xis, lams
-      TYPE(zdd_type), DIMENSION(:), INTENT(OUT)          :: phis
-      LOGICAL                                            :: ok
+   ELEMENTAL FUNCTION shifted_sample(y, shift) RESULT(lam)
+      COMPLEX(KIND=dp), INTENT(IN)                       :: y
+      REAL(KIND=dp), INTENT(IN)                          :: shift
+      TYPE(zdd_type)                                     :: lam
+
+      lam = moebius(zdd(-(y - CMPLX(0.0_dp, shift, KIND=dp))))
+   END FUNCTION shifted_sample
+
+! **************************************************************************************************
+!> \brief Blaschke factor at a pair of Moebius nodes.
+!> \param xi Schur node
+!> \param x evaluation node
+!> \return Blaschke factor
+! **************************************************************************************************
+   PURE FUNCTION blaschke_factor(xi, x) RESULT(bfac)
+      TYPE(zdd_type), INTENT(IN)                         :: xi, x
+      TYPE(zdd_type)                                     :: bfac
+
+      bfac = zdd_div(zdd_sub(x, xi), zdd_sub(zdd_one, zdd_mul(zdd_conjg(xi), x)))
+   END FUNCTION blaschke_factor
+
+! **************************************************************************************************
+!> \brief Schur recursion through the first sample outside the unit disk.
+!> \param xis Moebius images of the sample points, sorted by imaginary part
+!> \param phis Moebius images of the function values on input, Schur parameters of the valid prefix on output
+!> \param factors optional precomputed Blaschke factors
+!> \return length of the valid prefix
+! **************************************************************************************************
+   FUNCTION schur_prefix(xis, phis, factors) RESULT(n_valid)
+      TYPE(zdd_type), DIMENSION(:), INTENT(IN)           :: xis
+      TYPE(zdd_type), DIMENSION(:), INTENT(INOUT)        :: phis
+      TYPE(zdd_type), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: factors
+      INTEGER                                            :: n_valid
 
       INTEGER                                            :: j, k
       TYPE(zdd_type)                                     :: bfac, den, phi
-      TYPE(zdd_type), DIMENSION(SIZE(xis))               :: vals
 
-      vals(:) = lams
-      phis(:) = zdd_zero
-      ok = .TRUE.
-      DO j = 1, SIZE(xis)
-         phi = vals(j)
-         IF (zdd_abs2(phi) >= 1.0_dp) THEN
-            ok = .FALSE.
-            RETURN
-         END IF
-         phis(j) = phi
-         DO k = j + 1, SIZE(xis)
-            bfac = zdd_div(zdd_sub(xis(k), xis(j)), zdd_sub(zdd_one, zdd_mul(zdd_conjg(xis(j)), xis(k))))
-            den = zdd_sub(zdd_one, zdd_mul(zdd_conjg(phi), vals(k)))
-            IF (zdd_abs2(den) < tiny_schur**2 .OR. zdd_abs2(bfac) < tiny_schur**2) THEN
-               vals(k) = zdd_zero
-               CYCLE
+      n_valid = 0
+      ! Finish one node before starting the next so a rejected prefix never updates the tail.
+      DO k = 1, SIZE(xis)
+         phi = phis(k)
+         DO j = 1, k - 1
+            IF (PRESENT(factors)) THEN
+               bfac = factors(j, k)
+            ELSE
+               bfac = blaschke_factor(xis(j), xis(k))
             END IF
-            vals(k) = zdd_div(zdd_div(zdd_sub(vals(k), phi), den), bfac)
+            den = zdd_sub(zdd_one, zdd_mul(zdd_conjg(phis(j)), phi))
+            IF (zdd_abs2(den) < tiny_schur**2 .OR. zdd_abs2(bfac) < tiny_schur**2) THEN
+               phi = zdd_zero
+            ELSE
+               phi = zdd_div(zdd_div(zdd_sub(phi, phis(j)), den), bfac)
+            END IF
          END DO
+         IF (zdd_abs2(phi) >= 1.0_dp) EXIT
+         phis(k) = phi
+         n_valid = k
       END DO
 
-   END FUNCTION schur_parameters
+   END FUNCTION schur_prefix
 
 ! **************************************************************************************************
 !> \brief Insertion sort of sample points by increasing imaginary part
