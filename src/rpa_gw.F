@@ -73,6 +73,7 @@ MODULE rpa_gw
         dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
    USE gw_nevanlinna,                   ONLY: nevanlinna_create,&
                                               nevanlinna_evaluate,&
+                                              nevanlinna_evaluate_real_grid,&
                                               nevanlinna_release,&
                                               nevanlinna_type
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA
@@ -4907,6 +4908,7 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: sigma_c
       INTEGER                                            :: handle, i, i_best, it, j, n_grid, &
                                                             n_root
+      LOGICAL                                            :: use_nevanlinna
       REAL(KIND=dp)                                      :: e_a, e_b, e_mid, e_newton, f_a, f_mid, &
                                                             m_val, z_val
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: grid_e, grid_f, root_e, root_z
@@ -4919,8 +4921,24 @@ CONTAINS
       ALLOCATE (grid_e(n_grid), grid_f(n_grid), root_e(n_grid), root_z(n_grid))
       DO i = 1, n_grid
          grid_e(i) = e_newton - radius + REAL(i - 1, KIND=dp)*grid_step
-         grid_f(i) = qp_residual(grid_e(i))
       END DO
+      use_nevanlinna = .FALSE.
+      IF (PRESENT(nev)) use_nevanlinna = nev%solvable
+      IF (use_nevanlinna) THEN
+         CALL nevanlinna_evaluate_real_grid(nev, grid_e - e_fermi - hedin_shift, grid_f)
+         grid_f(:) = Eigenval_scf + Sigma_x_minus_vxc_gw + grid_f - grid_e
+         ! At a grid point close to a zero, use the scalar residual to decide its sign.
+         DO i = 1, n_grid
+            IF (ABS(grid_f(i)) <= SQRT(EPSILON(1.0_dp))* &
+                MAX(1.0_dp, ABS(grid_e(i)), ABS(Eigenval_scf + Sigma_x_minus_vxc_gw))) THEN
+               grid_f(i) = qp_residual(grid_e(i))
+            END IF
+         END DO
+      ELSE
+         DO i = 1, n_grid
+            grid_f(i) = qp_residual(grid_e(i))
+         END DO
+      END IF
 
       ! bracket all sign changes of the residual e_DFT + Sigma_x - v_xc + Re Sigma_c(e) - e
       n_root = 0

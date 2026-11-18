@@ -38,7 +38,7 @@ MODULE gw_nevanlinna
    REAL(KIND=dp), PARAMETER :: tiny_schur = 1.0E-40_dp
 
    PUBLIC :: gw_nevanlinna_env_type, nevanlinna_type, nevanlinna_create, nevanlinna_evaluate, &
-             nevanlinna_release
+             nevanlinna_evaluate_real_grid, nevanlinna_release
 
 ! **************************************************************************************************
 !> \brief Parameters of the quasiparticle solution with the Nevanlinna continuation; they are set
@@ -226,6 +226,91 @@ CONTAINS
       IF (nev%mirrored) func_val = CONJG(func_val)
 
    END SUBROUTINE nevanlinna_evaluate
+
+! **************************************************************************************************
+!> \brief Evaluates Re Sigma on a grid of real frequencies
+!> \param nev the interpolant
+!> \param x real frequencies
+!> \param values real part of the continued correlation self-energy at x
+! **************************************************************************************************
+   SUBROUTINE nevanlinna_evaluate_real_grid(nev, x, values)
+      TYPE(nevanlinna_type), INTENT(IN)                  :: nev
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: x
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: values
+
+      COMPLEX(KIND=dp), PARAMETER                        :: ii = (0.0_dp, 1.0_dp)
+      INTEGER, PARAMETER                                 :: block_size = 64
+
+      COMPLEX(KIND=dp)                                   :: alpha, beta, c, p, phi, q, sigma
+      COMPLEX(KIND=dp), DIMENSION(block_size)            :: u, v
+      INTEGER                                            :: first, i, j, n
+      REAL(KIND=dp)                                      :: scale
+      REAL(KIND=dp), DIMENSION(block_size)               :: inv_scale, x_scaled
+
+      IF (nev%n == 0) THEN
+         values(:) = 0.0_dp
+         RETURN
+      END IF
+      ! Near a node on the unit circle the two forms of the Blaschke factor can lose
+      ! different digits. Use the scalar arithmetic for these ill-conditioned fits.
+      IF (ANY(ABS(nev%xis(1:nev%n - 1)) > 1.0_dp - SQRT(EPSILON(1.0_dp)))) THEN
+         DO i = 1, SIZE(x)
+            CALL nevanlinna_evaluate(nev, x(i), sigma)
+            values(i) = REAL(sigma, KIND=dp)
+         END DO
+         RETURN
+      END IF
+      DO first = 1, SIZE(x), block_size
+         n = MIN(block_size, SIZE(x) - first + 1)
+         ! Represent x by (x_scaled,inv_scale) to keep the factors bounded at large x.
+         DO i = 1, n
+            scale = MAX(1.0_dp, ABS(x(first + i - 1)))
+            x_scaled(i) = x(first + i - 1)/scale
+            inv_scale(i) = 1.0_dp/scale
+         END DO
+         ! Apply the product to (0,1) from right to left. The last factor gives (phi_n,1).
+         u(1:n) = nev%phis(nev%n)
+         v(1:n) = 1.0_dp
+         DO j = nev%n - 1, 1, -1
+            alpha = 1.0_dp - nev%xis(j)
+            beta = -ii*(1.0_dp + nev%xis(j))
+            phi = nev%phis(j)
+            ! At real x the Blaschke factor is c/conjg(c), c = (1-xi)*x - i*(1+xi).
+            ! A common real scale cancels from u/v. Bound c before multiplying the vector.
+            !$OMP SIMD PRIVATE(c,scale,p,q)
+            DO i = 1, n
+               c = alpha*x_scaled(i) + beta*inv_scale(i)
+               scale = MAX(ABS(REAL(c, KIND=dp)), ABS(AIMAG(c)), TINY(1.0_dp))
+               c = c/scale
+               p = c*u(i)
+               q = CONJG(c)*v(i)
+               u(i) = p + phi*q
+               v(i) = q + CONJG(phi)*p
+            END DO
+            ! The common scale drops out of the final ratio; bound its drift in long fits.
+            IF (MOD(j, 8) == 0) THEN
+               !$OMP SIMD PRIVATE(scale)
+               DO i = 1, n
+                  scale = MAX(ABS(REAL(u(i), KIND=dp)), ABS(AIMAG(u(i))), &
+                              ABS(REAL(v(i), KIND=dp)), ABS(AIMAG(v(i))), TINY(1.0_dp))
+                  u(i) = u(i)/scale
+                  v(i) = v(i)/scale
+               END DO
+            END IF
+         END DO
+         DO i = 1, n
+            ! Near a pole use the scalar evaluator's order of operations for the sign test.
+            IF (ABS(v(i) - u(i)) <= SQRT(EPSILON(1.0_dp))*ABS(v(i))) THEN
+               CALL nevanlinna_evaluate(nev, x(first + i - 1), sigma)
+               values(first + i - 1) = REAL(sigma, KIND=dp)
+            ELSE
+               ! Re[-i*(v+u)/(v-u)] is unchanged by the occupied-state conjugation.
+               values(first + i - 1) = AIMAG((v(i) + u(i))/(v(i) - u(i)))
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE nevanlinna_evaluate_real_grid
 
 ! **************************************************************************************************
 !> \brief Releases the interpolant
