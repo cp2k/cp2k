@@ -4950,6 +4950,7 @@ CONTAINS
          f_a = grid_f(i)
          DO it = 1, n_bisection
             e_mid = 0.5_dp*(e_a + e_b)
+            IF (e_mid == e_a .OR. e_mid == e_b) EXIT
             f_mid = qp_residual(e_mid)
             IF (SIGN(1.0_dp, f_mid) == SIGN(1.0_dp, f_a)) THEN
                e_a = e_mid
