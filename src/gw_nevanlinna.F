@@ -68,8 +68,6 @@ MODULE gw_nevanlinna
       LOGICAL                                            :: solvable = .FALSE.
       LOGICAL                                            :: mirrored = .FALSE.
       INTEGER                                            :: n = 0
-      REAL(KIND=dp)                                      :: delta = 0.0_dp
-      REAL(KIND=dp)                                      :: pick_min = 0.0_dp
       COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE        :: xis, phis
    END TYPE nevanlinna_type
 
@@ -82,12 +80,12 @@ CONTAINS
 !> \param nev the interpolant
 !> \param x sample points, all in the upper or all in the lower half plane
 !> \param y values of the correlation self-energy at x
-!> \param compute_pick compute the unshifted Pick diagnostic (default: true)
+!> \param pick_min optional smallest relative eigenvalue of the unshifted Pick matrix
 ! **************************************************************************************************
-   SUBROUTINE nevanlinna_create(nev, x, y, compute_pick)
+   SUBROUTINE nevanlinna_create(nev, x, y, pick_min)
       TYPE(nevanlinna_type), INTENT(OUT)                 :: nev
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: x, y
-      LOGICAL, INTENT(IN), OPTIONAL                      :: compute_pick
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: pick_min
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'nevanlinna_create'
 
@@ -96,15 +94,13 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: pick, pick_vec
       INTEGER                                            :: handle, i, i_delta, k, n
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: order
-      LOGICAL                                            :: need_pick
       REAL(KIND=dp)                                      :: scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pick_eig
       TYPE(zdd_type), ALLOCATABLE, DIMENSION(:)          :: lams, phis, xis
 
       CALL timeset(routineN, handle)
 
-      need_pick = .TRUE.
-      IF (PRESENT(compute_pick)) need_pick = compute_pick
+      IF (PRESENT(pick_min)) pick_min = 0.0_dp
       n = SIZE(x)
       nev%n = n
       ALLOCATE (nev%xis(n), nev%phis(n), xis(n), phis(n), lams(n), xx(n), yy(n), order(n))
@@ -143,7 +139,7 @@ CONTAINS
             lams(i) = moebius(zdd(-s))
          END DO
 
-         IF (i_delta == 1 .AND. need_pick) THEN
+         IF (i_delta == 1 .AND. PRESENT(pick_min)) THEN
             ! smallest eigenvalue of the Pick matrix of the unshifted samples, relative to the
             ! largest one; negative values quantify how far the data are from causal
             ALLOCATE (pick(n, n), pick_vec(n, n), pick_eig(n))
@@ -155,15 +151,12 @@ CONTAINS
             END DO
             pick(:, :) = 0.5_dp*(pick + CONJG(TRANSPOSE(pick)))
             CALL diag_complex(pick, pick_vec, pick_eig)
-            nev%pick_min = MINVAL(pick_eig)/MAX(MAXVAL(ABS(pick_eig)), TINY(1.0_dp))
+            pick_min = MINVAL(pick_eig)/MAX(MAXVAL(ABS(pick_eig)), TINY(1.0_dp))
             DEALLOCATE (pick, pick_vec, pick_eig)
          END IF
 
-         IF (schur_parameters(xis, lams, phis)) THEN
-            nev%solvable = .TRUE.
-            nev%delta = nevanlinna_deltas(i_delta)
-            EXIT
-         END IF
+         nev%solvable = schur_parameters(xis, lams, phis)
+         IF (nev%solvable) EXIT
       END DO
 
       DO i = 1, n
@@ -239,7 +232,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: values
 
       COMPLEX(KIND=dp), PARAMETER                        :: ii = (0.0_dp, 1.0_dp)
-      INTEGER, PARAMETER                                 :: block_size = 64
+      INTEGER, PARAMETER                                 :: block_size = 64, rescale_interval = 8
+      REAL(KIND=dp), PARAMETER :: scalar_tol = SQRT(EPSILON(1.0_dp))
 
       COMPLEX(KIND=dp)                                   :: alpha, beta, c, p, phi, q, sigma
       COMPLEX(KIND=dp), DIMENSION(block_size)            :: u, v
@@ -253,7 +247,7 @@ CONTAINS
       END IF
       ! Near a node on the unit circle the two forms of the Blaschke factor can lose
       ! different digits. Use the scalar arithmetic for these ill-conditioned fits.
-      IF (ANY(ABS(nev%xis(1:nev%n - 1)) > 1.0_dp - SQRT(EPSILON(1.0_dp)))) THEN
+      IF (ANY(ABS(nev%xis(1:nev%n - 1)) > 1.0_dp - scalar_tol)) THEN
          DO i = 1, SIZE(x)
             CALL nevanlinna_evaluate(nev, x(i), sigma)
             values(i) = REAL(sigma, KIND=dp)
@@ -288,7 +282,7 @@ CONTAINS
                v(i) = q + CONJG(phi)*p
             END DO
             ! The common scale drops out of the final ratio; bound its drift in long fits.
-            IF (MOD(j, 8) == 0) THEN
+            IF (MOD(j, rescale_interval) == 0) THEN
                !$OMP SIMD PRIVATE(scale)
                DO i = 1, n
                   scale = MAX(ABS(REAL(u(i), KIND=dp)), ABS(AIMAG(u(i))), &
@@ -300,7 +294,7 @@ CONTAINS
          END DO
          DO i = 1, n
             ! Near a pole use the scalar evaluator's order of operations for the sign test.
-            IF (ABS(v(i) - u(i)) <= SQRT(EPSILON(1.0_dp))*ABS(v(i))) THEN
+            IF (ABS(v(i) - u(i)) <= scalar_tol*ABS(v(i))) THEN
                CALL nevanlinna_evaluate(nev, x(first + i - 1), sigma)
                values(first + i - 1) = REAL(sigma, KIND=dp)
             ELSE

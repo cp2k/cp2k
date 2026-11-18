@@ -4351,20 +4351,14 @@ CONTAINS
 
       !*** Nevanlinna interpolant through all fit points; the Pade approximant above is kept as
       !*** fallback for levels whose samples admit no causal interpolant
+      IF (PRESENT(ac_pick)) ac_pick = 0.0_dp
       IF (PRESENT(ac_method)) THEN
          IF (ac_method == gw_ac_nevanlinna) THEN
             CALL nevanlinna_create(nev, gaussi*vec_omega_fit_gw_sign_reorder(1:num_fit_points), &
-                                   Sigma_c_gw_reorder(1:num_fit_points), compute_pick=PRESENT(ac_pick))
+                                   Sigma_c_gw_reorder(1:num_fit_points), pick_min=ac_pick)
          END IF
       END IF
-      IF (PRESENT(ac_used)) THEN
-         IF (nev%solvable) THEN
-            ac_used = gw_ac_nevanlinna
-         ELSE
-            ac_used = gw_ac_pade
-         END IF
-      END IF
-      IF (PRESENT(ac_pick)) ac_pick = nev%pick_min
+      IF (PRESENT(ac_used)) ac_used = MERGE(gw_ac_nevanlinna, gw_ac_pade, nev%solvable)
 
       !*** calculate start_value for iterative cross-searching methods
       IF ((crossing_search == ri_rpa_g0w0_crossing_bisection) .OR. &
@@ -4898,39 +4892,37 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nparam_pade
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
       REAL(KIND=dp), INTENT(IN)                          :: hedin_shift, radius
-      TYPE(nevanlinna_type), INTENT(IN), OPTIONAL        :: nev
+      TYPE(nevanlinna_type), INTENT(IN)                  :: nev
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'select_qp_maxz'
       INTEGER, PARAMETER                                 :: n_bisection = 60
       REAL(KIND=dp), PARAMETER :: grid_step = 0.002_dp/evolt, max_residual = 1.0E-6_dp, &
-                                  multi_ratio = 0.25_dp, z_max = 1.05_dp, z_min = 0.02_dp
+                                  multi_ratio = 0.25_dp, sign_tol = SQRT(EPSILON(1.0_dp)), &
+                                  z_max = 1.05_dp, z_min = 0.02_dp
 
       COMPLEX(KIND=dp)                                   :: sigma_c
       INTEGER                                            :: handle, i, i_best, it, j, n_grid, &
                                                             n_root
-      LOGICAL                                            :: use_nevanlinna
-      REAL(KIND=dp)                                      :: e_a, e_b, e_mid, e_newton, f_a, f_mid, &
-                                                            m_val, z_val
+      REAL(KIND=dp)                                      :: e_a, e_b, e_mid, e_newton, e_ref, &
+                                                            m_val, sign_a, z_val
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: grid_e, grid_f, root_e, root_z
 
       CALL timeset(routineN, handle)
 
       qp_multi = .FALSE.
-      e_newton = Eigenval_scf + Sigma_x_minus_vxc_gw + gw_energ
+      e_ref = Eigenval_scf + Sigma_x_minus_vxc_gw
+      e_newton = e_ref + gw_energ
       n_grid = NINT(2.0_dp*radius/grid_step) + 1
       ALLOCATE (grid_e(n_grid), grid_f(n_grid), root_e(n_grid), root_z(n_grid))
       DO i = 1, n_grid
          grid_e(i) = e_newton - radius + REAL(i - 1, KIND=dp)*grid_step
       END DO
-      use_nevanlinna = .FALSE.
-      IF (PRESENT(nev)) use_nevanlinna = nev%solvable
-      IF (use_nevanlinna) THEN
+      IF (nev%solvable) THEN
          CALL nevanlinna_evaluate_real_grid(nev, grid_e - e_fermi - hedin_shift, grid_f)
-         grid_f(:) = Eigenval_scf + Sigma_x_minus_vxc_gw + grid_f - grid_e
+         grid_f(:) = e_ref + grid_f - grid_e
          ! At a grid point close to a zero, use the scalar residual to decide its sign.
          DO i = 1, n_grid
-            IF (ABS(grid_f(i)) <= SQRT(EPSILON(1.0_dp))* &
-                MAX(1.0_dp, ABS(grid_e(i)), ABS(Eigenval_scf + Sigma_x_minus_vxc_gw))) THEN
+            IF (ABS(grid_f(i)) <= sign_tol*MAX(1.0_dp, ABS(grid_e(i)), ABS(e_ref))) THEN
                grid_f(i) = qp_residual(grid_e(i))
             END IF
          END DO
@@ -4944,17 +4936,15 @@ CONTAINS
       n_root = 0
       DO i = 1, n_grid - 1
          IF (.NOT. (grid_f(i) == grid_f(i) .AND. grid_f(i + 1) == grid_f(i + 1))) CYCLE
-         IF (SIGN(1.0_dp, grid_f(i)) == SIGN(1.0_dp, grid_f(i + 1))) CYCLE
+         sign_a = SIGN(1.0_dp, grid_f(i))
+         IF (sign_a == SIGN(1.0_dp, grid_f(i + 1))) CYCLE
          e_a = grid_e(i)
          e_b = grid_e(i + 1)
-         f_a = grid_f(i)
          DO it = 1, n_bisection
             e_mid = 0.5_dp*(e_a + e_b)
             IF (e_mid == e_a .OR. e_mid == e_b) EXIT
-            f_mid = qp_residual(e_mid)
-            IF (SIGN(1.0_dp, f_mid) == SIGN(1.0_dp, f_a)) THEN
+            IF (SIGN(1.0_dp, qp_residual(e_mid)) == sign_a) THEN
                e_a = e_mid
-               f_a = f_mid
             ELSE
                e_b = e_mid
             END IF
@@ -4980,7 +4970,10 @@ CONTAINS
          DO j = 1, n_root
             IF (j == i_best) CYCLE
             IF (ABS(root_e(j) - root_e(i_best)) < radius .AND. &
-                root_z(j) > multi_ratio*root_z(i_best)) qp_multi = .TRUE.
+                root_z(j) > multi_ratio*root_z(i_best)) THEN
+               qp_multi = .TRUE.
+               EXIT
+            END IF
          END DO
       END IF
 
@@ -5003,7 +4996,7 @@ CONTAINS
 
          CALL evaluate_ac_function(nev, e - e_fermi - hedin_shift, nparam_pade, omega_points_pade, &
                                    coeff_pade, sig)
-         res = Eigenval_scf + Sigma_x_minus_vxc_gw + REAL(sig) - e
+         res = e_ref + REAL(sig) - e
 
       END FUNCTION qp_residual
 
