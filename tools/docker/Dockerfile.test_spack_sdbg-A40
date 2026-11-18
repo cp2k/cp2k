@@ -62,6 +62,8 @@ WORKDIR /opt/cp2k
 COPY ./tools/spack ./tools/spack
 COPY ./tools/docker ./tools/docker
 COPY ./make_cp2k.sh .
+# Pin py-torch for this image only (see install_cp2k_spack(torch_spec=...)).
+RUN sed -i -E 's|("py-torch)@[^"]*"|\1@2.13.0+cuda cuda_arch=86"|' tools/spack/cp2k_deps_s.yaml
 RUN ./make_cp2k.sh -bd_only -cv sdbg -gpu A40 -gv 13 -j${NUM_PROCS} -mpi no -ue 
 
 ###### Stage 2: Build CP2K ######
