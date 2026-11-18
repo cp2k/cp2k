@@ -31,6 +31,7 @@
 
 #include <cfenv>
 #include <climits>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
@@ -207,20 +208,41 @@ static bool can_load_directly_to_device(const torch::Device &device) {
          torch::cuda::device_count() == 1;
 }
 
+static void torch_debug(const char *msg) {
+  std::fprintf(stderr, "[cp2k-torch-debug] %s\n", msg);
+  std::fflush(stderr);
+}
+
+static void torch_debug_dev(const char *msg, const torch::Device &device) {
+  std::fprintf(stderr, "[cp2k-torch-debug] %s (device=%s)\n", msg,
+               device.str().c_str());
+  std::fflush(stderr);
+}
+
 static torch::jit::Module load_module_for_device(
     const char *filename, const torch::Device &device,
     std::unordered_map<std::string, std::string> *extra_files = nullptr,
     const bool load_on_cpu = false) {
+  torch_debug_dev("load_module_for_device: begin", device);
+  std::fprintf(stderr,
+               "[cp2k-torch-debug] load_module_for_device: file=%s "
+               "load_on_cpu=%d\n",
+               filename, static_cast<int>(load_on_cpu));
+  std::fflush(stderr);
   if (!load_on_cpu && can_load_directly_to_device(device)) {
+    torch_debug("load_module_for_device: torch::jit::load direct-to-device");
     if (extra_files != nullptr) {
       return torch::jit::load(filename, device, *extra_files);
     }
     return torch::jit::load(filename, device);
   }
+  torch_debug("load_module_for_device: torch::jit::load to CPU");
   auto model = (extra_files != nullptr)
                    ? torch::jit::load(filename, torch::kCPU, *extra_files)
                    : torch::jit::load(filename, torch::kCPU);
+  torch_debug("load_module_for_device: model.to(device)");
   model.to(device);
+  torch_debug("load_module_for_device: done");
   return model;
 }
 
@@ -347,9 +369,11 @@ static void promote_model_float32(torch::jit::Module &model) {
 static void initialize_cuda_linalg(const torch::Device &device) {
   static std::once_flag flag;
   std::call_once(flag, [&]() {
+    torch_debug_dev("initialize_cuda_linalg: begin", device);
     const auto options =
         torch::TensorOptions().dtype(torch::kFloat32).device(device);
     static_cast<void>(at::linalg_eigh(torch::eye(1, options)));
+    torch_debug("initialize_cuda_linalg: done");
   });
 }
 
@@ -809,11 +833,14 @@ void torch_c_model_load(torch_c_model_t **model_out, const char *filename) {
   assert(*model_out == NULL);
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
+  torch_debug_dev("torch_c_model_load: begin", device);
   set_jit_fusion_strategy();
   torch::jit::Module *model = new torch::jit::Module();
   *model = load_module_for_device(filename, device);
+  torch_debug("torch_c_model_load: model->eval");
   model->eval(); // Set inference behavior for modules such as dropout.
   *model_out = model;
+  torch_debug("torch_c_model_load: done");
 }
 
 /*******************************************************************************
@@ -827,6 +854,7 @@ void torch_c_model_load_with_metadata(torch_c_model_t **model_out,
   assert(*model_out == NULL);
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
+  torch_debug_dev("torch_c_model_load_with_metadata: begin", device);
   std::unordered_map<std::string, std::string> extra_files = {{key1, ""},
                                                               {key2, ""}};
   set_jit_fusion_strategy();
@@ -834,10 +862,12 @@ void torch_c_model_load_with_metadata(torch_c_model_t **model_out,
   // Deduplicate Skala constants on CPU without repeated CUDA synchronization.
   *model =
       load_module_for_device(filename, device, &extra_files, device.is_cuda());
+  torch_debug("torch_c_model_load_with_metadata: model->eval");
   model->eval(); // Set inference behavior for modules such as dropout.
   *model_out = model;
   copy_string_to_c_buffer(extra_files[key1], content1, length1);
   copy_string_to_c_buffer(extra_files[key2], content2, length2);
+  torch_debug("torch_c_model_load_with_metadata: done");
 }
 
 /*******************************************************************************
@@ -846,10 +876,14 @@ void torch_c_model_load_with_metadata(torch_c_model_t **model_out,
 void torch_c_model_remap_device_constants(torch_c_model_t *model) {
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
+  torch_debug_dev("torch_c_model_remap_device_constants: begin", device);
   if (device.is_cuda()) {
+    torch_debug("torch_c_model_remap_device_constants: remap_device_constants");
     remap_model_device_constants(*model, device);
+    torch_debug("torch_c_model_remap_device_constants: initialize_cuda_linalg");
     initialize_cuda_linalg(device);
   }
+  torch_debug("torch_c_model_remap_device_constants: done");
 }
 
 /*******************************************************************************
@@ -908,11 +942,14 @@ void torch_c_model_forward(torch_c_model_t *model, const torch_c_dict_t *inputs,
   TorchFloatingPointMaskGuard fpe_guard;
   c10::OptionalDeviceGuard guard;
   get_device_with_guard(guard);
+  torch_debug("torch_c_model_forward: begin");
   auto untyped_output = model->forward({*inputs}).toGenericDict();
+  torch_debug("torch_c_model_forward: forward done, collecting outputs");
   outputs->clear();
   for (const auto &entry : untyped_output) {
     outputs->insert(entry.key().toStringView(), entry.value().toTensor());
   }
+  torch_debug("torch_c_model_forward: done");
 }
 
 /*******************************************************************************
@@ -925,6 +962,7 @@ void torch_c_model_forward_mol_tensor(torch_c_model_t *model,
 
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
+  torch_debug_dev("torch_c_model_forward_mol_tensor: begin", device);
   // Avoid repeated TorchScript profiling of the frozen Skala model on CUDA.
   std::optional<torch::jit::GraphOptimizerEnabledGuard> graph_optimization;
   if (device.is_cuda()) {
@@ -933,6 +971,7 @@ void torch_c_model_forward_mol_tensor(torch_c_model_t *model,
   assert(*output == NULL);
   *output = new torch_c_tensor_t(
       model->get_method(method_name)({*inputs}).toTensor());
+  torch_debug("torch_c_model_forward_mol_tensor: done");
 }
 
 /*******************************************************************************
