@@ -2545,7 +2545,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="REGULARIZATION_RI", &
                           description="Regularization applied to the GW RI fitting matrix "// &
                           "$M_{PQ}$. A negative value selects the context-dependent default: "// &
-                          "zero for molecules, 1.0E-8 for periodic RI-RS GW and 1.0E-2 "// &
+                          "zero for molecules, 1.0E-4 for periodic RI-RS GW and 1.0E-2 "// &
                           "for other periodic systems.", &
                           usage="REGULARIZATION_RI 1.0E-4", &
                           default_r_val=-1.0_dp)
@@ -2940,8 +2940,13 @@ CONTAINS
          keyword, __LOCATION__, name="RS_AO_RATIO", &
          description="Number of retained real-space points per atomic-orbital (AO) basis function. "// &
          "For every atom A, the count is $N_R^A=\lceil\alpha N_{\mathrm{AO}}^A\rceil$, where "// &
-         "$\alpha$ is RS_AO_RATIO and $N_{\mathrm{AO}}^A$ is that atom's number of AO functions. ", &
-         usage="RS_AO_RATIO 7", default_r_val=7.0_dp)
+         "$\alpha$ is RS_AO_RATIO and $N_{\mathrm{AO}}^A$ is that atom's number of AO functions. "// &
+         "A negative value selects $\alpha=7$, except for periodic GW with full k-point sampling "// &
+         "and the augmented MOLOPT basis sets: 14 for aug-SZV-MOLOPT-GTH-tier-2, 9 for "// &
+         "aug-DZVP-MOLOPT-GTH-tier-1, and 8 for aug-DZVP-MOLOPT-GTH-tier-2. "// &
+         "The small basis sets need more points per AO function for "// &
+         "converged quasiparticle energies and for degenerate levels at high-symmetry k-points.", &
+         usage="RS_AO_RATIO 7", default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

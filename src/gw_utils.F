@@ -457,7 +457,7 @@ CONTAINS
       ! GRID_OPTIMIZATION is available only with RI-RS.
       CPASSERT(.NOT. bs_env%ri_rs%grid_opt%enabled .OR. bs_env%do_gw_ri_rs)
       IF (bs_env%ri_rs%grid_opt%enabled) THEN
-         IF (bs_env%ri_rs%grid_opt%rs_ao_ratio <= 0.0_dp) CPABORT("RS_AO_RATIO must be positive")
+         IF (bs_env%ri_rs%grid_opt%rs_ao_ratio == 0.0_dp) CPABORT("RS_AO_RATIO must be nonzero")
          IF (bs_env%ri_rs%grid_opt%max_iter < 1) THEN
             CPABORT("GRID_OPTIMIZATION%MAX_ITER must be positive")
          END IF
@@ -670,8 +670,13 @@ CONTAINS
          WRITE (unit_nr, '(A)') ' '
          WRITE (unit_nr, '(T2,A,T80,L1)') &
             'Input: RI-RS grid optimization activated', .TRUE.
-         WRITE (unit_nr, '(T2,A,T69,F12.1)') &
-            'Input: RS points per AO function', bs_env%ri_rs%grid_opt%rs_ao_ratio
+         IF (bs_env%ri_rs%grid_opt%rs_ao_ratio > 0.0_dp) THEN
+            WRITE (unit_nr, '(T2,A,T69,F12.1)') &
+               'Input: RS points per AO function', bs_env%ri_rs%grid_opt%rs_ao_ratio
+         ELSE
+            WRITE (unit_nr, '(T2,A,T63,A18)') &
+               'Input: RS points per AO function', 'Default per basis'
+         END IF
          IF (bs_env%ri_rs%grid_opt%cutoff_atomic_cluster < 0.0_dp) THEN
             WRITE (unit_nr, '(T2,A,T52,A29)') &
                'Input: Atomic cluster radius', 'Automatic: 1.4 x nearest atom'
@@ -857,7 +862,7 @@ CONTAINS
          bs_env%regularization_RI = bs_env%input_regularization_RI
       ELSE IF (bs_env%gw_implementation == ri_rs_small_cell_full_kp) THEN
          ! periodic RI-RS: relative eigenvalue cutoff when inverting the RI metric M(q)
-         bs_env%regularization_RI = 1.0E-8_dp
+         bs_env%regularization_RI = 1.0E-4_dp
       ELSE
          ! default case:
 
