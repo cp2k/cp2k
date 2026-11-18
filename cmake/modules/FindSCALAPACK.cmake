@@ -90,6 +90,11 @@ if(NOT CP2K_CONFIG_PACKAGE)
     find_package(PkgConfig QUIET)
     if(PKG_CONFIG_FOUND)
       pkg_check_modules(CP2K_SCALAPACK IMPORTED_TARGET GLOBAL "scalapack")
+      # A broken scalapack.pc file (e.g. with unresolvable Requires) passes the
+      # existence check but yields no libraries, thus fall back to a search
+      if(CP2K_SCALAPACK_FOUND AND NOT CP2K_SCALAPACK_LINK_LIBRARIES)
+        set(CP2K_SCALAPACK_FOUND FALSE)
+      endif()
     endif()
 
     # this should be enough for detecting scalapack compiled by hand. If
