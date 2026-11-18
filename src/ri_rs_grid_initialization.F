@@ -124,8 +124,9 @@ CONTAINS
       DO ikind = 1, SIZE(bs_env%basis_set_AO)
          candidate_ratio = MAX(minimum_candidate_ratio, 2.0_dp*rs_ao_ratio_of_kind(bs_env, ikind))
          IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A,1X,A,T69,F12.1)') 'RS points per AO function for', &
-               TRIM(bs_env%basis_set_AO(ikind)%gto_basis_set%name), rs_ao_ratio_of_kind(bs_env, ikind)
+            WRITE (bs_env%unit_nr, '(T2,A,T69,F12.1)') 'RS_AO_RATIO of '// &
+               TRIM(bs_env%ri_rs%atomic_kind_set(ikind)%element_symbol)//' ('// &
+               TRIM(bs_env%basis_set_AO(ikind)%gto_basis_set%name)//')', rs_ao_ratio_of_kind(bs_env, ikind)
          END IF
          CALL build_lebedev_grid(bs_env%basis_set_AO(ikind)%gto_basis_set, &
                                  bs_env%basis_set_RI(ikind)%gto_basis_set, &

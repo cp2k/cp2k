@@ -2931,8 +2931,8 @@ CONTAINS
          "If the selection reaches numerical rank before the requested grid size, unused points "// &
          "in the central atom's Voronoi cell are added by geometric maximin distance. "// &
          "Before Voronoi filtering, the candidate grid contains at least "// &
-         "max(30, 2 RS_AO_RATIO) times the number of AO functions. RS_AO_RATIO is the sole "// &
-         "control of the retained points per atom. "// &
+         "max(30, 2 RS_AO_RATIO) times the number of AO functions. RS_AO_RATIO sets the "// &
+         "number of grid points per atom. "// &
          "The optimization adapts the grid to the chemical environment and composition of the "// &
          "structure and can permit substantially smaller grids. Compact grids often work well for "// &
          "small basis sets, but RS_AO_RATIO "// &
@@ -2940,14 +2940,12 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="RS_AO_RATIO", &
-         description="Number of retained real-space points per atomic-orbital (AO) basis function. "// &
-         "For every atom A, the count is $N_R^A=\lceil\alpha N_{\mathrm{AO}}^A\rceil$, where "// &
-         "$\alpha$ is RS_AO_RATIO and $N_{\mathrm{AO}}^A$ is that atom's number of AO functions. "// &
-         "A negative value selects $\alpha=7$, except for periodic GW with full k-point sampling "// &
-         "and the augmented MOLOPT basis sets: 14 for aug-SZV-MOLOPT-GTH-tier-2, 9 for "// &
-         "aug-DZVP-MOLOPT-GTH-tier-1, and 8 for aug-DZVP-MOLOPT-GTH-tier-2. "// &
-         "The small basis sets need more points per AO function for "// &
-         "converged quasiparticle energies and for degenerate levels at high-symmetry k-points.", &
+         description="Number of real-space grid points $\mathbf{r}_\ell$ per AO basis function. "// &
+         "For every atom A, the number of real-space grid points is $N_\mathbf{r}^A=\alpha\, "// &
+         "N_\mathrm{AO}^A$, where $\alpha$ is RS_AO_RATIO and $N_\mathrm{AO}^A$ is the number of "// &
+         "AO basis functions of atom A. A negative value is the default and sets $\alpha=7$, except "// &
+         "for periodic GW with full k-point sampling and the augmented MOLOPT basis sets, where "// &
+         "$\alpha$ ranges from 7 to 14: the smaller the basis set, the larger $\alpha$.", &
          usage="RS_AO_RATIO 7", default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

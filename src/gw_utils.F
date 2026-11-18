@@ -674,13 +674,6 @@ CONTAINS
          WRITE (unit_nr, '(A)') ' '
          WRITE (unit_nr, '(T2,A,T80,L1)') &
             'Input: RI-RS grid optimization activated', .TRUE.
-         IF (bs_env%ri_rs%grid_opt%rs_ao_ratio > 0.0_dp) THEN
-            WRITE (unit_nr, '(T2,A,T69,F12.1)') &
-               'Input: RS points per AO function', bs_env%ri_rs%grid_opt%rs_ao_ratio
-         ELSE
-            WRITE (unit_nr, '(T2,A,T63,A18)') &
-               'Input: RS points per AO function', 'Default per basis'
-         END IF
          IF (bs_env%ri_rs%grid_opt%cutoff_atomic_cluster < 0.0_dp) THEN
             WRITE (unit_nr, '(T2,A,T52,A29)') &
                'Input: Atomic cluster radius', 'Automatic: 1.4 x nearest atom'
