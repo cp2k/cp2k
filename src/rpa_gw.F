@@ -4353,7 +4353,7 @@ CONTAINS
       IF (PRESENT(ac_method)) THEN
          IF (ac_method == gw_ac_nevanlinna) THEN
             CALL nevanlinna_create(nev, gaussi*vec_omega_fit_gw_sign_reorder(1:num_fit_points), &
-                                   Sigma_c_gw_reorder(1:num_fit_points))
+                                   Sigma_c_gw_reorder(1:num_fit_points), compute_pick=PRESENT(ac_pick))
          END IF
       END IF
       IF (PRESENT(ac_used)) THEN

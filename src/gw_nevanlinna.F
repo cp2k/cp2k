@@ -84,10 +84,12 @@ CONTAINS
 !> \param nev the interpolant
 !> \param x sample points, all in the upper or all in the lower half plane
 !> \param y values of the correlation self-energy at x
+!> \param compute_pick compute the unshifted Pick diagnostic (default: true)
 ! **************************************************************************************************
-   SUBROUTINE nevanlinna_create(nev, x, y)
+   SUBROUTINE nevanlinna_create(nev, x, y, compute_pick)
       TYPE(nevanlinna_type), INTENT(OUT)                 :: nev
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: x, y
+      LOGICAL, INTENT(IN), OPTIONAL                      :: compute_pick
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'nevanlinna_create'
 
@@ -96,6 +98,7 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: pick, pick_vec
       INTEGER                                            :: handle, i, i_delta, k, n
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: order
+      LOGICAL                                            :: need_pick
       REAL(KIND=dp)                                      :: scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pick_eig
       TYPE(zdd_type), ALLOCATABLE, DIMENSION(:)          :: lams, phis, xis
@@ -104,6 +107,8 @@ CONTAINS
 
       CALL cite_reference(Fei2021)
 
+      need_pick = .TRUE.
+      IF (PRESENT(compute_pick)) need_pick = compute_pick
       n = SIZE(x)
       nev%n = n
       ALLOCATE (nev%xis(n), nev%phis(n), xis(n), phis(n), lams(n), xx(n), yy(n), order(n))
@@ -142,7 +147,7 @@ CONTAINS
             lams(i) = moebius(zdd(-s))
          END DO
 
-         IF (i_delta == 1) THEN
+         IF (i_delta == 1 .AND. need_pick) THEN
             ! smallest eigenvalue of the Pick matrix of the unshifted samples, relative to the
             ! largest one; negative values quantify how far the data are from causal
             ALLOCATE (pick(n, n), pick_vec(n, n), pick_eig(n))
