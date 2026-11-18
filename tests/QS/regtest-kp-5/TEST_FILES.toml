@@ -94,7 +94,7 @@
 "Al-kpoint-lan-smear-pgs2.inp"   = [{matcher = "E_total", tol = 1e-8, ref = -8.159987079852488}]
 
 # uneven-distribution deadlock guard: three full-grid k-points over two
-# single-rank groups split 2+1 (the layout #5993 made possible). A driver
+# k-point groups split 2+1 (the layout #5993 made possible). A driver
 # that loops only to its own kplocal count hangs on the mismatched
 # collective sequence. The kpoint banner (min 1 / max 2 per group) doubles
 # as the layout check. The reference is self-generated on the fixed kernel:
