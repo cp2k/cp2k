@@ -639,6 +639,9 @@ CONTAINS
                                             reuse_arrays=reuse_arrays)
          END IF
       ELSE
+         IF (.NOT. PRESENT(group)) THEN
+            CPABORT("Not yet implemented for DBM.")
+         END IF
          CALL mp_comm%set_handle(group)
          CALL dbm_distribution_new(dist%dbm, mp_comm, row_dist_block=row_dist, col_dist_block=col_dist)
       END IF
