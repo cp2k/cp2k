@@ -22,7 +22,7 @@
     &SCF
       EPS_SCF 1.0E-5
       MAX_SCF 30
-      SCF_GUESS RANDOM
+      SCF_GUESS ATOMIC
       &OT ON
         MINIMIZER DIIS
         PRECONDITIONER FULL_ALL

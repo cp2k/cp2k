@@ -870,6 +870,7 @@ CONTAINS
                          "FULL_KINETIC", "FULL_S_INVERSE", "NONE"), &
          enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "// &
                        "requires the ENERGY_GAP parameter to be an underestimate of the HOMO-LUMO gap. "// &
+                       "With OT ROTATION, each active orbital uses its own Rayleigh quotient. "// &
                        "This preconditioner is recommended for almost all systems, except very large systems where "// &
                        "make_preconditioner would dominate the total computational cost.", &
                        "Experimental rotationally covariant bounded spectral preconditioner. It applies an "// &
@@ -1866,7 +1867,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="REUSE_PRECOND", &
                           description="Reuse a previously built OT preconditioner between subsequent CDFT SCF iterations "// &
                           "if the inner OT SCF loop converged in PRECOND_FREQ steps or less. Intended mainly for MD "// &
-                          "simulations with the FULL_ALL preconditioner to speed up the final iterations of the CDFT SCF loop.", &
+                          "simulations with the FULL_ALL preconditioner to speed up the final iterations of the CDFT SCF loop. "// &
+                          "Gamma-point FULL_ALL with OT ROTATION is rebuilt for each new orbital reference.", &
                           usage="REUSE_PRECOND yes", repeats=.FALSE., n_var=1, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
