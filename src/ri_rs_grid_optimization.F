@@ -110,17 +110,14 @@ CONTAINS
       CPASSERT(SIZE(bs_env%sizes_AO) == bs_env%n_atom)
       CPASSERT(SIZE(bs_env%basis_set_AO) == SIZE(bs_env%basis_set_RI))
 
-      IF (bs_env%ri_rs%grid_opt%rs_ao_ratio <= 0.0_dp) THEN
-         CPABORT("GRID_OPTIMIZATION%RS_AO_RATIO must be positive")
+      IF (bs_env%ri_rs%grid_opt%rs_ao_ratio == 0.0_dp) THEN
+         CPABORT("GRID_OPTIMIZATION%RS_AO_RATIO must be nonzero")
       END IF
       IF (bs_env%ri_rs%grid_opt%cutoff_atomic_cluster == 0.0_dp) THEN
          CPABORT("GRID_OPTIMIZATION%CUTOFF_ATOMIC_CLUSTER must be nonzero")
       END IF
       IF (bs_env%ri_rs%grid_opt%max_iter < 1) THEN
          CPABORT("GRID_OPTIMIZATION%MAX_ITER must be positive")
-      END IF
-      IF (bs_env%ri_rs%tikhonov < 0.0_dp) THEN
-         CPABORT("RI_RS%TIKHONOV must not be negative")
       END IF
 
       DO iatom = 1, bs_env%n_atom

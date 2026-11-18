@@ -82,10 +82,6 @@ CONTAINS
       start_time = m_walltime()
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(T2,A)') "RI-RS: Compute Z_lP(k); required: D_ll'^R and d_lP^R"
 
-      IF (bs_env%ri_rs%tikhonov < 0.0_dp) THEN
-         CPABORT("RI_RS%TIKHONOV must not be negative")
-      END IF
-
       n_grid = bs_env%ri_rs%n_grid_points
       CPASSERT(n_grid > 0)
       CPASSERT(SIZE(grid_points, 2) == n_grid)

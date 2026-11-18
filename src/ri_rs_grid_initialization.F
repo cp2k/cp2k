@@ -10,7 +10,8 @@
 ! **************************************************************************************************
 MODULE ri_rs_grid_initialization
    USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE input_constants,                 ONLY: do_gapw_log
+   USE input_constants,                 ONLY: do_gapw_log,&
+                                              ri_rs_small_cell_full_kp
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
@@ -26,6 +27,7 @@ MODULE ri_rs_grid_initialization
    USE ri_rs_utils,                     ONLY: evaluate_ao_basis_on_points,&
                                               filter_grid_to_voronoi,&
                                               get_rirs_cluster_atoms
+   USE string_utilities,                ONLY: uppercase
    USE util,                            ONLY: locate
 #include "./base/base_uses.f90"
 
@@ -61,9 +63,10 @@ CONTAINS
 !> α_initial = max(30, 2 RS_AO_RATIO). The factor two provides candidates that can be discarded by
 !> the atomic Voronoi filter. The requested initial RI-RS grid of atom A contains
 !>
-!> (4)  N_R^A = ceil(RS_AO_RATIO * N_AO^A)
+!> (4)  N_R^A = ceil(α * N_AO^A)
 !>
-!> points. Around every atom A, a cluster is defined as
+!> points, with α = RS_AO_RATIO of the atomic kind (rs_ao_ratio_of_kind). Around every atom A, a
+!> cluster is defined as
 !>
 !> (5)  C_A contains all atoms and, for periodic systems, their images within the cluster radius.
 !>
@@ -116,11 +119,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      candidate_ratio = MAX(minimum_candidate_ratio, 2.0_dp*bs_env%ri_rs%grid_opt%rs_ao_ratio)
-
       ! Build the Lebedev grids of Eqs. (1)-(3) for all elements in the calculation
       ALLOCATE (radial_lebedev_grids(SIZE(bs_env%basis_set_AO)))
       DO ikind = 1, SIZE(bs_env%basis_set_AO)
+         candidate_ratio = MAX(minimum_candidate_ratio, 2.0_dp*rs_ao_ratio_of_kind(bs_env, ikind))
+         IF (bs_env%unit_nr > 0) THEN
+            WRITE (bs_env%unit_nr, '(T2,A,T69,F12.1)') 'RS_AO_RATIO of '// &
+               TRIM(bs_env%ri_rs%atomic_kind_set(ikind)%element_symbol)//' ('// &
+               TRIM(bs_env%basis_set_AO(ikind)%gto_basis_set%name)//')', rs_ao_ratio_of_kind(bs_env, ikind)
+         END IF
          CALL build_lebedev_grid(bs_env%basis_set_AO(ikind)%gto_basis_set, &
                                  bs_env%basis_set_RI(ikind)%gto_basis_set, &
                                  candidate_ratio, l_additional, radial_quadrature, &
@@ -192,7 +199,7 @@ CONTAINS
       CALL atom_env%from_split(bs_env%para_env, my_group)
       DO iatom = 1, bs_env%n_atom
          ikind = bs_env%ri_rs%particle_set(iatom)%atomic_kind%kind_number
-         npoints = CEILING(bs_env%ri_rs%grid_opt%rs_ao_ratio* &
+         npoints = CEILING(rs_ao_ratio_of_kind(bs_env, ikind)* &
                            bs_env%basis_set_AO(ikind)%gto_basis_set%nsgf)
          bs_env%ri_rs%atomic_grids(iatom)%npts = npoints
          ALLOCATE (bs_env%ri_rs%atomic_grids(iatom)%raw_points(3, npoints))
@@ -636,5 +643,38 @@ CONTAINS
          CALL bs_env%para_env%bcast(bs_env%ri_rs%atomic_grids(iatom)%raw_points, atom_mpi_rank)
       END DO
    END SUBROUTINE broadcast_ri_rs_grids
+
+! **************************************************************************************************
+!> \brief RS_AO_RATIO α of one atomic kind in Eq. (4).
+!>
+!> A positive RS_AO_RATIO applies to every kind. The default (a negative value) is 7 points per AO
+!> function, except for full-k periodic GW with the small augmented MOLOPT basis sets: 14 for
+!> aug-SZV-MOLOPT-GTH-tier-2, 9 for aug-DZVP-MOLOPT-GTH-tier-1 and 8 for aug-DZVP-MOLOPT-GTH-tier-2.
+!> \param bs_env ...
+!> \param ikind ...
+!> \return α of the kind
+! **************************************************************************************************
+   FUNCTION rs_ao_ratio_of_kind(bs_env, ikind) RESULT(ratio)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      INTEGER, INTENT(IN)                                :: ikind
+      REAL(KIND=dp)                                      :: ratio
+
+      CHARACTER(LEN=default_string_length)               :: basis_name
+
+      ratio = bs_env%ri_rs%grid_opt%rs_ao_ratio
+      IF (ratio > 0.0_dp) RETURN
+      ratio = 7.0_dp
+      IF (bs_env%gw_implementation /= ri_rs_small_cell_full_kp) RETURN
+      basis_name = bs_env%basis_set_AO(ikind)%gto_basis_set%name
+      CALL uppercase(basis_name)
+      SELECT CASE (TRIM(basis_name))
+      CASE ("AUG-SZV-MOLOPT-GTH-TIER-2")
+         ratio = 14.0_dp
+      CASE ("AUG-DZVP-MOLOPT-GTH-TIER-1")
+         ratio = 9.0_dp
+      CASE ("AUG-DZVP-MOLOPT-GTH-TIER-2")
+         ratio = 8.0_dp
+      END SELECT
+   END FUNCTION rs_ao_ratio_of_kind
 
 END MODULE ri_rs_grid_initialization

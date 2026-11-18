@@ -64,15 +64,28 @@
 "rirs-grid-rank-saturation-maximin-H2O.inp" = [{matcher = "RIRS_Grid", tol = 1e-12, ref = 280}]
 # Periodic full-k RI-RS GW: SCF mesh and a separate Gamma-X band path.
 "09_RIRS_G0W0_PBE_periodic_H2.inp"          = [
-  {matcher = "E_RIRS_HOMO", tol = 1e-4, ref = -4.480},
-  {matcher = "E_RIRS_LUMO", tol = 1e-4, ref = 19.114},
-  {matcher = "E_G0W0_indirect_gap", tol = 1e-4, ref = 23.595},
-  {matcher = "E_G0W0_direct_gap", tol = 1e-4, ref = 23.685}
+  {matcher = "E_RIRS_HOMO", tol = 1e-4, ref = -4.503},
+  {matcher = "E_RIRS_LUMO", tol = 1e-4, ref = 19.107},
+  {matcher = "E_G0W0_indirect_gap", tol = 1e-4, ref = 23.610},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-4, ref = 23.699}
 ]
 # AUTO_RI trains on the shared SCF mesh before evaluating the separate band path.
 "10_RIRS_G0W0_PBE_periodic_AUTO_RI_H2.inp"  = [
   {matcher = "Auto_RI_Size", tol = 1e-12, ref = 10},
-  {matcher = "E_G0W0_indirect_gap", tol = 1e-4, ref = 23.639}
+  {matcher = "E_G0W0_indirect_gap", tol = 1e-4, ref = 23.510}
+]
+# Odd (Gamma-centred) k mesh: Gamma is a mesh point of the Gamma correction.
+"11_RIRS_G0W0_PBE_periodic_H2_odd_k.inp"    = [
+  {matcher = "E_RIRS_HOMO", tol = 1e-4, ref = -9.8785},
+  {matcher = "E_RIRS_LUMO", tol = 1e-4, ref = 24.111},
+  {matcher = "E_G0W0_indirect_gap", tol = 1e-4, ref = 33.990},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-4, ref = 33.990}
+]
+# Odd 2D k mesh: Gamma is a mesh point of the 2D Gamma correction.
+"12_RIRS_G0W0_PBE_2D_AUTO_RI_H2_odd_k.inp"  = [
+  {matcher = "Auto_RI_Size", tol = 1e-12, ref = 2},
+  {matcher = "E_G0W0_indirect_gap", tol = 1e-3, ref = 23.391},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-3, ref = 24.993}
 ]
 # Fast 2D Ewald smoke tests with GAPW and GPW.
 "13_RIRS_G0W0_PBE_2D_AUTO_RI_H2_GAPW.inp"   = [
