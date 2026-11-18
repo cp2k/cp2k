@@ -44,6 +44,11 @@ MODULE ri_rs_kp_fitting
    ! Complex numbers in the 64 MiB batches of q points.
    INTEGER(KIND=int_8), PARAMETER :: q_batch_elements = 64_int_8*1024_int_8**2/16_int_8
 
+   TYPE :: ao_cell_type
+      INTEGER :: index = 0
+      REAL(dp), ALLOCATABLE :: phi_local(:, :)
+   END TYPE ao_cell_type
+
    PUBLIC :: compute_Z_lP_q, &
              evaluate_mu_rl_R_values
 
@@ -65,10 +70,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Z_lP_q'
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: charge_lq(:, :)
-      INTEGER                                            :: first_l, handle, last_l, n_D_cells, &
-                                                            n_d_lP_cells, n_grid
-      INTEGER, ALLOCATABLE                               :: active_cells(:), cells_R_D_llp(:, :), &
-                                                            cells_R_d_lP(:, :)
+      INTEGER                                            :: first_l, handle, last_l, n_d_lP_cells, &
+                                                            n_grid
+      INTEGER, ALLOCATABLE                               :: cells_R_D_llp(:, :), cells_R_d_lP(:, :)
       REAL(KIND=dp)                                      :: elapsed, start_time
       REAL(KIND=dp), ALLOCATABLE                         :: D_llp_R(:, :, :), d_lP_R(:, :, :), &
                                                             qpoints_head(:, :), qpoints_scf(:, :)
@@ -88,21 +92,15 @@ CONTAINS
       CPASSERT(bs_env%nkp_scf_desymm > 0)
 
       CALL build_cells_R_for_d_lP_R(bs_env, grid_points, cells_R_d_lP)
-      CALL build_cells_R_for_D_llp(bs_env, grid_points, cells_R_D_llp, active_cells)
       n_d_lP_cells = SIZE(cells_R_d_lP, 2)
-      n_D_cells = SIZE(cells_R_D_llp, 2)
       CPASSERT(n_d_lP_cells > 0)
-      CPASSERT(n_D_cells > 0)
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A,T72,I9)') 'RI-RS d_lP^R cells R:', n_d_lP_cells
-         WRITE (bs_env%unit_nr, '(T2,A,T72,I9)') "RI-RS D_ll'^R cells R:", n_D_cells
-         FLUSH (bs_env%unit_nr)
       END IF
 
       ! Each rank stores a rectangular (l,l') block for every translation A.
       CALL get_local_l_range(n_grid, bs_env%para_env%num_pe, bs_env%para_env%mepos, first_l, last_l)
-      ALLOCATE (D_llp_R(last_l - first_l + 1, n_grid, n_D_cells))
-      CALL compute_D_llp(bs_env, grid_points, cells_R_D_llp, active_cells, first_l, last_l, D_llp_R)
+      CALL build_D_llp_R(bs_env, grid_points, first_l, last_l, cells_R_D_llp, D_llp_R)
       CALL mp_print_mem_per_rank(bs_env%para_env, bs_env%unit_nr, "After distribution of D_ll'^R:")
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A)') 'RI-RS three-center projection d_lP^R: starting'
@@ -506,7 +504,7 @@ CONTAINS
    END SUBROUTINE build_cells_R_for_d_lP_R
 
 ! **************************************************************************************************
-!> \brief Enumerate the translations A required by the AO-product D matrix D_ll'^A.
+!> \brief Build the AO-product D matrix D_ll'^A on its active translations A.
 !>
 !> Unlike the right-hand side d_lP^T, D_ll'^A is independent of R_cut^(lP). A translation can
 !> contribute only if it is the difference of two image cells with nonzero AO values on the
@@ -514,75 +512,80 @@ CONTAINS
 !> the least-squares metric and avoids enumerating empty three-center image cells.
 !> \param bs_env ...
 !> \param grid_points Reference-cell RI-RS points.
+!> \param first_l First grid point owned by this rank.
+!> \param last_l Last grid point owned by this rank.
 !> \param cells_R_D_llp ...
-!> \param active_cells Indices of cells with nonzero AO values.
+!> \param D_llp_R Local grid rows of D for each translation.
 ! **************************************************************************************************
-   SUBROUTINE build_cells_R_for_D_llp(bs_env, grid_points, cells_R_D_llp, active_cells)
+   SUBROUTINE build_D_llp_R(bs_env, grid_points, first_l, last_l, cells_R_D_llp, D_llp_R)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(dp), INTENT(IN)                               :: grid_points(:, :)
-      INTEGER, ALLOCATABLE, INTENT(OUT)                  :: cells_R_D_llp(:, :), active_cells(:)
+      INTEGER, INTENT(IN)                                :: first_l, last_l
+      INTEGER, ALLOCATABLE, INTENT(OUT)                  :: cells_R_D_llp(:, :)
+      REAL(dp), ALLOCATABLE, INTENT(OUT)                 :: D_llp_R(:, :, :)
 
-      INTEGER                                            :: cell_index(3), i, i_R, i_R_prime, &
-                                                            n_active, n_D_cells
-      INTEGER, ALLOCATABLE                               :: cells_work(:, :), nonzero_cells(:)
-      LOGICAL                                            :: found
+      INTEGER                                            :: cell_index(3), extent(3), i_R, &
+                                                            i_R_prime, n_active, n_D_cells
+      INTEGER, ALLOCATABLE                               :: cell_to_index(:, :, :), cells_work(:, :)
       REAL(dp), ALLOCATABLE                              :: phi(:, :)
+      TYPE(ao_cell_type), ALLOCATABLE                    :: active_cells(:)
 
-      ALLOCATE (nonzero_cells(SIZE(bs_env%index_to_cell_3c, 2)))
+      ALLOCATE (active_cells(SIZE(bs_env%index_to_cell_3c, 2)))
       ALLOCATE (phi(bs_env%ri_rs%n_grid_points, bs_env%n_ao))
       n_active = 0
+      ! Keep the owned rows from the full-grid activity test for the contractions below.
       DO i_R = 1, SIZE(bs_env%index_to_cell_3c, 2)
          CALL evaluate_mu_rl_R_values(bs_env, grid_points, i_R, phi)
          IF (.NOT. ANY(ABS(phi) > 0.0_dp)) CYCLE
          n_active = n_active + 1
-         nonzero_cells(n_active) = i_R
+         active_cells(n_active)%index = i_R
+         ALLOCATE (active_cells(n_active)%phi_local, SOURCE=phi(first_l:last_l, :))
       END DO
+      DEALLOCATE (phi)
       CPASSERT(n_active > 0)
-      ALLOCATE (active_cells(n_active))
-      active_cells(:) = nonzero_cells(:n_active)
 
-      ALLOCATE (cells_work(3, n_active*n_active))
+      extent = MAXVAL(bs_env%index_to_cell_3c(:, active_cells(:n_active)%index), DIM=2) - &
+               MINVAL(bs_env%index_to_cell_3c(:, active_cells(:n_active)%index), DIM=2)
+      ALLOCATE (cell_to_index(-extent(1):extent(1), -extent(2):extent(2), -extent(3):extent(3)), SOURCE=0)
+      ALLOCATE (cells_work(3, MIN(SIZE(cell_to_index, KIND=int_8), INT(n_active, int_8)**2)))
       n_D_cells = 0
       DO i_R = 1, n_active
          DO i_R_prime = 1, n_active
-            cell_index = bs_env%index_to_cell_3c(:, active_cells(i_R)) - &
-                         bs_env%index_to_cell_3c(:, active_cells(i_R_prime))
-            found = .FALSE.
-            DO i = 1, n_D_cells
-               IF (ALL(cell_index == cells_work(:, i))) THEN
-                  found = .TRUE.
-                  EXIT
-               END IF
-            END DO
-            IF (.NOT. found) THEN
-               n_D_cells = n_D_cells + 1
-               cells_work(:, n_D_cells) = cell_index
-            END IF
+            cell_index = bs_env%index_to_cell_3c(:, active_cells(i_R)%index) - &
+                         bs_env%index_to_cell_3c(:, active_cells(i_R_prime)%index)
+            IF (cell_to_index(cell_index(1), cell_index(2), cell_index(3)) /= 0) CYCLE
+            n_D_cells = n_D_cells + 1
+            cell_to_index(cell_index(1), cell_index(2), cell_index(3)) = n_D_cells
+            cells_work(:, n_D_cells) = cell_index
          END DO
       END DO
 
       ALLOCATE (cells_R_D_llp(3, n_D_cells))
       cells_R_D_llp(:, :) = cells_work(:, 1:n_D_cells)
-      DEALLOCATE (cells_work, phi)
+      DEALLOCATE (cells_work)
+      IF (bs_env%unit_nr > 0) THEN
+         WRITE (bs_env%unit_nr, '(T2,A,T72,I9)') "RI-RS D_ll'^R cells R:", n_D_cells
+         FLUSH (bs_env%unit_nr)
+      END IF
+      ALLOCATE (D_llp_R(last_l - first_l + 1, SIZE(grid_points, 2), n_D_cells))
+      CALL compute_D_llp(bs_env, grid_points, cell_to_index, active_cells(:n_active), D_llp_R)
 
-   END SUBROUTINE build_cells_R_for_D_llp
+   END SUBROUTINE build_D_llp_R
 
 ! **************************************************************************************************
 !> \brief Construct D_ll'^R = [Σ_{S-S'=R,μ} ϕ_μ^S(r_L) ϕ_μ^S'(r_L')]².
 !> The progress count enumerates pairs of active cell images (S,S'), not Gaussian pairs.
 !> \param bs_env ...
 !> \param grid_points Reference-cell RI-RS points.
-!> \param cells_R_D_llp ...
-!> \param active_cells Indices of cells with nonzero AO values.
-!> \param first_l ...
-!> \param last_l ...
+!> \param cell_to_index Index of each active translation in D_llp_R.
+!> \param active_cells Active image cells and their local AO rows.
 !> \param D_llp_R ...
 ! **************************************************************************************************
-   SUBROUTINE compute_D_llp(bs_env, grid_points, cells_R_D_llp, active_cells, first_l, last_l, D_llp_R)
+   SUBROUTINE compute_D_llp(bs_env, grid_points, cell_to_index, active_cells, D_llp_R)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(dp), INTENT(IN)                               :: grid_points(:, :)
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: cells_R_D_llp
-      INTEGER, INTENT(IN)                                :: active_cells(:), first_l, last_l
+      INTEGER, ALLOCATABLE, INTENT(IN)                   :: cell_to_index(:, :, :)
+      TYPE(ao_cell_type), INTENT(IN)                     :: active_cells(:)
       REAL(KIND=dp), CONTIGUOUS, INTENT(OUT)             :: D_llp_R(:, :, :)
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_D_llp'
@@ -591,9 +594,8 @@ CONTAINS
                                                             i_active_prime, i_R, i_R_prime, &
                                                             next_progress, nrows
       INTEGER(KIND=int_8)                                :: n_done, n_total
-      LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: progress_start
-      REAL(KIND=dp), ALLOCATABLE                         :: phi_full(:, :), phi_local(:, :)
+      REAL(KIND=dp), ALLOCATABLE                         :: phi_full(:, :)
 
       CALL timeset(routineN, handle)
 
@@ -603,66 +605,41 @@ CONTAINS
       n_total = INT(SIZE(active_cells), int_8)**2
       ! Sum the AO images for each owned (l,l') rectangle before squaring.
       D_llp_R = 0.0_dp
-      nrows = MAX(0, last_l - first_l + 1)
-      IF (first_l <= last_l) THEN
-         ALLOCATE (phi_local(nrows, bs_env%n_ao), phi_full(bs_env%ri_rs%n_grid_points, bs_env%n_ao))
+      nrows = SIZE(D_llp_R, 1)
+      IF (nrows > 0) THEN
+         ALLOCATE (phi_full(bs_env%ri_rs%n_grid_points, bs_env%n_ao))
          DO i_active_prime = 1, SIZE(active_cells)
-            i_R_prime = active_cells(i_active_prime)
-            CALL evaluate_mu_rl_R_values(bs_env, grid_points, i_R_prime, phi_full)
+            i_R_prime = active_cells(i_active_prime)%index
+            IF (nrows == SIZE(grid_points, 2)) THEN
+               phi_full(:, :) = active_cells(i_active_prime)%phi_local
+            ELSE
+               CALL evaluate_mu_rl_R_values(bs_env, grid_points, i_R_prime, phi_full)
+            END IF
             DO i_active = 1, SIZE(active_cells)
-               i_R = active_cells(i_active)
-               CALL evaluate_mu_rl_R_values(bs_env, grid_points(:, first_l:last_l), i_R, phi_local)
+               i_R = active_cells(i_active)%index
                IF (n_done > 0) CALL write_ri_rs_progress(bs_env%unit_nr, "D_ll'^R Cell-image pairs", &
                                                          n_done, n_total, next_progress, progress_start)
                n_done = n_done + 1
                cell_A = bs_env%index_to_cell_3c(:, i_R) - &
                         bs_env%index_to_cell_3c(:, i_R_prime)
-               CALL find_cell(cell_A, cells_R_D_llp, found, i_A)
-               IF (.NOT. found) CYCLE
+               i_A = cell_to_index(cell_A(1), cell_A(2), cell_A(3))
                CALL dgemm('N', 'T', nrows, bs_env%ri_rs%n_grid_points, bs_env%n_ao, &
-                          1.0_dp, phi_local, MAX(1, nrows), phi_full, &
+                          1.0_dp, active_cells(i_active)%phi_local, MAX(1, nrows), phi_full, &
                           MAX(1, bs_env%ri_rs%n_grid_points), 1.0_dp, D_llp_R(:, :, i_A), &
                           MAX(1, nrows))
             END DO
          END DO
+         CALL write_ri_rs_progress(bs_env%unit_nr, "D_ll'^R Cell-image pairs", &
+                                   n_done, n_total, next_progress, progress_start)
+         DEALLOCATE (phi_full)
       END IF
-      IF (first_l <= last_l) CALL write_ri_rs_progress(bs_env%unit_nr, "D_ll'^R Cell-image pairs", &
-                                                       n_done, n_total, next_progress, progress_start)
       DO i_A = 1, SIZE(D_llp_R, 3)
          D_llp_R(:, :, i_A) = D_llp_R(:, :, i_A)*D_llp_R(:, :, i_A)
       END DO
-      IF (ALLOCATED(phi_local)) DEALLOCATE (phi_local, phi_full)
 
       CALL timestop(handle)
 
    END SUBROUTINE compute_D_llp
-
-! **************************************************************************************************
-!> \brief Find a lattice triplet in an explicit image-cell list.
-!> \param cell ...
-!> \param index_to_cell ...
-!> \param found ...
-!> \param index ...
-! **************************************************************************************************
-   SUBROUTINE find_cell(cell, index_to_cell, found, index)
-      INTEGER, DIMENSION(3), INTENT(IN)                  :: cell
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
-      LOGICAL, INTENT(OUT)                               :: found
-      INTEGER, INTENT(OUT)                               :: index
-
-      INTEGER                                            :: i
-
-      found = .FALSE.
-      index = 0
-      DO i = 1, SIZE(index_to_cell, 2)
-         IF (ALL(cell == index_to_cell(:, i))) THEN
-            found = .TRUE.
-            index = i
-            RETURN
-         END IF
-      END DO
-
-   END SUBROUTINE find_cell
 
 ! **************************************************************************************************
 !> \brief Fourier-transform d_lP(R) to d_lP(q) and gather l rows on each q owner.
