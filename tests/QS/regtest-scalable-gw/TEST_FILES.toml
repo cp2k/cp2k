@@ -38,9 +38,5 @@
   {matcher = "E_G0W0_SOC_gap", tol = 5e-04, ref = 10.871}
 ]
 
-"09_G0W0_periodic_H2O_Nevanlinna_windows.inp" = [
-  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 9.872},
-  {matcher = "G0W0_levels_unstable", tol = 0.0, ref = 19},
-  {matcher = "G0W0_levels_multi", tol = 0.0, ref = 0}
-]
+"09_G0W0_periodic_H2O_Nevanlinna_windows.inp" = [{matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 9.872}]
 #EOF

@@ -34,6 +34,7 @@ MODULE gw_tensor_small_cell_full_kp
    USE gw_utils,                        ONLY: add_R,&
                                               analyt_conti_and_print,&
                                               de_init_bs_env,&
+                                              gw_qp_summary_type,&
                                               is_cell_in_index_to_cell
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
                                               local_add_on_diag,&
@@ -1383,6 +1384,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Sigma_x_ikp_n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_ikp_n_time
       TYPE(cp_cfm_type)                                  :: cfm_mo_coeff
+      TYPE(gw_qp_summary_type)                           :: qp_summary
 
       CALL timeset(routineN, handle)
 
@@ -1391,6 +1393,7 @@ CONTAINS
       ALLOCATE (Sigma_c_ikp_n_time(bs_env%n_ao, bs_env%num_time_freq_points, 2))
       ALLOCATE (Sigma_c_ikp_n_freq(bs_env%n_ao, bs_env%num_freq_points_fit))
 
+      qp_summary%n_kpoints = bs_env%nkp_bs_and_DOS
       DO ispin = 1, bs_env%n_spin
 
          DO ikp = 1, bs_env%nkp_bs_and_DOS
@@ -1419,7 +1422,7 @@ CONTAINS
             !    ϵ_nk_i^GW = ϵ_nk_i^DFT + Σ^c_nn(k_i,ϵ) + Σ^x_nn(k_i) - v^xc_nn(k_i)
             CALL analyt_conti_and_print(bs_env, Sigma_c_ikp_n_freq, Sigma_x_ikp_n, &
                                         bs_env%v_xc_n(:, ikp, ispin), &
-                                        bs_env%eigenval_scf(:, ikp, ispin), ikp, ispin)
+                                        bs_env%eigenval_scf(:, ikp, ispin), ikp, ispin, qp_summary)
 
          END DO ! ikp
 
