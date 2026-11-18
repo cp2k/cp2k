@@ -209,9 +209,9 @@ CONTAINS
                                                             dist_RI, dummy_end, dummy_start, &
                                                             end_blocks, sizes_AO, sizes_RI, &
                                                             start_blocks
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_bsize, row_bsize
       INTEGER, DIMENSION(2)                              :: pdims_t2c
       INTEGER, DIMENSION(3)                              :: nblks_total, pcoord, pdims, pdims_t3c
-      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       LOGICAL                                            :: do_periodic, use_virial
       REAL(dp)                                           :: compression_factor, eps_pgf_orb, &
                                                             eps_pgf_orb_old, memory, occ
@@ -2700,8 +2700,8 @@ CONTAINS
          sgfa, ub_RI
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, iproc_map, kind_of, &
                                                             sizes_RI
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist, la_max, la_min, npgfa, nsgfa, &
-                                                            row_dist
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, row_dist
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, pgrid
       LOGICAL                                            :: found, one_proc_group
       REAL(dp)                                           :: cutoff_old, radius, relative_cutoff_old

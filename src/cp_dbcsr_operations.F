@@ -283,7 +283,7 @@ CONTAINS
       INTEGER                                            :: col, handle, ncol_block, ncol_global, &
                                                             nrow_block, nrow_global, row
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_col, first_row, last_col, last_row
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, row_blk_size
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dbcsr_block, fm_block
       TYPE(dbcsr_distribution_type)                      :: bc_dist
@@ -353,7 +353,7 @@ CONTAINS
       INTEGER                                            :: group_handle, handle, ncol_block, &
                                                             nfullcols_total, nfullrows_total, &
                                                             nrow_block
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, row_blk_size
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: validate_plan
       TYPE(dbcsr_distribution_type)                      :: bc_dist, dist
@@ -807,8 +807,8 @@ CONTAINS
       TYPE(distribution_2d_type), INTENT(IN), TARGET     :: dist2d
       TYPE(dbcsr_distribution_type), INTENT(OUT)         :: dist
 
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist, row_dist
-      INTEGER, DIMENSION(:, :), POINTER                  :: col_dist_data, pgrid, row_dist_data
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, row_dist
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: col_dist_data, pgrid, row_dist_data
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(distribution_2d_type), POINTER                :: dist2d_p
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -948,7 +948,7 @@ CONTAINS
       INTEGER                                            :: a_ncol, a_nrow, b_ncol, b_nrow, c_ncol, &
                                                             c_nrow, k_in, k_out, timing_handle, &
                                                             timing_handle_mult
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_blk_size_right_in, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, col_blk_size_right_in, &
                                                             col_blk_size_right_out, col_dist, &
                                                             row_blk_size, row_dist
       TYPE(dbcsr_type)                                   :: in, out
@@ -1094,7 +1094,7 @@ CONTAINS
 
       INTEGER                                            :: k, my_symmetry_mode, nao, npcols, &
                                                             timing_handle
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_left, col_dist_left, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size_left, col_dist_left, &
                                                             row_blk_size, row_dist
       LOGICAL                                            :: check_product, my_keep_sparsity
       REAL(KIND=dp)                                      :: my_alpha, norm
@@ -1252,7 +1252,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: template
 
       INTEGER                                            :: k_in
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_right_in, row_blk_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size_right_in, row_blk_size
       TYPE(dbcsr_distribution_type)                      :: dist_right_in, tmpl_dist
 
       CALL cp_fm_get_info(fm_in, ncol_global=k_in)
@@ -1287,7 +1287,7 @@ CONTAINS
 
       CHARACTER                                          :: mysym
       INTEGER                                            :: npcols, nprows
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbcsr_distribution_type)                      :: dist_m_n, tmpl_dist
 
@@ -1330,7 +1330,7 @@ CONTAINS
 
       CHARACTER                                          :: mysym
       INTEGER                                            :: npcols
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbcsr_distribution_type)                      :: dist_m_n, tmpl_dist
 
@@ -1481,8 +1481,8 @@ CONTAINS
       INTEGER                                            :: multiplicity, ncols, nimages, npcols, &
                                                             nprows
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp_images
-      INTEGER, DIMENSION(:), POINTER                     :: old_col_dist, right_col_dist, &
-                                                            right_row_dist
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: right_col_dist, right_row_dist
+      INTEGER, DIMENSION(:), POINTER                     :: old_col_dist
 
       CALL dbcsr_distribution_get(dist_left, &
                                   ncols=ncols, &
@@ -1602,7 +1602,7 @@ CONTAINS
 
       INTEGER                                            :: nblkcols, nblkrows, npcols, nprows, &
                                                             pdim, sz
-      INTEGER, DIMENSION(:), POINTER                     :: cd_data, rd_data
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: cd_data, rd_data
 
       ! Row sizes
       IF (nrow_block == 0) THEN

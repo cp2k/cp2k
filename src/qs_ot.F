@@ -962,7 +962,7 @@ CONTAINS
 
       INTEGER                                  :: col, handle, i, iblock, j, k, max_blocks, nblocks, row
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: cols, rows
-      INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, col_blk_size, row_blk_offset, row_blk_size
+      INTEGER, DIMENSION(:), CONTIGUOUS, POINTER           :: col_blk_offset, col_blk_size, row_blk_offset, row_blk_size
       REAL(KIND=dp)                            :: e1, e2
       TYPE(dbcsr_type)                         :: outer_deriv_re, outer_deriv_im, mat_buf, &
                                                   inner_deriv_re, inner_deriv_im

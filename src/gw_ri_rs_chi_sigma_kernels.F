@@ -271,7 +271,7 @@ CONTAINS
       CHARACTER(LEN=32)                                  :: sigma_label
       INTEGER                                            :: handle, i_sector, i_t, ispin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pan_first, pan_last
-      INTEGER, DIMENSION(:), POINTER                     :: blk_aux, dist_row_aux
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_aux, dist_row_aux
       LOGICAL                                            :: retain_work
       REAL(KIND=dp)                                      :: t1, tau
       TYPE(dbcsr_distribution_type)                      :: dist_aux_aux
@@ -407,7 +407,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_G_ao'
 
       INTEGER                                            :: handle
-      INTEGER, DIMENSION(:), POINTER                     :: blk_ao, dist_row_ao
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_ao, dist_row_ao
       TYPE(cp_fm_type), POINTER                          :: fm_G
       TYPE(dbcsr_distribution_type)                      :: dist_ao_ao
 

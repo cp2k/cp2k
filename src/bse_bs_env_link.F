@@ -399,7 +399,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(OUT)                      :: new_matrix
 
       INTEGER                                            :: i_block, npcols, nprows
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk, col_dist, row_blk, row_dist
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk, col_dist, row_blk, row_dist
 
       NULLIFY (col_blk, col_dist, row_blk, row_dist)
       CALL dbcsr_distribution_get(dist_tmpl, nprows=nprows, npcols=npcols)
@@ -717,10 +717,10 @@ CONTAINS
       INTEGER :: col_block, group_handle, handle, i_pair, my_rank, n_atom_batch, n_block_p, &
          n_RI_batch, npcol, nprow, owner_rank, p_block, q_block, rank, RI_first, row_block
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cart_coords
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, col_sizes, row_dist, row_sizes
       INTEGER, DIMENSION(3)                              :: blk_index, blk_size, n_col_blocks, &
                                                             n_cols_pair, p_block_offset, &
                                                             q_block_of_pair
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_sizes, row_dist, row_sizes
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_Pqp

@@ -1010,8 +1010,8 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: cval_in, kernel
       INTEGER                                            :: col, i, j, max_blocks, nblocks, row
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cols, rows
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_offset, col_blk_size, &
-                                                            row_blk_offset, row_blk_size
+      INTEGER, DIMENSION(:), CONTIGUOUS, POINTER                     :: col_blk_offset, col_blk_size, &
+                                                                        row_blk_offset, row_blk_size
       LOGICAL                                            :: found_im, found_out_im, found_out_re, &
                                                             found_re, use_adjoint
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_in_im, block_in_re, block_out_im, &

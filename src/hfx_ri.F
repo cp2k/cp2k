@@ -462,8 +462,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, dist_RI_ext, &
          ends_array_mc_block_int, ends_array_mc_int, sizes_AO, sizes_RI, sizes_RI_ext, &
          sizes_RI_ext_split, starts_array_mc_block_int, starts_array_mc_int
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_bsize, row_bsize
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
-      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       LOGICAL                                            :: converged, do_kpoints_prv
       REAL(dp)                                           :: max_ev, min_ev, occ, RI_range
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -2501,10 +2501,10 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:) :: atom_of_kind, batch_end, batch_end_RI, batch_ranges, &
          batch_ranges_RI, batch_start, batch_start_RI, dist1, dist2, dist3, idx_to_at_AO, &
          idx_to_at_RI, kind_of
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_bsize, row_bsize
       INTEGER, DIMENSION(2, 1)                           :: ibounds, jbounds, kbounds
       INTEGER, DIMENSION(2, 2)                           :: ijbounds
       INTEGER, DIMENSION(2, 3)                           :: bounds_cpy
-      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       LOGICAL                                            :: do_resp, resp_only_prv, use_virial_prv
       REAL(dp)                                           :: pref, spin_fac, t1, t2
       REAL(dp), DIMENSION(3, 3)                          :: work_virial
@@ -3144,8 +3144,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist_AO_1, dist_AO_2, &
                                                             dist_RI, dummy_end, dummy_start, &
                                                             end_blocks, start_blocks
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_bsize, row_bsize
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
-      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       REAL(dp)                                           :: compression_factor, memory, occ
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_type), DIMENSION(1, 3)                  :: t_2c_der_metric_prv, t_2c_der_RI_prv
@@ -3865,7 +3865,7 @@ CONTAINS
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_bsize, row_bsize
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(distribution_2d_type), POINTER                :: dist_2d
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &

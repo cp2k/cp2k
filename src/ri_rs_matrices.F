@@ -84,7 +84,7 @@ CONTAINS
          ikind, last_block, n_grid, natom, npcol, nprow, num_grid_chunks, panel_size, panel_start, &
          r_end, r_start, remaining, row_first, row_last, run, safe_max
       INTEGER, ALLOCATABLE                               :: blk_row_start(:)
-      INTEGER, POINTER                                   :: c_blk_sizes(:), col_dist(:), &
+      INTEGER, CONTIGUOUS, POINTER                       :: c_blk_sizes(:), col_dist(:), &
                                                             r_blk_sizes(:), row_dist(:)
       REAL(KIND=dp)                                      :: cutoff_squared
       REAL(KIND=dp), ALLOCATABLE                         :: atom_col_buffer(:, :)
@@ -214,12 +214,13 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_template
       CHARACTER(LEN=*), INTENT(IN)                       :: dim_type
       TYPE(dbcsr_distribution_type), INTENT(OUT)         :: square_dist
-      INTEGER, DIMENSION(:), INTENT(OUT), POINTER        :: blk_sizes, mapped_dist
+      INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(OUT), &
+         POINTER                                         :: blk_sizes, mapped_dist
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_square_topology'
 
       INTEGER                                            :: handle, i, np, npcols, nprows
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk, col_dist, row_blk, row_dist
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk, col_dist, row_blk, row_dist
       TYPE(dbcsr_distribution_type)                      :: dist_template
 
       CALL timeset(routineN, handle)
@@ -730,7 +731,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'extract_grid_panel'
 
       INTEGER                                            :: handle, ib, jb, npb
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_full, col_dist_full, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_full, col_dist_full, &
                                                             row_blk_full, row_blk_pan, &
                                                             row_dist_full, row_dist_pan
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: blk
@@ -838,7 +839,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ib, jb, n_blk, n_sub, r
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inv_map
-      INTEGER, DIMENSION(:), POINTER                     :: blk_full, blk_sub, col_blk_full, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_full, blk_sub, col_blk_full, &
                                                             col_dist_full, dist_full_1d, &
                                                             dist_sub_1d, row_blk_full, &
                                                             row_dist_full
@@ -928,7 +929,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_product_matrix'
 
       INTEGER                                            :: handle, i, npcols, nprows
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_r, out_col_blk, out_col_dist, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_r, out_col_blk, out_col_dist, &
                                                             out_row_blk, out_row_dist, row_blk_l, &
                                                             row_blk_r
       TYPE(dbcsr_distribution_type)                      :: dist_l, dist_out
@@ -1215,7 +1216,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_ri_rs_bare_aux_interaction'
 
       INTEGER                                            :: handle
-      INTEGER, POINTER                                   :: blk_aux(:), dist_row_aux(:)
+      INTEGER, CONTIGUOUS, POINTER                       :: blk_aux(:), dist_row_aux(:)
       TYPE(cp_fm_type), ALLOCATABLE                      :: fm_Vtr_Gamma(:, :)
       TYPE(dbcsr_distribution_type)                      :: dist_aux_aux
 

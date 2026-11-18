@@ -115,7 +115,7 @@ CONTAINS
       INTEGER                                            :: handle, ikind, ispin, ivect, nao, &
                                                             nao_aux, nkind, nspins, nvects, &
                                                             spinflip
-      INTEGER, DIMENSION(:), POINTER                     :: blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_sizes
       INTEGER, DIMENSION(maxspins)                       :: nactive
       LOGICAL                                            :: do_noncol, do_onecenter, do_scale, gapw, &
                                                             gapw_xc

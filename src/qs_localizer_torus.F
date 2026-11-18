@@ -224,7 +224,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(OUT)                      :: matrix
 
       INTEGER                                            :: n
-      INTEGER, POINTER                                   :: cols(:), ec(:), er(:), es(:), rows(:), &
+      INTEGER, CONTIGUOUS, POINTER                       :: cols(:), ec(:), er(:), es(:), rows(:), &
                                                             sizes(:)
       TYPE(dbcsr_distribution_type)                      :: distribution, expanded
 

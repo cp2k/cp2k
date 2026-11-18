@@ -1366,7 +1366,7 @@ CONTAINS
 
       INTEGER                                            :: handle, iatom, jatom, npcol, nprow, &
                                                             pair_index, RI_size_opt
-      INTEGER, POINTER                                   :: col_dist(:), row_dist(:), sizes_opt_RI(:)
+      INTEGER, CONTIGUOUS, POINTER                       :: col_dist(:), row_dist(:), sizes_opt_RI(:)
       REAL(KIND=dp), ALLOCATABLE                         :: matrix_pq_block(:, :)
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_distribution_type), POINTER             :: template

@@ -50,7 +50,7 @@ PROGRAM qs_ot_complex_ref_unittest
    INTEGER, PARAMETER                                 :: k = 2, n = 3
 
    INTEGER                                            :: io_unit, mynode, nfail
-   INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_k, row_dist, row_k, row_n
+   INTEGER, DIMENSION(:), CONTIGUOUS, POINTER                     :: col_dist, col_k, row_dist, row_k, row_n
    INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
    TYPE(cp_logger_type), POINTER                      :: logger
    TYPE(dbcsr_distribution_type)                     :: dist
@@ -190,7 +190,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE test_complex_ref_rotation(dist, row_n, row_k, col_k, para_env, nfail)
       TYPE(dbcsr_distribution_type), INTENT(IN)          :: dist
-      INTEGER, DIMENSION(:), POINTER                     :: row_n, row_k, col_k
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: row_n, row_k, col_k
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(INOUT)                             :: nfail
 
@@ -429,7 +429,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: nfail
 
       COMPLEX(KIND=dp)                                   :: expected, value
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_size, row_dist, row_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, col_size, row_dist, row_size
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: error
@@ -498,7 +498,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE test_complex_strict_derivative(dist, row_n, row_k, col_k, para_env, nfail)
       TYPE(dbcsr_distribution_type), INTENT(IN)          :: dist
-      INTEGER, DIMENSION(:), INTENT(INOUT), POINTER      :: row_n, row_k, col_k
+      INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(INOUT), &
+         POINTER                                         :: row_n, row_k, col_k
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(INOUT)                             :: nfail
 
@@ -722,7 +723,8 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       CHARACTER(LEN=*), INTENT(IN)                       :: name
       TYPE(dbcsr_distribution_type), INTENT(IN)          :: dist
-      INTEGER, DIMENSION(:), INTENT(INOUT), POINTER      :: row_size, col_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(INOUT), &
+         POINTER                                         :: row_size, col_size
 
       CALL dbcsr_create(matrix, name, dist, dbcsr_type_no_symmetry, row_size, col_size)
       CALL dbcsr_reserve_blocks(matrix, rows=[1], cols=[1])

@@ -2072,9 +2072,9 @@ CONTAINS
          jatom, jblk, jkind, n_dependent, natom, nblks_RI, nimg, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: present_atoms_i, present_atoms_j
-      INTEGER, DIMENSION(3)                              :: cell_b, cell_i, cell_j, cell_tot
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_dist_ext, ri_blk_size_ext, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, col_dist_ext, ri_blk_size_ext, &
                                                             row_dist, row_dist_ext
+      INTEGER, DIMENSION(3)                              :: cell_b, cell_i, cell_j, cell_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell, pgrid
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_inverse_prv, found, my_offd, &
@@ -2407,8 +2407,9 @@ CONTAINS
       INTEGER, ALLOCATABLE :: ao_pairs(:, :), cell_index(:, :, :), cells_G(:, :), dist1(:), &
          dist2(:), dist3(:), idx_to_atom(:), indices(:), pairs(:, :), sizes_G_split(:), &
          sizes_RI_split(:), sizes_stack(:), stack_dist(:)
-      INTEGER, POINTER :: blocks(:, :), cell_to_index(:, :, :), col_dist(:), col_ext(:), &
-         grid(:, :), index_to_cell(:, :), row_dist(:), row_ext(:), sizes_G(:), sizes_RI(:)
+      INTEGER, CONTIGUOUS, POINTER :: blocks(:, :), cell_to_index(:, :, :), col_dist(:), &
+         col_ext(:), grid(:, :), index_to_cell(:, :), row_dist(:), row_ext(:), sizes_G(:), &
+         sizes_RI(:)
       LOGICAL                                            :: found
       LOGICAL, ALLOCATABLE                               :: needed(:, :), valid_images(:, :)
       REAL(dp), POINTER                                  :: block(:, :)
@@ -3487,8 +3488,8 @@ CONTAINS
       INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_RI_ext, bsizes_RI_ext_split, &
                                                             dist1, dist2
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, RI_blk_size, row_dist
       INTEGER, DIMENSION(2)                              :: pdims_2d
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist, RI_blk_size, row_dist
       INTEGER, DIMENSION(:, :), POINTER                  :: dbcsr_pgrid
       REAL(dp)                                           :: occ
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist_sub
@@ -4788,8 +4789,8 @@ CONTAINS
       INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:) :: bsizes_RI_ext, bsizes_RI_ext_split, dist_AO_1, &
          dist_AO_2, dist_RI, dist_RI_ext, dummy_end, dummy_start, end_blocks, start_blocks
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_bsize, row_bsize
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
-      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       REAL(dp)                                           :: occ
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_type)                                   :: dbcsr_template

@@ -104,9 +104,10 @@ CONTAINS
          maxco, maxder, maxl, maxlgto, maxnset, maxpol, maxsgf, mepos, natom, ncoa, ncob, nder, &
          ngau, nkind, npol, nseta, nsetb, nthread, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
-      INTEGER, DIMENSION(:), POINTER                     :: atom_to_molecule, col_blk_sizes, la_max, &
-                                                            la_min, lb_max, lb_min, npgfa, npgfb, &
-                                                            nsgfa, nsgfb, row_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_sizes, row_blk_sizes
+      INTEGER, DIMENSION(:), POINTER                     :: atom_to_molecule, la_max, la_min, &
+                                                            lb_max, lb_min, npgfa, npgfb, nsgfa, &
+                                                            nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(nexp_max)                       :: nct
       LOGICAL                                            :: found, new_atom_pair
