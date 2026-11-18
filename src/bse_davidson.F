@@ -39,7 +39,8 @@ MODULE bse_davidson
                                               cp_blacs_env_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale_and_add,&
-                                              cp_fm_transpose
+                                              cp_fm_transpose,&
+                                              cp_fm_triangular_multiply
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -2806,8 +2807,8 @@ CONTAINS
 !> \brief Debug check of a Davidson result against the full diagonalization of the explicit
 !>        matrices: energies, and per multiplet the smallest singular value of X_ref^T X for the
 !>        TDA, or of X_ref^T X - Y_ref^T Y for ABBA. ABBA diagonalizes the Hermitian reduction
-!>        C = (A-B)^1/2 (A+B) (A-B)^1/2 with C T^n = (Ω^n)^2 T^n,
-!>        (X+Y)^n = (Ω^n)^-1/2 (A-B)^1/2 T^n, (X-Y)^n = (Ω^n)^1/2 (A-B)^-1/2 T^n.
+!>        C = U (A+B) U^T, A-B = U^T U, with C T^n = (Ω^n)^2 T^n,
+!>        (X+Y)^n = (Ω^n)^-1/2 U^T T^n, (X-Y)^n = (Ω^n)^1/2 U^-1 T^n.
 !>        A failed reference solve aborts: this is debug output with nothing to fall back on
 !> \param fm_A_explicit A from create_A_and_B, N_ov x N_ov
 !> \param exc_ens Davidson energies in Hartree
@@ -2833,8 +2834,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ref_ens
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: diff_ref, sum_ref, X_dav, X_ref, Y_dav, &
                                                             Y_ref
-      TYPE(cp_fm_type)                                   :: fm_C, fm_eigvec, fm_inv_sqrt_A_minus_B, &
-                                                            fm_sqrt_A_minus_B, fm_work
+      TYPE(cp_fm_type)                                   :: fm_A_plus_B, fm_C, fm_chol_A_minus_B, &
+                                                            fm_eigvec, fm_work
 
       CALL timeset(routineN, handle)
 
@@ -2853,8 +2854,10 @@ CONTAINS
       ALLOCATE (ref_ens(n_ov))
 
       IF (PRESENT(fm_B_explicit)) THEN
-         CALL create_hermitian_form_of_ABBA(fm_A_explicit, fm_B_explicit, fm_C, fm_sqrt_A_minus_B, &
-                                            fm_inv_sqrt_A_minus_B, unit_nr, bse_env, 0.0_dp)
+         CALL create_hermitian_form_of_ABBA(fm_A_explicit, fm_B_explicit, fm_C, fm_chol_A_minus_B, &
+                                            fm_A_plus_B, unit_nr, bse_env)
+         ! the n_ref columns of X-Y come from the triangular solve here
+         CALL cp_fm_release(fm_A_plus_B)
          CALL cp_fm_create(fm_eigvec, fm_C%matrix_struct)
          CALL choose_eigv_solver(fm_C, fm_eigvec, ref_ens, diag_info)
          IF (diag_info /= 0) CPABORT("Reference diagonalization of C failed in the BSE Davidson check")
@@ -2867,16 +2870,16 @@ CONTAINS
          n_ref = multiplet_end(ref_ens, n_want, n_ov, deg_thresh)
          ALLOCATE (sum_ref(n_ov, n_ref), diff_ref(n_ov, n_ref))
          CALL cp_fm_create(fm_work, fm_C%matrix_struct)
-         CALL parallel_gemm("N", "N", n_ov, n_ref, n_ov, 1.0_dp, fm_sqrt_A_minus_B, fm_eigvec, 0.0_dp, &
-                            fm_work)
+         ! X+Y ∝ U^T T and X-Y ∝ U^-1 T, with A-B = U^T U
+         CALL cp_fm_to_fm(fm_eigvec, fm_work)
+         CALL cp_fm_triangular_multiply(fm_chol_A_minus_B, fm_work, side="L", transpose_tr=.TRUE., n_cols=n_ref)
          CALL cp_fm_get_submatrix(fm_work, sum_ref, 1, 1, n_ov, n_ref)
-         CALL parallel_gemm("N", "N", n_ov, n_ref, n_ov, 1.0_dp, fm_inv_sqrt_A_minus_B, fm_eigvec, &
-                            0.0_dp, fm_work)
+         CALL cp_fm_to_fm(fm_eigvec, fm_work)
+         CALL cp_fm_triangular_multiply(fm_chol_A_minus_B, fm_work, side="L", invert_tr=.TRUE., n_cols=n_ref)
          CALL cp_fm_get_submatrix(fm_work, diff_ref, 1, 1, n_ov, n_ref)
          CALL cp_fm_release(fm_work)
          CALL cp_fm_release(fm_C)
-         CALL cp_fm_release(fm_sqrt_A_minus_B)
-         CALL cp_fm_release(fm_inv_sqrt_A_minus_B)
+         CALL cp_fm_release(fm_chol_A_minus_B)
 
          ALLOCATE (X_ref(n_ov, n_ref), Y_ref(n_ov, n_ref), Y_dav(n_ov, n_want))
          DO k = 1, n_ref

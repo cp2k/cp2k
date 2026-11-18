@@ -392,6 +392,19 @@ is well parallelized, i.e. you can use several nodes that can provide the memory
 `BSE_DIAG_METHOD ITERDIAG` these matrices are never allocated; the memory is then set by the RI
 three-center tensors, and the solver prints its own estimate.
 
+With `BSE_DIAG_METHOD FULLDIAG`, the BSE multiplies matrices of size
+$N_\mathrm{occ} N_\mathrm{empty} \times N_\mathrm{occ} N_\mathrm{empty}$, so the peak memory also
+depends on a global setting:
+
+- [TYPE_OF_MATRIX_MULTIPLICATION](#CP2K_INPUT.GLOBAL.FM.TYPE_OF_MATRIX_MULTIPLICATION): With
+  `COSMA`, the default when CP2K is built with
+  [COSMA](../../../technologies/libraries.md#cosma-distributed-communication-optimal-matrix-matrix-multiplication-algorithm),
+  the library keeps buffers for its largest multiplication until the run ends, and for large systems
+  these buffers can set the peak memory. Especially when a run fails with an out-of-memory error,
+  the environment variable
+  [`COSMA_CPU_MAX_MEMORY`](https://github.com/eth-cscs/COSMA#tunable-parameters) caps them per MPI
+  rank (in MB) at a small cost in runtime; `SCALAPACK` avoids them at a larger one.
+
 We have benchmarked the numerical precision of our BSE implementation in \[[](#Graml2026)\] and
 compared its results to the BSE implementation in FHI aims \[[](#Liu2020)\]. For our recommended
 settings, i.e. BSE@ev*GW*<sub>0</sub>@PBE with the aug-cc-pVDZ basis set, we have found excellent
@@ -587,7 +600,9 @@ and explicitly setting the keywords
 [ENERGY_CUTOFF_OCC](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.ENERGY_CUTOFF_OCC)
 and
 [ENERGY_CUTOFF_EMPTY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.ENERGY_CUTOFF_EMPTY),
-see details given above.
+see details given above. If CP2K uses COSMA for the matrix multiplications, also consider capping
+its buffers with `COSMA_CPU_MAX_MEMORY`, especially when a run fails with an out-of-memory error,
+see [TYPE_OF_MATRIX_MULTIPLICATION](#CP2K_INPUT.GLOBAL.FM.TYPE_OF_MATRIX_MULTIPLICATION) above.
 
 (header-properties-bse)=
 

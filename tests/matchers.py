@@ -668,6 +668,14 @@ registry["BSE_osc_str_n2_UKS_ABBA"] = GenericMatcher(
 registry["BSE_ampl_n2_UKS_ABBA"] = GenericMatcher(
     r"BSE|            2   α      1    =>     2        -ABBA-", col=8
 )
+# Closed-shell ABBA: a de-excitation amplitude |Y_ia^n| (needs EPS_X below it) and the
+# Davidson reference check against the full diagonalization (needs BSE_DEBUG_PRINT)
+registry["BSE_Y_ampl_n1_ABBA"] = GenericMatcher(
+    r"BSE|            1           4    <=     5        -ABBA-", col=7
+)
+registry["BSE_refcheck_overlap"] = GenericMatcher(
+    r"BSE|DEBUG| Min subspace overlap vs full diagonalization", col=8
+)
 registry["M115"] = GenericMatcher(r"MOMENTS_TRACE_RE|     0.10000000E+000", col=3)
 registry["M116"] = GenericMatcher(r"MOMENTS_TRACE_IM|     0.10000000E+000", col=3)
 registry["M117"] = GenericMatcher(r"MOMENTS_TRACE_RE|     0.20000000E+000", col=3)

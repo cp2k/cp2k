@@ -39,15 +39,15 @@ MODULE bse_full_diag
                                               cp_fm_row_scale,&
                                               cp_fm_scale,&
                                               cp_fm_scale_and_add
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
-                                              cp_fm_power
+   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_redistribution,            ONLY: cp_fm_permute
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_release, &
-        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_to_fm_triangular, cp_fm_type
    USE exstates_types,                  ONLY: excited_energy_type
    USE input_constants,                 ONLY: bse_iterdiag,&
                                               bse_screening_alpha,&
@@ -519,42 +519,39 @@ CONTAINS
    END SUBROUTINE create_hermitian_form_rpa
 
    ! **************************************************************************************************
-!> \brief Construct Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 to solve full BSE matrix as a hermitian problem
-!>   (cf. Eq. (A7) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001)).
-!>   We keep fm_sqrt_A_minus_B and fm_inv_sqrt_A_minus_B for print of singleparticle transitions
-!>   of ABBA as described in Eq. (A10) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001).
-!> \param fm_A ...
-!> \param fm_B ...
-!> \param fm_C ...
-!> \param fm_sqrt_A_minus_B ...
-!> \param fm_inv_sqrt_A_minus_B ...
-!> \param unit_nr ...
+!> \brief Construct C = U (A+B) U^T with A-B = U^T U (U upper Cholesky factor) to solve the full
+!>   BSE as a hermitian problem; C is similar to (A-B)(A+B) and has eigenvalues Ω_n^2.
+!>   Any factor M with A-B = M M^T works in Eq. (A7) of F. Furche, J. Chem. Phys. 114, 5982 (2001);
+!>   here M = U^T; U and A+B are kept for the back-transform of Eq. (A10).
+!> \param fm_A matrix A
+!> \param fm_B matrix B
+!> \param fm_C on exit C = U (A+B) U^T
+!> \param fm_chol_A_minus_B on exit the upper Cholesky factor U of A-B, zero below the diagonal
+!> \param fm_A_plus_B on exit A+B
+!> \param unit_nr output unit
 !> \param bse_env the BSE environment (settings)
-!> \param diag_est ...
 ! **************************************************************************************************
-   SUBROUTINE create_hermitian_form_of_ABBA(fm_A, fm_B, fm_C, &
-                                            fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                                            unit_nr, bse_env, diag_est)
+   SUBROUTINE create_hermitian_form_of_ABBA(fm_A, fm_B, fm_C, fm_chol_A_minus_B, fm_A_plus_B, unit_nr, bse_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_A, fm_B
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C, fm_sqrt_A_minus_B, &
-                                                            fm_inv_sqrt_A_minus_B
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C, fm_chol_A_minus_B, fm_A_plus_B
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(bse_env_type), INTENT(IN)                     :: bse_env
-      REAL(KIND=dp), INTENT(IN)                          :: diag_est
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_hermitian_form_of_ABBA'
 
-      INTEGER                                            :: dim_mat, handle, n_dependent
-      REAL(KIND=dp), ALLOCATABLE                         :: diag_B(:), gap(:)
-      REAL(KIND=dp), DIMENSION(2)                        :: eigvals_AB_diff
-      TYPE(cp_fm_type)                                   :: fm_A_minus_B, fm_A_plus_B, fm_dummy, &
-                                                            fm_work_product
+      INTEGER                                            :: chol_info, dim_mat, handle
+      REAL(KIND=dp), ALLOCATABLE                         :: chol_pivot(:), diag_B(:), gap(:)
+      TYPE(cp_fm_type)                                   :: fm_work
 
       CALL timeset(routineN, handle)
 
+      CALL cp_fm_create(fm_A_plus_B, fm_A%matrix_struct)
+      CALL cp_fm_to_fm(fm_A, fm_A_plus_B)
+      CALL cp_fm_scale_and_add(1.0_dp, fm_A_plus_B, 1.0_dp, fm_B)
+
       IF (bse_env%screening_method == bse_screening_rpa) THEN
-         ! In RPA, A-B is diagonal; neither a matrix power nor dense products are needed.
+         ! In RPA, A-B is diagonal, so its Cholesky factor is the diagonal sqrt(Δ)
          CALL cp_fm_get_info(fm_A, nrow_global=dim_mat)
          ALLOCATE (gap(dim_mat), diag_B(dim_mat))
          CALL cp_fm_get_diag(fm_A, gap)
@@ -563,12 +560,10 @@ CONTAINS
          CALL cp_fm_create(fm_C, fm_B%matrix_struct)
          CALL cp_fm_to_fm(fm_B, fm_C)
          CALL create_hermitian_form_rpa(fm_C, gap)
-         CALL cp_fm_create(fm_sqrt_A_minus_B, fm_A%matrix_struct)
-         CALL cp_fm_create(fm_inv_sqrt_A_minus_B, fm_A%matrix_struct)
-         CALL cp_fm_set_all(fm_sqrt_A_minus_B, 0.0_dp, 1.0_dp)
-         CALL cp_fm_set_all(fm_inv_sqrt_A_minus_B, 0.0_dp, 1.0_dp)
-         CALL cp_fm_column_scale(fm_sqrt_A_minus_B, SQRT(gap))
-         CALL cp_fm_column_scale(fm_inv_sqrt_A_minus_B, 1.0_dp/SQRT(gap))
+         ! diagonal A-B: U = diag(sqrt(Δ)), so C = sqrt(Δ) (A+B) sqrt(Δ)
+         CALL cp_fm_create(fm_chol_A_minus_B, fm_A%matrix_struct)
+         CALL cp_fm_set_all(fm_chol_A_minus_B, 0.0_dp, 1.0_dp)
+         CALL cp_fm_column_scale(fm_chol_A_minus_B, SQRT(gap))
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4,T7,A,T65,F16.6)') 'BSE|', &
                'Smallest eigenvalue of A-B (eV)', MINVAL(gap)*evolt
@@ -578,88 +573,46 @@ CONTAINS
          RETURN
       END IF
 
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4,T7,A25,A39,ES6.0,A3)') 'BSE|', 'Diagonalizing aux. matrix', &
-            ' with size of A. This will take around ', diag_est, " s."
-      END IF
-
-      ! Create work matrices, which will hold A+B and A-B and their powers
-      ! C is created afterwards to save memory
-      ! Final result: C = (A-B)^0.5             (A+B)              (A-B)^0.5              EQ.I
-      !                   \_______/             \___/              \______/
-      !               fm_sqrt_A_minus_B      fm_A_plus_B     fm_sqrt_A_minus_B
-      !                    (EQ.Ia)             (EQ.Ib)              (EQ.Ia)
-      ! Intermediate work matrices:
-      ! fm_inv_sqrt_A_minus_B: (A-B)^-0.5                                                 EQ.II
-      ! fm_A_minus_B: (A-B)                                                               EQ.III
-      ! fm_work_product: (A-B)^0.5 (A+B) from (EQ.Ia) and (EQ.Ib)                         EQ.IV
-      CALL cp_fm_create(fm_A_plus_B, fm_A%matrix_struct)
-      CALL cp_fm_to_fm(fm_A, fm_A_plus_B)
-      CALL cp_fm_create(fm_A_minus_B, fm_A%matrix_struct)
-      CALL cp_fm_to_fm(fm_A, fm_A_minus_B)
-      CALL cp_fm_create(fm_sqrt_A_minus_B, fm_A%matrix_struct)
-      CALL cp_fm_set_all(fm_sqrt_A_minus_B, 0.0_dp)
-      CALL cp_fm_create(fm_inv_sqrt_A_minus_B, fm_A%matrix_struct)
-      CALL cp_fm_set_all(fm_inv_sqrt_A_minus_B, 0.0_dp)
-
-      CALL cp_fm_create(fm_work_product, fm_A%matrix_struct)
-
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A19)') 'BSE|DEBUG|', 'Created work arrays'
-      END IF
-
-      ! Add/Substract B (cf. EQs. Ib and III)
-      CALL cp_fm_scale_and_add(1.0_dp, fm_A_plus_B, 1.0_dp, fm_B)
-      CALL cp_fm_scale_and_add(1.0_dp, fm_A_minus_B, -1.0_dp, fm_B)
-
-      ! cp_fm_power will overwrite matrix, therefore we create copies
-      CALL cp_fm_to_fm(fm_A_minus_B, fm_inv_sqrt_A_minus_B)
-
-      ! In order to avoid a second diagonalization (cp_fm_power), we create (A-B)^0.5 (EQ.Ia)
-      ! from (A-B)^-0.5 (EQ.II) by multiplication with (A-B) (EQ.III) afterwards.
-
-      ! Raise A-B to -0.5_dp, no quenching of eigenvectors, hence threshold=0.0_dp
-      CALL cp_fm_create(fm_dummy, fm_A%matrix_struct)
-      ! Create (A-B)^-0.5 (cf. EQ.II)
-      CALL cp_fm_power(fm_inv_sqrt_A_minus_B, fm_dummy, -0.5_dp, 0.0_dp, n_dependent, eigvals=eigvals_AB_diff)
-      CALL cp_fm_release(fm_dummy)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4,T7,A,T65,F16.6)') 'BSE|', &
-            'Smallest eigenvalue of A-B (eV)', eigvals_AB_diff(1)*evolt
-      END IF
-      ! Raise an error in case the the matrix A-B is not positive definite (i.e. negative eigenvalues)
-      ! In this case, the procedure for hermitian form of ABBA is not applicable
-      IF (eigvals_AB_diff(1) < 0) THEN
+      ! Final result: C = U                    (A+B)                U^T                      EQ.I
+      !                   \_/                  \___/                \_/
+      !            fm_chol_A_minus_B        fm_A_plus_B      fm_chol_A_minus_B
+      !                 (EQ.Ia)               (EQ.Ib)              (EQ.Ia)
+      ! with the upper Cholesky factor U of A-B = U^T U (EQ.Ia) and A+B built above (EQ.Ib).
+      ! Intermediate work matrix:
+      ! fm_work: A-B, overwritten by its factorization, then the product U (A+B)              EQ.II
+      ! A-B = U^T U; the Cholesky factorization fails when A-B is not positive definite
+      CALL cp_fm_create(fm_work, fm_A%matrix_struct)
+      CALL cp_fm_to_fm(fm_A, fm_work)
+      CALL cp_fm_scale_and_add(1.0_dp, fm_work, -1.0_dp, fm_B)
+      CALL cp_fm_cholesky_decompose(fm_work, info_out=chol_info)
+      IF (chol_info /= 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "Matrix (A-B) is not positive definite. "// &
                        "Hermitian diagonalization of full ABBA matrix is ill-defined.")
       END IF
+      ! the factorization leaves A-B in the strict lower part; a zero there lets U enter plain GEMMs
+      CALL cp_fm_create(fm_chol_A_minus_B, fm_A%matrix_struct)
+      CALL cp_fm_set_all(fm_chol_A_minus_B, 0.0_dp)
+      CALL cp_fm_to_fm_triangular(fm_work, fm_chol_A_minus_B, "U")
 
-      ! We keep fm_inv_sqrt_A_minus_B for print of singleparticle transitions of ABBA
-      ! We further create (A-B)^0.5 for the singleparticle transitions of ABBA
-      ! Create (A-B)^0.5= (A-B)^-0.5 * (A-B) (EQ.Ia)
+      ! each U_ii^2 is a Schur complement of A-B, so min_i U_ii^2 >= smallest eigenvalue of A-B
       CALL cp_fm_get_info(fm_A, nrow_global=dim_mat)
-      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_inv_sqrt_A_minus_B, fm_A_minus_B, 0.0_dp, &
-                         fm_sqrt_A_minus_B)
+      ALLOCATE (chol_pivot(dim_mat))
+      CALL cp_fm_get_diag(fm_chol_A_minus_B, chol_pivot)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4,T7,A,T65,F16.6)') 'BSE|', &
+            'Upper bound to smallest eigenvalue of A-B (eV)', MINVAL(chol_pivot**2)*evolt
+      END IF
+      DEALLOCATE (chol_pivot)
 
-      ! Compute and store LHS of C, i.e. (A-B)^0.5 (A+B) (EQ.IV)
-      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_sqrt_A_minus_B, fm_A_plus_B, 0.0_dp, &
-                         fm_work_product)
-
-      ! Release to save memory
-      CALL cp_fm_release(fm_A_plus_B)
-      CALL cp_fm_release(fm_A_minus_B)
-
-      ! Now create full
+      ! C = U (A+B) U^T by two GEMMs
       CALL cp_fm_create(fm_C, fm_A%matrix_struct)
-      CALL cp_fm_set_all(fm_C, 0.0_dp)
-      ! Compute C=(A-B)^0.5 (A+B) (A-B)^0.5 (EQ.I)
-      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_work_product, fm_sqrt_A_minus_B, 0.0_dp, &
-                         fm_C)
-      CALL cp_fm_release(fm_work_product)
+      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_chol_A_minus_B, fm_A_plus_B, 0.0_dp, fm_work)
+      CALL parallel_gemm("N", "T", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_work, fm_chol_A_minus_B, 0.0_dp, fm_C)
+      CALL cp_fm_release(fm_work)
 
       IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A36)') 'BSE|DEBUG|', 'Filled C=(A-B)^0.5 (A+B) (A-B)^0.5'
+         WRITE (unit_nr, '(T2,A10,T13,A)') 'BSE|DEBUG|', 'Filled C=U (A+B) U^T with A-B=U^T U'
       END IF
 
       CALL timestop(handle)
@@ -673,20 +626,19 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param homo_irred ...
-!> \param fm_sqrt_A_minus_B ...
-!> \param fm_inv_sqrt_A_minus_B ...
+!> \param fm_chol_A_minus_B upper Cholesky factor U of A-B = U^T U; deallocated on exit
+!> \param fm_A_plus_B A+B; deallocated on exit
 !> \param unit_nr ...
 !> \param diag_est ...
 !> \param bse_env the BSE environment (settings, and the state the post-processing reads)
 !> \param mo_coeff ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalize_C(fm_C, homo, virtual, homo_irred, &
-                            fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
+   SUBROUTINE diagonalize_C(fm_C, homo, virtual, homo_irred, fm_chol_A_minus_B, fm_A_plus_B, &
                             unit_nr, diag_est, bse_env, mo_coeff)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual, homo_irred
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_chol_A_minus_B, fm_A_plus_B
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
       TYPE(bse_env_type), INTENT(IN)                     :: bse_env
@@ -710,7 +662,7 @@ CONTAINS
             'This will take around ', diag_est, ' s.'
       END IF
 
-      !We have now the full matrix C=(A-B)^0.5 (A+B) (A-B)^0.5
+      !We have now the full matrix C=U (A+B) U^T
       !Now: Diagonalize it
       CALL cp_fm_create(fm_eigvec_Z, fm_C%matrix_struct)
 
@@ -720,7 +672,7 @@ CONTAINS
 
       IF (diag_info /= 0) THEN
          CALL cp_abort(__LOCATION__, &
-                       "Diagonalization of C=(A-B)^0.5 (A+B) (A-B)^0.5 failed in BSE")
+                       "Diagonalization of C=U (A+B) U^T failed in BSE")
       END IF
 
       ! C could have negative eigenvalues, since we do not explicitly check A+B
@@ -729,7 +681,7 @@ CONTAINS
       IF (Exc_ens(1) < 0) THEN
          IF (unit_nr > 0) THEN
             CALL cp_abort(__LOCATION__, &
-                          "Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 has negative eigenvalues, i.e. "// &
+                          "Matrix C=U (A+B) U^T has negative eigenvalues, i.e. "// &
                           "(A+B) is not positive definite.")
          END IF
       END IF
@@ -740,30 +692,31 @@ CONTAINS
       ! We aim for the upper part of the vector (X,Y) for a direct comparison with the TDA result
 
       ! Following Furche, we basically use Eqs. (A10): First, we multiply
-      ! the (A-B)^+-0.5 with eigenvectors and then the eigenvalues
+      ! the factor of A-B with eigenvectors and then the eigenvalues
       ! One has to be careful about the index structure, since the eigenvector matrix is not symmetric anymore!
 
-      ! First, Eq. I from (A10) from Furche: (X+Y)_n = (Ω_n)^-0.5 (A-B)^0.5 T_n
+      ! First, Eq. I from (A10) from Furche with (A-B)^0.5 -> U^T: (X+Y)_n = (Ω_n)^-0.5 U^T T_n
       CALL cp_fm_create(fm_mat_eigvec_transform_sum, fm_C%matrix_struct)
       CALL cp_fm_set_all(fm_mat_eigvec_transform_sum, 0.0_dp)
-      CALL parallel_gemm(transa="N", transb="N", m=n_ov_joint, n=n_ov_joint, k=n_ov_joint, alpha=1.0_dp, &
-                         matrix_a=fm_sqrt_A_minus_B, matrix_b=fm_eigvec_Z, beta=0.0_dp, &
+      CALL parallel_gemm(transa="T", transb="N", m=n_ov_joint, n=n_ov_joint, k=n_ov_joint, alpha=1.0_dp, &
+                         matrix_a=fm_chol_A_minus_B, matrix_b=fm_eigvec_Z, beta=0.0_dp, &
                          matrix_c=fm_mat_eigvec_transform_sum)
-      CALL cp_fm_release(fm_sqrt_A_minus_B)
+      CALL cp_fm_release(fm_chol_A_minus_B)
+      CALL cp_fm_release(fm_eigvec_Z)
       ! This normalizes the eigenvectors
       CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_sum, Exc_ens, -0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
 
-      ! Second, Eq. II from (A10) from Furche: (X-Y)_n = (Ω_n)^0.5 (A-B)^-0.5 T_n
+      ! Second, Eq. II from (A10) from Furche, (X-Y)_n = (Ω_n)^0.5 U^-1 T_n, taken from
+      ! (A+B)(X+Y)_n = Ω_n (X-Y)_n, so no inverse of U is needed
       CALL cp_fm_create(fm_mat_eigvec_transform_diff, fm_C%matrix_struct)
       CALL cp_fm_set_all(fm_mat_eigvec_transform_diff, 0.0_dp)
       CALL parallel_gemm(transa="N", transb="N", m=n_ov_joint, n=n_ov_joint, k=n_ov_joint, alpha=1.0_dp, &
-                         matrix_a=fm_inv_sqrt_A_minus_B, matrix_b=fm_eigvec_Z, beta=0.0_dp, &
+                         matrix_a=fm_A_plus_B, matrix_b=fm_mat_eigvec_transform_sum, beta=0.0_dp, &
                          matrix_c=fm_mat_eigvec_transform_diff)
-      CALL cp_fm_release(fm_inv_sqrt_A_minus_B)
-      CALL cp_fm_release(fm_eigvec_Z)
+      CALL cp_fm_release(fm_A_plus_B)
 
-      ! This normalizes the eigenvectors
-      CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_diff, Exc_ens, 0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
+      ! This normalizes the eigenvectors; the factor Ω_n^-1 carries the normalization of (X+Y)_n
+      CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_diff, Exc_ens, -1.0_dp, gamma=1.0_dp, do_transpose=.TRUE.)
 
       ! Now, we add the two equations to obtain X_n
       ! Add overwrites the first argument, therefore we copy it beforehand

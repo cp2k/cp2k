@@ -762,6 +762,9 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="TYPE_OF_MATRIX_MULTIPLICATION", &
                           description="Allows to switch between scalapack pxgemm and COSMA pxgemm. "// &
                           "COSMA reduces the communication costs but increases the memory demands. "// &
+                          "For large dense products the COSMA buffers can set the peak memory; "// &
+                          "the environment variable COSMA_CPU_MAX_MEMORY caps them per MPI rank "// &
+                          "(in MB), at some cost in runtime. "// &
                           "The performance of Scalapack's pxgemm on GPU's depends "// &
                           "crucially on the BLOCK_SIZES. Make sure optimized kernels are available.", &
                           default_i_val=default_matmul, &
