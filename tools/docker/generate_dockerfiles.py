@@ -218,7 +218,6 @@ def main() -> None:
                 gpu_model="A40",
                 testopts=f"{testopts} --maxtasks 8 --ompthreads 1 --timeout 400",
                 image_tag=f.image_tag,
-                torch_spec="2.13.0+cuda cuda_arch=86",
             )
         )
 
@@ -859,7 +858,6 @@ def install_cp2k_spack(
     testopts: str = "",
     image_tag: str = "",
     test_type: str = "regression",
-    torch_spec: str = "",
 ) -> str:
     if gcc_version is None or "fedora" in base_image:
         gcc_compilers = "g++ gcc gfortran"
@@ -875,18 +873,6 @@ def install_cp2k_spack(
     use_externals = "-ue"
     if mpi_mode == "openmpi":
         use_externals = ""
-    # Optionally pin py-torch for this image only by editing the Spack deps yaml.
-    torch_pin = ""
-    if torch_spec:
-        deps_yaml = (
-            "cp2k_deps_s.yaml" if version.startswith("s") else "cp2k_deps_p.yaml"
-        )
-        torch_pin = (
-            "# Pin py-torch for this image only "
-            "(see install_cp2k_spack(torch_spec=...)).\n"
-            f'RUN sed -i -E \'s|("py-torch)@[^"]*"|\\1@{torch_spec}"|\' '
-            f"tools/spack/{deps_yaml}\n"
-        )
     # Assemble docker file
     output = (
         install_base_image(
@@ -911,7 +897,7 @@ WORKDIR /opt/cp2k
 COPY ./tools/spack ./tools/spack
 COPY ./tools/docker ./tools/docker
 COPY ./make_cp2k.sh .
-{torch_pin}RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} {gcc_version_flag} -j${{NUM_PROCS}} -mpi {mpi_mode} {use_externals} {feature_flags}
+RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} {gcc_version_flag} -j${{NUM_PROCS}} -mpi {mpi_mode} {use_externals} {feature_flags}
 
 ###### Stage 2: Build CP2K ######
 
