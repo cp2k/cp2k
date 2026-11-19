@@ -166,10 +166,9 @@ MODULE gw_utils
    TYPE gw_qp_summary_type
       PRIVATE
       INTEGER, PUBLIC                                    :: n_kpoints = 1
-      INTEGER(KIND=int_8)                               :: n_unstable = 0_int_8, n_multi = 0_int_8, &
-                                                           n_pade = 0_int_8
-      INTEGER(KIND=int_8)                               :: n_frontier_unstable = 0_int_8, n_frontier_multi = 0_int_8
-      REAL(KIND=dp)                                      :: pick_min = 0.0_dp
+      INTEGER(KIND=int_8)                               :: n_reliable = 0_int_8, n_unstable = 0_int_8, &
+                                                           n_multi = 0_int_8, n_pade = 0_int_8
+      REAL(KIND=dp)                                      :: start_time = 0.0_dp
    END TYPE gw_qp_summary_type
 
 CONTAINS
@@ -923,8 +922,9 @@ CONTAINS
          END IF
          SELECT CASE (bs_env%ri_metric%potential_type)
          CASE (do_potential_short)
-            WRITE (u, FMT="(T2,A,T61,F12.2,A)") "Input: Attenuation of the RI metric:", &
-               bs_env%ri_metric%omega, " bohr^-1"
+            ! ⁻¹ takes three bytes more than two columns: column 83 in bytes is column 80 on screen.
+            WRITE (u, FMT="(T2,A,T73,F11.2)") "Attenuation of the RI metric (bohr⁻¹)", &
+               bs_env%ri_metric%omega
          CASE (do_potential_truncated)
             WRITE (u, FMT="(T2,2A,F15.1,A)") "Cutoff radius for the truncated Coulomb ", &
                "operator in RI metric:", bs_env%ri_metric%cutoff_radius*angstrom, " Å"
@@ -3732,9 +3732,12 @@ CONTAINS
 
       IF (do_nevanlinna) THEN
 
-         IF (ikp == 1 .AND. ispin == 1 .AND. bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A)') 'Starting GW Nevanlinna analytic continuation'
-            CALL m_flush(bs_env%unit_nr)
+         IF (ikp == 1 .AND. ispin == 1) THEN
+            summary%start_time = m_walltime()
+            IF (bs_env%unit_nr > 0) THEN
+               WRITE (bs_env%unit_nr, '(/,T2,A)') 'Starting GW Nevanlinna analytic continuation'
+               CALL m_flush(bs_env%unit_nr)
+            END IF
          END IF
 
          CALL cite_reference(Fei2021)
@@ -3907,7 +3910,7 @@ CONTAINS
       END IF
 
       IF (do_nevanlinna) CALL report_nevanlinna_progress(bs_env, summary, unstable, multi, &
-                                                         n_window, n_ac_pade, pick_min, ikp, ispin)
+                                                         n_window, n_ac_pade, ikp, ispin)
 
       CALL timestop(handle)
 
@@ -4088,24 +4091,22 @@ CONTAINS
 !> \param multi Levels with a second quasiparticle solution of comparable weight.
 !> \param n_window Number of fit windows.
 !> \param n_pade Number of full-frequency fits that fell back to Padé.
-!> \param pick_min Smallest relative Pick eigenvalue of the full-frequency fits, capped at zero.
 !> \param ikp Current k-point index.
 !> \param ispin Current spin index.
 ! **************************************************************************************************
-   SUBROUTINE report_nevanlinna_progress(bs_env, summary, unstable, multi, n_window, n_pade, pick_min, ikp, ispin)
+   SUBROUTINE report_nevanlinna_progress(bs_env, summary, unstable, multi, n_window, n_pade, ikp, ispin)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(gw_qp_summary_type), INTENT(INOUT)            :: summary
       LOGICAL, DIMENSION(:), INTENT(IN)                  :: unstable, multi
-      INTEGER, INTENT(IN)                                :: n_window, n_pade
-      REAL(KIND=dp), INTENT(IN)                          :: pick_min
-      INTEGER, INTENT(IN)                                :: ikp, ispin
+      INTEGER, INTENT(IN)                                :: n_window, n_pade, ikp, ispin
 
       INTEGER, PARAMETER                                 :: n_progress_steps = 10
 
-      CHARACTER(LEN=2*default_string_length)             :: message
-      INTEGER                                            :: first_frontier, last_frontier, nkp, u
-      INTEGER(KIND=int_8)                                :: done, step, total
+      CHARACTER(LEN=20)                                  :: count_text
+      CHARACTER(LEN=64)                                  :: count_format, pade_format
+      INTEGER                                            :: count_width, nkp, u
+      INTEGER(KIND=int_8)                                :: done, n_levels, step, total
 
       nkp = summary%n_kpoints
       done = INT(ispin - 1, KIND=int_8)*nkp + ikp
@@ -4118,20 +4119,17 @@ CONTAINS
                       "Increase NUM_TIME_FREQ_POINTS to obtain an error estimate.")
       END IF
 
-      first_frontier = MAX(1, bs_env%n_occ(ispin))
-      last_frontier = MIN(SIZE(unstable), bs_env%n_occ(ispin) + 1)
+      summary%n_reliable = summary%n_reliable + COUNT(.NOT. (unstable .OR. multi))
       summary%n_unstable = summary%n_unstable + COUNT(unstable)
       summary%n_multi = summary%n_multi + COUNT(multi)
       summary%n_pade = summary%n_pade + n_pade
-      summary%pick_min = MIN(summary%pick_min, pick_min)
-      summary%n_frontier_unstable = summary%n_frontier_unstable + COUNT(unstable(first_frontier:last_frontier))
-      summary%n_frontier_multi = summary%n_frontier_multi + COUNT(multi(first_frontier:last_frontier))
 
       IF (u > 0 .AND. total >= n_progress_steps) THEN
          step = (n_progress_steps*done)/total
          IF (step > (n_progress_steps*(done - 1))/total) THEN
-            WRITE (u, '(T2,A,I0,A,I0,A,I0,A)') 'GW analytic continuation: ', (100*step)/n_progress_steps, &
-               '% (', done, '/', total, ')'
+            WRITE (u, '(T2,A,I3,A,I0,A,I0,A,T60,A,T71,F8.1,A)') 'GW analytic continuation: ', &
+               (100*step)/n_progress_steps, ' % (', done, ' / ', total, ')', &
+               'Total time:', m_walltime() - summary%start_time, ' s'
             CALL m_flush(u)
          END IF
       END IF
@@ -4139,16 +4137,24 @@ CONTAINS
       IF (done /= total) RETURN
 
       IF (u > 0) THEN
-         WRITE (u, '(T2,A,I0,A,I0,A,I0,A)') 'GW Nevanlinna, ', n_window, ' fit windows: * ', &
-            summary%n_unstable, ' unreliable, m ', summary%n_multi, ' multi-solution'
-         WRITE (u, '(T2,A,I0,A,I0,A,ES10.2)') 'GW full fits: Padé fallback ', summary%n_pade, '/', &
-            total*SIZE(unstable), ', min. rel. Pick eig. ', summary%pick_min
+         ! counts right-aligned at column 80; é of Padé takes one byte more than one column
+         n_levels = total*SIZE(unstable)
+         WRITE (count_text, '(I0)') n_levels
+         count_width = LEN_TRIM(count_text)
+         WRITE (count_format, '(A,I0,A,I0,A,I0,A)') '(T4,A,T', 68 - 2*count_width, ',I', count_width, &
+            ',A,I', count_width, ',F8.1,A)'
+         WRITE (pade_format, '(A,I0,A,I0,A,I0,A)') '(T4,A,T', 69 - 2*count_width, ',I', count_width, &
+            ',A,I', count_width, ',F8.1,A)'
+         WRITE (u, '(/,T2,A,I0,A)') 'GW Nevanlinna, accuracy for ', n_window, ' fit windows:'
+         WRITE (u, count_format) 'Reliable levels', summary%n_reliable, ' / ', n_levels, &
+            100.0_dp*REAL(summary%n_reliable, dp)/REAL(n_levels, dp), ' %'
+         WRITE (u, count_format) 'Unreliable levels (*)', summary%n_unstable, ' / ', n_levels, &
+            100.0_dp*REAL(summary%n_unstable, dp)/REAL(n_levels, dp), ' %'
+         WRITE (u, count_format) 'Multi-solution levels (m)', summary%n_multi, ' / ', n_levels, &
+            100.0_dp*REAL(summary%n_multi, dp)/REAL(n_levels, dp), ' %'
+         WRITE (u, pade_format) 'Padé fallback of the full-frequency fit', summary%n_pade, ' / ', n_levels, &
+            100.0_dp*REAL(summary%n_pade, dp)/REAL(n_levels, dp), ' %'
          CALL m_flush(u)
-      END IF
-      IF (summary%n_frontier_unstable > 0 .OR. summary%n_frontier_multi > 0) THEN
-         WRITE (message, '(A,I0,A,I0,A)') 'GW HOMO/LUMO levels: ', summary%n_frontier_unstable, &
-            ' marked unreliable (*), ', summary%n_frontier_multi, ' with multiple solutions (m).'
-         CPWARN(TRIM(message))
       END IF
 
    END SUBROUTINE report_nevanlinna_progress

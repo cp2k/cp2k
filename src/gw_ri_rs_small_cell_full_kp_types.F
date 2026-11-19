@@ -11,7 +11,8 @@
 ! **************************************************************************************************
 MODULE gw_ri_rs_small_cell_full_kp_types
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE kpoint_transform,                ONLY: kp_transform_plan_type
    USE message_passing,                 ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
@@ -58,6 +59,12 @@ MODULE gw_ri_rs_small_cell_full_kp_types
       REAL(dp), ALLOCATABLE                     :: leak_l0(:)
       TYPE(mp_para_env_type), POINTER           :: group_env => NULL()
       INTEGER                                   :: ngroups = 1, my_group = 0
+      ! Progress of the χ and Σc time loops in the group of rank 0, counted in k points of G and Σ
+      ! (and q points of χ); k_points_total = 0 outside these loops.
+      INTEGER(KIND=int_8)                       :: k_points_done = 0, k_points_total = 0
+      INTEGER                                   :: next_progress = 1
+      REAL(dp)                                  :: progress_start = 0.0_dp
+      CHARACTER(LEN=32)                         :: progress_label = ''
       TYPE(gamma_correction_type)               :: gamma_correction
       TYPE(ri_q_matrix_block_type), ALLOCATABLE :: chi_q_frequency(:), W_PQ_tau(:)
       ! AO image operators retained only until the Gamma-correction contraction.

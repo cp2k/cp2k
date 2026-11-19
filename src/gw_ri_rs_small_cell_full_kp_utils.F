@@ -79,6 +79,7 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
    USE ri_rs_grid_setup,                ONLY: setup_ri_rs_grid
    USE ri_rs_kp_fitting,                ONLY: compute_Z_lP_q,&
                                               evaluate_mu_rl_R_values
+   USE ri_rs_kp_integrals,              ONLY: write_ri_rs_progress
    USE ri_rs_utils,                     ONLY: precompute_ri_rs_radii
    USE util,                            ONLY: sort
 
@@ -363,6 +364,7 @@ CONTAINS
       END DO
       CALL receive_minus_q_blocks(bs_env%para_env, q_partner, solves_q, n_RI, &
                                   bs_env%num_time_freq_points, gwkp_env%W_PQ_tau)
+      IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ''
       DO j_w = 1, bs_env%num_time_freq_points
          CALL bs_env%para_env%max(frequency_elapsed(j_w))
          IF (bs_env%unit_nr > 0) THEN
@@ -634,10 +636,11 @@ CONTAINS
       INTEGER, ALLOCATABLE                               :: full_cells(:, :), needed_local(:), &
                                                             q_partner(:)
       LOGICAL, ALLOCATABLE                               :: needed(:)
-      REAL(KIND=dp) :: available_GB, budget, input_bytes, live_bytes, n_pair_max, n_q_max, peak, &
-         q_bytes, rows_bytes, step_start, tau, time_bytes
+      REAL(KIND=dp)                                      :: available_GB, budget, input_bytes, &
+                                                            live_bytes, n_pair_max, n_q_max, peak, &
+                                                            q_bytes, rows_bytes, tau, time_bytes
       REAL(KIND=dp), ALLOCATABLE                         :: chi_grid_R(:, :, :), G_occ_R(:, :, :), &
-                                                            qpoints(:, :), step_times(:)
+                                                            qpoints(:, :)
       TYPE(gw_pair_fft_work_type)                        :: fft_stencil_work
       TYPE(mp_comm_type)                                 :: column_env
       TYPE(mp_para_env_type), POINTER                    :: chi_env
@@ -728,9 +731,11 @@ CONTAINS
       END DO
       ALLOCATE (chi_q(n_aux, n_aux, n_needed_local))
 
-      ALLOCATE (step_times(bs_env%num_time_freq_points), SOURCE=0.0_dp)
+      CALL start_time_loop_progress(bs_env, 'χ(iτ)', 'k points of G and q points of χ', n_groups, i_size, &
+                                    INT(n_time_local*bs_env%n_spin, int_8)* &
+                                    INT(2*bs_env%nkp_scf_desymm + COUNT(needed), int_8))
       DO i_t = i_group + 1, bs_env%num_time_freq_points, n_groups
-         step_start = m_walltime()
+         i_time_local = (i_t - 1)/n_groups + 1
          tau = bs_env%time_frequency_grid%imaginary_time(i_t)
          chi_q = z_zero
          DO ispin = 1, bs_env%n_spin
@@ -779,26 +784,14 @@ CONTAINS
             DEALLOCATE (work)
             !$OMP END PARALLEL
             DEALLOCATE (chi_grid_local_q)
+            CALL count_time_loop_k_points(bs_env, INT(COUNT(needed), int_8))
          END DO
-         i_time_local = (i_t - 1)/n_groups + 1
          DO i_needed = 1, n_needed_local
             iq_local = needed_local(i_needed)
             chi_partial(iq_local)%values(:, :, i_time_local) = chi_q(:, :, i_needed)
          END DO
-         IF (chi_env%mepos == 0) step_times(i_t) = m_walltime() - step_start
       END DO
-
-      CALL bs_env%para_env%sum(step_times)
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(A)') ' '
-         DO i_t = 1, bs_env%num_time_freq_points
-            WRITE (bs_env%unit_nr, '(T2,A,I3,A,I0,T57,A,T71,F10.1,A)') &
-               'GW χ(iτ) point ', i_t, ' / ', bs_env%num_time_freq_points, &
-               'Exec. time:', step_times(i_t), ' s'
-         END DO
-         CALL m_flush(bs_env%unit_nr)
-      END IF
-      DEALLOCATE (step_times)
+      bs_env%gwkp_env%k_points_total = 0
 
       IF (ALLOCATED(psi_time)) DEALLOCATE (psi_time)
       n_local = COUNT([(MODULO(iq, n_world) == gwkp_env%group_env%mepos, iq=1, bs_env%nkp_scf_desymm)])
@@ -1132,12 +1125,15 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Sigma_c_from_W_PQ'
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: G_grid_k(:, :, :)
-      INTEGER                                            :: first_pair, handle, i_group, i_t, ispin, &
-                                                            n_grid, n_pairs_local
+      INTEGER                                            :: first_pair, handle, i_t, i_time_local, &
+                                                            ispin, n_grid, n_pairs_local, &
+                                                            n_time_local
       INTEGER, ALLOCATABLE                               :: full_cells(:, :)
-      REAL(KIND=dp)                                      :: step_elapsed, step_start, tau
-      REAL(KIND=dp), ALLOCATABLE :: qpoints(:, :), sigma_band(:, :), Sigma_grid_R(:, :, :), &
-         sigma_result_buffer(:), step_times(:), W_grid_R(:, :, :)
+      REAL(KIND=dp)                                      :: tau
+      REAL(KIND=dp), ALLOCATABLE                         :: qpoints(:, :), sigma_band(:, :), &
+                                                            Sigma_grid_R(:, :, :), &
+                                                            sigma_result_buffer(:), &
+                                                            W_grid_R(:, :, :)
       TYPE(gw_pair_fft_work_type)                        :: fft_stencil_work
 
       CALL timeset(routineN, handle)
@@ -1156,14 +1152,16 @@ CONTAINS
       ALLOCATE (sigma_band(bs_env%n_ao, bs_env%nkp_bs_and_DOS))
       ALLOCATE (gwkp_env%sigma_c_bands(bs_env%n_ao, bs_env%nkp_bs_and_DOS, &
                                        bs_env%num_time_freq_points, 2, bs_env%n_spin))
-      ALLOCATE (step_times(bs_env%num_time_freq_points), SOURCE=0.0_dp)
       gwkp_env%sigma_c_bands = 0.0_dp
 
+      n_time_local = (bs_env%num_time_freq_points - gwkp_env%my_group + gwkp_env%ngroups - 1)/gwkp_env%ngroups
+      CALL start_time_loop_progress(bs_env, 'Σ_c(iτ)', 'k points of G and Σ_c', gwkp_env%ngroups, &
+                                    gwkp_env%group_env%num_pe, INT(2*n_time_local*bs_env%n_spin, int_8)* &
+                                    INT(bs_env%nkp_scf_desymm + bs_env%nkp_bs_and_DOS, int_8))
       DO i_t = gwkp_env%my_group + 1, bs_env%num_time_freq_points, gwkp_env%ngroups
-         step_start = m_walltime()
-         i_group = (i_t - gwkp_env%my_group - 1)/gwkp_env%ngroups + 1
+         i_time_local = (i_t - gwkp_env%my_group - 1)/gwkp_env%ngroups + 1
          CALL project_auxiliary_time_q_to_fft_pairs(gwkp_env%Z_lP_q, &
-                                                    gwkp_env%W_PQ_tau, i_group, &
+                                                    gwkp_env%W_PQ_tau, i_time_local, &
                                                     gwkp_env%group_env, G_grid_k)
          CALL q_mesh_and_gamma_shell_average(bs_env, values_q=G_grid_k)
          CALL k_to_real_cell_transform(G_grid_k, qpoints, &
@@ -1200,19 +1198,8 @@ CONTAINS
                                             gwkp_env%band_orbitals(:, :, :, ispin), sigma_band)
             IF (gwkp_env%group_env%mepos == 0) gwkp_env%sigma_c_bands(:, :, i_t, 1, ispin) = sigma_band
          END DO
-         step_elapsed = m_walltime() - step_start
-         IF (gwkp_env%group_env%mepos == 0) step_times(i_t) = step_elapsed
       END DO
-
-      CALL bs_env%para_env%sum(step_times)
-      IF (bs_env%unit_nr > 0) THEN
-         DO i_t = 1, bs_env%num_time_freq_points
-            WRITE (bs_env%unit_nr, '(T2,A,I3,A,I0,T57,A,T71,F10.1,A)') &
-               'GW Σ_c(iτ) point ', i_t, ' / ', bs_env%num_time_freq_points, &
-               'Exec. time:', step_times(i_t), ' s'
-         END DO
-         CALL m_flush(bs_env%unit_nr)
-      END IF
+      gwkp_env%k_points_total = 0
 
       ALLOCATE (sigma_result_buffer(SIZE(gwkp_env%sigma_c_bands)))
       sigma_result_buffer(:) = RESHAPE(gwkp_env%sigma_c_bands, [SIZE(gwkp_env%sigma_c_bands)])
@@ -1220,12 +1207,70 @@ CONTAINS
       gwkp_env%sigma_c_bands(:, :, :, :, :) = RESHAPE(sigma_result_buffer, SHAPE(gwkp_env%sigma_c_bands))
 
       DEALLOCATE (full_cells, G_grid_k, qpoints, &
-                  sigma_band, sigma_result_buffer, Sigma_grid_R, &
-                  step_times, W_grid_R)
+                  sigma_band, sigma_result_buffer, Sigma_grid_R, W_grid_R)
 
       CALL timestop(handle)
 
    END SUBROUTINE compute_Sigma_c_from_W_PQ
+
+! **************************************************************************************************
+!> \brief Print how the imaginary-time points of χ or Σc are split into groups of MPI ranks and
+!> start the progress count of the group of rank 0.
+!> Each group computes every n_groups-th time point without communicating with the other groups.
+!> Only rank 0 writes output, so the progress lines are those of the group of rank 0.
+!> \param bs_env Band-structure settings.
+!> \param quantity χ(iτ) or Σ_c(iτ).
+!> \param counted_in What the progress counts.
+!> \param n_groups Number of groups that compute time points in parallel.
+!> \param group_size MPI ranks per group.
+!> \param k_points_total Number of k and q points the group of rank 0 processes in the time loop.
+! **************************************************************************************************
+   SUBROUTINE start_time_loop_progress(bs_env, quantity, counted_in, n_groups, group_size, k_points_total)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      CHARACTER(LEN=*), INTENT(IN)                       :: quantity, counted_in
+      INTEGER, INTENT(IN)                                :: n_groups, group_size
+      INTEGER(KIND=int_8), INTENT(IN)                    :: k_points_total
+
+      INTEGER                                            :: n_time
+
+      bs_env%gwkp_env%k_points_done = 0
+      bs_env%gwkp_env%k_points_total = k_points_total
+      bs_env%gwkp_env%next_progress = 1
+      bs_env%gwkp_env%progress_start = m_walltime()
+      bs_env%gwkp_env%progress_label = quantity//' progress of group'
+      IF (bs_env%unit_nr <= 0) RETURN
+      n_time = bs_env%num_time_freq_points
+      IF (n_groups == 1) THEN
+         WRITE (bs_env%unit_nr, '(/,T2,3A,I0,A,I0,A)') 'GW ', quantity, ': all ', n_time, &
+            ' time points computed by one group of ', group_size, ' MPI ranks'
+      ELSE
+         WRITE (bs_env%unit_nr, '(/,T2,3A,I0,A,I0,A,I0,A)') 'GW ', quantity, ': ', n_time, &
+            ' time points split over ', n_groups, ' groups of ', group_size, ' MPI ranks'
+      END IF
+      WRITE (bs_env%unit_nr, '(T2,6A)') 'GW ', quantity, ': progress of one group, counted in ', counted_in
+      CALL m_flush(bs_env%unit_nr)
+
+   END SUBROUTINE start_time_loop_progress
+
+! **************************************************************************************************
+!> \brief Count k points processed in the χ or Σc time loop and print the progress of the group of
+!>        rank 0 at 0.1, 0.3, 1, 3, 10, 30, 60, 90 and 100 %. Does nothing outside these loops.
+!> \param bs_env Band-structure settings.
+!> \param n_k_points Number of k points just processed by the group.
+! **************************************************************************************************
+   SUBROUTINE count_time_loop_k_points(bs_env, n_k_points)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      INTEGER(KIND=int_8), INTENT(IN)                    :: n_k_points
+
+      TYPE(gwkp_type), POINTER                           :: gwkp_env
+
+      gwkp_env => bs_env%gwkp_env
+      IF (gwkp_env%k_points_total == 0) RETURN
+      gwkp_env%k_points_done = gwkp_env%k_points_done + n_k_points
+      CALL write_ri_rs_progress(bs_env%unit_nr, TRIM(gwkp_env%progress_label), gwkp_env%k_points_done, &
+                                gwkp_env%k_points_total, gwkp_env%next_progress, gwkp_env%progress_start)
+
+   END SUBROUTINE count_time_loop_k_points
 
 ! **************************************************************************************************
 !> \brief Drop an entire real-space Green matrix only when its full Frobenius norm,
@@ -1391,6 +1436,7 @@ CONTAINS
          DO i_rank = 0, MIN(n_rank, n_k - i_first + 1) - 1
             G_pairs(:, 1, i_first + i_rank) = received(i_rank*n_local + 1:(i_rank + 1)*n_local)
          END DO
+         CALL count_time_loop_k_points(bs_env, INT(MIN(n_rank, n_k - i_first + 1), int_8))
       END DO
 
       CALL timestop(handle)
@@ -1900,6 +1946,7 @@ CONTAINS
          !$OMP END DO
          DEALLOCATE (work)
          !$OMP END PARALLEL
+         CALL count_time_loop_k_points(bs_env, INT(n_round, int_8))
       END DO
       CALL env%sum(sigma_band)
 
