@@ -140,22 +140,20 @@ CONTAINS
       INTEGER(int_8) :: atom_block, counter, estimate_to_store_int, max_val_memory, &
                         mem_compression_counter, mem_eris, mem_max_val, my_current_counter, my_istart, &
                         n_processes, nblocks, ncpu, neris_incore, neris_onthefly, neris_tmp, neris_total, &
-                        nprim_ints, shm_neris_incore, shm_neris_onthefly, shm_neris_total, shm_nprim_ints, &
-                        shm_stor_count_max_val, shm_storage_counter_integrals, stor_count_max_val, &
-                        storage_counter_integrals, tmp_block, tmp_i8(6)
+                        nprim_ints, stor_count_max_val, storage_counter_integrals, tmp_block, tmp_i8(6)
       INTEGER(int_8), ALLOCATABLE, DIMENSION(:)          :: tmp_task_list_cost
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, last_sgf_global, &
                                                             nimages, tmp_index
       INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, lc_min, ld_max, &
                                         ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, nsgfc, nsgfd, shm_block_offset
       INTEGER, DIMENSION(:, :), POINTER :: first_sgfb, nsgfl_a, nsgfl_b, nsgfl_c, nsgfl_d, &
-                                           offset_ac_set, offset_ad_set, offset_bc_set, offset_bd_set, shm_atomic_block_offset
-      INTEGER, DIMENSION(:, :), POINTER, SAVE            :: shm_is_assoc_atomic_block
+                                           offset_ac_set, offset_ad_set, offset_bc_set, offset_bd_set, &
+                                           shm_atomic_block_offset, shm_is_assoc_atomic_block
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: shm_set_offset
-      INTEGER, SAVE                                      :: shm_number_of_p_entries
+      INTEGER                                            :: shm_number_of_p_entries
       LOGICAL :: bins_left, buffer_overflow, do_dynamic_load_balancing, do_it, do_periodic, &
-                 do_print_load_balance_info, is_anti_symmetric, my_resp_only, screen_pmat_forces, &
-                 treat_forces_in_core, use_disk_storage, with_resp_density
+                 do_print_load_balance_info, is_anti_symmetric, my_resp_only, recalc_forces, &
+                 screen_pmat_forces, treat_forces_in_core, use_disk_storage, with_resp_density
       LOGICAL, DIMENSION(:, :), POINTER                  :: shm_atomic_pair_list
       REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, cartesian_estimate_virial, &
                   compression_factor, eps_schwarz, eps_storage, fac, hf_fraction, ln_10, log10_eps_schwarz, &
@@ -206,7 +204,7 @@ CONTAINS
          DIMENSION(:, :, :, :, :, :), POINTER            :: radii_pgf, screen_coeffs_pgf
       TYPE(hfx_screening_type)                           :: screening_parameter
       TYPE(hfx_task_list_type), DIMENSION(:), POINTER    :: shm_task_list, tmp_task_list
-      TYPE(hfx_type), POINTER                            :: actual_x_data
+      TYPE(hfx_type), POINTER                            :: actual_x_data, shm_master_x_data
       TYPE(hfx_type), DIMENSION(:, :), POINTER            :: my_x_data
       TYPE(pair_list_type)                               :: list_ij, list_kl
       TYPE(pair_set_list_type), ALLOCATABLE, &
@@ -261,13 +259,6 @@ CONTAINS
       n_threads = 1
 !$    n_threads = omp_get_max_threads()
 
-      shm_neris_total = 0
-      shm_nprim_ints = 0
-      shm_neris_onthefly = 0
-      shm_storage_counter_integrals = 0
-      shm_neris_incore = 0
-      shm_stor_count_max_val = 0
-
       !! get force array
       CALL get_qs_env(qs_env=qs_env, force=force, virial=virial)
 
@@ -276,88 +267,163 @@ CONTAINS
          my_adiabatic_rescale_factor = adiabatic_rescale_factor
       END IF
 
-      !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(qs_env,&
-!$OMP                                  rho_ao,&
-!$OMP                                  rho_ao_resp,&
-!$OMP                                  with_resp_density,&
-!$OMP                                  hfx_section,&
-!$OMP                                  para_env,&
-!$OMP                                  irep,&
-!$OMP                                  my_resp_only,&
-!$OMP                                  ncoset,&
-!$OMP                                  nco,&
-!$OMP                                  nso,&
-!$OMP                                  n_threads,&
-!$OMP                                  full_density_alpha,&
-!$OMP                                  full_density_resp,&
-!$OMP                                  full_density_resp_beta,&
-!$OMP                                  full_density_beta,&
-!$OMP                                  shm_initial_p,&
-!$OMP                                  shm_is_assoc_atomic_block,&
-!$OMP                                  shm_number_of_p_entries,&
-!$OMP                                  force,&
-!$OMP                                  virial,&
-!$OMP                                  my_adiabatic_rescale_factor,&
-!$OMP                                  shm_neris_total,&
-!$OMP                                  shm_neris_onthefly,&
-!$OMP                                  shm_storage_counter_integrals,&
-!$OMP                                  shm_neris_incore,&
-!$OMP                                  shm_nprim_ints,&
-!$OMP                                  shm_stor_count_max_val,&
-!$OMP                                  cell,&
-!$OMP                                  screen_coeffs_set,&
-!$OMP                                  screen_coeffs_kind,&
-!$OMP                                  screen_coeffs_pgf,&
-!$OMP                                  nkind,&
-!$OMP                                  is_anti_symmetric,&
-!$OMP                                  radii_pgf,&
-!$OMP                                  shm_atomic_block_offset,&
-!$OMP                                  shm_set_offset,&
-!$OMP                                  shm_block_offset,&
-!$OMP                                  shm_task_counter,&
-!$OMP                                  shm_task_list,&
-!$OMP                                  shm_total_bins,&
-!$OMP                                  shm_pmax_block,&
-!$OMP                                  shm_atomic_pair_list,&
-!$OMP                                  shm_pmax_atom,&
-!$OMP                                  use_virial,&
-!$OMP                                  do_print_load_balance_info,&
-!$OMP                                  nkimages,my_nspins,my_x_data)&
-!$OMP  PRIVATE(actual_x_data,atomic_kind_set,atomic_offset_ac,atomic_offset_ad,atomic_offset_bc,&
-!$OMP  atomic_offset_bd,atom_of_kind,basis_info,&
-!$OMP  basis_parameter,bin,bins_left,bintime_start,bintime_stop,bits_max_val,buffer_left,buffer_overflow,buffer_size,&
-!$OMP  buffer_start,cache_size,cartesian_estimate,cartesian_estimate_virial,&
-!$OMP  coeffs_kind_max0,compression_factor,counter,current_counter,&
-!$OMP  distribution_forces,do_dynamic_load_balancing,do_it,do_periodic,ede_buffer1,ede_buffer2,&
-!$OMP  ede_primitives_tmp,ede_primitives_tmp_virial,&
-!$OMP  ede_work,ede_work2,ede_work2_virial,ede_work_forces,ede_work_virial,eps_schwarz,eps_storage,estimate_to_store_int,&
-!$OMP  fac,first_sgfb,forces_map,general_parameter,handle_bin,handle_getp,handle_load,&
-!$OMP  handle_main,hf_fraction,i_atom,iatom_end,iatom_start,ikind,integral_caches,integral_containers,&
-!$OMP  i_set_list_ij_start,i_set_list_ij_stop,i_set_list_kl_start,i_set_list_kl_stop,i_thread,iw,j_atom,jatom_end,&
-!$OMP  jatom_start,jkind,katom,k_atom,katom_block,katom_end,katom_start,kind_kind_idx,&
-!$OMP  kind_of,kkind,kset,la_max,la_min,last_sgf_global,latom,l_atom,&
-!$OMP  latom_block,latom_end,latom_start,lb_max,lb_min,lc_max,lc_min,ld_max,&
-!$OMP  ld_min,list_ij,list_kl,lkind,ln_10,load_balance_parameter,log10_eps_schwarz,log10_pmax,&
-!$OMP  log_2,logger,lset,max_am,max_contraction,max_contraction_val,max_pgf,max_set,&
-!$OMP  max_val1,max_val2,max_val2_set,maxval_cache,maxval_container,max_val_memory,mem_compression_counter,mem_eris,&
-!$OMP  mem_max_val,memory_parameter,my_bin_id,my_bin_size,my_current_counter,my_istart,my_thread_id,natom,&
-!$OMP  nbits,nblocks,ncob,ncos_max,ncpu,neris_incore,neris_onthefly,neris_tmp,&
-!$OMP  neris_total,nimages,nints,nneighbors,npgfa,npgfb,npgfc,npgfd,&
-!$OMP  nprim_ints,n_processes,nseta,nsetb,nsgfa,nsgfb,nsgfc,nsgfd,&
-!$OMP  nsgfl_a,nsgfl_b,nsgfl_c,nsgfl_d,nsgf_max,offset_ac_set,offset_ad_set,&
-!$OMP  offset_bc_set,offset_bd_set,pac_buf,pac_buf_beta,pac_buf_resp,pac_buf_resp_beta,pad_buf,pad_buf_beta,pad_buf_resp,&
-!$OMP  pad_buf_resp_beta,particle_set,pbc_buf,pbc_buf_beta,pbc_buf_resp,pbc_buf_resp_beta,pbd_buf,pbd_buf_beta, &
-!$OMP  pbd_buf_resp, pbd_buf_resp_beta, pgf_list_ij,&
-!$OMP  pgf_list_kl,pmax_atom,pmax_blocks,pmax_entry,pmax_tmp,potential_parameter,primitive_forces,&
-!$OMP  primitive_forces_virial,ptr_p_1,ptr_p_2,ptr_p_3,ptr_p_4,ra,rab2,&
-!$OMP  rb,rc,rcd2,rd,screening_parameter,screen_pmat_forces,set_list_ij,set_list_kl,&
-!$OMP  sgfb,spherical_estimate,spherical_estimate_virial,sphi_a_ext,sphi_a_ext_set,sphi_a_u1,sphi_a_u2,sphi_a_u3,&
-!$OMP  sphi_b,sphi_b_ext,sphi_b_ext_set,sphi_b_u1,sphi_b_u2,sphi_b_u3,sphi_c_ext,sphi_c_ext_set,&
-!$OMP  sphi_c_u1,sphi_c_u2,sphi_c_u3,sphi_d_ext,sphi_d_ext_set,sphi_d_u1,sphi_d_u2,sphi_d_u3,&
-!$OMP  storage_counter_integrals,stor_count_max_val,swap_id,symm_fac,t2,tmp_block,tmp_i8, tmp_i4,&
-!$OMP  tmp_index,tmp_r_1,tmp_r_2,tmp_screen_pgf1,tmp_screen_pgf2,tmp_task_list,tmp_task_list_cost,tmp_virial,&
-!$OMP  treat_forces_in_core,use_disk_storage,zeta,zetb,zetc,zetd)
+      shm_master_x_data => my_x_data(irep, 1)
+      basis_parameter => shm_master_x_data%basis_parameter
+      natom = SIZE(particle_set, 1)
+      ncpu = para_env%num_pe
+      n_processes = ncpu*n_threads
+      do_dynamic_load_balancing = (n_threads > 1)
+      recalc_forces = shm_master_x_data%memory_parameter%recalc_forces
+
+      screen_pmat_forces = shm_master_x_data%screening_parameter%do_p_screening_forces
+      ! don't do density screening in case of response forces
+      IF (with_resp_density) screen_pmat_forces = .FALSE.
+
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                               atom_of_kind=atom_of_kind, &
+                               kind_of=kind_of)
+
+      !! Set pointer for is_assoc helper
+      shm_is_assoc_atomic_block => shm_master_x_data%is_assoc_atomic_block
+      shm_number_of_p_entries = shm_master_x_data%number_of_p_entries
+      shm_atomic_block_offset => shm_master_x_data%atomic_block_offset
+      shm_set_offset => shm_master_x_data%set_offset
+      shm_block_offset => shm_master_x_data%block_offset
+
+      NULLIFY (full_density_alpha, full_density_beta, full_density_resp, full_density_resp_beta)
+      ALLOCATE (full_density_alpha(shm_block_offset(ncpu + 1), nkimages))
+
+      !! Get the full density from all the processors
+      CALL timeset(routineN//"_getP", handle_getP)
+      CALL get_full_density(para_env, full_density_alpha(:, 1), rho_ao(1, 1)%matrix, shm_number_of_p_entries, &
+                            shm_block_offset, shm_atomic_block_offset, &
+                            kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
+                            antisymmetric=is_anti_symmetric)
+      ! for now only closed shell case
+      IF (with_resp_density) THEN
+         ALLOCATE (full_density_resp(shm_block_offset(ncpu + 1)))
+         CALL get_full_density(para_env, full_density_resp, rho_ao_resp(1)%matrix, shm_number_of_p_entries, &
+                               shm_block_offset, shm_atomic_block_offset, &
+                               kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
+                               antisymmetric=is_anti_symmetric)
+      END IF
+
+      IF (my_nspins == 2) THEN
+         ALLOCATE (full_density_beta(shm_block_offset(ncpu + 1), 1))
+         CALL get_full_density(para_env, full_density_beta(:, 1), rho_ao(2, 1)%matrix, shm_number_of_p_entries, &
+                               shm_block_offset, shm_atomic_block_offset, &
+                               kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
+                               antisymmetric=is_anti_symmetric)
+         ! With resp density
+         IF (with_resp_density) THEN
+            ALLOCATE (full_density_resp_beta(shm_block_offset(ncpu + 1)))
+            CALL get_full_density(para_env, full_density_resp_beta, rho_ao_resp(2)%matrix, shm_number_of_p_entries, &
+                                  shm_block_offset, shm_atomic_block_offset, &
+                                  kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
+                                  antisymmetric=is_anti_symmetric)
+         END IF
+      END IF
+      CALL timestop(handle_getP)
+
+      !! Calculate max entries for screening on actual density. If screen_p_mat_forces = FALSE, the
+      !! matrix is initialized to 1.0
+      IF (screen_pmat_forces) THEN
+         NULLIFY (shm_initial_p)
+         shm_initial_p => shm_master_x_data%initial_p_forces
+         shm_pmax_atom => shm_master_x_data%pmax_atom_forces
+         IF (recalc_forces) THEN
+            CALL update_pmax_mat(shm_initial_p, &
+                                 shm_master_x_data%map_atom_to_kind_atom, &
+                                 shm_master_x_data%set_offset, &
+                                 shm_master_x_data%atomic_block_offset, &
+                                 shm_pmax_atom, &
+                                 full_density_alpha, full_density_beta, &
+                                 natom, kind_of, basis_parameter, &
+                                 nkind, shm_master_x_data%is_assoc_atomic_block, my_nspins)
+         END IF
+      END IF
+
+      ! restore as full density the HF density
+      ! maybe in the future
+      IF (with_resp_density .AND. .NOT. my_resp_only) THEN
+         full_density_alpha(:, 1) = full_density_alpha(:, 1) - full_density_resp
+         IF (my_nspins == 2) THEN
+            full_density_beta(:, 1) = &
+               full_density_beta(:, 1) - full_density_resp_beta
+         END IF
+         ! full_density_resp=full_density+full_density_resp
+      END IF
+
+      screen_coeffs_set => shm_master_x_data%screen_funct_coeffs_set
+      screen_coeffs_kind => shm_master_x_data%screen_funct_coeffs_kind
+      screen_coeffs_pgf => shm_master_x_data%screen_funct_coeffs_pgf
+      radii_pgf => shm_master_x_data%pair_dist_radii_pgf
+      shm_pmax_block => shm_master_x_data%pmax_block
+
+      !! initialize reduction counters
+      neris_total = 0_int_8
+      neris_incore = 0_int_8
+      neris_onthefly = 0_int_8
+      nprim_ints = 0_int_8
+      storage_counter_integrals = 0_int_8
+      stor_count_max_val = 0_int_8
+      tmp_virial = 0.0_dp
+
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(qs_env, with_resp_density, my_resp_only, hfx_section, para_env, irep, ncoset, &
+!$OMP        nco, nso, &
+!$OMP        n_threads, full_density_alpha, full_density_resp, full_density_resp_beta, &
+!$OMP        full_density_beta, shm_initial_p, shm_is_assoc_atomic_block, &
+!$OMP        shm_number_of_p_entries, force, my_adiabatic_rescale_factor, cell, &
+!$OMP        screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, nkind, &
+!$OMP        is_anti_symmetric, radii_pgf, shm_atomic_block_offset, shm_set_offset, &
+!$OMP        shm_block_offset, shm_task_counter, shm_task_list, shm_total_bins, &
+!$OMP        shm_pmax_block, shm_atomic_pair_list, shm_pmax_atom, use_virial, &
+!$OMP        do_print_load_balance_info, nkimages, my_nspins, my_x_data, &
+!$OMP        shm_master_x_data, atomic_kind_set, particle_set, atom_of_kind, kind_of, &
+!$OMP        natom, ncpu, n_processes, screen_pmat_forces, do_dynamic_load_balancing) &
+!$OMP PRIVATE(actual_x_data, atomic_offset_ac, atomic_offset_ad, atomic_offset_bc, &
+!$OMP         atomic_offset_bd, basis_info, basis_parameter, bin, bins_left, &
+!$OMP         bintime_start, bintime_stop, bits_max_val, buffer_left, buffer_overflow, &
+!$OMP         buffer_size, buffer_start, cache_size, cartesian_estimate, &
+!$OMP         cartesian_estimate_virial, coeffs_kind_max0, counter, current_counter, &
+!$OMP         distribution_forces, do_it, do_periodic, ede_buffer1, ede_buffer2, &
+!$OMP         ede_primitives_tmp, ede_primitives_tmp_virial, ede_work, ede_work2, &
+!$OMP         ede_work2_virial, ede_work_forces, ede_work_virial, eps_schwarz, &
+!$OMP         eps_storage, estimate_to_store_int, fac, first_sgfb, forces_map, general_parameter, &
+!$OMP         handle_bin, handle_load, handle_main, hf_fraction, i_atom, iatom_end, &
+!$OMP         iatom_start, ikind, integral_caches, integral_containers, &
+!$OMP         i_set_list_ij_start, i_set_list_ij_stop, i_set_list_kl_start, &
+!$OMP         i_set_list_kl_stop, i_thread, iw, j_atom, jatom_end, jatom_start, jkind, &
+!$OMP         katom, k_atom, katom_block, katom_end, katom_start, kind_kind_idx, kkind, &
+!$OMP         kset, la_max, la_min, last_sgf_global, latom, l_atom, latom_block, &
+!$OMP         latom_end, latom_start, lb_max, lb_min, lc_max, lc_min, ld_max, ld_min, &
+!$OMP         list_ij, list_kl, lkind, ln_10, load_balance_parameter, &
+!$OMP         log10_eps_schwarz, log10_pmax, log_2, logger, lset, max_am, &
+!$OMP         max_contraction, max_contraction_val, max_pgf, max_set, max_val1, &
+!$OMP         max_val2, max_val2_set, maxval_cache, maxval_container, max_val_memory, &
+!$OMP         mem_compression_counter, memory_parameter, my_bin_id, my_bin_size, &
+!$OMP         my_current_counter, my_istart, my_thread_id, nbits, nblocks, ncob, &
+!$OMP         ncos_max, neris_tmp, nimages, nints, nneighbors, npgfa, npgfb, npgfc, &
+!$OMP         npgfd, nseta, nsetb, nsgfa, nsgfb, nsgfc, nsgfd, nsgfl_a, nsgfl_b, &
+!$OMP         nsgfl_c, nsgfl_d, nsgf_max, offset_ac_set, offset_ad_set, offset_bc_set, &
+!$OMP         offset_bd_set, pac_buf, pac_buf_beta, pac_buf_resp, pac_buf_resp_beta, &
+!$OMP         pad_buf, pad_buf_beta, pad_buf_resp, pad_buf_resp_beta, pbc_buf, &
+!$OMP         pbc_buf_beta, pbc_buf_resp, pbc_buf_resp_beta, pbd_buf, pbd_buf_beta, &
+!$OMP         pbd_buf_resp, pbd_buf_resp_beta, pgf_list_ij, pgf_list_kl, pmax_atom, &
+!$OMP         pmax_blocks, pmax_entry, pmax_tmp, potential_parameter, primitive_forces, &
+!$OMP         primitive_forces_virial, ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, ra, rab2, &
+!$OMP         rb, rc, rcd2, rd, screening_parameter, set_list_ij, set_list_kl, sgfb, &
+!$OMP         spherical_estimate, spherical_estimate_virial, sphi_a_ext, &
+!$OMP         sphi_a_ext_set, sphi_a_u1, sphi_a_u2, sphi_a_u3, sphi_b, sphi_b_ext, &
+!$OMP         sphi_b_ext_set, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_ext, &
+!$OMP         sphi_c_ext_set, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_ext, &
+!$OMP         sphi_d_ext_set, sphi_d_u1, sphi_d_u2, sphi_d_u3, swap_id, symm_fac, t2, &
+!$OMP         tmp_block, tmp_i4, tmp_index, tmp_r_1, tmp_r_2, tmp_screen_pgf1, &
+!$OMP         tmp_screen_pgf2, tmp_task_list, tmp_task_list_cost, &
+!$OMP         treat_forces_in_core, use_disk_storage, zeta, zetb, zetc, zetd) &
+!$OMP REDUCTION(+:neris_total, neris_incore, neris_onthefly, nprim_ints, &
+!$OMP             storage_counter_integrals, stor_count_max_val, tmp_virial)
 
       i_thread = 0
 !$    i_thread = omp_get_thread_num()
@@ -375,14 +441,6 @@ CONTAINS
       load_balance_parameter => actual_x_data%load_balance_parameter
       basis_parameter => actual_x_data%basis_parameter
 
-      ! IF(with_resp_density) THEN
-      !   ! here we also do a copy of the original load_balance_parameter
-      !   ! since if MP2 forces are required after the calculation of the HFX
-      !   ! derivatives we need to calculate again the SCF energy.
-      !   ALLOCATE(load_balance_parameter_energy)
-      !   load_balance_parameter_energy = actual_x_data%load_balance_parameter
-      ! END IF
-
       memory_parameter => actual_x_data%memory_parameter
 
       cache_size = memory_parameter%cache_size
@@ -390,13 +448,8 @@ CONTAINS
 
       use_disk_storage = .FALSE.
 
-      CALL get_qs_env(qs_env=qs_env, &
-                      atomic_kind_set=atomic_kind_set, &
-                      particle_set=particle_set)
-
       max_set = basis_info%max_set
       max_am = basis_info%max_am
-      natom = SIZE(particle_set, 1)
 
       treat_forces_in_core = memory_parameter%treat_forces_in_core
 
@@ -410,19 +463,10 @@ CONTAINS
          IF (use_virial) eps_schwarz = eps_schwarz/actual_x_data%periodic_parameter%R_max_stress
          log10_eps_schwarz = LOG10(eps_schwarz)
       END IF
-      screen_pmat_forces = screening_parameter%do_p_screening_forces
-      ! don't do density screening in case of response forces
-      IF (with_resp_density) screen_pmat_forces = .FALSE.
 
       eps_storage = eps_schwarz*memory_parameter%eps_storage_scaling
 
       counter = 0_int_8
-
-      !! Get screening parameter
-
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                               atom_of_kind=atom_of_kind, &
-                               kind_of=kind_of)
 
       !! Create helper arrray for mapping local basis functions to global ones
       ALLOCATE (last_sgf_global(0:natom))
@@ -455,104 +499,8 @@ CONTAINS
          END DO
       END DO
 
-      ncpu = para_env%num_pe
-      n_processes = ncpu*n_threads
-
-      !! initialize some counters
-      neris_total = 0_int_8
-      neris_incore = 0_int_8
-      neris_onthefly = 0_int_8
-      mem_eris = 0_int_8
-      mem_max_val = 0_int_8
-      compression_factor = 0.0_dp
-      nprim_ints = 0_int_8
       neris_tmp = 0_int_8
       max_val_memory = 1_int_8
-
-!$OMP MASTER
-      !! Set pointer for is_assoc helper
-      shm_is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block
-      shm_number_of_p_entries = actual_x_data%number_of_p_entries
-      shm_atomic_block_offset => actual_x_data%atomic_block_offset
-      shm_set_offset => actual_x_data%set_offset
-      shm_block_offset => actual_x_data%block_offset
-
-      NULLIFY (full_density_alpha)
-      NULLIFY (full_density_beta)
-      ALLOCATE (full_density_alpha(shm_block_offset(ncpu + 1), nkimages))
-
-      !! Get the full density from all the processors
-      CALL timeset(routineN//"_getP", handle_getP)
-      CALL get_full_density(para_env, full_density_alpha(:, 1), rho_ao(1, 1)%matrix, shm_number_of_p_entries, &
-                            shm_block_offset, &
-                            kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
-                            antisymmetric=is_anti_symmetric)
-      ! for now only closed shell case
-      IF (with_resp_density) THEN
-         NULLIFY (full_density_resp)
-         ALLOCATE (full_density_resp(shm_block_offset(ncpu + 1)))
-         CALL get_full_density(para_env, full_density_resp, rho_ao_resp(1)%matrix, shm_number_of_p_entries, &
-                               shm_block_offset, &
-                               kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
-                               antisymmetric=is_anti_symmetric)
-      END IF
-
-      IF (my_nspins == 2) THEN
-         ALLOCATE (full_density_beta(shm_block_offset(ncpu + 1), 1))
-         CALL get_full_density(para_env, full_density_beta(:, 1), rho_ao(2, 1)%matrix, shm_number_of_p_entries, &
-                               shm_block_offset, &
-                               kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
-                               antisymmetric=is_anti_symmetric)
-         ! With resp density
-         IF (with_resp_density) THEN
-            NULLIFY (full_density_resp_beta)
-            ALLOCATE (full_density_resp_beta(shm_block_offset(ncpu + 1)))
-            CALL get_full_density(para_env, full_density_resp_beta, rho_ao_resp(2)%matrix, shm_number_of_p_entries, &
-                                  shm_block_offset, &
-                                  kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
-                                  antisymmetric=is_anti_symmetric)
-         END IF
-
-      END IF
-      CALL timestop(handle_getP)
-
-      !! Calculate max entries for screening on actual density. If screen_p_mat_forces = FALSE, the
-      !! matrix is initialized to 1.0
-      IF (screen_pmat_forces) THEN
-         NULLIFY (shm_initial_p)
-         shm_initial_p => actual_x_data%initial_p_forces
-         shm_pmax_atom => actual_x_data%pmax_atom_forces
-         IF (memory_parameter%recalc_forces) THEN
-            CALL update_pmax_mat(shm_initial_p, &
-                                 actual_x_data%map_atom_to_kind_atom, &
-                                 actual_x_data%set_offset, &
-                                 actual_x_data%atomic_block_offset, &
-                                 shm_pmax_atom, &
-                                 full_density_alpha, full_density_beta, &
-                                 natom, kind_of, basis_parameter, &
-                                 nkind, actual_x_data%is_assoc_atomic_block, my_nspins)
-         END IF
-      END IF
-
-      ! restore as full density the HF density
-      ! maybe in the future
-      IF (with_resp_density .AND. .NOT. my_resp_only) THEN
-         full_density_alpha(:, 1) = full_density_alpha(:, 1) - full_density_resp
-         IF (my_nspins == 2) THEN
-            full_density_beta(:, 1) = &
-               full_density_beta(:, 1) - full_density_resp_beta
-         END IF
-         ! full_density_resp=full_density+full_density_resp
-      END IF
-
-      screen_coeffs_set => actual_x_data%screen_funct_coeffs_set
-      screen_coeffs_kind => actual_x_data%screen_funct_coeffs_kind
-      screen_coeffs_pgf => actual_x_data%screen_funct_coeffs_pgf
-      radii_pgf => actual_x_data%pair_dist_radii_pgf
-      shm_pmax_block => actual_x_data%pmax_block
-
-!$OMP END MASTER
-!$OMP BARRIER
 
 !$OMP MASTER
       CALL timeset(routineN//"_load", handle_load)
@@ -644,7 +592,6 @@ CONTAINS
          ALLOCATE (ede_work_virial(ncos_max**4*12*3))
          ALLOCATE (ede_work2_virial(ncos_max**4*12*3))
          ALLOCATE (ede_primitives_tmp_virial(nsgf_max**4))
-         tmp_virial = 0.0_dp
       ELSE
          ! dummy allocation
          ALLOCATE (primitive_forces_virial(1))
@@ -717,9 +664,6 @@ CONTAINS
          buffer_overflow = .TRUE.
       END IF
 
-      do_dynamic_load_balancing = .TRUE.
-      IF (n_threads == 1) do_dynamic_load_balancing = .FALSE.
-
       IF (do_dynamic_load_balancing) THEN
          my_bin_size = SIZE(actual_x_data%distribution_forces)
       ELSE
@@ -788,13 +732,13 @@ CONTAINS
 
          CALL sort(tmp_task_list_cost, shm_total_bins, tmp_index)
 
-         ALLOCATE (actual_x_data%task_list(shm_total_bins))
+         ALLOCATE (shm_master_x_data%task_list(shm_total_bins))
 
          DO i = 1, shm_total_bins
-            actual_x_data%task_list(i) = tmp_task_list(tmp_index(shm_total_bins - i + 1))
+            shm_master_x_data%task_list(i) = tmp_task_list(tmp_index(shm_total_bins - i + 1))
          END DO
 
-         shm_task_list => actual_x_data%task_list
+         shm_task_list => shm_master_x_data%task_list
          shm_task_counter = 0
 
          DEALLOCATE (tmp_task_list_cost, tmp_index, tmp_task_list)
@@ -1522,95 +1466,9 @@ CONTAINS
 !$OMP END MASTER
       END IF
 
-      IF (use_virial) THEN
-         DO i = 1, 3
-            DO j = 1, 3
-               DO k = 1, 3
-!$OMP                 ATOMIC
-                  virial%pv_fock_4c(i, j) = virial%pv_fock_4c(i, j) + tmp_virial(i, k)*cell%hmat(j, k)
-               END DO
-            END DO
-         END DO
-      END IF
-
-!$OMP BARRIER
-      !! Get some number about ERIS
-!$OMP ATOMIC
-      shm_neris_total = shm_neris_total + neris_total
-!$OMP ATOMIC
-      shm_neris_onthefly = shm_neris_onthefly + neris_onthefly
-!$OMP ATOMIC
-      shm_nprim_ints = shm_nprim_ints + nprim_ints
-
       storage_counter_integrals = memory_parameter%actual_memory_usage* &
                                   memory_parameter%cache_size
       stor_count_max_val = max_val_memory*memory_parameter%cache_size
-!$OMP ATOMIC
-      shm_storage_counter_integrals = shm_storage_counter_integrals + storage_counter_integrals
-!$OMP ATOMIC
-      shm_neris_incore = shm_neris_incore + neris_incore
-!$OMP ATOMIC
-      shm_stor_count_max_val = shm_stor_count_max_val + stor_count_max_val
-!$OMP BARRIER
-
-      ! IF(with_resp_density) THEN
-      !   ! restore original load_balance_parameter
-      !   actual_x_data%load_balance_parameter = load_balance_parameter_energy
-      !   DEALLOCATE(load_balance_parameter_energy)
-      ! END IF
-
-!$OMP MASTER
-      !! Print some memeory information if this is the first step
-      IF (actual_x_data%memory_parameter%recalc_forces) THEN
-         tmp_i8(1:6) = [shm_storage_counter_integrals, shm_neris_onthefly, shm_neris_incore, &
-                        shm_neris_total, shm_nprim_ints, shm_stor_count_max_val]
-         CALL para_env%sum(tmp_i8)
-         shm_storage_counter_integrals = tmp_i8(1)
-         shm_neris_onthefly = tmp_i8(2)
-         shm_neris_incore = tmp_i8(3)
-         shm_neris_total = tmp_i8(4)
-         shm_nprim_ints = tmp_i8(5)
-         shm_stor_count_max_val = tmp_i8(6)
-         mem_eris = (shm_storage_counter_integrals + 128*1024 - 1)/1024/128
-         compression_factor = REAL(shm_neris_incore, dp)/REAL(shm_storage_counter_integrals, dp)
-         mem_max_val = (shm_stor_count_max_val + 128*1024 - 1)/1024/128
-
-         IF (shm_neris_incore == 0) THEN
-            mem_eris = 0
-            compression_factor = 0.0_dp
-         END IF
-
-         logger => cp_get_default_logger()
-
-         iw = cp_print_key_unit_nr(logger, hfx_section, "HF_INFO", &
-                                   extension=".scfLog")
-         IF (iw > 0) THEN
-            WRITE (UNIT=iw, FMT="(/,(T3,A,T65,I16))") &
-               "HFX_MEM_INFO| Number of cart. primitive DERIV's calculated:      ", shm_nprim_ints
-
-            WRITE (UNIT=iw, FMT="((T3,A,T60,I21))") &
-               "HFX_MEM_INFO| Number of sph. DERIV's calculated:           ", shm_neris_total
-
-            WRITE (UNIT=iw, FMT="((T3,A,T60,I21))") &
-               "HFX_MEM_INFO| Number of sph. DERIV's stored in-core:        ", shm_neris_incore
-
-            WRITE (UNIT=iw, FMT="((T3,A,T62,I19))") &
-               "HFX_MEM_INFO| Number of sph. DERIV's calculated on the fly: ", shm_neris_onthefly
-
-            WRITE (UNIT=iw, FMT="((T3,A,T60,I21))") &
-               "HFX_MEM_INFO| Total memory consumption DERIV's RAM [MiB]:            ", mem_eris
-
-            WRITE (UNIT=iw, FMT="((T3,A,T60,I21))") &
-               "HFX_MEM_INFO| Whereof max-vals [MiB]:            ", mem_max_val
-
-            WRITE (UNIT=iw, FMT="((T3,A,T60,F21.2),/)") &
-               "HFX_MEM_INFO| Total compression factor DERIV's RAM:                  ", compression_factor
-         END IF
-
-         CALL cp_print_key_finished_output(iw, logger, hfx_section, &
-                                           "HF_INFO")
-      END IF
-!$OMP END MASTER
 
       !! flush caches if the geometry changed
       IF (do_dynamic_load_balancing) THEN
@@ -1662,23 +1520,7 @@ CONTAINS
 !$OMP END MASTER
 !$OMP BARRIER
       DEALLOCATE (last_sgf_global)
-!$OMP MASTER
-      DEALLOCATE (full_density_alpha)
-      IF (with_resp_density) THEN
-         DEALLOCATE (full_density_resp)
-      END IF
-      IF (my_nspins == 2) THEN
-         DEALLOCATE (full_density_beta)
-         IF (with_resp_density) THEN
-            DEALLOCATE (full_density_resp_beta)
-         END IF
-      END IF
-      IF (do_dynamic_load_balancing) THEN
-         DEALLOCATE (actual_x_data%task_list)
-      END IF
-!$OMP END MASTER
       DEALLOCATE (primitive_forces)
-      DEALLOCATE (atom_of_kind, kind_of)
       DEALLOCATE (max_contraction)
       DEALLOCATE (pbd_buf)
       DEALLOCATE (pbc_buf)
@@ -1721,6 +1563,82 @@ CONTAINS
       END IF
 
 !$OMP END PARALLEL
+
+      IF (use_virial) THEN
+         DO i = 1, 3
+            DO j = 1, 3
+               DO k = 1, 3
+                  virial%pv_fock_4c(i, j) = virial%pv_fock_4c(i, j) + tmp_virial(i, k)*cell%hmat(j, k)
+               END DO
+            END DO
+         END DO
+      END IF
+
+      !! Print some memeory information if this is the first step
+      IF (recalc_forces) THEN
+         tmp_i8(1:6) = [storage_counter_integrals, neris_onthefly, neris_incore, &
+                        neris_total, nprim_ints, stor_count_max_val]
+         CALL para_env%sum(tmp_i8)
+         storage_counter_integrals = tmp_i8(1)
+         neris_onthefly = tmp_i8(2)
+         neris_incore = tmp_i8(3)
+         neris_total = tmp_i8(4)
+         nprim_ints = tmp_i8(5)
+         stor_count_max_val = tmp_i8(6)
+         mem_eris = (storage_counter_integrals + 128*1024 - 1)/1024/128
+         compression_factor = REAL(neris_incore, dp)/REAL(storage_counter_integrals, dp)
+         mem_max_val = (stor_count_max_val + 128*1024 - 1)/1024/128
+
+         IF (neris_incore == 0) THEN
+            mem_eris = 0
+            compression_factor = 0.0_dp
+         END IF
+
+         logger => cp_get_default_logger()
+
+         iw = cp_print_key_unit_nr(logger, hfx_section, "HF_INFO", &
+                                   extension=".scfLog")
+         IF (iw > 0) THEN
+            WRITE (UNIT=iw, FMT="(/,(T3,A,T65,I16))") &
+               "HFX_MEM_INFO| Number of cart. primitive DERIV's calculated:      ", nprim_ints
+
+            WRITE (UNIT=iw, FMT="((T3,A,T60,I21))") &
+               "HFX_MEM_INFO| Number of sph. DERIV's calculated:           ", neris_total
+
+            WRITE (UNIT=iw, FMT="((T3,A,T60,I21))") &
+               "HFX_MEM_INFO| Number of sph. DERIV's stored in-core:        ", neris_incore
+
+            WRITE (UNIT=iw, FMT="((T3,A,T62,I19))") &
+               "HFX_MEM_INFO| Number of sph. DERIV's calculated on the fly: ", neris_onthefly
+
+            WRITE (UNIT=iw, FMT="((T3,A,T60,I21))") &
+               "HFX_MEM_INFO| Total memory consumption DERIV's RAM [MiB]:            ", mem_eris
+
+            WRITE (UNIT=iw, FMT="((T3,A,T60,I21))") &
+               "HFX_MEM_INFO| Whereof max-vals [MiB]:            ", mem_max_val
+
+            WRITE (UNIT=iw, FMT="((T3,A,T60,F21.2),/)") &
+               "HFX_MEM_INFO| Total compression factor DERIV's RAM:                  ", compression_factor
+         END IF
+
+         CALL cp_print_key_finished_output(iw, logger, hfx_section, &
+                                           "HF_INFO")
+      END IF
+
+      DEALLOCATE (atom_of_kind, kind_of)
+      DEALLOCATE (full_density_alpha)
+      IF (with_resp_density) THEN
+         DEALLOCATE (full_density_resp)
+      END IF
+      IF (my_nspins == 2) THEN
+         DEALLOCATE (full_density_beta)
+         IF (with_resp_density) THEN
+            DEALLOCATE (full_density_resp_beta)
+         END IF
+      END IF
+      IF (do_dynamic_load_balancing) THEN
+         DEALLOCATE (shm_master_x_data%task_list)
+      END IF
 
       CALL timestop(handle)
 

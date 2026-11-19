@@ -56,6 +56,7 @@ CONTAINS
 !> \param rho Distributed density
 !> \param number_of_p_entries Maximal buffer size
 !> \param block_offset ...
+!> \param atomic_block_offset ...
 !> \param kind_of ...
 !> \param basis_parameter ...
 !> \param get_max_vals_spin ...
@@ -71,7 +72,7 @@ CONTAINS
 !>        with messages [Joost]
 ! **************************************************************************************************
    SUBROUTINE get_full_density(para_env, full_density, rho, number_of_p_entries, &
-                               block_offset, kind_of, basis_parameter, &
+                               block_offset, atomic_block_offset, kind_of, basis_parameter, &
                                get_max_vals_spin, rho_beta, antisymmetric)
 
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -79,7 +80,8 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: rho
       INTEGER, INTENT(IN)                                :: number_of_p_entries
       INTEGER, DIMENSION(:), POINTER                     :: block_offset
-      INTEGER                                            :: kind_of(*)
+      INTEGER, DIMENSION(:, :), POINTER                  :: atomic_block_offset
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       LOGICAL, INTENT(IN)                                :: get_max_vals_spin
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: rho_beta
@@ -100,11 +102,19 @@ CONTAINS
       ALLOCATE (recbuffer(number_of_p_entries))
       sendbuffer = 0.0_dp
       recbuffer = 0.0_dp
+      mepos = para_env%mepos
 
-      i = 1
-      CALL dbcsr_iterator_start(iter, rho, shared=.FALSE.)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(rho, atomic_block_offset, block_offset, mepos, antisymmetric, &
+!$OMP        kind_of, basis_parameter, get_max_vals_spin, rho_beta, sendbuffer) &
+!$OMP PRIVATE(iter, iatom, jatom, sparse_block, sparse_block_beta, found, &
+!$OMP         i, symmfac, ikind, nseta, nsgfa, jkind, nsetb, nsgfb, &
+!$OMP         pa, pb, iset, jset, pa1, pb1)
+      CALL dbcsr_iterator_start(iter, rho)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
+         IF (atomic_block_offset(iatom, jatom) == 0) CYCLE
+         i = atomic_block_offset(iatom, jatom) - block_offset(mepos + 1) + 1
          ! the resulting vector will be only the upper triangle.
          ! in case of antisymmetry take care to change signs if a lower block gets copied
          symmfac = 1.0_dp
@@ -150,11 +160,11 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       ! sync before/after a ring of isendrecv
       CALL para_env%sync()
       ncpu = para_env%num_pe
-      mepos = para_env%mepos
       dest = MODULO(mepos + 1, ncpu)
       source = MODULO(mepos - 1, ncpu)
       DO icpu = 0, ncpu - 1
@@ -187,6 +197,7 @@ CONTAINS
 !> \param ks_matrix Distributed Kohn-Sham matrix
 !> \param number_of_p_entries Maximal buffer size
 !> \param block_offset ...
+!> \param atomic_block_offset ...
 !> \param kind_of ...
 !> \param basis_parameter ...
 !> \param off_diag_fac ...
@@ -198,7 +209,7 @@ CONTAINS
 !>      - Communication with left/right node only
 ! **************************************************************************************************
    SUBROUTINE distribute_ks_matrix(para_env, full_ks, ks_matrix, number_of_p_entries, &
-                                   block_offset, kind_of, basis_parameter, &
+                                   block_offset, atomic_block_offset, kind_of, basis_parameter, &
                                    off_diag_fac, diag_fac)
 
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -206,7 +217,8 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: ks_matrix
       INTEGER, INTENT(IN)                                :: number_of_p_entries
       INTEGER, DIMENSION(:), POINTER                     :: block_offset
-      INTEGER                                            :: kind_of(*)
+      INTEGER, DIMENSION(:, :), POINTER                  :: atomic_block_offset
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       REAL(dp), INTENT(IN), OPTIONAL                     :: off_diag_fac, diag_fac
 
@@ -236,7 +248,6 @@ CONTAINS
       ! sync before/after a ring of isendrecv
       CALL para_env%sync()
       DO icpu = 1, ncpu
-         i = 1
          data_to = mepos - icpu
          dest_cpu = MODULO(data_to, ncpu) + 1
          block_size = block_offset(dest_cpu + 1) - block_offset(dest_cpu)
@@ -253,10 +264,16 @@ CONTAINS
       ! sync before/after a ring of isendrecv
       CALL para_env%sync()
 
-      i = 1
-      CALL dbcsr_iterator_start(iter, ks_matrix, shared=.FALSE.)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(ks_matrix, atomic_block_offset, block_offset, mepos, kind_of, &
+!$OMP        basis_parameter, sendbuffer, myd_fac, my_fac) &
+!$OMP PRIVATE(iter, iatom, jatom, sparse_block, i, ikind, nseta, nsgfa, &
+!$OMP         jkind, nsetb, nsgfb, pa, pb, iset, jset, pa1, pb1)
+      CALL dbcsr_iterator_start(iter, ks_matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
+         IF (atomic_block_offset(iatom, jatom) == 0) CYCLE
+         i = atomic_block_offset(iatom, jatom) - block_offset(mepos + 1) + 1
 
          ikind = kind_of(iatom)
          nseta = basis_parameter(ikind)%nset
@@ -284,6 +301,7 @@ CONTAINS
          END DO
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       DEALLOCATE (sendbuffer, recbuffer)
 
@@ -352,7 +370,7 @@ CONTAINS
       END IF
       DO img = 1, nimages
          CALL distribute_ks_matrix(para_env, full_ks(:, img), ks_matrix(1, img)%matrix, actual_x_data%number_of_p_entries, &
-                                   actual_x_data%block_offset, kind_of, basis_parameter, &
+                                   actual_x_data%block_offset, actual_x_data%atomic_block_offset, kind_of, basis_parameter, &
                                    off_diag_fac=0.5_dp)
       END DO
       DEALLOCATE (actual_x_data%full_ks_alpha)
@@ -364,7 +382,7 @@ CONTAINS
          END IF
          DO img = 1, nimages
             CALL distribute_ks_matrix(para_env, full_ks(:, img), ks_matrix(2, img)%matrix, actual_x_data%number_of_p_entries, &
-                                      actual_x_data%block_offset, kind_of, basis_parameter, &
+                                      actual_x_data%block_offset, actual_x_data%atomic_block_offset, kind_of, basis_parameter, &
                                       off_diag_fac=0.5_dp)
          END DO
          DEALLOCATE (actual_x_data%full_ks_beta)
@@ -439,8 +457,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atomic_block_maps'
 
-      INTEGER :: handle, iatom, ibuf, icpu, ikind, ilist, iset, itask, jatom, jkind, jset, natom, &
-         ncpu, nseta, nsetb, number_of_p_blocks, offset, tmp(2)
+      INTEGER :: handle, iatom, ibuf, icpu, ikind, ilist, iset, itask, jatom, jkind, jset, &
+         my_ibuf, natom, ncpu, nseta, nsetb, number_of_p_blocks, offset, tmp(2)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: buffer_in, buffer_out, counter, rcount, &
                                                             rdispl
       INTEGER, DIMENSION(:), POINTER                     :: iatom_list, jatom_list, nsgfa, nsgfb
@@ -456,7 +474,11 @@ CONTAINS
       !
       ! count number_of_p_blocks and number_of_p_entries
       !
-      CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(matrix, kind_of, basis_parameter) &
+!$OMP PRIVATE(iter, iatom, jatom, sparse_block, ikind, jkind) &
+!$OMP REDUCTION(+:number_of_p_blocks, number_of_p_entries)
+      CALL dbcsr_iterator_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
          ikind = kind_of(iatom)
@@ -466,6 +488,7 @@ CONTAINS
                                basis_parameter(ikind)%nsgf_total*basis_parameter(jkind)%nsgf_total
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       tmp = [number_of_p_entries, number_of_p_blocks]
       CALL para_env%max(tmp)
@@ -482,16 +505,22 @@ CONTAINS
       buffer_in = 0
       ibuf = 0
 
-      CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(matrix, para_env, buffer_in, ibuf) &
+!$OMP PRIVATE(iter, iatom, jatom, sparse_block, my_ibuf)
+      CALL dbcsr_iterator_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
-
-         buffer_in(ibuf + 1) = iatom
-         buffer_in(ibuf + 2) = jatom
-         buffer_in(ibuf + 3) = para_env%mepos + 1
+!$OMP ATOMIC CAPTURE
+         my_ibuf = ibuf
          ibuf = ibuf + 3
+!$OMP END ATOMIC
+         buffer_in(my_ibuf + 1) = iatom
+         buffer_in(my_ibuf + 2) = jatom
+         buffer_in(my_ibuf + 3) = para_env%mepos + 1
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       rcount = SIZE(buffer_in)
       rdispl(1) = 0
