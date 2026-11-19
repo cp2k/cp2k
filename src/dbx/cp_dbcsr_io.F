@@ -61,8 +61,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: matrix_name
       CHARACTER(LEN=name_v_1_0_len)                      :: matrix_name_v_1_0
       INTEGER :: bcol, brow, cnt, csize, cur_off, data_area_size, handle, k, linfo_size, &
-         mp_handle, mynode, nblkcols_total, nblkrows_total, nblks, numnodes, nze, orig_slot, r, &
-         rsize, s_end, s_start, slot
+         mp_handle, my_off, mynode, nblkcols_total, nblkrows_total, nblks, numnodes, nze, &
+         orig_slot, r, rsize, s_end, s_start, slot
       INTEGER(KIND=file_offset) :: bdata_my_offset, bdata_start, prev_da, prev_linfo, &
          subh1_chars_bytes, subh2_my_offset, subh2_start, subh3_my_offset, subh3_start, tot_linfo
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_p, col_i, col_unsorted, da_sizes, &
@@ -103,15 +103,21 @@ CONTAINS
       nblks = 0
       data_area_size = 0
 
-      CALL dbcsr_iterator_readonly_start(iter, matrix, shared=.FALSE.)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix, row_cnt) &
+!$OMP PRIVATE(iter, brow, bcol, blk_ptr, rsize, csize, tr) &
+!$OMP REDUCTION(+:nblks, data_area_size)
+      NULLIFY (blk_ptr)
+      CALL dbcsr_iterator_readonly_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, brow, bcol, blk_ptr, &
                                         row_size=rsize, col_size=csize, transposed=tr)
          nblks = nblks + 1
+!$OMP ATOMIC UPDATE
          row_cnt(brow) = row_cnt(brow) + 1
          data_area_size = data_area_size + rsize*csize
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       ALLOCATE (row_p(nblkrows_total + 1))
       row_p(1) = 0
@@ -128,25 +134,34 @@ CONTAINS
       IF (nblkrows_total > 0) row_pos(:) = row_p(1:nblkrows_total)
 
       cur_off = 1
-      CALL dbcsr_iterator_readonly_start(iter, matrix, shared=.FALSE.)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix, row_pos, col_unsorted, raw_off, raw_data, cur_off) &
+!$OMP PRIVATE(iter, brow, bcol, blk_ptr, rsize, csize, tr, nze, slot, my_off)
+      NULLIFY (blk_ptr)
+      CALL dbcsr_iterator_readonly_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, brow, bcol, blk_ptr, &
                                         row_size=rsize, col_size=csize, transposed=tr)
          nze = rsize*csize
-         slot = row_pos(brow) + 1
-         row_pos(brow) = slot
+!$OMP ATOMIC CAPTURE
+         row_pos(brow) = row_pos(brow) + 1
+         slot = row_pos(brow)
+!$OMP END ATOMIC
+!$OMP ATOMIC CAPTURE
+         my_off = cur_off
+         cur_off = cur_off + nze
+!$OMP END ATOMIC
          col_unsorted(slot) = bcol
-         raw_off(slot) = cur_off
+         raw_off(slot) = my_off
          IF (nze > 0) THEN
             IF (tr) THEN
-               raw_data(cur_off:cur_off + nze - 1) = RESHAPE(TRANSPOSE(blk_ptr), [nze])
+               raw_data(my_off:my_off + nze - 1) = RESHAPE(TRANSPOSE(blk_ptr), [nze])
             ELSE
-               raw_data(cur_off:cur_off + nze - 1) = RESHAPE(blk_ptr, [nze])
+               raw_data(my_off:my_off + nze - 1) = RESHAPE(blk_ptr, [nze])
             END IF
          END IF
-         cur_off = cur_off + nze
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       IF (nblkrows_total > 0) THEN
          ALLOCATE (perm(MAX(1, MAXVAL(row_cnt))))

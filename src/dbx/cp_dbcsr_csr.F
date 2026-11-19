@@ -290,7 +290,7 @@ CONTAINS
          nfullcols_total, nfullrows_total, node_first_row, nrows_local, num_p, nze_local, nze_r, &
          pos, r, r_end, r_start, row_offset, row_size, sp_first_row, sp_nrows_local
       INTEGER(KIND=int_8)                                :: nze_total
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nzerow_tmp, perm, row_pos
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nzerow_priv, nzerow_tmp, perm, row_pos
       LOGICAL                                            :: equal_dist, floor_dist, found, use_sp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: blk_ptr, sp_ptr
       TYPE(dbcsr_distribution_type)                      :: dist_current
@@ -357,8 +357,14 @@ CONTAINS
       nzerow_tmp(:) = 0
 
       ! Pass 1: count non-zero elements per local row
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(brd_mat, csr_sparsity_brd, use_sp, node_first_row, nrows_local, nzerow_tmp) &
+!$OMP PRIVATE(iter, blkrow, blkcol, blk_ptr, sp_ptr, row_size, col_size, row_offset, &
+!$OMP         col_offset, found, m, n, local_row, nzerow_priv)
       NULLIFY (blk_ptr, sp_ptr)
-      CALL dbcsr_iterator_readonly_start(iter, brd_mat, shared=.FALSE.)
+      ALLOCATE (nzerow_priv(nrows_local))
+      nzerow_priv(:) = 0
+      CALL dbcsr_iterator_readonly_start(iter, brd_mat)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, blkrow, blkcol, blk_ptr, &
                                         row_size=row_size, col_size=col_size, &
@@ -370,18 +376,23 @@ CONTAINS
                DO m = 1, row_size
                   IF (INT(sp_ptr(m, n)) /= 0) THEN
                      local_row = row_offset - node_first_row + m
-                     nzerow_tmp(local_row) = nzerow_tmp(local_row) + 1
+                     nzerow_priv(local_row) = nzerow_priv(local_row) + 1
                   END IF
                END DO
             END DO
          ELSE
             DO m = 1, row_size
                local_row = row_offset - node_first_row + m
-               nzerow_tmp(local_row) = nzerow_tmp(local_row) + col_size
+               nzerow_priv(local_row) = nzerow_priv(local_row) + col_size
             END DO
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP CRITICAL(csr_nzerow_crit)
+      nzerow_tmp(:) = nzerow_tmp(:) + nzerow_priv(:)
+!$OMP END CRITICAL(csr_nzerow_crit)
+      DEALLOCATE (nzerow_priv)
+!$OMP END PARALLEL
 
       nze_local = SUM(nzerow_tmp)
       nze_total = INT(nze_local, KIND=int_8)
@@ -400,7 +411,12 @@ CONTAINS
       ALLOCATE (row_pos(nrows_local))
       IF (nrows_local > 0) row_pos(:) = csr_mat%rowptr_local(1:nrows_local)
 
-      CALL dbcsr_iterator_readonly_start(iter, brd_mat, shared=.FALSE.)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(brd_mat, csr_sparsity_brd, use_sp, node_first_row, row_pos, csr_mat) &
+!$OMP PRIVATE(iter, blkrow, blkcol, blk_ptr, sp_ptr, row_size, col_size, row_offset, &
+!$OMP         col_offset, found, m, n, local_row, pos)
+      NULLIFY (blk_ptr, sp_ptr)
+      CALL dbcsr_iterator_readonly_start(iter, brd_mat)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, blkrow, blkcol, blk_ptr, &
                                         row_size=row_size, col_size=col_size, &
@@ -412,9 +428,11 @@ CONTAINS
                DO m = 1, row_size
                   IF (INT(sp_ptr(m, n)) /= 0) THEN
                      local_row = row_offset - node_first_row + m
+!$OMP ATOMIC CAPTURE
                      pos = row_pos(local_row)
+                     row_pos(local_row) = row_pos(local_row) + 1
+!$OMP END ATOMIC
                      csr_mat%colind_local(pos) = col_offset + n - 1
-                     row_pos(local_row) = pos + 1
                   END IF
                END DO
             END DO
@@ -422,14 +440,17 @@ CONTAINS
             DO n = 1, col_size
                DO m = 1, row_size
                   local_row = row_offset - node_first_row + m
+!$OMP ATOMIC CAPTURE
                   pos = row_pos(local_row)
+                  row_pos(local_row) = row_pos(local_row) + 1
+!$OMP END ATOMIC
                   csr_mat%colind_local(pos) = col_offset + n - 1
-                  row_pos(local_row) = pos + 1
                END DO
             END DO
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       IF (nrows_local > 0) THEN
          ALLOCATE (perm(MAX(1, MAXVAL(nzerow_tmp))))
@@ -497,8 +518,11 @@ CONTAINS
       csr_mat%nzval_local%r_dp(:) = 0.0_dp
       node_first_row = csr_mat%dbcsr_mapping%node_first_row
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tmp_brd, csr_mat, node_first_row) &
+!$OMP PRIVATE(iter, blkrow, blkcol, blk_ptr, row_size, col_size, row_offset, col_offset, &
+!$OMP         m, n, local_row, r_start, r_end, idx)
       NULLIFY (blk_ptr)
-      CALL dbcsr_iterator_readonly_start(iter, tmp_brd, shared=.FALSE.)
+      CALL dbcsr_iterator_readonly_start(iter, tmp_brd)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, blkrow, blkcol, blk_ptr, &
                                         row_size=row_size, col_size=col_size, &
@@ -518,6 +542,7 @@ CONTAINS
          END DO
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL dbcsr_release(tmp_brd)
       CALL timestop(handle)
@@ -556,8 +581,11 @@ CONTAINS
       CALL dbcsr_set(csr_mat%dbcsr_mapping%brd_mat, 0.0_dp)
       node_first_row = csr_mat%dbcsr_mapping%node_first_row
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(csr_mat, node_first_row) &
+!$OMP PRIVATE(iter, blkrow, blkcol, blk_ptr, row_size, col_size, row_offset, col_offset, &
+!$OMP         m, n, local_row, r_start, r_end, idx)
       NULLIFY (blk_ptr)
-      CALL dbcsr_iterator_start(iter, csr_mat%dbcsr_mapping%brd_mat, shared=.FALSE.)
+      CALL dbcsr_iterator_start(iter, csr_mat%dbcsr_mapping%brd_mat)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, blkrow, blkcol, blk_ptr, &
                                         row_size=row_size, col_size=col_size, &
@@ -577,6 +605,7 @@ CONTAINS
          END DO
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL dbcsr_complete_redistribute(csr_mat%dbcsr_mapping%brd_mat, dbcsr_mat)
 
@@ -636,8 +665,11 @@ CONTAINS
             CALL dbcsr_complete_redistribute(imat_nosym, brd_part)
          END IF
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(brd_part, csr_mat, node_first_row, ipart) &
+!$OMP PRIVATE(iter, blkrow, blkcol, blk_ptr, row_size, col_size, row_offset, col_offset, &
+!$OMP         m, n, local_row, r_start, r_end, idx)
          NULLIFY (blk_ptr)
-         CALL dbcsr_iterator_readonly_start(iter, brd_part, shared=.FALSE.)
+         CALL dbcsr_iterator_readonly_start(iter, brd_part)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, blkrow, blkcol, blk_ptr, &
                                            row_size=row_size, col_size=col_size, &
@@ -663,6 +695,7 @@ CONTAINS
             END DO
          END DO
          CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
       END DO
 
       CALL dbcsr_release(brd_part)

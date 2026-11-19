@@ -19,9 +19,9 @@ MODULE dbt_block
    USE util, ONLY: get_limit
    USE cp_dbcsr_api, ONLY: &
       dbcsr_type, dbcsr_release, &
-      dbcsr_iterator_type, dbcsr_iterator_start, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-      dbcsr_has_symmetry, dbcsr_desymmetrize, dbcsr_get_num_blocks, dbcsr_iterator_stop, &
-      dbcsr_reserve_blocks, dbcsr_finalize
+      dbcsr_iterator_type, dbcsr_iterator_readonly_start, dbcsr_iterator_blocks_left, &
+      dbcsr_iterator_next_block, dbcsr_has_symmetry, dbcsr_desymmetrize, dbcsr_get_num_blocks, &
+      dbcsr_iterator_stop, dbcsr_reserve_blocks, dbcsr_finalize
    USE dbt_allocate_wrap, ONLY: &
       allocate_any
    USE dbt_tas_types, ONLY: &
@@ -350,7 +350,7 @@ CONTAINS
       TYPE(dbt_type), INTENT(INOUT)  :: tensor_out
       TYPE(dbcsr_type), POINTER               :: matrix_in_desym
 
-      INTEGER                            :: iblk, nblk, nblk_per_thread, a, b
+      INTEGER                            :: iblk, my_iblk, nblk, nblk_per_thread, a, b
       INTEGER, ALLOCATABLE, DIMENSION(:) :: blk_ind_1, blk_ind_2
       INTEGER, DIMENSION(2)              :: ind_2d
       TYPE(dbcsr_iterator_type)          :: iter
@@ -368,16 +368,24 @@ CONTAINS
 
       nblk = dbcsr_get_num_blocks(matrix_in_desym)
       ALLOCATE (blk_ind_1(nblk), blk_ind_2(nblk))
-      CALL dbcsr_iterator_start(iter, matrix_in_desym)
-      DO iblk = 1, nblk
+      iblk = 0
+
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_in_desym,tensor_out,nblk,iblk,blk_ind_1,blk_ind_2) &
+!$OMP PRIVATE(iter,ind_2d,my_iblk,nblk_per_thread,a,b)
+      CALL dbcsr_iterator_readonly_start(iter, matrix_in_desym)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, ind_2d(1), ind_2d(2))
-         blk_ind_1(iblk) = ind_2d(1); blk_ind_2(iblk) = ind_2d(2)
+!$OMP ATOMIC CAPTURE
+         iblk = iblk + 1
+         my_iblk = iblk
+!$OMP END ATOMIC
+         blk_ind_1(my_iblk) = ind_2d(1)
+         blk_ind_2(my_iblk) = ind_2d(2)
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP BARRIER
+      CPASSERT(iblk == nblk)
 
-!TODO: Parallelize creation of block list.
-!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor_out,nblk,blk_ind_1,blk_ind_2) &
-!$OMP PRIVATE(nblk_per_thread,a,b)
       nblk_per_thread = nblk/omp_get_num_threads() + 1
       a = omp_get_thread_num()*nblk_per_thread + 1
       b = MIN(a + nblk_per_thread, nblk)
