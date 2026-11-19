@@ -33,60 +33,46 @@ class MatcherRegistry(Dict[str, Matcher]):
 registry = MatcherRegistry()
 
 
-class RestrictedFCIDUMPReferenceMatcher(Matcher):
-    """Compare a canonical high-spin reference determinant with the SCF energy."""
+force_eval_energy = GenericMatcher(r"ENERGY| Total FORCE_EVAL", col=9)
 
-    def run(self, output: str, **kwargs: Any) -> MatchResult:
-        headers = list(
-            re.finditer(
-                r"^&FCI\s+NORB=\s*(\d+),NELEC=\s*(\d+),MS2=\s*(\d+),[^/]*?/",
-                output,
-                re.M,
-            )
+
+def restricted_fcidump_reference_offset(output: str) -> float:
+    """Return E(det) - E(SCF) for a canonical high-spin restricted FCIDUMP."""
+    headers = list(
+        re.finditer(
+            r"^&FCI\s+NORB=\s*(\d+),NELEC=\s*(\d+),MS2=\s*(\d+),[^/]*?/",
+            output,
+            re.M,
         )
-        if not headers or re.search(r"UHF=\s*1", headers[-1].group()):
-            return MatchResult("WRONG RESULT", "No restricted FCIDUMP found.\n", None)
-        norb, nelec, ms2 = map(int, headers[-1].groups())
-        na, nb = (nelec + ms2) // 2, (nelec - ms2) // 2
-        if not 0 <= nb <= na <= norb or na + nb != nelec:
-            return MatchResult("WRONG RESULT", "Invalid FCIDUMP occupations.\n", None)
+    )
+    if not headers or re.search(r"UHF=\s*1", headers[-1].group()):
+        raise ValueError("No restricted FCIDUMP found.")
+    norb, nelec, ms2 = map(int, headers[-1].groups())
+    na, nb = (nelec + ms2) // 2, (nelec - ms2) // 2
+    if not 0 <= nb <= na <= norb or na + nb != nelec:
+        raise ValueError("Invalid FCIDUMP occupations.")
 
-        # CP2K writes one record per integral permutation class.
-        energy = 0.0
-        for line in output[headers[-1].end() :].strip().splitlines():
-            value, *indices = line.split()
-            i, j, k, l = map(int, indices)
-            integral = float(value.replace("D", "E"))
-            if i == j == k == l == 0:
-                energy += integral
-                break
-            if k == l == 0 and i == j:
-                energy += ((i <= na) + (i <= nb)) * integral
-            elif i == j and k == l:
-                if i == k:
-                    energy += (i <= nb) * integral
-                else:
-                    energy += (
-                        ((i <= na) + (i <= nb)) * ((k <= na) + (k <= nb)) * integral
-                    )
-            elif (i, j) == (k, l):
-                energy -= ((max(i, j) <= na) + (max(i, j) <= nb)) * integral
-        else:
-            return MatchResult("WRONG RESULT", "Missing FCIDUMP constant.\n", None)
-
-        scf = GenericMatcher("ENERGY| Total FORCE_EVAL", col=9).run(
-            output, tol=math.inf, ref=0.0
-        )
-        if scf.value is None:
-            return scf
-        delta = energy - scf.value
-        if not math.isfinite(delta) or abs(delta) > kwargs["tol"]:
-            return MatchResult(
-                "WRONG RESULT",
-                f"FCIDUMP reference energy offset: {delta:.3e} Ha.\n",
-                delta,
-            )
-        return MatchResult("OK", None, delta)
+    # CP2K writes one record per integral permutation class.
+    energy = 0.0
+    for line in output[headers[-1].end() :].strip().splitlines():
+        value, *indices = line.split()
+        i, j, k, l = map(int, indices)
+        integral = float(value.replace("D", "E"))
+        if i == j == k == l == 0:
+            energy += integral
+            break
+        if k == l == 0 and i == j:
+            energy += ((i <= na) + (i <= nb)) * integral
+        elif i == j and k == l:
+            if i == k:
+                energy += (i <= nb) * integral
+            else:
+                energy += ((i <= na) + (i <= nb)) * ((k <= na) + (k <= nb)) * integral
+        elif (i, j) == (k, l):
+            energy -= ((max(i, j) <= na) + (max(i, j) <= nb)) * integral
+    else:
+        raise ValueError("Missing FCIDUMP constant.")
+    return energy - force_eval_energy.extract(output)
 
 
 class GWOrbitalSelfEnergyMatcher(Matcher):
@@ -243,7 +229,7 @@ registry["Ssneb_initial_shear_force"] = GenericMatcher(
 registry["Ssneb_final_middle_volume"] = GenericMatcher(
     r"SS-NEB\| Volume \[bohr\^3\] 2\s+(\S+)", col=1, regex=True
 )
-registry["M011"] = GenericMatcher(r"ENERGY| Total FORCE_EVAL", col=9)
+registry["M011"] = force_eval_energy
 registry["FIST_periodic_dipole_x"] = GenericMatcher(
     r"MM_DIPOLE| Moment [a.u.]", col=4, first=True
 )
@@ -602,7 +588,9 @@ registry["AS_embedding_iterations"] = GenericMatcher(
 registry["FCIDUMP_MS2"] = GenericMatcher(
     r"&FCI .*MS2=\s*([-+0-9]+),", col=1, regex=True
 )
-registry["FCIDUMP_reference_energy"] = RestrictedFCIDUMPReferenceMatcher()
+registry["FCIDUMP_reference_energy"] = GenericMatcher(
+    restricted_fcidump_reference_offset
+)
 registry["ROKS_FCIDUMP_spin_warning"] = TextPresenceMatcher("ROKS FCIDUMP spin blocks")
 registry["M093"] = GenericMatcher(r"SPGR| SPACE GROUP NUMBER:", col=5)
 registry["M094"] = GenericMatcher(r"KS CSR write|", col=4)

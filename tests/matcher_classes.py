@@ -2,7 +2,7 @@ import math
 import re
 import sys
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Callable, Optional, Union
 
 if sys.version_info >= (3, 8):
     from typing import Literal, Protocol
@@ -25,29 +25,37 @@ class Matcher(Protocol):
 
 # ======================================================================================
 class GenericMatcher(Matcher):
+    """Compare a column or a value extracted from the full output with a reference."""
+
     def __init__(
         self,
-        pattern: str,
-        col: int,
+        pattern: Union[str, Callable[[str], float]],
+        col: Optional[int] = None,
         regex: bool = False,
         abs_value: bool = False,
         first: bool = False,
     ):
+        self.abs_value = abs_value
+        self.extract: Callable[[str], float]
+        if callable(pattern):
+            if col is not None or regex or first:
+                raise ValueError("Column and pattern options require a string pattern.")
+            self.extract = pattern
+            return
+
+        if col is None:
+            raise ValueError("A column is required for a string pattern.")
         self.pattern = pattern
         self.regex_mode = regex
-        self.abs_value = abs_value
         self.first = first
         if not regex:
             for c in r"[]()|+*?":
                 pattern = pattern.replace(c, f"\\{c}")
         self.regex = re.compile(pattern)
         self.col = col
+        self.extract = self._extract_column
 
-    def run(self, output: str, **kwargs: Any) -> MatchResult:
-        tol, ref = kwargs["tol"], kwargs["ref"]
-        assert isinstance(tol, float) or isinstance(ref, int)
-        assert isinstance(ref, float) or isinstance(ref, int)
-        # grep result
+    def _extract_column(self, output: str) -> float:
         lines = output.split("\n")
         for line in lines if self.first else reversed(lines):
             match = self.regex.search(line)
@@ -58,20 +66,28 @@ class GenericMatcher(Matcher):
                     value_str = line.split()[self.col - 1]
                 break
         else:
-            error = f"Result not found: '{self.pattern}'.\n"
-            return MatchResult("WRONG RESULT", error, value=None)
+            raise ValueError(f"Result not found: '{self.pattern}'.")
 
-        # parse result
         try:
-            value = float(value_str.replace("D", "E"))
+            return float(value_str.replace("D", "E"))
+        except ValueError:
+            raise ValueError(
+                f"Could not parse result as float: '{value_str}'."
+            ) from None
+
+    def run(self, output: str, **kwargs: Any) -> MatchResult:
+        tol, ref = kwargs["tol"], kwargs["ref"]
+        assert isinstance(tol, float) or isinstance(ref, int)
+        assert isinstance(ref, float) or isinstance(ref, int)
+        try:
+            value = self.extract(output)
             if self.abs_value:
                 value = abs(value)
-        except:
-            error = f"Could not parse result as float: '{value_str}'.\n"
-            return MatchResult("WRONG RESULT", error, value=None)
+        except ValueError as exc:
+            return MatchResult("WRONG RESULT", f"{exc}\n", value=None)
 
         if not math.isfinite(value):
-            error = f"Result is not finite: '{value_str}'.\n"
+            error = f"Result is not finite: '{value}'.\n"
             return MatchResult("WRONG RESULT", error, value)
 
         # compare result to reference
