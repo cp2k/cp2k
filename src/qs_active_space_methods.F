@@ -192,6 +192,8 @@ MODULE qs_active_space_methods
 
    TYPE, EXTENDS(eri_type_eri_element_func) :: eri_fcidump_print
       INTEGER :: unit_nr = -1, bra_start = -1, ket_start = -1
+      INTEGER :: nalpha = 0, nbeta = 0
+      REAL(KIND=dp) :: determinant_energy = 0.0_dp
    CONTAINS
       PROCEDURE :: func => eri_fcidump_print_func
    END TYPE eri_fcidump_print
@@ -1201,7 +1203,10 @@ CONTAINS
       END SELECT
 
       ! Output a FCIDUMP file if requested
-      IF (active_space_env%fcidump) CALL fcidump(active_space_env, as_input, dft_control%roks)
+      IF (active_space_env%fcidump) THEN
+         CALL fcidump(active_space_env, as_input, dft_control%roks, &
+                      dft_control%roks .AND. mselect == casci_canonical .AND. as_solver == no_solver)
+      END IF
 
       ! Output the inactive and active orbitals in FCIDUMP order as a Molden file if requested
       IF (BTEST(cp_print_key_should_output(logger%iter_info, as_input, "MOLDEN"), cp_p_file)) THEN
@@ -2539,14 +2544,15 @@ CONTAINS
 !> \param active_space_env ...
 !> \param as_input ...
 !> \param restricted ...
+!> \param check_reference compare the canonical ROKS determinant with the reference energy
 !> \par History
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE fcidump(active_space_env, as_input, restricted)
+   SUBROUTINE fcidump(active_space_env, as_input, restricted, check_reference)
 
       TYPE(active_space_type), POINTER                   :: active_space_env
       TYPE(section_vals_type), POINTER                   :: as_input
-      LOGICAL, INTENT(IN)                                :: restricted
+      LOGICAL, INTENT(IN)                                :: restricted, check_reference
 
       CHARACTER(LEN=*), PARAMETER :: roks_warning = &
          "ROKS FCIDUMP spin blocks differ. Check the cell size and the consistency of "// &
@@ -2559,6 +2565,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fmat, fock_diff, pmat
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(eri_fcidump_checksum)                         :: eri_checksum
+      TYPE(eri_fcidump_print)                            :: writer
 
       checksum = 0.0_dp
       spin_difference = 0.0_dp
@@ -2585,8 +2592,13 @@ CONTAINS
             END IF
             !
             ! Print integrals: ERI
+            writer = eri_fcidump_print(iw, 1, 1)
+            IF (check_reference) THEN
+               writer%nalpha = (nelec + ms2)/2
+               writer%nbeta = (nelec - ms2)/2
+            END IF
             CALL active_space_env%eri%eri_foreach(1, active_space_env%active_orbitals, &
-                                                  eri_fcidump_print(iw, 1, 1), 1, 1)
+                                                  writer, 1, 1)
             CALL eri_checksum%set(1, 1)
             CALL active_space_env%eri%eri_foreach(1, active_space_env%active_orbitals, eri_checksum, 1, 1)
 
@@ -2615,6 +2627,8 @@ CONTAINS
                i3 = 0; i4 = 0
                DO m1 = 1, SIZE(active_space_env%active_orbitals, 1)
                   i1 = active_space_env%active_orbitals(m1, 1)
+                  IF (m1 <= writer%nalpha) writer%determinant_energy = writer%determinant_energy + fmat(i1, i1)
+                  IF (m1 <= writer%nbeta) writer%determinant_energy = writer%determinant_energy + fmat(i1, i1)
                   DO m2 = m1, SIZE(active_space_env%active_orbitals, 1)
                      i2 = active_space_env%active_orbitals(m2, 1)
                      checksum = checksum + ABS(fmat(i1, i2))
@@ -2704,6 +2718,10 @@ CONTAINS
       iw = cp_logger_get_default_io_unit(logger)
       IF (iw > 0) WRITE (iw, '(T4,A,T66,F12.8)') "FCIDUMP| Checksum:", eri_checksum%checksum + checksum
       IF (restricted) THEN
+         IF (check_reference .AND. writer%unit_nr > 0 .AND. iw > 0) THEN
+            WRITE (iw, '(T4,A,1X,ES23.16)') "FCIDUMP| Reference determinant energy offset [hartree]:", &
+               writer%determinant_energy + esub - active_space_env%energy_ref
+         END IF
          IF (iw > 0) WRITE (iw, '(T4,A,1X,ES12.5)') &
             "FCIDUMP| Max. ROKS spin-block difference [hartree]:", spin_difference
          IF (spin_difference > roks_fock_tol) THEN
@@ -3255,6 +3273,19 @@ CONTAINS
       IF (this%unit_nr > 0) THEN
          WRITE (this%unit_nr, "(ES23.16,4I4)") val, i + this%bra_start - 1, j + this%bra_start - 1, &
               &                                     k + this%ket_start - 1, l + this%ket_start - 1
+         ! Each spatial integral is emitted once per permutation class.
+         IF (MAX(i, j, k, l) <= this%nalpha) THEN
+            IF (i == j .AND. k == l) THEN
+               IF (i == k) THEN
+                  IF (i <= this%nbeta) this%determinant_energy = this%determinant_energy + val
+               ELSE
+                  this%determinant_energy = this%determinant_energy + &
+                                            MERGE(2, 1, i <= this%nbeta)*MERGE(2, 1, k <= this%nbeta)*val
+               END IF
+            ELSE IF (i == k .AND. j == l) THEN
+               this%determinant_energy = this%determinant_energy - MERGE(2, 1, MAX(i, j) <= this%nbeta)*val
+            END IF
+         END IF
       END IF
 
       cont = .TRUE.
