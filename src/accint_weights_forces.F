@@ -58,8 +58,8 @@ MODULE accint_weights_forces
                                               native_skala_gapw_composite_reference,&
                                               native_skala_uses_atom_composite_grid,&
                                               skala_gapw_representation,&
-                                              skala_gpw_weight_derivative,&
-                                              xc_section_uses_native_skala_grid
+                                              skala_gpw_weight_derivative
+   USE skala_model_selection,           ONLY: xc_section_uses_native_skala_grid
    USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: xc_exc_pw_create,&
                                               xc_vxc_pw_create

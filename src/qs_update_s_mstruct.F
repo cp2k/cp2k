@@ -43,10 +43,10 @@ MODULE qs_update_s_mstruct
    USE qs_rho_types,                    ONLY: qs_rho_create,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: scf_env_did_change
-   USE skala_gpw_functional,            ONLY: get_skala_native_section,&
-                                              native_skala_gapw_composite_direct_ao,&
+   USE skala_gpw_functional,            ONLY: native_skala_gapw_composite_direct_ao,&
                                               native_skala_gapw_composite_reference,&
                                               skala_gapw_representation
+   USE skala_model_selection,           ONLY: get_skala_native_section
    USE task_list_methods,               ONLY: generate_qs_task_list
    USE task_list_types,                 ONLY: allocate_task_list,&
                                               deallocate_task_list,&

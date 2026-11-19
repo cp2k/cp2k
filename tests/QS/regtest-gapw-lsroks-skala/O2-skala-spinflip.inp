@@ -48,7 +48,6 @@
           GRID GM3
           INT_EXECUTION_SPACE HOST
           MODEL SKALA
-          MODEL_ATOM_CHUNK_SIZE 1
           PRUNING_SCHEME ROBUST
           SKALA_RUNTIME SELF
           USE_GPU HOST

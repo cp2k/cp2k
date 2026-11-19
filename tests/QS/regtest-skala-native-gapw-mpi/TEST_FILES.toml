@@ -1,0 +1,3 @@
+"H2O_NATIVE_SKALA_GAPW_GTH_MPI.inp" = [
+  {matcher = "E_total", tol = 1e-7, ref = -14.600550728558140},
+]

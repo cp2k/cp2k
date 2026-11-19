@@ -62,7 +62,7 @@ MODULE xc
                                   xc_derivative_type
    USE xc_derivatives, ONLY: xc_functionals_eval, &
                              xc_functionals_get_needs
-   USE xc_gauxc_functional, ONLY: xc_section_uses_gauxc
+   USE skala_model_selection, ONLY: xc_section_uses_gauxc
 #if defined(__LIBXC)
    USE xc_libxc, ONLY: libxc_set_backend
 #endif

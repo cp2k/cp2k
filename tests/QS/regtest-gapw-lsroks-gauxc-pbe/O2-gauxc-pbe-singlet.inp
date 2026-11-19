@@ -48,7 +48,6 @@
           GRID FINE
           INT_EXECUTION_SPACE HOST
           MODEL NONE
-          MODEL_ATOM_CHUNK_SIZE 1
           PRUNING_SCHEME UNPRUNED
           SKALA_RUNTIME SELF
           USE_GPU HOST

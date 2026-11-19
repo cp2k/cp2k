@@ -200,9 +200,15 @@ CONTAINS
       native_skala_grid = .FALSE.
       IF (is_present) THEN
          xc_gauxc_subsection => section_vals_get_subs_vals(xc_fun_section, "GAUXC")
-         CALL section_vals_get(xc_gauxc_subsection, explicit=dft_control%use_gauxc)
+         IF (ASSOCIATED(xc_gauxc_subsection)) THEN
+            CALL section_vals_val_get(xc_gauxc_subsection, "_SECTION_PARAMETERS_", &
+                                      l_val=dft_control%use_gauxc)
+         END IF
          xc_skala_native_subsection => section_vals_get_subs_vals(xc_fun_section, "SKALA_NATIVE")
-         CALL section_vals_get(xc_skala_native_subsection, explicit=native_skala_grid)
+         IF (ASSOCIATED(xc_skala_native_subsection)) THEN
+            CALL section_vals_val_get(xc_skala_native_subsection, "_SECTION_PARAMETERS_", &
+                                      l_val=native_skala_grid)
+         END IF
          IF (dft_control%use_gauxc .AND. native_skala_grid) THEN
             CPABORT("GAUXC and SKALA_NATIVE are mutually exclusive XC functionals.")
          END IF
