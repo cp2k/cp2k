@@ -484,17 +484,12 @@ CONTAINS
                lval = gto_basis%l(ishell, iset)
                res%max_l = MAX(res%max_l, lval)
                shells(shell_index)%l = INT(lval, c_int32_t)
-               ! GauXC stores a fixed number of primitives per shell; reject
-               ! contractions that would overflow those arrays.
                IF (npgf > SIZE(shells(shell_index)%exponents)) THEN
                   WRITE (error_msg, '(A,I0,A,I0,A)') "GAUXC basis: contraction with ", npgf, &
                      " primitives exceeds the GauXC shell limit of ", &
                      SIZE(shells(shell_index)%exponents), " primitives"
                   CPABORT(TRIM(error_msg))
                END IF
-               ! CP2K's orbital basis is stored in spherical (solid-harmonic) form,
-               ! so a shell carries 2*l+1 AOs. Detect the representation explicitly
-               ! instead of silently assuming it.
                nsgf_shell = gto_basis%last_sgf(ishell, iset) - gto_basis%first_sgf(ishell, iset) + 1
                ncgf_shell = gto_basis%last_cgf(ishell, iset) - gto_basis%first_cgf(ishell, iset) + 1
                IF (nsgf_shell == 2*lval + 1) THEN
@@ -715,8 +710,6 @@ CONTAINS
                              "section to run on the CPU, or select a valid offload device "// &
                              "(check CUDA_VISIBLE_DEVICES and the MPI rank-to-device mapping).")
             END IF
-            ! Make the offload-selected device current before GauXC allocates its
-            ! runtime, so memory and streams are created on the right GPU.
             CALL offload_activate_chosen_device()
 #if defined(GAUXC_HAS_MPI) && defined(__parallel)
             IF (PRESENT(mpi_comm)) THEN
@@ -746,8 +739,6 @@ CONTAINS
          ELSE
 #if defined(GAUXC_HAS_MPI) && defined(__parallel)
             IF (PRESENT(mpi_comm)) THEN
-               ! Reuse the global runtime when the requested communicator matches
-               ! the communicator used during gauxc_init.
                IF (force_new_runtime_local .OR. .NOT. rt_has_mpi_comm .OR. &
                    mpi_comm /= rt_mpi_comm) THEN
                   res%rt = gauxc_runtime_environment_new(status%status, mpi_comm)
@@ -755,8 +746,6 @@ CONTAINS
                   res%owns_rt = .TRUE.
                END IF
             ELSE IF (force_new_runtime_local) THEN
-               ! Honor a fresh-runtime request even without a communicator by
-               ! creating a serial runtime instead of silently reusing the global one.
                res%rt = gauxc_runtime_environment_new(status%status)
                GAUXC_RETURN_IF_ERROR(status)
                res%owns_rt = .TRUE.
@@ -961,13 +950,9 @@ CONTAINS
       IF (PRESENT(energy_only)) my_energy_only = energy_only
 
 #ifdef GAUXC_HAS_DEVICE
-      ! Other libraries may have changed the current CUDA device; restore the
-      ! offload selection before GauXC touches the device.
       IF (integrator%uses_device_runtime) CALL offload_activate_chosen_device()
 #endif
 
-      ! For conventional functionals the C API offers a true energy-only entry
-      ! point. OneDFT models have no such call, so they keep the exc/vxc path.
       IF (my_energy_only .AND. .NOT. use_gauxc_model) THEN
          IF (nspins == 1) THEN
             CALL ensure_matrix_scratch(res%scratch_rks, density_scalar)
@@ -1145,8 +1130,6 @@ CONTAINS
       use_gauxc_model = gauxc_model_active(model)
 
 #ifdef GAUXC_HAS_DEVICE
-      ! Other libraries may have changed the current CUDA device; restore the
-      ! offload selection before GauXC touches the device.
       IF (integrator%uses_device_runtime) CALL offload_activate_chosen_device()
 #endif
 

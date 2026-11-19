@@ -124,8 +124,6 @@ static void torch_c_check(const bool condition, const char *message) {
   }
 }
 
-// Wrap the body of every BIND(C) entry point so Torch exceptions become a
-// controlled CP2K abort instead of undefined behaviour.
 #define TORCH_C_TRY try {
 #define TORCH_C_CATCH(NAME)                                                    \
   }                                                                            \
@@ -140,14 +138,8 @@ static void torch_c_check(const bool condition, const char *message) {
  * \brief Internal helper for selecting the CUDA device when available.
  * \author Ole Schuett
  ******************************************************************************/
-// CUDA is opt-out: GPU is the default whenever a CUDA device is usable. The
-// value is resolved once by the SKALA/GauXC execution-target resolver and then
-// kept for the whole calculation. Atomic because it is read from Torch calls
-// that may run concurrently on OpenMP threads.
 static std::atomic<bool> use_cuda_if_available{true};
 
-// Cached model metadata (TorchScript extra files) keyed by model filename and
-// the file stamp (size + mtime).
 struct model_metadata_entry {
   std::string stamp;
   std::unordered_map<std::string, std::string> files;
@@ -156,11 +148,6 @@ static std::mutex model_metadata_mutex;
 static std::unordered_map<std::string, model_metadata_entry>
     model_metadata_cache;
 
-// Deferred gradient readbacks copy on the source tensor's device stream.
-// Remember which devices have pending copies so the later
-// torch_c_stream_synchronize() waits on those devices and not merely on the
-// currently active one. Process-global: a deferred readback may be issued from
-// one thread while the synchronization happens on another.
 static std::set<int> pending_grad_readback_devices;
 static std::mutex pending_grad_mutex;
 
@@ -219,8 +206,6 @@ static void initialize_torch_threads_from_env() {
   });
 }
 
-// Set the Torch CPU intra-op thread count. An explicit CP2K_TORCH_NUM_THREADS
-// environment variable takes precedence and is never overridden here.
 extern "C" void torch_c_set_num_threads(const int num_threads) {
   TORCH_C_TRY
   int env_threads = 0;
@@ -232,15 +217,11 @@ extern "C" void torch_c_set_num_threads(const int num_threads) {
   TORCH_C_CATCH("torch_c_set_num_threads")
 }
 
-// Return the current Torch CPU intra-op thread count.
 extern "C" int torch_c_get_num_threads(void) {
   initialize_torch_threads_from_env();
   return at::get_num_threads();
 }
 
-// Probe CUDA availability once: the result cannot change within a process and
-// repeated is_available()/device_count() calls are surprisingly expensive on
-// the per-tensor/per-dict hot path.
 static bool cuda_device_available(int &device_count) {
   static std::once_flag probe_flag;
   static bool available = false;
@@ -315,8 +296,6 @@ static torch::jit::Module load_module_for_device(
   auto model = (extra_files != nullptr)
                    ? torch::jit::load(filename, torch::kCPU, *extra_files)
                    : torch::jit::load(filename, torch::kCPU);
-  // With load_on_cpu the module must stay on the CPU so callers can promote and
-  // freeze it there; remap_device_constants performs the host->device move.
   if (!load_on_cpu) {
     model.to(device);
   }
@@ -380,8 +359,6 @@ static void remap_model_device_constants(torch::jit::Module &model,
   }
 }
 
-// Collect the device targets hard-coded in a graph (device constants such as
-// torch.device("cuda:0") or "cpu").
 static void collect_block_device_constants(torch::jit::Block *block,
                                            bool &has_cuda, bool &has_cpu) {
   for (torch::jit::Node *node : block->nodes()) {
@@ -477,8 +454,6 @@ static void promote_model_float32(torch::jit::Module &model) {
 }
 
 static void initialize_cuda_linalg(const torch::Device &device) {
-  // Warm up each CUDA device once; the active device can change within one
-  // process when several GPUs are used.
   static std::mutex mutex;
   static std::set<int> initialized_devices;
   std::lock_guard<std::mutex> lock(mutex);
@@ -504,14 +479,10 @@ static torch_c_tensor_t *tensor_from_array(const torch::Dtype dtype,
   return new torch_c_tensor_t(torch::from_blob(source, sizes_ref, opts));
 }
 
-// Reusable pinned host buffers for gradient readbacks, one per leaf tensor.
-// The map is intentionally leaked (raw pointer, never destroyed) because a
-// static torch::Tensor would be destroyed after the CUDA driver has shut down.
 static std::mutex grad_pinned_mutex;
 static std::unordered_map<const torch_c_tensor_t *, torch::Tensor>
     *grad_pinned_pool = nullptr;
 
-// Drop a pooled pinned buffer before its tensor wrapper is deleted/reallocated.
 static void erase_grad_pool_entry(const torch_c_tensor_t *tensor) {
   if (tensor == nullptr)
     return;
@@ -591,9 +562,6 @@ static void copy_attr_string_to_fortran(const std::string &source, char *dest) {
   if (source.size() > torch_c_attr_string_length) {
     torch_c_api_abort("Torch attribute string exceeds CP2K default length");
   }
-  // Blank-pad the whole Fortran buffer: the caller passes an INTENT(OUT)
-  // CHARACTER(LEN=default_string_length) and only source.size() bytes are
-  // overwritten otherwise, leaving an uninitialized tail.
   std::memset(dest, ' ', torch_c_attr_string_length);
   std::memcpy(dest, source.data(), source.size());
 }
@@ -670,17 +638,11 @@ struct staging_slot {
 };
 
 static std::mutex pinned_pool_mutex;
-// Intentionally leaked: static torch::Tensor objects would be destroyed after
-// the CUDA driver has shut down and would abort the process at exit.
 static std::vector<staging_slot> *pinned_pool = nullptr;
 static thread_local int pinned_current_slot = -1;
-// The pool is shared between threads but the current slot index is per thread.
-// Bumping the generation on release lets other threads detect that their slot
-// index belongs to a pool generation that no longer exists.
 static std::atomic<uint64_t> pinned_generation{0};
 static thread_local uint64_t pinned_generation_local = 0;
 
-// Requires pinned_pool_mutex to be held.
 static void sync_pinned_generation_locked() {
   const auto generation = pinned_generation.load(std::memory_order_relaxed);
   if (generation != pinned_generation_local) {
@@ -696,7 +658,6 @@ static std::vector<staging_slot> &get_pinned_pool() {
   return *pinned_pool;
 }
 
-// Requires pinned_pool_mutex to be held.
 static void release_current_slot_locked() {
   if (pinned_current_slot >= 0 && pinned_pool != nullptr &&
       pinned_current_slot < static_cast<int>(pinned_pool->size())) {
@@ -713,7 +674,6 @@ static torch::Tensor make_host_buffer(const int64_t n_doubles, bool &pinned) {
       pinned = true;
       return buffer;
     } catch (const c10::Error &) {
-      // Fall through to pageable memory under pinned-memory pressure.
     }
   }
   pinned = false;
@@ -725,8 +685,6 @@ void torch_c_pinned_reserve(const int64_t n_doubles) {
   std::lock_guard<std::mutex> lock(pinned_pool_mutex);
   sync_pinned_generation_locked();
   auto &slots = get_pinned_pool();
-  // A previous batch on this thread may not have called finish (e.g. after an
-  // early abort); release it instead of failing.
   release_current_slot_locked();
   int chosen = -1;
   for (int i = 0; i < static_cast<int>(slots.size()); ++i) {
@@ -784,9 +742,6 @@ void torch_c_pinned_release() {
         in_use += slot.in_use ? 1 : 0;
       }
     }
-    // Never free memory that another thread may still be copying through. If
-    // some slot is still in use, keep the pool (a later release can free it);
-    // the generation bump is then unnecessary because all indices stay valid.
     if (in_use == 0) {
       delete pinned_pool;
       pinned_pool = nullptr;
@@ -936,8 +891,6 @@ void torch_c_tensor_narrow(const torch_c_tensor_t *tensor, const int64_t dim,
   torch_c_check(
       tensor->device() == device,
       "Torch tensor narrow requires the tensor to be on the active device");
-  // Keep this a pure view: calling .to(device) would silently copy on a
-  // device mismatch and break storage/autograd aliasing with the parent.
   *result = new torch_c_tensor_t(tensor->narrow(dim, start_index, length));
   TORCH_C_CATCH("torch_c_tensor_narrow")
 }
@@ -1113,12 +1066,8 @@ static void grad_batch_impl(const torch_c_tensor_t *const *tensors,
   }
 
   if (all_defined && all_cuda_same_device) {
-    // Ensure copies and the readback synchronization use the sources' device,
-    // not merely the currently active device.
     c10::DeviceGuard source_guard(torch::Device(
         torch::kCUDA, static_cast<c10::DeviceIndex>(source_device)));
-    // Reuse one pinned host buffer per leaf tensor; one synchronization for the
-    // whole batch.
     std::vector<torch::Tensor> hosts(count);
     {
       std::lock_guard<std::mutex> lock(grad_pinned_mutex);
@@ -1129,9 +1078,6 @@ static void grad_batch_impl(const torch_c_tensor_t *const *tensors,
       for (int i = 0; i < count; ++i) {
         auto &entry = (*grad_pinned_pool)[tensors[i]];
         const auto sizes = sources[i].sizes();
-        // Only reuse a buffer no other reader still references. A previously
-        // returned gradient holds a reference to the pooled tensor (including
-        // deferred readbacks), so reusing it would overwrite live data.
         const bool reuse = entry.defined() && entry.sizes() == sizes &&
                            entry.scalar_type() == sources[i].scalar_type() &&
                            entry.getIntrusivePtr().use_count() == 1;
@@ -1140,25 +1086,17 @@ static void grad_batch_impl(const torch_c_tensor_t *const *tensors,
               sizes,
               sources[i].options().device(torch::kCPU).pinned_memory(true));
         }
-        // Take the reference while holding the lock so concurrent callers see
-        // a non-free buffer and allocate their own.
         hosts[i] = entry;
       }
     }
-    // Issue the device-to-host copies outside the global lock: the pinned
-    // buffers are now owned by this call, so no other thread can touch them.
     for (int i = 0; i < count; ++i) {
       hosts[i].copy_(sources[i], true);
     }
     if (synchronize) {
-      // The copies above were issued on the sources' current stream, so waiting
-      // on that stream is sufficient and avoids stalling unrelated device work.
       c10::cuda::getCurrentCUDAStream(
           static_cast<c10::DeviceIndex>(source_device))
           .synchronize();
     } else {
-      // The caller will synchronize later; remember the source device so the
-      // deferred sync waits on the stream the copies were actually issued on.
       record_pending_device(source_device);
     }
     for (int i = 0; i < count; ++i) {
@@ -1341,8 +1279,6 @@ void torch_c_model_remap_device_constants(torch_c_model_t *model) {
   TORCH_C_TRY
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
-  // Remap even for CPU so that a CUDA export can run under USE_GPU HOST (and a
-  // CPU export under GPU) instead of failing later with a raw device mismatch.
   remap_model_device_constants(*model, device);
   if (device.is_cuda()) {
     initialize_cuda_linalg(device);
@@ -1450,7 +1386,6 @@ void torch_c_tensor_hessian_vector(const torch_c_tensor_t *tensor,
     }
     std::vector<torch::Tensor> second(count);
     if (contraction.defined()) {
-      // Retain all mixed responses, even for inputs with a zero direction.
       second = torch::autograd::grad({contraction}, variables, {}, false, false,
                                      true);
     }
@@ -1504,8 +1439,6 @@ void torch_c_model_forward(torch_c_model_t *model, const torch_c_dict_t *inputs,
 /*******************************************************************************
  * \brief Evaluates a TorchScript model method expecting argument "mol".
  ******************************************************************************/
-// Cache TorchScript method handles per model and method name. The map is
-// intentionally leaked for the same reason as the pinned gradient pool.
 static std::mutex model_method_mutex;
 static std::unordered_map<const torch_c_model_t *,
                           std::unordered_map<std::string, torch::jit::Method>>
@@ -1525,12 +1458,9 @@ static torch::jit::Method get_cached_method(torch_c_model_t *model,
   if (it == methods.end()) {
     it = methods.emplace(key, model->get_method(key)).first;
   }
-  // Return a value: a pointer into the map could be invalidated by a
-  // concurrent insertion (rehash) in another thread.
   return it->second;
 }
 
-// Drop cached method handles for a model whose methods are about to change.
 static void invalidate_model_method_cache(const torch_c_model_t *model) {
   std::lock_guard<std::mutex> lock(model_method_mutex);
   if (model_method_cache != nullptr) {
@@ -1628,8 +1558,6 @@ void torch_c_tensor_accumulate(torch_c_tensor_t **accumulator,
   TORCH_C_TRY
   c10::OptionalDeviceGuard guard;
   get_device_with_guard(guard);
-  // Only the scalar value is consumed (and it is read back once); never let the
-  // accumulator retain the per-chunk autograd graphs.
   torch::NoGradGuard no_grad;
   torch_c_check(value != nullptr && value->defined(),
                 "Torch accumulator received an undefined value");

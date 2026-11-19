@@ -58,10 +58,6 @@ MODULE xc_gauxc_cache
       CHARACTER(LEN=default_string_length), ALLOCATABLE :: kind_basis_names(:)
    END TYPE cp_gauxc_cache_params
 
-   ! Cached dense->DBCSR block layout for one GauXC cache instance. The
-   ! template's block sizes and distributions, together with the owned
-   ! upper-triangular block list, are reused across SCF steps; only the block
-   ! values are pushed with dbcsr_put_block each call.
    TYPE dense_to_dbcsr_layout_type
       LOGICAL                                      :: valid = .FALSE.
       INTEGER                                      :: nrows = -1
@@ -220,7 +216,6 @@ CONTAINS
       END SELECT
 
       IF (params%use_self_runtime) THEN
-         ! SKALA can request a replicated molecular runtime for reproducible
          ! open-shell densities across CP2K MPI ranks.
          cache%grid = gauxc_create_grid( &
                       cache%molecule, cache%basisset, params%grid_type, params%radial_quadrature, &
@@ -451,8 +446,6 @@ CONTAINS
                                   status)
       IF (status%status%code /= 0) THEN
          error_code = status%status%code
-         ! Clean up symmetrically: a partially created integrator depends on the
-         ! grid, so release it first.
          CALL gauxc_destroy_integrator(cache%gradient_integrator, status)
          CALL gauxc_destroy_grid(cache%gradient_grid, status)
          status%status%code = error_code

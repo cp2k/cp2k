@@ -511,7 +511,6 @@ CONTAINS
          CALL ensure_real_2d(features%density, nflat, 2)
          CALL ensure_real_3d(features%grad, nflat, 3, 2)
          CALL ensure_real_2d(features%kin, nflat, 2)
-         ! Every row below is fully overwritten; no pre-zeroing needed.
 
          DO row = 1, nflat
             ipt = skala_state%layout%feature_source_points(row)
@@ -746,8 +745,6 @@ CONTAINS
 
       hit = MERGE(1, 0, layout_cache_matches_local(pw_grid, particle_set, cell, weights, &
                                                    atom_partition, cuda_device, needs_local_static))
-      ! Every rank must agree: a reuse skips the layout rebuild collectives, so a
-      ! rank-local match while another rank mismatches would deadlock.
       CALL pw_grid%para%group%min(hit)
       matches = (hit == 1)
 
@@ -834,10 +831,6 @@ CONTAINS
       END IF
       IF (skala_state%layout%has_weights .NEQV. has_weights) RETURN
 
-      ! The integration weights feed both the cached weight arrays and the
-      ! static Torch tensors, so always compare their signature. Do not gate
-      ! this on the print level: a stale weights fingerprint would silently
-      ! reuse an otherwise-invalid layout.
       IF (PRESENT(weights)) THEN
          CALL weights_signature(weights, signature_has_weights, weight_sum, weight_sumsq)
       ELSE
@@ -1188,9 +1181,6 @@ CONTAINS
          END BLOCK
       END IF
       max_grid_size = MAXVAL(INT(skala_state%layout%atomic_grid_sizes))
-      ! Atom-chunk partitioning/routing is only used by the atom-chunk layout
-      ! mode; the mode is fixed for the lifetime of the cache, so skip this whole
-      ! subtree (including its collectives) for full-grid layouts.
       IF (.NOT. needs_full_static_tensors) THEN
          CALL build_atom_chunks(skala_state%layout%atomic_grid_sizes, atom_offset, nproc, &
                                 chunk_atom_begin, chunk_atom_end, &
@@ -1259,9 +1249,6 @@ CONTAINS
          CPASSERT(ALL(skala_state%layout%local_feature_rows > 0))
       END IF
 
-      ! Distribute the static feature values to their atom-chunk owners. This
-      ! avoids keeping the full global static layout on every rank. The
-      ! collectives run on all ranks, including ranks with an empty chunk.
       IF (.NOT. needs_full_static_tensors) THEN
          IF (skala_state%layout%chunk_feature_count > 0) THEN
             ALLOCATE (skala_state%layout%chunk_grid_coords(3, skala_state%layout%chunk_feature_count), &
@@ -1457,10 +1444,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: grad_mode
 
       CPASSERT(skala_state%layout%chunk_static_tensors_active)
-      ! Always reset the static leaves, even when the differentiability mode is
-      ! unchanged. torch_tensor_set_requires_grad also clears the accumulated
-      ! gradient, so repeated evaluations in the same mode cannot add stale
-      ! adjoints from a previous forward/backward pass.
       CALL torch_tensor_set_requires_grad(skala_state%layout%chunk_grid_coords_t, grad_mode >= 2)
       CALL torch_tensor_set_requires_grad(skala_state%layout%chunk_grid_weights_t, grad_mode >= 1)
       CALL torch_tensor_set_requires_grad(skala_state%layout%chunk_atomic_grid_weights_t, &
@@ -1516,9 +1499,6 @@ CONTAINS
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
       LOGICAL, INTENT(IN)                                :: needs_grid_coordinate_array
 
-      ! Alias the persistent cache instead of duplicating the arrays. They are
-      ! read-only for the lifetime of this feature bundle and the layout cache is
-      ! rebuilt only after the bundle has been released.
       features%grid_weights => skala_state%layout%grid_weights
       features%local_feature_offsets => skala_state%layout%local_feature_offsets
       features%local_feature_rows => skala_state%layout%local_feature_rows
@@ -1550,8 +1530,6 @@ CONTAINS
       features%owns_layout_arrays = .TRUE.
 
       IF (needs_coordinate_array) THEN
-         ! Routing mode keeps a per-rank local feature layout. Assembly routines
-         ! index these arrays by feature position, so the row map is made local.
          CALL ensure_int_1d(features%local_feature_offsets, skala_state%layout%nflat_local + 1)
          CALL ensure_int_1d(features%local_feature_rows, SIZE(skala_state%layout%local_feature_rows))
          CALL ensure_real_2d(features%grid_coords, 3, SIZE(skala_state%layout%local_feature_rows))
@@ -2278,10 +2256,6 @@ CONTAINS
          features%uses_collapsed_rks_dynamic = .FALSE.
       END IF
 
-      ! The routing-layout arrays are per-rank copies that are reused across
-      ! SCF steps; keep them (and their ownership) when requested. Full-layout
-      ! bundles only alias the persistent cache, so those pointers are always
-      ! dropped.
       IF (features%owns_layout_arrays) THEN
          IF (.NOT. keep) THEN
             IF (ASSOCIATED(features%local_feature_offsets)) DEALLOCATE (features%local_feature_offsets)
@@ -2840,8 +2814,6 @@ CONTAINS
 
          IF (requires_coordinate_grad .OR. requires_stress_grad .OR. my_requires_weight_grad) THEN
             IF (requires_stress_grad .OR. my_requires_weight_grad) THEN
-               ! Reuse one gradient dict per layout: the static keys are cloned
-               ! once, and the per-step leaf tensors replace their entries.
                IF (.NOT. skala_state%layout%grad_inputs_active) THEN
                   CALL torch_dict_clone(skala_state%layout%static_inputs, skala_state%layout%grad_inputs)
                   skala_state%layout%grad_inputs_active = .TRUE.
@@ -3033,10 +3005,6 @@ CONTAINS
       CPASSERT(SIZE(weights) == natom)
       CPASSERT(SIZE(included) == natom)
 
-      ! smooth_atom_partition already performs the Becke product and full
-      ! normalization (including the degenerate nearest-atom fallback). Reuse it
-      ! and only add the sparse-support mask and the renormalization over the
-      ! retained atoms.
       CALL smooth_atom_partition(grid_point, atom_coords, cell, weights, &
                                  partition_atom_coords, distances)
       included = weights > smooth_partition_eps
@@ -3164,7 +3132,6 @@ CONTAINS
             ds_atom_i = ds_dmu*dmu_atom_i
             ds_atom_j = ds_dmu*dmu_atom_j
 
-            ! Weight atom i uses the switch factor, weight atom j the complementary factor.
             IF (included(iatom)) THEN
                atom_mean(:, iatom) = atom_mean(:, iatom) + weights(iatom)*ds_atom_i/switch
                atom_mean(:, jatom) = atom_mean(:, jatom) + weights(iatom)*ds_atom_j/switch

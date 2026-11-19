@@ -132,11 +132,6 @@ MODULE qs_vxc_atom
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc_atom'
 
-   ! Compact sparse fetch of the smooth PW fields. Only the grid points touched by the
-   ! stencils of the local atom-composite rows are exchanged with the owning ranks, instead
-   ! of replicating every smooth field on every rank. Field slots follow the gather order:
-   !   LSD:  1 rho_a, 2 rho_b, 3 tau_a, 4 tau_b, 5..7 drho_a(1..3), 8..10 drho_b(1..3)
-   !   RKS:  1 rho,   2 tau,   3..5 drho(1..3)
    INTEGER, PRIVATE :: native_need_nrows = -1, native_need_npts(3) = 0, native_need_perd(3) = 0, &
                        native_need_nfg = 0, native_need_nneed = 0, native_need_nbucket = 0, &
                        native_need_nrecv = 0
@@ -157,10 +152,6 @@ MODULE qs_vxc_atom
    END TYPE native_need_entry_type
    TYPE(native_need_entry_type), ALLOCATABLE, PRIVATE :: native_need_bucket_entry(:)
 
-   ! Geometry-scoped cache of the density-independent atom-composite data (point coordinates and
-   ! grid/partition weights). It only changes with the atom positions/cell, so it is computed once
-   ! per geometry and reused across the SCF iterations. The atom coordinates are replicated on
-   ! every rank, so the validity decision is identical everywhere without a collective.
    INTEGER, PRIVATE :: native_comp_nrows = -1, native_comp_perd(3) = 0
    LOGICAL, PRIVATE :: native_comp_ready = .FALSE.
    REAL(dp), PRIVATE :: native_comp_hmat(3, 3) = 0.0_dp
@@ -662,7 +653,6 @@ CONTAINS
                       composite_grid_weights(composite_nflat), &
                       composite_base_grid_weights(composite_nflat), &
                       composite_atomic_grid_weights(composite_nflat))
-            ! The smooth-field caches are only consumed by the diagnostics contraction.
             IF (atom_composite_diagnostic) THEN
                ALLOCATE (composite_smooth_density_cache(composite_nflat, 2), &
                          composite_smooth_gradient_cache(composite_nflat, 3, 2), &
@@ -693,9 +683,6 @@ CONTAINS
             CPASSERT(ASSOCIATED(smooth_rho_r))
             CPASSERT(ASSOCIATED(smooth_rho_g))
             CPASSERT(ASSOCIATED(smooth_tau_r))
-            ! The atom-composite rows are partitioned over para_env while the needed points are
-            ! owned by the PW grid's real-space group. Require both to describe the same ranks,
-            ! otherwise the exchange would silently route points to the wrong processes.
             CPASSERT(smooth_rho_r(1)%pw_grid%para%group%num_pe == para_env%num_pe)
             CPASSERT(smooth_rho_r(1)%pw_grid%para%group%mepos == para_env%mepos)
             CALL prepare_native_grid_cache(qs_env%native_grid_cache, smooth_rho_r(1)%pw_grid, &
@@ -712,11 +699,6 @@ CONTAINS
             CALL xc_rho_set_update(smooth_rho_set, smooth_rho_r, smooth_rho_g, smooth_tau_r, needs, &
                                    xc_deriv_method_id, xc_rho_smooth_id, auxbas_pw_pool)
             CALL timeset("calculate_vxc_atom_gather", gather_handle)
-            ! Density-independent atom-composite geometry (point coordinates and grid/partition
-            ! weights). It only changes with the atom positions and cell, so it is computed once
-            ! per geometry and reused across the SCF iterations. The atom coordinates are
-            ! replicated on every rank, so this decision is identical everywhere without a
-            ! collective.
             comp_geometry_valid = native_comp_ready .AND. native_comp_nrows == composite_nflat
             IF (comp_geometry_valid) THEN
                comp_geometry_valid = ALL(SHAPE(native_comp_atoms) == SHAPE(composite_atom_coords))
@@ -881,19 +863,13 @@ CONTAINS
                   weight_s => grid_atom%gapw_weight_s
                END IF
 
-               ! The SKALA atom-grid path passes the raw densities directly to the
-               ! Torch model and never reads the derivative/rho sets; only the
-               ! conventional vxc_of_r_new path needs them.
                IF (.NOT. skala_atom_grid) THEN
-                  ! create a place where to put the derivatives
                   CALL xc_dset_create(deriv_set, local_bounds=bounds)
-                  ! create the place where to store the argument for the functionals
                   CALL xc_rho_set_create(rho_set_h, bounds, rho_cutoff=density_cut, &
                                          drho_cutoff=gradient_cut, tau_cutoff=tau_cut)
                   CALL xc_rho_set_create(rho_set_s, bounds, rho_cutoff=density_cut, &
                                          drho_cutoff=gradient_cut, tau_cutoff=tau_cut)
 
-                  ! allocate the required 3d arrays where to store rho and drho
                   CALL xc_rho_set_atom_update(rho_set_h, needs, nspins, bounds)
                   CALL xc_rho_set_atom_update(rho_set_s, needs, nspins, bounds)
                END IF
@@ -1161,7 +1137,6 @@ CONTAINS
                END IF
 
                IF (skala_atom_grid) THEN
-                  ! Evaluate hard and soft densities in a single model pass.
                   IF (.NOT. evaluate_hard) THEN
                      exc_h = 0.0_dp
                      IF (.NOT. energy_only) THEN
@@ -1194,7 +1169,6 @@ CONTAINS
                   rho_atom%exc_s = rho_atom%exc_s + exc_s
                ELSE
                   !-------------------!
-                  ! hard atom density !
                   !-------------------!
                   CALL xc_dset_zero_all(deriv_set)
                   IF (.NOT. evaluate_hard) THEN
@@ -1212,7 +1186,6 @@ CONTAINS
                   rho_atom%exc_h = rho_atom%exc_h + exc_h
 
                   !-------------------!
-                  ! soft atom density !
                   !-------------------!
                   CALL xc_dset_zero_all(deriv_set)
                   IF (.NOT. evaluate_soft) THEN
@@ -1658,8 +1631,6 @@ CONTAINS
                         composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
                         iatom, local_partition_weight, local_partition_datom, &
                         local_partition_dstrain, composite_image_periodicity)
-                     ! Its atom derivative cancels against the moving target grid; periodic
-                     ! image strain remains an explicit contribution to the virial.
                      target_partition_adjoint = composite_base_grid_weights(composite_row)* &
                                                 composite_grid_weight_grad(composite_row)
                      DO target_atom = 1, SIZE(particle_set)
@@ -2004,8 +1975,6 @@ CONTAINS
                   static_geometry_valid=comp_geometry_valid)
             END IF
             adjoint_nchannels = MERGE(2, 1, lsd)
-            ! Compact adjoint: accumulate the per-row feature gradients into the shared
-            ! needed-point buffer, then scatter-add them only to the owning ranks.
             ALLOCATE (adjoint_compact(native_need_nfg, MAX(native_need_nneed, 1)))
             adjoint_compact = 0.0_dp
             CALL timeset("calculate_vxc_atom_adjoint", adjoint_handle)
@@ -2159,7 +2128,6 @@ CONTAINS
                END DO
 !$OMP END PARALLEL DO
             END IF
-            ! The adjoint is already distributed over the local PW blocks; no global reduction.
             IF (atom_composite_diagnostic) CALL para_env%sum(smooth_input_contraction)
             CALL build_vxc_from_feature_grads( &
                smooth_vxc_rho, smooth_vxc_tau, smooth_rho_r, auxbas_pw_pool, &
@@ -3076,9 +3044,6 @@ CONTAINS
       TYPE(native_grid_interpolation_stencil_type)       :: stencil
 
       npts = grid%npts
-      ! pw_grid_map_global_point derives the owner-local index from get_limit; verify that the
-      ! grid's actual local block matches it (and that z is not distributed) so that
-      ! native_grid_extract_points can decode the index with bounds_local.
       BLOCK
          INTEGER :: lim(2)
          lim = get_limit(npts(1), grid%para%group%num_pe_cart(1), grid%para%group%mepos_cart(1))
@@ -3097,9 +3062,6 @@ CONTAINS
          work_base(:, row) = INT(FLOOR(relative), int_8)
       END DO
 
-      ! Geometry-scoped cache. The atom coordinates are replicated on every rank, so this
-      ! local comparison yields the same decision everywhere and no cache-synchronizing
-      ! collective is needed (the schedule collectives below synchronize a real rebuild).
       valid = native_need_ready .AND. native_need_nrows == nrows
       IF (valid) THEN
          valid = ALL(native_need_npts == npts) .AND. ALL(native_need_dh_inv == grid%dh_inv)
@@ -3138,8 +3100,6 @@ CONTAINS
       native_need_ready = .FALSE.
       native_need_npts = npts
 
-      ! Collect the unique grid points touched by the local stencils. A transient 1-bit-per-
-      ! grid-point presence word array provides dedup; the needed list itself is O(nneed).
       ngrid8 = INT(npts(1), int_8)*INT(npts(2), int_8)*INT(npts(3), int_8)
       nbwords = INT((ngrid8 + 63_int_8)/64_int_8)
       ALLOCATE (PRESENT(nbwords))
@@ -3193,8 +3153,6 @@ CONTAINS
       native_need_lin = 0_int_8
 
       IF (native_need_replicated) THEN
-         ! A replicated (PW_MODE_LOCAL) grid is only supported on a single rank; the adjoint
-         ! reduction in the scatter uses the exchange communicator.
          CPASSERT(group%num_pe == 1)
          DO ip = 1, nneed
             native_need_local(ip) = INT(cand(ip))
@@ -3254,9 +3212,6 @@ CONTAINS
       END IF
       native_need_nrecv = SUM(native_need_rcount)
 
-      ! Bucket-offset index over the compact list for O(1)-ish grid-index lookups. The bucket
-      ! entries store both the linear index and the compact position so a lookup needs only
-      ! contiguous accesses.
       native_need_nbucket = native_need_next_pow2(MAX(2*nneed, 64))
       ALLOCATE (native_need_bucket_start(native_need_nbucket + 1))
       ALLOCATE (native_need_bucket_entry(MAX(nneed, 1)))

@@ -1,8 +1,4 @@
 !--------------------------------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                   !
-!                                                                                                  !
-!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -35,8 +31,6 @@ MODULE skala_feature_keys
       skala_key_kin = "kin", &
       skala_key_coarse_0_atomic_coords = "coarse_0_atomic_coords"
 
-   ! Canonical order of the feature dictionary, matching the model's exported
-   ! metadata order ("features" extra file of the TorchScript archive).
    CHARACTER(len=default_string_length), PARAMETER :: skala_feature_names(skala_n_features) = [ &
                                                       CHARACTER(len=default_string_length) :: &
                                                       skala_key_density, skala_key_kin, skala_key_grad, skala_key_grid_coords, &
