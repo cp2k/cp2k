@@ -14,6 +14,11 @@
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 MODULE arnoldi_vector
+   USE OMP_LIB,                         ONLY: omp_destroy_lock,&
+                                              omp_init_lock,&
+                                              omp_lock_kind,&
+                                              omp_set_lock,&
+                                              omp_unset_lock
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_get_info, &
@@ -25,8 +30,6 @@ MODULE arnoldi_vector
                                               real_8
    USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
-
-!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
    IMPLICIT NONE
 
@@ -54,7 +57,7 @@ MODULE arnoldi_vector
 ! **************************************************************************************************
    TYPE block_ptr
       REAL(real_8), DIMENSION(:, :), POINTER          :: ptr => NULL()
-      INTEGER                                         :: assigned_thread = -1
+      INTEGER(KIND=omp_lock_kind)                     :: lock = 0
    END TYPE block_ptr
 
    TYPE fast_vec_access_type
@@ -247,41 +250,38 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_col_vec_access'
 
-      INTEGER                                            :: col, handle, iblock, nblk_local, &
-                                                            nthreads, row
+      INTEGER                                            :: col, handle, i, iblock, nblk_local, row
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: vec_bl
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
-
-      ! figure out the number of threads
-      nthreads = 1
-!$OMP PARALLEL DEFAULT(NONE) SHARED(nthreads)
-!$OMP MASTER
-!$    nthreads = OMP_GET_NUM_THREADS()
-!$OMP END MASTER
-!$OMP END PARALLEL
 
       CALL dbcsr_get_info(matrix=vec, nblkrows_local=nblk_local)
       ! 4 times makes sure the table is big enough to limit collisions.
       CALL hash_table_create(fast_vec_access%hash_table, 4*nblk_local)
       ! include zero for effective dealing with values not in the hash table (will return 0)
       ALLOCATE (fast_vec_access%blk_map(0:nblk_local))
+      DO i = 0, nblk_local
+         CALL omp_init_lock(fast_vec_access%blk_map(i)%lock)
+      END DO
 
       CALL dbcsr_get_info(matrix=vec, nblkcols_local=col)
       IF (col > 1) CPABORT("BUG")
 
       ! go through the blocks of the vector
       iblock = 0
+!$OMP PARALLEL DEFAULT(NONE) SHARED(vec, fast_vec_access, iblock) PRIVATE(iter, row, col, vec_bl)
       CALL dbcsr_iterator_start(iter, vec)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, vec_bl)
+!$OMP CRITICAL(arnoldi_col_vec_access_crit)
          iblock = iblock + 1
          CALL hash_table_add(fast_vec_access%hash_table, row, iblock)
          fast_vec_access%blk_map(iblock)%ptr => vec_bl
-         fast_vec_access%blk_map(iblock)%assigned_thread = MOD(iblock, nthreads)
+!$OMP END CRITICAL(arnoldi_col_vec_access_crit)
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
       CALL timestop(handle)
 
    END SUBROUTINE create_fast_col_vec_access
@@ -297,26 +297,20 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_row_vec_access'
 
-      INTEGER                                            :: col, handle, iblock, nblk_local, &
-                                                            nthreads, row
+      INTEGER                                            :: col, handle, i, iblock, nblk_local, row
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: vec_bl
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
-
-      ! figure out the number of threads
-      nthreads = 1
-!$OMP PARALLEL DEFAULT(NONE) SHARED(nthreads)
-!$OMP MASTER
-!$    nthreads = OMP_GET_NUM_THREADS()
-!$OMP END MASTER
-!$OMP END PARALLEL
 
       CALL dbcsr_get_info(matrix=vec, nblkcols_local=nblk_local)
       ! 4 times makes sure the table is big enough to limit collisions.
       CALL hash_table_create(fast_vec_access%hash_table, 4*nblk_local)
       ! include zero for effective dealing with values not in the hash table (will return 0)
       ALLOCATE (fast_vec_access%blk_map(0:nblk_local))
+      DO i = 0, nblk_local
+         CALL omp_init_lock(fast_vec_access%blk_map(i)%lock)
+      END DO
 
       ! sanity check
       CALL dbcsr_get_info(matrix=vec, nblkrows_local=row)
@@ -324,15 +318,18 @@ CONTAINS
 
       ! go through the blocks of the vector
       iblock = 0
+!$OMP PARALLEL DEFAULT(NONE) SHARED(vec, fast_vec_access, iblock) PRIVATE(iter, row, col, vec_bl)
       CALL dbcsr_iterator_start(iter, vec)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, vec_bl)
+!$OMP CRITICAL(arnoldi_row_vec_access_crit)
          iblock = iblock + 1
          CALL hash_table_add(fast_vec_access%hash_table, col, iblock)
          fast_vec_access%blk_map(iblock)%ptr => vec_bl
-         fast_vec_access%blk_map(iblock)%assigned_thread = MOD(iblock, nthreads)
+!$OMP END CRITICAL(arnoldi_row_vec_access_crit)
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
 
@@ -347,11 +344,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'release_fast_vec_access'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, i
 
       CALL timeset(routineN, handle)
 
       CALL hash_table_release(fast_vec_access%hash_table)
+      DO i = LBOUND(fast_vec_access%blk_map, 1), UBOUND(fast_vec_access%blk_map, 1)
+         CALL omp_destroy_lock(fast_vec_access%blk_map(i)%lock)
+      END DO
       DEALLOCATE (fast_vec_access%blk_map)
 
       CALL timestop(handle)
@@ -569,9 +569,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_vector_mult'
 
-      INTEGER                                            :: col, handle, handle1, ithread, k, m, &
-                                                            mypcol, myprow, n, pcol, prow, &
-                                                            prow_handle, row
+      INTEGER                                            :: col, handle, handle1, k, m, mypcol, &
+                                                            myprow, n, pcol, prow, prow_handle, row
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: data_d, vec_res
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -579,7 +578,6 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: prow_group
 
       CALL timeset(routineN, handle)
-      ithread = 0
 
       ! Collect some data about the parallel environment. We will use them later to move the vector around
       CALL dbcsr_get_info(matrix, distribution=dist)
@@ -600,25 +598,25 @@ CONTAINS
       ! It is important to note, that the input and result vector are distributed differently (row wise, col wise respectively)
       CALL timeset(routineN//"_local_mm", handle1)
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,ithread,pcol,prow,m,n,k) &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,pcol,prow,m,n,k) &
 !$OMP          SHARED(matrix,fast_vec_col,fast_vec_row)
-!$    ithread = omp_get_thread_num()
-      CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
+      CALL dbcsr_iterator_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, data_d)
          prow = hash_table_get(fast_vec_col%hash_table, row)
-         IF (fast_vec_col%blk_map(prow)%assigned_thread /= ithread) CYCLE
          m = SIZE(fast_vec_col%blk_map(prow)%ptr, 1)
          n = SIZE(fast_vec_col%blk_map(prow)%ptr, 2)
          k = SIZE(data_d, 2)
          IF ((m == 0) .OR. (n == 0) .OR. (k == 0)) CYCLE
          CPASSERT(n == 1)
          pcol = hash_table_get(fast_vec_row%hash_table, col)
+         CALL omp_set_lock(fast_vec_col%blk_map(prow)%lock)
          CALL dgemm('N', 'T', m, n, k, &
                     1.0_dp, data_d, m, &
                     fast_vec_row%blk_map(pcol)%ptr, n, &
                     1.0_dp, &
                     fast_vec_col%blk_map(prow)%ptr, m)
+         CALL omp_unset_lock(fast_vec_col%blk_map(prow)%lock)
       END DO
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
@@ -630,6 +628,8 @@ CONTAINS
 
       ! Local copy on the first mpi col (as this is the localtion of the vec_res blocks) of the result vector
       ! from the replicated to the original vector. Let's play it safe and use the iterator
+!$OMP PARALLEL DEFAULT(NONE) SHARED(vec_out, fast_vec_col, alpha, beta) &
+!$OMP PRIVATE(iter, row, col, vec_res, prow)
       CALL dbcsr_iterator_start(iter, vec_out)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, vec_res)
@@ -641,6 +641,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL release_fast_vec_access(fast_vec_row)
       CALL release_fast_vec_access(fast_vec_col)
@@ -668,10 +669,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrixT_vector_mult'
 
-      INTEGER                                            :: col, col_size, handle, handle1, ithread, &
-                                                            mypcol, myprow, ncols, pcol, &
-                                                            pcol_handle, prow, prow_handle, row, &
-                                                            row_size
+      INTEGER                                            :: col, col_size, handle, handle1, mypcol, &
+                                                            myprow, ncols, pcol, pcol_handle, &
+                                                            prow, prow_handle, row, row_size
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: data_d, vec_bl, vec_res
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -679,7 +679,6 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: pcol_group, prow_group
 
       CALL timeset(routineN, handle)
-      ithread = 0
 
       ! Collect some data about the parallel environment. We will use them later to move the vector around
       CALL dbcsr_get_info(matrix, distribution=dist)
@@ -695,6 +694,8 @@ CONTAINS
       CALL dbcsr_set(work_row, 0.0_real_8)
 
       ! Transfer the correct parts of the input vector to the replicated vector on proc_col 0
+!$OMP PARALLEL DEFAULT(NONE) SHARED(vec_in, fast_vec_col) &
+!$OMP PRIVATE(iter, row, col, vec_bl, row_size, col_size, prow)
       CALL dbcsr_iterator_start(iter, vec_in)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, vec_bl, row_size=row_size, col_size=col_size)
@@ -702,16 +703,16 @@ CONTAINS
          fast_vec_col%blk_map(prow)%ptr(1:row_size, 1:col_size) = vec_bl(1:row_size, 1:col_size)
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
       ! Replicate the data on all processore in the row
       CALL bcast_replicated_vector_blocks(work_col, prow_group, 0)
 
       ! Perform the local multiply. Here it is obvious why the vectors are replicated on the mpi rows and cols
       CALL timeset(routineN//"local_mm", handle1)
       CALL dbcsr_get_info(matrix=work_col, nfullcols_local=ncols)
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,row_size,col_size,ithread,prow,pcol) &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,row_size,col_size,prow,pcol) &
 !$OMP          SHARED(matrix,fast_vec_row,fast_vec_col,skip_diag,ncols)
-!$    ithread = omp_get_thread_num()
-      CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
+      CALL dbcsr_iterator_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, data_d, row_size=row_size, col_size=col_size)
          IF (skip_diag .AND. col == row) CYCLE
@@ -719,15 +720,17 @@ CONTAINS
          pcol = hash_table_get(fast_vec_row%hash_table, col)
          IF (ASSOCIATED(fast_vec_row%blk_map(pcol)%ptr) .AND. &
              ASSOCIATED(fast_vec_col%blk_map(prow)%ptr)) THEN
-            IF (fast_vec_row%blk_map(pcol)%assigned_thread /= ithread) CYCLE
+            CALL omp_set_lock(fast_vec_row%blk_map(pcol)%lock)
             fast_vec_row%blk_map(pcol)%ptr = fast_vec_row%blk_map(pcol)%ptr + &
                                              MATMUL(TRANSPOSE(fast_vec_col%blk_map(prow)%ptr), data_d)
+            CALL omp_unset_lock(fast_vec_row%blk_map(pcol)%lock)
          ELSE
             prow = hash_table_get(fast_vec_row%hash_table, row)
             pcol = hash_table_get(fast_vec_col%hash_table, col)
-            IF (fast_vec_row%blk_map(prow)%assigned_thread /= ithread) CYCLE
+            CALL omp_set_lock(fast_vec_row%blk_map(prow)%lock)
             fast_vec_row%blk_map(prow)%ptr = fast_vec_row%blk_map(prow)%ptr + &
                                              MATMUL(TRANSPOSE(fast_vec_col%blk_map(pcol)%ptr), TRANSPOSE(data_d))
+            CALL omp_unset_lock(fast_vec_row%blk_map(prow)%lock)
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
@@ -743,6 +746,8 @@ CONTAINS
       CALL dbcsr_rep_row_to_rep_col_vec(work_col, work_row, fast_vec_row)
 
       ! Create_the final vector by summing it to the result vector which lives on proc_col 0
+!$OMP PARALLEL DEFAULT(NONE) SHARED(vec_out, fast_vec_col, alpha, beta) &
+!$OMP PRIVATE(iter, row, col, vec_res, row_size, prow)
       CALL dbcsr_iterator_start(iter, vec_out)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, vec_res, row_size=row_size)
@@ -754,6 +759,10 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
+
+      CALL release_fast_vec_access(fast_vec_row)
+      CALL release_fast_vec_access(fast_vec_col)
 
       CALL timestop(handle)
 
@@ -799,12 +808,14 @@ CONTAINS
 
       ! Copy the local vector to the replicated on the first processor column (this is where vec_in lives)
       IF (mypcol == 0) THEN
+!$OMP PARALLEL DEFAULT(NONE) SHARED(vec_in, fast_vec_col) PRIVATE(iter, row, col, vec_row)
          CALL dbcsr_iterator_start(iter, vec_in)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, row, col, vec_row)
             fast_vec_col%blk_map(hash_table_get(fast_vec_col%hash_table, row))%ptr(:, :) = vec_row(:, :)
          END DO
          CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
       END IF
       ! Replicate the data along the row
       CALL bcast_replicated_vector_blocks(rep_col_vec, prow_group, 0)
@@ -818,6 +829,8 @@ CONTAINS
       ! Hope this clarifies the idea
       CALL dbcsr_set(rep_row_vec, 0.0_real_8)
       CALL dbcsr_get_info(matrix=rep_row_vec, nfullrows_local=nrows, local_cols=local_cols, nfullcols_local=ncols)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(rep_row_vec, row_dist, myprow, fast_vec_col) &
+!$OMP PRIVATE(iter, row, col, vec_row)
       CALL dbcsr_iterator_start(iter, rep_row_vec)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, vec_row)
@@ -826,6 +839,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
       CALL sum_replicated_vector_blocks(rep_row_vec, pcol_group)
 
       CALL timestop(handle)
@@ -871,6 +885,9 @@ CONTAINS
 
       ! The same trick as described above with opposite direction
       CALL dbcsr_set(rep_col_vec, 0.0_real_8)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(rep_col_vec, col_dist, mypcol, fast_vec_row, fast_vec_col_add) &
+!$OMP PRIVATE(iter, row, col, vec_col)
       CALL dbcsr_iterator_start(iter, rep_col_vec)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, vec_col)
@@ -884,6 +901,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
       CALL sum_replicated_vector_blocks(rep_col_vec, prow_group)
 
       CALL timestop(handle)
@@ -907,9 +925,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_sym_matrix_vector_mult'
 
-      INTEGER                                            :: col, handle, handle1, ithread, mypcol, &
-                                                            myprow, pcol, pcol_handle, prow, row, &
-                                                            rpcol, rprow, vec_dim
+      INTEGER                                            :: col, handle, handle1, mypcol, myprow, &
+                                                            pcol, pcol_handle, prow, row, rpcol, &
+                                                            rprow, vec_dim
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: data_d, vec_res
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -919,7 +937,6 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: pcol_group
 
       CALL timeset(routineN, handle)
-      ithread = 0
       ! We need some work matrices as we try to exploit operations on the replicated vectors which are duplicated otherwise
       CALL dbcsr_get_info(matrix=vec_in, nfullcols_total=vec_dim)
       ! This is a performance hack as the new creation of a replicated vector is a fair bit more expensive
@@ -950,38 +967,41 @@ CONTAINS
 
       !------ perform the multiplication, we have to take car to take the correct blocks ----------
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,ithread,pcol,prow,rpcol,rprow) &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,pcol,prow,rpcol,rprow) &
 !$OMP          SHARED(matrix,fast_vec_row,res_fast_vec_col,res_fast_vec_row,fast_vec_col)
-!$    ithread = omp_get_thread_num()
-      CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
+      CALL dbcsr_iterator_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, data_d)
          pcol = hash_table_get(fast_vec_row%hash_table, col)
          rprow = hash_table_get(res_fast_vec_col%hash_table, row)
          IF (ASSOCIATED(fast_vec_row%blk_map(pcol)%ptr) .AND. &
              ASSOCIATED(res_fast_vec_col%blk_map(rprow)%ptr)) THEN
-            IF (res_fast_vec_col%blk_map(rprow)%assigned_thread == ithread) THEN
-               res_fast_vec_col%blk_map(rprow)%ptr = res_fast_vec_col%blk_map(rprow)%ptr + &
-                                                     MATMUL(data_d, TRANSPOSE(fast_vec_row%blk_map(pcol)%ptr))
-            END IF
-            prow = hash_table_get(fast_vec_col%hash_table, row)
-            rpcol = hash_table_get(res_fast_vec_row%hash_table, col)
-            IF (res_fast_vec_row%blk_map(rpcol)%assigned_thread == ithread .AND. row /= col) THEN
+            CALL omp_set_lock(res_fast_vec_col%blk_map(rprow)%lock)
+            res_fast_vec_col%blk_map(rprow)%ptr = res_fast_vec_col%blk_map(rprow)%ptr + &
+                                                  MATMUL(data_d, TRANSPOSE(fast_vec_row%blk_map(pcol)%ptr))
+            CALL omp_unset_lock(res_fast_vec_col%blk_map(rprow)%lock)
+            IF (row /= col) THEN
+               prow = hash_table_get(fast_vec_col%hash_table, row)
+               rpcol = hash_table_get(res_fast_vec_row%hash_table, col)
+               CALL omp_set_lock(res_fast_vec_row%blk_map(rpcol)%lock)
                res_fast_vec_row%blk_map(rpcol)%ptr = res_fast_vec_row%blk_map(rpcol)%ptr + &
                                                      MATMUL(TRANSPOSE(fast_vec_col%blk_map(prow)%ptr), data_d)
+               CALL omp_unset_lock(res_fast_vec_row%blk_map(rpcol)%lock)
             END IF
          ELSE
             rpcol = hash_table_get(res_fast_vec_col%hash_table, col)
             prow = hash_table_get(fast_vec_row%hash_table, row)
-            IF (res_fast_vec_col%blk_map(rpcol)%assigned_thread == ithread) THEN
-               res_fast_vec_col%blk_map(rpcol)%ptr = res_fast_vec_col%blk_map(rpcol)%ptr + &
-                                                     TRANSPOSE(MATMUL(fast_vec_row%blk_map(prow)%ptr, data_d))
-            END IF
-            rprow = hash_table_get(res_fast_vec_row%hash_table, row)
-            pcol = hash_table_get(fast_vec_col%hash_table, col)
-            IF (res_fast_vec_row%blk_map(rprow)%assigned_thread == ithread .AND. row /= col) THEN
+            CALL omp_set_lock(res_fast_vec_col%blk_map(rpcol)%lock)
+            res_fast_vec_col%blk_map(rpcol)%ptr = res_fast_vec_col%blk_map(rpcol)%ptr + &
+                                                  TRANSPOSE(MATMUL(fast_vec_row%blk_map(prow)%ptr, data_d))
+            CALL omp_unset_lock(res_fast_vec_col%blk_map(rpcol)%lock)
+            IF (row /= col) THEN
+               rprow = hash_table_get(res_fast_vec_row%hash_table, row)
+               pcol = hash_table_get(fast_vec_col%hash_table, col)
+               CALL omp_set_lock(res_fast_vec_row%blk_map(rprow)%lock)
                res_fast_vec_row%blk_map(rprow)%ptr = res_fast_vec_row%blk_map(rprow)%ptr + &
                                                      TRANSPOSE(MATMUL(data_d, fast_vec_col%blk_map(pcol)%ptr))
+               CALL omp_unset_lock(res_fast_vec_row%blk_map(rprow)%lock)
             END IF
          END IF
       END DO
@@ -1000,6 +1020,8 @@ CONTAINS
       CALL dbcsr_rep_row_to_rep_col_vec(work_col, result_row, res_fast_vec_row, res_fast_vec_col)
 
       ! Create_the final vector by summing it to the result vector which lives on proc_col 0 lower
+!$OMP PARALLEL DEFAULT(NONE) SHARED(vec_out, fast_vec_col, alpha, beta) &
+!$OMP PRIVATE(iter, row, col, vec_res, prow)
       CALL dbcsr_iterator_start(iter, vec_out)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, vec_res)
@@ -1011,6 +1033,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL release_fast_vec_access(fast_vec_row)
       CALL release_fast_vec_access(fast_vec_col)
