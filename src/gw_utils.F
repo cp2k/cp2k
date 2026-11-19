@@ -168,7 +168,7 @@ MODULE gw_utils
       INTEGER, PUBLIC                                    :: n_kpoints = 1
       INTEGER(KIND=int_8)                               :: n_reliable = 0_int_8, n_unstable = 0_int_8, &
                                                            n_multi = 0_int_8, n_pade = 0_int_8
-      REAL(KIND=dp)                                      :: pick_min = 0.0_dp, start_time = 0.0_dp
+      REAL(KIND=dp)                                      :: start_time = 0.0_dp
    END TYPE gw_qp_summary_type
 
 CONTAINS
@@ -3910,7 +3910,7 @@ CONTAINS
       END IF
 
       IF (do_nevanlinna) CALL report_nevanlinna_progress(bs_env, summary, unstable, multi, &
-                                                         n_window, n_ac_pade, pick_min, ikp, ispin)
+                                                         n_window, n_ac_pade, ikp, ispin)
 
       CALL timestop(handle)
 
@@ -4091,18 +4091,15 @@ CONTAINS
 !> \param multi Levels with a second quasiparticle solution of comparable weight.
 !> \param n_window Number of fit windows.
 !> \param n_pade Number of full-frequency fits that fell back to Padé.
-!> \param pick_min Smallest relative Pick eigenvalue of the full-frequency fits, capped at zero.
 !> \param ikp Current k-point index.
 !> \param ispin Current spin index.
 ! **************************************************************************************************
-   SUBROUTINE report_nevanlinna_progress(bs_env, summary, unstable, multi, n_window, n_pade, pick_min, ikp, ispin)
+   SUBROUTINE report_nevanlinna_progress(bs_env, summary, unstable, multi, n_window, n_pade, ikp, ispin)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(gw_qp_summary_type), INTENT(INOUT)            :: summary
       LOGICAL, DIMENSION(:), INTENT(IN)                  :: unstable, multi
-      INTEGER, INTENT(IN)                                :: n_window, n_pade
-      REAL(KIND=dp), INTENT(IN)                          :: pick_min
-      INTEGER, INTENT(IN)                                :: ikp, ispin
+      INTEGER, INTENT(IN)                                :: n_window, n_pade, ikp, ispin
 
       INTEGER, PARAMETER                                 :: n_progress_steps = 10
 
@@ -4126,7 +4123,6 @@ CONTAINS
       summary%n_unstable = summary%n_unstable + COUNT(unstable)
       summary%n_multi = summary%n_multi + COUNT(multi)
       summary%n_pade = summary%n_pade + n_pade
-      summary%pick_min = MIN(summary%pick_min, pick_min)
 
       IF (u > 0 .AND. total >= n_progress_steps) THEN
          step = (n_progress_steps*done)/total
@@ -4158,7 +4154,6 @@ CONTAINS
             100.0_dp*REAL(summary%n_multi, dp)/REAL(n_levels, dp), ' %'
          WRITE (u, pade_format) 'Padé fallback of the full-frequency fit', summary%n_pade, ' / ', n_levels, &
             100.0_dp*REAL(summary%n_pade, dp)/REAL(n_levels, dp), ' %'
-         WRITE (u, '(T4,A,T71,ES10.2)') 'Smallest relative Pick eigenvalue', summary%pick_min
          CALL m_flush(u)
       END IF
 
