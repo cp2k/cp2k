@@ -88,3 +88,270 @@ index 83e4e11..b2d0e68 100644
    device_backend_->copy_async_2d( natoms, natoms, rab_inv.data(), natoms,
      static_stack.rab_device, ldatoms, "RAB H2D" );
  
+
+diff --git a/src/xc_integrator/integrator_util/onedft_util.hpp b/src/xc_integrator/integrator_util/onedft_util.hpp
+--- a/src/xc_integrator/integrator_util/onedft_util.hpp
++++ b/src/xc_integrator/integrator_util/onedft_util.hpp
+@@ -87,7 +87,7 @@
+   bool valueExists(const std::string& value);
+
+   std::tuple<torch::jit::Method, std::vector<std::string>>
+-    load_model(const std::string filename, torch::DeviceType device);
++    load_model(const std::string filename, const torch::Device& device);
+
+   at::Tensor
+     get_exc(torch::jit::Method exc_func, FeatureDict features);
+diff --git a/src/xc_integrator/integrator_util/onedft_util.cxx b/src/xc_integrator/integrator_util/onedft_util.cxx
+--- a/src/xc_integrator/integrator_util/onedft_util.cxx
++++ b/src/xc_integrator/integrator_util/onedft_util.cxx
+@@ -1,5 +1,6 @@
+ #include <gauxc/gauxc_config.hpp>
+ #include "onedft_util.hpp"
++#include <torch/cuda.h>
+ #ifdef GAUXC_HAS_CUDA
+ #include <cuda_runtime.h>
+ #endif
+@@ -58,17 +59,76 @@
+     }
+ }
+
++namespace {
++
++void remap_device_constants(torch::jit::Block *block,
++                            const torch::Device &device) {
++  for (torch::jit::Node *node : block->nodes()) {
++    if (node->kind() == torch::jit::prim::Constant &&
++        node->outputs().size() == 1 &&
++        node->output()->type()->kind() == c10::TypeKind::DeviceObjType &&
++        node->hasAttribute(torch::jit::attr::value) &&
++        node->kindOf(torch::jit::attr::value) == torch::jit::AttributeKind::s) {
++      node->s_(torch::jit::attr::value, device.str());
++    }
++    bool has_tensor_input = false;
++    for (const torch::jit::Value *input : node->inputs()) {
++      has_tensor_input |= input->type()->kind() == c10::TypeKind::TensorType;
++    }
++    const auto *schema = node->maybeSchema();
++    if (!has_tensor_input && schema != nullptr) {
++      const auto &arguments = schema->arguments();
++      for (size_t i = 0; i < arguments.size() && i < node->inputs().size(); ++i) {
++        const auto input_value = torch::jit::toIValue(node->input(i));
++        if (arguments[i].name() == "device" && input_value.has_value() &&
++            input_value->isNone()) {
++          torch::jit::WithInsertPoint insertion_guard(node);
++          auto *device_value =
++              node->owningGraph()->insertConstant(torch::jit::IValue(device));
++          node->replaceInput(i, device_value);
++        }
++      }
++    }
++    for (torch::jit::Block *nested_block : node->blocks()) {
++      remap_device_constants(nested_block, device);
++    }
++  }
++}
++
++void remap_model_device_constants(torch::jit::Module &model,
++                                  const torch::Device &device) {
++  for (const auto &attribute : model.named_attributes(false)) {
++    const auto &value = attribute.value;
++    if (value.isTensor()) {
++      model.setattr(attribute.name, value.toTensor().to(device));
++    } else if (value.isTensorList()) {
++      auto tensors = value.toTensorList();
++      for (size_t i = 0; i < tensors.size(); ++i) {
++        tensors.set(i, tensors.get(i).to(device));
++      }
++      model.setattr(attribute.name, tensors);
++    }
++  }
++  for (const auto &method : model.get_methods()) {
++    remap_device_constants(method.graph()->block(), device);
++  }
++  for (auto child : model.children()) {
++    remap_model_device_constants(child, device);
++  }
++}
++
++} // namespace
++
+ std::tuple<torch::jit::Method, std::vector<std::string>>
+-load_model(const std::string filename, torch::DeviceType device)
++load_model(const std::string filename, const torch::Device& device)
+ {
+-    // Cache loaded models to avoid re-reading from disk on every call.
+-    // Key: (resolved_path, device_type)
+-    using CacheKey = std::pair<std::string, torch::DeviceType>;
++    // Cache loaded models per resolved path and actual device index.
++    using CacheKey = std::pair<std::string, std::string>;
+     using CacheVal = std::tuple<torch::jit::script::Module, torch::jit::Method, std::vector<std::string>>;
+     static std::map<CacheKey, CacheVal> cache;
+
+-    std::string model = map_model(filename, device);
+-    CacheKey key{model, device};
++    std::string model = map_model(filename, device.type());
++    CacheKey key{model, device.str()};
+     auto it = cache.find(key);
+     if (it != cache.end()) {
+       return std::make_tuple(std::get<1>(it->second), std::get<2>(it->second));
+@@ -78,7 +138,17 @@
+     torch::jit::ExtraFilesMap extra_files{{"features", ""}, {"protocol_version", ""}};
+     std::vector<std::string> keys;
+     try {
+-        mod = torch::jit::load(model, device, extra_files);
++        // Loading directly onto a non-zero CUDA device is not reliable for all
++        // Torch builds; load on CPU and move, then rewrite hard-coded device
++        // constants (e.g. cuda:0) to the selected device.
++        if (!device.is_cuda() || device.index() == 0 ||
++            torch::cuda::device_count() == 1) {
++            mod = torch::jit::load(model, device, extra_files);
++        } else {
++            mod = torch::jit::load(model, torch::Device(torch::kCPU), extra_files);
++            mod.to(device);
++        }
++        remap_model_device_constants(mod, device);
+     }
+     catch (const c10::Error& e) {
+         GAUXC_GENERIC_EXCEPTION("error loading onedft model: " + std::string(e.what()));
+diff --git a/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_onedft.hpp b/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_onedft.hpp
+--- a/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_onedft.hpp
++++ b/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_onedft.hpp
+@@ -93,7 +93,7 @@
+     onedft_settings = *tmp;
+   }
+   const auto model_path = onedft_settings.model;
+-  torch::DeviceType device = torch::kCPU;
++  const torch::Device device(torch::kCPU);
+   auto [exc_func, feature_keys] = load_model(model_path, device);
+
+   // determine what feature we need based on the keys
+@@ -926,7 +926,7 @@
+     onedft_settings = *tmp;
+   }
+   const auto model_path = onedft_settings.model;
+-  torch::DeviceType device = torch::kCPU;
++  const torch::Device device(torch::kCPU);
+   auto [exc_func, feature_keys] = load_model(model_path, device);
+
+   // Determine feature requirements
+diff --git a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_onedft.hpp b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_onedft.hpp
+--- a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_onedft.hpp
++++ b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_onedft.hpp
+@@ -18,8 +18,24 @@
+
+ namespace GauXC::detail {
+
++// The runtime executes on the process's current CUDA device, which is selected
++// by the host code (CP2K activates its offload-selected device before entering
++// GauXC). Use that same device for the Torch model and its features instead of
++// hard-coding cuda:0.
++inline torch::Device onedft_active_device() {
++  if (not torch::cuda::is_available()) {
++    GAUXC_GENERIC_EXCEPTION("Torch CUDA Not Available");
++  }
++  int device = 0;
++  if (cudaGetDevice(&device) != cudaSuccess) {
++    GAUXC_GENERIC_EXCEPTION("Failed to query the active CUDA device");
++  }
++  return torch::Device(torch::kCUDA, device);
++}
++
+ FeatureDict prepare_onedft_features( const size_t natoms, const size_t total_npts, const size_t ndm,
+-  const at::TensorOptions options, const std::vector<std::string> feature_keys,
++  const at::TensorOptions options, const torch::Device target_device,
++  const std::vector<std::string> feature_keys,
+   double* den_eval, double* dden_eval, double* tau, double* grid_coords,
+   double* grid_weights, double* coords,
+   const std::vector<int64_t>& atomic_grid_sizes = {},
+@@ -115,10 +131,7 @@
+     onedft_settings = *tmp;
+   }
+   const auto model_path = onedft_settings.model;
+-  if (not torch::cuda::is_available()) {
+-    GAUXC_GENERIC_EXCEPTION("Torch CUDA Not Available");
+-  }
+-  torch::DeviceType torch_device = torch::kCUDA;
++  const auto torch_device = onedft_active_device();
+   init_custom_allocator();
+   auto [exc_func, feature_keys] = load_model(model_path, torch_device);
+
+@@ -198,9 +211,9 @@
+   if ( world_size == 1 ) { // keep everything on device
+     int64_t max_grid_size = *std::max_element(
+       atomic_grid_sizes_vec.begin(), atomic_grid_sizes_vec.end());
+-    auto options = torch::TensorOptions().dtype(torch::kFloat64).device(torch::kCUDA);
++    auto options = torch::TensorOptions().dtype(torch::kFloat64).device(torch_device);
+     features_dict = prepare_onedft_features(
+-      natoms, total_npts, ndm, options, feature_keys, device_data_ptr->den_eval_device_data(),
++      natoms, total_npts, ndm, options, torch_device, feature_keys, device_data_ptr->den_eval_device_data(),
+       device_data_ptr->dden_eval_device_data(), device_data_ptr->tau_device_data(),
+       device_data_ptr->grid_coords_device_data(), device_data_ptr->grid_weights_device_data(),
+       device_data_ptr->coords_device_data(),
+@@ -261,7 +274,7 @@
+         global_atomic_grid_sizes_vec.begin(), global_atomic_grid_sizes_vec.end());
+       auto options = torch::TensorOptions().dtype(torch::kFloat64).device(torch::kCPU);
+       features_dict = prepare_onedft_features(
+-        natoms, total_npts_sum, ndm, options, feature_keys, den_eval.data(),
++        natoms, total_npts_sum, ndm, options, torch_device, feature_keys, den_eval.data(),
+         dden_eval.data(), tau.data(), grid_coords.data(), grid_weights.data(),
+         host_coords.data(),
+         global_atomic_grid_sizes_vec, max_grid_size,
+@@ -618,13 +631,14 @@
+ }
+
+ FeatureDict prepare_onedft_features( const size_t natoms, const size_t total_npts, const size_t ndm,
+-  const at::TensorOptions options, const std::vector<std::string> feature_keys,
++  const at::TensorOptions options, const torch::Device target_device,
++  const std::vector<std::string> feature_keys,
+   double* den_eval, double* dden_eval, double* tau, double* grid_coords,
+   double* grid_weights, double* coords,
+   const std::vector<int64_t>& atomic_grid_sizes,
+   int64_t max_grid_size,
+   double* raw_grid_weights ) {
+-  auto device = torch::Device(torch::kCUDA, 0);
++  const auto device = target_device;
+   FeatureDict featmap;
+   for (const auto& key : feature_keys) {
+     auto enum_key = reverse_feat_map.at(key);
+@@ -741,7 +755,7 @@
+     onedft_settings = *tmp;
+   }
+   const auto model_path = onedft_settings.model;
+-  torch::DeviceType torch_device = torch::kCPU;
++  const auto torch_device = onedft_active_device();
+   auto [exc_func, feature_keys] = load_model(model_path, torch_device);
+
+   // Determine feature requirements
+@@ -807,11 +821,11 @@
+   std::vector<int> displs(world_size), recvcounts(world_size);
+
+   if (world_size == 1) {
+-    // Keep on device for model inference
+     int64_t max_grid_size = *std::max_element(
+       atomic_grid_sizes_vec.begin(), atomic_grid_sizes_vec.end());
+-    // For gradient, we need CPU tensors since we need requires_grad on points/coords
+-    // Retrieve features to host
++    // Retrieve the device features to host buffers. prepare_onedft_features
++    // then uploads them to the model device and enables requires_grad on the
++    // point/coordinate features there.
+     std::vector<double> grid_weights(total_npts), grid_coords(total_npts * 3);
+     den_eval.resize(total_npts * ndm);
+     if (is_gga || is_mgga) dden_eval.resize(total_npts * ndm * 3);
+@@ -832,7 +846,7 @@
+
+     auto options = torch::TensorOptions().dtype(torch::kFloat64).device(torch::kCPU);
+     features_dict = prepare_onedft_features(
+-      natoms, total_npts, ndm, options, feature_keys, den_eval.data(),
++      natoms, total_npts, ndm, options, torch_device, feature_keys, den_eval.data(),
+       dden_eval.data(), tau.data(), grid_coords.data(), grid_weights.data(),
+       host_coords.data(), atomic_grid_sizes_vec, max_grid_size,
+       raw_grid_weights.data() );
+@@ -887,7 +901,7 @@
+         reorder_result.global_atomic_grid_sizes.end());
+       auto options = torch::TensorOptions().dtype(torch::kFloat64).device(torch::kCPU);
+       features_dict = prepare_onedft_features(
+-        natoms, total_npts_sum, ndm, options, feature_keys,
++        natoms, total_npts_sum, ndm, options, torch_device, feature_keys,
+         den_eval.data(), dden_eval.data(), tau.data(),
+         grid_coords.data(), grid_weights.data(), host_coords.data(),
+         reorder_result.global_atomic_grid_sizes, max_grid_size,

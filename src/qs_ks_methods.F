@@ -145,11 +145,16 @@ MODULE qs_ks_methods
    USE rtp_admm_methods,                ONLY: rtp_admm_calc_rho_aux,&
                                               rtp_admm_merge_ks_matrix
    USE se_fock_matrix,                  ONLY: build_se_fock_matrix
-   USE skala_gpw_functional,            ONLY: &
-        ensure_native_skala_grid_scope, get_gauxc_section, get_skala_native_section, &
-        native_skala_gapw_atom_composite_requested, native_skala_gapw_composite_direct_ao, &
-        native_skala_gapw_composite_reference, native_skala_uses_atom_composite_grid, &
-        skala_execution_use_cuda, skala_gapw_representation, xc_section_uses_native_skala_grid
+   USE skala_gpw_functional,            ONLY: ensure_native_skala_grid_scope,&
+                                              native_skala_gapw_atom_composite_requested,&
+                                              native_skala_gapw_composite_direct_ao,&
+                                              native_skala_gapw_composite_reference,&
+                                              native_skala_uses_atom_composite_grid,&
+                                              skala_execution_use_cuda,&
+                                              skala_gapw_representation
+   USE skala_model_selection,           ONLY: get_gauxc_section,&
+                                              get_skala_native_section,&
+                                              xc_section_uses_native_skala_grid
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
    USE string_utilities,                ONLY: uppercase
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
@@ -361,6 +366,16 @@ CONTAINS
       ! remap pointer to allow for non-kpoint external ks matrix
       IF (PRESENT(ext_ks_matrix)) ks_matrix(1:nspins, 1:1) => ext_ks_matrix(1:nspins)
 
+      xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+      IF (dft_control%use_gauxc .AND. .NOT. xc_section_uses_native_skala_grid(xc_section) .AND. &
+          virial%pv_availability .AND. .NOT. virial%pv_numer .AND. calculate_forces) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Analytical stress is not supported for GauXC. GauXC uses a molecular "// &
+                       "quadrature restricted to non-periodic/isolated systems and cannot provide "// &
+                       "the stress tensor. Use STRESS_TENSOR NUMERICAL or the native SKALA "// &
+                       "implementation (SKALA_NATIVE) for analytical stress, or disable the "// &
+                       "stress tensor.")
+      END IF
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
       adiabatic_rescaling_section => section_vals_get_subs_vals(input, "DFT%XC%ADIABATIC_RESCALING")

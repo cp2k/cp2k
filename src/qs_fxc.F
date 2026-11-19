@@ -14,7 +14,6 @@
 ! **************************************************************************************************
 MODULE qs_fxc
 
-   USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE input_constants,                 ONLY: xc_vdw_fun_nonloc
    USE input_section_types,             ONLY: section_get_ival,&
@@ -25,7 +24,6 @@ MODULE qs_fxc
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_grids,                        ONLY: pw_grid_compare
@@ -52,15 +50,12 @@ MODULE qs_fxc
                                               qs_rho_release,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
-   USE skala_gpw_functional,            ONLY: native_skala_uses_atom_composite_grid,&
-                                              skala_gpw_fxc,&
-                                              skala_gpw_fxc_prep,&
-                                              xc_section_uses_native_skala_grid
+   USE skala_gpw_functional,            ONLY: native_skala_uses_atom_composite_grid
+   USE skala_model_selection,           ONLY: xc_section_uses_native_skala_grid
    USE xc,                              ONLY: xc_calc_2nd_deriv_analytical,&
                                               xc_calc_2nd_deriv_numerical,&
                                               xc_prep_2nd_deriv
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-                                              xc_dset_create,&
                                               xc_dset_release
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
@@ -697,14 +692,8 @@ CONTAINS
       do_triplet = .FALSE.
       IF (PRESENT(is_triplet)) do_triplet = is_triplet
       IF (xc_section_uses_native_skala_grid(xc_section)) THEN
-         IF (do_triplet) THEN
-            CALL cp_abort(__LOCATION__, "Native Skala response does not yet support triplet excitations.")
-         END IF
-         CALL qs_rho_get(rho0, rho_r=rho0_r, tau_r=tau0_r)
-         CALL skala_gpw_fxc_prep(xc_rho_set, rho0_r, tau0_r, xc_section, auxbas_pw_pool)
-         CALL xc_dset_create(xc_deriv_set, auxbas_pw_pool)
-         CALL timestop(handle)
-         RETURN
+         CALL cp_abort(__LOCATION__, &
+                       "Native Skala second-derivative (FXC) response is not available in this build.")
       END IF
       IF (do_triplet) THEN
          ! split the density and response density arrays for triplet calculation
@@ -973,8 +962,6 @@ CONTAINS
       LOGICAL                                            :: do_analytic, do_sf, do_triplet, &
                                                             do_virial, lsd
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: vxg
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, tau1_r
       TYPE(qs_rho_type), POINTER                         :: rhot1
@@ -999,17 +986,8 @@ CONTAINS
       NULLIFY (rho1_g)
 
       IF (xc_section_uses_native_skala_grid(xc_section)) THEN
-         IF (do_triplet .OR. do_sf) THEN
-            CALL cp_abort(__LOCATION__, "Native Skala response requires spin-conserving perturbations.")
-         END IF
-         IF (do_virial) THEN
-            CALL cp_abort(__LOCATION__, "Native Skala response does not yet provide XC kernel strain derivatives.")
-         END IF
-         CALL get_qs_env(qs_env, particle_set=particle_set, cell=cell)
-         CALL skala_gpw_fxc(xc_rho_set, rho1_r, tau1_r, xc_section, weights, auxbas_pw_pool, &
-                            particle_set, cell, fxc_rho, fxc_tau)
-         CALL timestop(handle)
-         RETURN
+         CALL cp_abort(__LOCATION__, &
+                       "Native Skala second-derivative (FXC) response is not available in this build.")
       END IF
 
       mspins = SIZE(rho1_r)

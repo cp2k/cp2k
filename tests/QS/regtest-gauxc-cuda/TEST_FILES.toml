@@ -7,3 +7,9 @@
   {matcher = "GAUXC_integrator_device"},
   {matcher = "E_total", tol = 1e-4, ref = -0.979366068078563}
 ]
+"H2_GAUXC_SKALA_FORCE_DEVICE.inp"       = [
+  {matcher = "GAUXC_device_execution"},
+  {matcher = "GAUXC_analytical_gradient"},
+  {matcher = "E_total", tol = 1e-8, ref = -0.97915978721028},
+  {matcher = "Atomic_force_2_z", tol = 1e-5, ref = -1.29568278E-02}
+]

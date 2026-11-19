@@ -8,16 +8,17 @@
 #if defined(__LIBTORCH)
 
 #include <ATen/Parallel.h>
+#include <algorithm>
+#include <atomic>
 #if defined(__LIBTORCH_CUDA)
 #include <ATen/cuda/CUDAContextLight.h>
 #include <c10/cuda/CUDAAllocatorConfig.h>
+#include <c10/cuda/CUDAStream.h>
 #endif
 #include <c10/core/DeviceGuard.h>
 #include <torch/csrc/api/include/torch/cuda.h>
-#include <torch/csrc/autograd/autograd.h>
 #include <torch/csrc/jit/passes/freeze_module.h>
 #include <torch/csrc/jit/passes/inliner.h>
-#include <torch/csrc/jit/passes/subgraph_rewrite.h>
 #include <torch/csrc/jit/runtime/graph_executor.h>
 #include <torch/script.h>
 
@@ -27,17 +28,20 @@
 #include <cblas.h>
 #endif
 
-#include <cassert>
-
 #include <cfenv>
 #include <climits>
+#include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
+#include <limits>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
+#include <sys/stat.h>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #if defined(__OPENBLAS)
@@ -102,10 +106,72 @@ private:
 };
 
 /*******************************************************************************
+ * \brief Aborts the run with a message instead of letting a C++ exception
+ *        unwind across the BIND(C) boundary.
+ ******************************************************************************/
+[[noreturn]] static void torch_c_api_abort(const std::string &message) {
+  std::fprintf(stderr, "TORCH| %s\n", message.c_str());
+  std::fflush(stderr);
+  std::abort();
+}
+
+static void torch_c_check(const bool condition, const char *message) {
+  if (!condition) {
+    torch_c_api_abort(message);
+  }
+}
+
+// Wrap the body of every BIND(C) entry point so Torch exceptions become a
+// controlled CP2K abort instead of undefined behaviour.
+#define TORCH_C_TRY try {
+#define TORCH_C_CATCH(NAME)                                                    \
+  }                                                                            \
+  catch (const std::exception &e) {                                            \
+    torch_c_api_abort(std::string(NAME) + ": " + e.what());                    \
+  }                                                                            \
+  catch (...) {                                                                \
+    torch_c_api_abort(std::string(NAME) + ": unknown exception");              \
+  }
+
+/*******************************************************************************
  * \brief Internal helper for selecting the CUDA device when available.
  * \author Ole Schuett
  ******************************************************************************/
-static bool use_cuda_if_available = true;
+// CUDA is opt-out: GPU is the default whenever a CUDA device is usable. The
+// value is resolved once by the SKALA/GauXC execution-target resolver and then
+// kept for the whole calculation. Atomic because it is read from Torch calls
+// that may run concurrently on OpenMP threads.
+static std::atomic<bool> use_cuda_if_available{true};
+
+// Cached model metadata (TorchScript extra files) keyed by model filename and
+// the file stamp (size + mtime).
+struct model_metadata_entry {
+  std::string stamp;
+  std::unordered_map<std::string, std::string> files;
+};
+static std::mutex model_metadata_mutex;
+static std::unordered_map<std::string, model_metadata_entry>
+    model_metadata_cache;
+
+// Deferred gradient readbacks copy on the source tensor's device stream.
+// Remember which devices have pending copies so the later
+// torch_c_stream_synchronize() waits on those devices and not merely on the
+// currently active one. Process-global: a deferred readback may be issued from
+// one thread while the synchronization happens on another.
+static std::set<int> pending_grad_readback_devices;
+static std::mutex pending_grad_mutex;
+
+static void record_pending_device(const int device) {
+  std::lock_guard<std::mutex> lock(pending_grad_mutex);
+  pending_grad_readback_devices.insert(device);
+}
+
+static std::set<int> take_pending_devices() {
+  std::lock_guard<std::mutex> lock(pending_grad_mutex);
+  std::set<int> devices = std::move(pending_grad_readback_devices);
+  pending_grad_readback_devices.clear();
+  return devices;
+}
 
 static void enable_expandable_cuda_segments_if_unconfigured() {
 #if defined(__LIBTORCH_CUDA)
@@ -138,34 +204,64 @@ static bool get_positive_int_env(const char *name, int &value) {
 }
 
 static void initialize_torch_threads_from_env() {
-  static bool initialized = false;
-  if (initialized) {
-    return;
-  }
-  initialized = true;
+  static std::once_flag init_flag;
+  std::call_once(init_flag, []() {
+    int num_threads = 0;
+    if (get_positive_int_env("CP2K_TORCH_NUM_THREADS", num_threads)) {
+      at::set_num_threads(num_threads);
+    }
+    if (get_positive_int_env("CP2K_TORCH_NUM_INTEROP_THREADS", num_threads)) {
+      at::set_num_interop_threads(num_threads);
+    }
+  });
+}
 
-  int num_threads = 0;
-  if (get_positive_int_env("CP2K_TORCH_NUM_THREADS", num_threads)) {
-    at::set_num_threads(num_threads);
-  }
-  if (get_positive_int_env("CP2K_TORCH_NUM_INTEROP_THREADS", num_threads)) {
-    at::set_num_interop_threads(num_threads);
-  }
+// Set the Torch CPU intra-op thread count. An explicit CP2K_TORCH_NUM_THREADS
+// environment variable takes precedence and is never overridden here.
+extern "C" void torch_c_set_num_threads(const int num_threads) {
+  TORCH_C_TRY
+  int env_threads = 0;
+  if (num_threads <= 0)
+    return;
+  if (get_positive_int_env("CP2K_TORCH_NUM_THREADS", env_threads))
+    return;
+  at::set_num_threads(num_threads);
+  TORCH_C_CATCH("torch_c_set_num_threads")
+}
+
+// Return the current Torch CPU intra-op thread count.
+extern "C" int torch_c_get_num_threads(void) {
+  initialize_torch_threads_from_env();
+  return at::get_num_threads();
+}
+
+// Probe CUDA availability once: the result cannot change within a process and
+// repeated is_available()/device_count() calls are surprisingly expensive on
+// the per-tensor/per-dict hot path.
+static bool cuda_device_available(int &device_count) {
+  static std::once_flag probe_flag;
+  static bool available = false;
+  static int count = 0;
+  std::call_once(probe_flag, []() {
+    available = torch::cuda::is_available();
+    count = available ? torch::cuda::device_count() : 0;
+    available = available && count > 0;
+  });
+  device_count = count;
+  return available;
 }
 
 static torch::Device get_device() {
   initialize_torch_threads_from_env();
-  if (!use_cuda_if_available || !torch::cuda::is_available()) {
+  int device_count = 0;
+  if (!use_cuda_if_available.load() || !cuda_device_available(device_count)) {
     return torch::kCPU;
   }
   enable_expandable_cuda_segments_if_unconfigured();
-  const auto device_count = torch::cuda::device_count();
-  if (device_count <= 0) {
-    return torch::kCPU;
-  }
   const int chosen_device = offload_get_chosen_device();
   const int device = (chosen_device >= 0) ? chosen_device : 0;
-  assert(device < device_count);
+  torch_c_check(device < device_count,
+                "Torch CUDA device index is out of range");
   return torch::Device(torch::kCUDA, device);
 }
 
@@ -175,16 +271,6 @@ static torch::Device get_device_with_guard(c10::OptionalDeviceGuard &guard) {
     guard.reset_device(device);
   }
   return device;
-}
-
-static bool use_batched_gradient_readback(const torch::Tensor &tensor) {
-#if defined(__LIBTORCH_CUDA)
-  return tensor.is_cuda() &&
-         at::cuda::getDeviceProperties(tensor.device().index())->integrated;
-#else
-  (void)tensor;
-  return false;
-#endif
 }
 
 static void set_jit_fusion_strategy() {
@@ -197,9 +283,15 @@ static void set_jit_fusion_strategy() {
 
 static void copy_string_to_c_buffer(const std::string &source, char **content,
                                     int *length) {
-  *length = source.length();
-  *content = (char *)malloc(source.length() + 1); // +1 for null terminator
-  strcpy(*content, source.c_str());
+  torch_c_check(content != nullptr && length != nullptr,
+                "Torch string output must not be NULL");
+  torch_c_check(source.size() <= static_cast<size_t>(INT_MAX),
+                "Torch string exceeds the maximum supported length");
+  char *buffer = static_cast<char *>(std::malloc(source.size() + 1));
+  torch_c_check(buffer != nullptr, "Torch string allocation failed");
+  std::memcpy(buffer, source.c_str(), source.size() + 1);
+  *content = buffer;
+  *length = static_cast<int>(source.size());
 }
 
 static bool can_load_directly_to_device(const torch::Device &device) {
@@ -220,7 +312,11 @@ static torch::jit::Module load_module_for_device(
   auto model = (extra_files != nullptr)
                    ? torch::jit::load(filename, torch::kCPU, *extra_files)
                    : torch::jit::load(filename, torch::kCPU);
-  model.to(device);
+  // With load_on_cpu the module must stay on the CPU so callers can promote and
+  // freeze it there; remap_device_constants performs the host->device move.
+  if (!load_on_cpu) {
+    model.to(device);
+  }
   return model;
 }
 
@@ -278,6 +374,39 @@ static void remap_model_device_constants(torch::jit::Module &model,
   }
   for (auto child : model.children()) {
     remap_model_device_constants(child, device);
+  }
+}
+
+// Collect the device targets hard-coded in a graph (device constants such as
+// torch.device("cuda:0") or "cpu").
+static void collect_block_device_constants(torch::jit::Block *block,
+                                           bool &has_cuda, bool &has_cpu) {
+  for (torch::jit::Node *node : block->nodes()) {
+    if (node->kind() == torch::jit::prim::Constant &&
+        node->outputs().size() == 1 &&
+        node->output()->type()->kind() == c10::TypeKind::DeviceObjType &&
+        node->hasAttribute(torch::jit::attr::value) &&
+        node->kindOf(torch::jit::attr::value) == torch::jit::AttributeKind::s) {
+      const std::string &value = node->s(torch::jit::attr::value);
+      if (value.rfind("cuda", 0) == 0) {
+        has_cuda = true;
+      } else if (value.rfind("cpu", 0) == 0) {
+        has_cpu = true;
+      }
+    }
+    for (torch::jit::Block *nested_block : node->blocks()) {
+      collect_block_device_constants(nested_block, has_cuda, has_cpu);
+    }
+  }
+}
+
+static void collect_model_device_constants(torch::jit::Module &model,
+                                           bool &has_cuda, bool &has_cpu) {
+  for (const auto &method : model.get_methods()) {
+    collect_block_device_constants(method.graph()->block(), has_cuda, has_cpu);
+  }
+  for (auto child : model.children()) {
+    collect_model_device_constants(child, has_cuda, has_cpu);
   }
 }
 
@@ -345,12 +474,17 @@ static void promote_model_float32(torch::jit::Module &model) {
 }
 
 static void initialize_cuda_linalg(const torch::Device &device) {
-  static std::once_flag flag;
-  std::call_once(flag, [&]() {
-    const auto options =
-        torch::TensorOptions().dtype(torch::kFloat32).device(device);
-    static_cast<void>(at::linalg_eigh(torch::eye(1, options)));
-  });
+  // Warm up each CUDA device once; the active device can change within one
+  // process when several GPUs are used.
+  static std::mutex mutex;
+  static std::set<int> initialized_devices;
+  std::lock_guard<std::mutex> lock(mutex);
+  if (!initialized_devices.insert(device.index()).second) {
+    return;
+  }
+  const auto options =
+      torch::TensorOptions().dtype(torch::kFloat32).device(device);
+  static_cast<void>(at::linalg_eigh(torch::eye(1, options)));
 }
 
 /*******************************************************************************
@@ -365,6 +499,23 @@ static torch_c_tensor_t *tensor_from_array(const torch::Dtype dtype,
   const auto opts = torch::TensorOptions().dtype(dtype).requires_grad(req_grad);
   const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
   return new torch_c_tensor_t(torch::from_blob(source, sizes_ref, opts));
+}
+
+// Reusable pinned host buffers for gradient readbacks, one per leaf tensor.
+// The map is intentionally leaked (raw pointer, never destroyed) because a
+// static torch::Tensor would be destroyed after the CUDA driver has shut down.
+static std::mutex grad_pinned_mutex;
+static std::unordered_map<const torch_c_tensor_t *, torch::Tensor>
+    *grad_pinned_pool = nullptr;
+
+// Drop a pooled pinned buffer before its tensor wrapper is deleted/reallocated.
+static void erase_grad_pool_entry(const torch_c_tensor_t *tensor) {
+  if (tensor == nullptr)
+    return;
+  std::lock_guard<std::mutex> lock(grad_pinned_mutex);
+  if (grad_pinned_pool != nullptr) {
+    grad_pinned_pool->erase(tensor);
+  }
 }
 
 static bool tensor_matches(const torch_c_tensor_t *tensor,
@@ -384,29 +535,24 @@ static bool tensor_matches(const torch_c_tensor_t *tensor,
   return tensor->is_contiguous();
 }
 
-static bool reset_tensor_from_array_double(torch_c_tensor_t **tensor,
-                                           const bool req_grad, const int ndims,
-                                           const int64_t sizes[],
-                                           double source[]) {
-  c10::OptionalDeviceGuard guard;
-  const auto device = get_device_with_guard(guard);
+static bool prepare_target_tensor(torch_c_tensor_t **tensor,
+                                  const bool req_grad,
+                                  const torch::Device &device, const int ndims,
+                                  const int64_t sizes[]) {
   const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
+  const bool requires_grad_changed = *tensor != nullptr &&
+                                     (*tensor)->defined() &&
+                                     (*tensor)->requires_grad() != req_grad;
   const bool reallocated =
+      requires_grad_changed ||
       !tensor_matches(*tensor, torch::kFloat64, device, ndims, sizes);
   if (reallocated) {
+    erase_grad_pool_entry(*tensor);
     delete (*tensor);
     const auto opts =
         torch::TensorOptions().dtype(torch::kFloat64).device(device);
     *tensor = new torch_c_tensor_t(torch::empty(sizes_ref, opts).detach());
   }
-  const auto source_tensor = torch::from_blob(
-      source, sizes_ref, torch::TensorOptions().dtype(torch::kFloat64));
-  {
-    torch::NoGradGuard no_grad;
-    (*tensor)->copy_(source_tensor);
-    (*tensor)->mutable_grad() = torch::Tensor();
-  }
-  (*tensor)->set_requires_grad(req_grad);
   return reallocated;
 }
 
@@ -417,15 +563,37 @@ static bool reset_tensor_from_array_double(torch_c_tensor_t **tensor,
 static void *get_data_ptr(const torch_c_tensor_t *tensor,
                           const torch::Dtype dtype, const int ndims,
                           int64_t sizes[]) {
-  assert(tensor->scalar_type() == dtype);
-  assert(tensor->ndimension() == ndims);
+  torch_c_check(tensor->scalar_type() == dtype,
+                "Torch tensor has an unexpected dtype");
+  torch_c_check(tensor->ndimension() == ndims,
+                "Torch tensor has an unexpected number of dimensions");
   for (int i = 0; i < ndims; i++) {
     sizes[i] = tensor->size(i);
   }
 
-  assert(tensor->is_contiguous());
+  torch_c_check(tensor->is_contiguous(), "Torch tensor is not contiguous");
+  torch_c_check(tensor->is_cpu(), "Torch tensor is not on the CPU");
   return tensor->data_ptr();
 };
+/*******************************************************************************
+ * \brief Copies a model attribute string into a CP2K default-string buffer.
+ *        The Fortran side allocates exactly CP2K's default_string_length (80)
+ *        bytes, so reject longer strings instead of overflowing.
+ ******************************************************************************/
+static constexpr size_t torch_c_attr_string_length = 80;
+
+static void copy_attr_string_to_fortran(const std::string &source, char *dest) {
+  torch_c_check(dest != nullptr,
+                "Torch attribute destination must not be NULL");
+  if (source.size() > torch_c_attr_string_length) {
+    torch_c_api_abort("Torch attribute string exceeds CP2K default length");
+  }
+  // Blank-pad the whole Fortran buffer: the caller passes an INTENT(OUT)
+  // CHARACTER(LEN=default_string_length) and only source.size() bytes are
+  // overwritten otherwise, leaving an uninitialized tail.
+  std::memset(dest, ' ', torch_c_attr_string_length);
+  std::memcpy(dest, source.data(), source.size());
+}
 
 #ifdef __cplusplus
 extern "C" {
@@ -439,7 +607,9 @@ extern "C" {
 void torch_c_tensor_from_array_int32(torch_c_tensor_t **tensor,
                                      const bool req_grad, const int ndims,
                                      const int64_t sizes[], int32_t source[]) {
+  TORCH_C_TRY
   *tensor = tensor_from_array(torch::kInt32, req_grad, ndims, sizes, source);
+  TORCH_C_CATCH("torch_c_tensor_from_array_int32")
 }
 
 /*******************************************************************************
@@ -450,7 +620,9 @@ void torch_c_tensor_from_array_int32(torch_c_tensor_t **tensor,
 void torch_c_tensor_from_array_float(torch_c_tensor_t **tensor,
                                      const bool req_grad, const int ndims,
                                      const int64_t sizes[], float source[]) {
+  TORCH_C_TRY
   *tensor = tensor_from_array(torch::kFloat32, req_grad, ndims, sizes, source);
+  TORCH_C_CATCH("torch_c_tensor_from_array_float")
 }
 
 /*******************************************************************************
@@ -461,7 +633,9 @@ void torch_c_tensor_from_array_float(torch_c_tensor_t **tensor,
 void torch_c_tensor_from_array_int64(torch_c_tensor_t **tensor,
                                      const bool req_grad, const int ndims,
                                      const int64_t sizes[], int64_t source[]) {
+  TORCH_C_TRY
   *tensor = tensor_from_array(torch::kInt64, req_grad, ndims, sizes, source);
+  TORCH_C_CATCH("torch_c_tensor_from_array_int64")
 }
 
 /*******************************************************************************
@@ -472,7 +646,9 @@ void torch_c_tensor_from_array_int64(torch_c_tensor_t **tensor,
 void torch_c_tensor_from_array_double(torch_c_tensor_t **tensor,
                                       const bool req_grad, const int ndims,
                                       const int64_t sizes[], double source[]) {
+  TORCH_C_TRY
   *tensor = tensor_from_array(torch::kFloat64, req_grad, ndims, sizes, source);
+  TORCH_C_CATCH("torch_c_tensor_from_array_double")
 }
 
 /*******************************************************************************
@@ -481,14 +657,235 @@ void torch_c_tensor_from_array_double(torch_c_tensor_t **tensor,
 void torch_c_free_string(char *content) { free(content); }
 
 /*******************************************************************************
- * \brief Reuses or creates a device tensor and reports reallocation.
+ * \brief Reusable pinned host staging buffers for batched host-to-device
+ * copies.
  ******************************************************************************/
-bool torch_c_tensor_reset_from_array_double_status(torch_c_tensor_t **tensor,
-                                                   const bool req_grad,
-                                                   const int ndims,
-                                                   const int64_t sizes[],
-                                                   double source[]) {
-  return reset_tensor_from_array_double(tensor, req_grad, ndims, sizes, source);
+struct staging_slot {
+  torch::Tensor tensor;
+  bool pinned = false;
+  bool in_use = false;
+};
+
+static std::mutex pinned_pool_mutex;
+// Intentionally leaked: static torch::Tensor objects would be destroyed after
+// the CUDA driver has shut down and would abort the process at exit.
+static std::vector<staging_slot> *pinned_pool = nullptr;
+static thread_local int pinned_current_slot = -1;
+// The pool is shared between threads but the current slot index is per thread.
+// Bumping the generation on release lets other threads detect that their slot
+// index belongs to a pool generation that no longer exists.
+static std::atomic<uint64_t> pinned_generation{0};
+static thread_local uint64_t pinned_generation_local = 0;
+
+// Requires pinned_pool_mutex to be held.
+static void sync_pinned_generation_locked() {
+  const auto generation = pinned_generation.load(std::memory_order_relaxed);
+  if (generation != pinned_generation_local) {
+    pinned_current_slot = -1;
+    pinned_generation_local = generation;
+  }
+}
+
+static std::vector<staging_slot> &get_pinned_pool() {
+  if (pinned_pool == nullptr) {
+    pinned_pool = new std::vector<staging_slot>();
+  }
+  return *pinned_pool;
+}
+
+// Requires pinned_pool_mutex to be held.
+static void release_current_slot_locked() {
+  if (pinned_current_slot >= 0 && pinned_pool != nullptr &&
+      pinned_current_slot < static_cast<int>(pinned_pool->size())) {
+    (*pinned_pool)[pinned_current_slot].in_use = false;
+  }
+  pinned_current_slot = -1;
+}
+
+static torch::Tensor make_host_buffer(const int64_t n_doubles, bool &pinned) {
+  const auto opts = torch::TensorOptions().dtype(torch::kFloat64);
+  if (torch::cuda::is_available()) {
+    try {
+      auto buffer = torch::empty({n_doubles}, opts.pinned_memory(true));
+      pinned = true;
+      return buffer;
+    } catch (const c10::Error &) {
+      // Fall through to pageable memory under pinned-memory pressure.
+    }
+  }
+  pinned = false;
+  return torch::empty({n_doubles}, opts);
+}
+
+void torch_c_pinned_reserve(const int64_t n_doubles) {
+  TORCH_C_TRY
+  std::lock_guard<std::mutex> lock(pinned_pool_mutex);
+  sync_pinned_generation_locked();
+  auto &slots = get_pinned_pool();
+  // A previous batch on this thread may not have called finish (e.g. after an
+  // early abort); release it instead of failing.
+  release_current_slot_locked();
+  int chosen = -1;
+  for (int i = 0; i < static_cast<int>(slots.size()); ++i) {
+    if (!slots[i].in_use && slots[i].tensor.defined() &&
+        slots[i].tensor.numel() >= n_doubles) {
+      chosen = i;
+      break;
+    }
+  }
+  if (chosen < 0) {
+    for (int i = 0; i < static_cast<int>(slots.size()); ++i) {
+      if (!slots[i].in_use) {
+        chosen = i;
+        break;
+      }
+    }
+  }
+  if (chosen < 0) {
+    slots.emplace_back();
+    chosen = static_cast<int>(slots.size()) - 1;
+  }
+  if (!slots[chosen].tensor.defined() ||
+      slots[chosen].tensor.numel() < n_doubles) {
+    bool pinned = false;
+    slots[chosen].tensor = make_host_buffer(n_doubles, pinned);
+    slots[chosen].pinned = pinned;
+  }
+  slots[chosen].in_use = true;
+  pinned_current_slot = chosen;
+  TORCH_C_CATCH("torch_c_pinned_reserve")
+}
+
+/*******************************************************************************
+ * \brief Returns the current thread's staging buffer to the pool.
+ ******************************************************************************/
+void torch_c_pinned_finish() {
+  TORCH_C_TRY
+  std::lock_guard<std::mutex> lock(pinned_pool_mutex);
+  sync_pinned_generation_locked();
+  release_current_slot_locked();
+  TORCH_C_CATCH("torch_c_pinned_finish")
+}
+
+/*******************************************************************************
+ * \brief Releases all staging buffers (e.g. at environment teardown).
+ ******************************************************************************/
+void torch_c_pinned_release() {
+  TORCH_C_TRY {
+    std::lock_guard<std::mutex> lock(pinned_pool_mutex);
+    sync_pinned_generation_locked();
+    release_current_slot_locked();
+    int in_use = 0;
+    if (pinned_pool != nullptr) {
+      for (const auto &slot : *pinned_pool) {
+        in_use += slot.in_use ? 1 : 0;
+      }
+    }
+    // Never free memory that another thread may still be copying through. If
+    // some slot is still in use, keep the pool (a later release can free it);
+    // the generation bump is then unnecessary because all indices stay valid.
+    if (in_use == 0) {
+      delete pinned_pool;
+      pinned_pool = nullptr;
+      pinned_generation.fetch_add(1, std::memory_order_relaxed);
+    }
+  }
+  take_pending_devices();
+  TORCH_C_CATCH("torch_c_pinned_release")
+}
+
+/*******************************************************************************
+ * \brief Uploads one double array through this thread's staging buffer.
+ *        The host copy into the staging buffer is synchronous; the device copy
+ *        is asynchronous (when pinned) and must be followed by
+ *        torch_c_stream_synchronize() and then torch_c_pinned_finish().
+ ******************************************************************************/
+bool torch_c_tensor_upload_pinned(torch_c_tensor_t **tensor,
+                                  const int64_t offset, const bool req_grad,
+                                  const int ndims, const int64_t sizes[],
+                                  double source[]) {
+  TORCH_C_TRY
+  c10::OptionalDeviceGuard guard;
+  const auto device = get_device_with_guard(guard);
+  const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
+  int64_t count = 1;
+  for (int i = 0; i < ndims; i++) {
+    torch_c_check(sizes[i] >= 0,
+                  "Torch tensor upload has a negative dimension");
+    if (sizes[i] == 0) {
+      count = 0;
+      continue;
+    }
+    torch_c_check(count <= std::numeric_limits<int64_t>::max() / sizes[i],
+                  "Torch tensor upload element count overflows");
+    count *= sizes[i];
+  }
+  const bool reallocated =
+      prepare_target_tensor(tensor, req_grad, device, ndims, sizes);
+  const auto source_tensor = torch::from_blob(
+      source, sizes_ref, torch::TensorOptions().dtype(torch::kFloat64));
+  if (device.is_cuda()) {
+    torch::Tensor staging;
+    bool staged_pinned = false;
+    {
+      std::lock_guard<std::mutex> lock(pinned_pool_mutex);
+      sync_pinned_generation_locked();
+      auto &slots = get_pinned_pool();
+      torch_c_check(pinned_current_slot >= 0 &&
+                        pinned_current_slot < static_cast<int>(slots.size()),
+                    "Torch staging buffer was not reserved for this thread");
+      auto &slot = slots[pinned_current_slot];
+      torch_c_check(slot.tensor.defined(),
+                    "Torch pinned staging buffer is undefined");
+      const int64_t capacity = slot.tensor.numel();
+      torch_c_check(offset >= 0 && offset <= capacity &&
+                        count <= capacity - offset,
+                    "Torch pinned staging buffer is too small");
+      staging = slot.tensor;
+      staged_pinned = slot.pinned;
+    }
+    auto staging_slice = staging.narrow(0, offset, count).view(sizes_ref);
+    {
+      torch::NoGradGuard no_grad;
+      staging_slice.copy_(source_tensor);
+    }
+    {
+      torch::NoGradGuard no_grad;
+      (*tensor)->copy_(staging_slice, /*non_blocking=*/staged_pinned);
+      (*tensor)->mutable_grad() = torch::Tensor();
+    }
+  } else {
+    torch::NoGradGuard no_grad;
+    (*tensor)->copy_(source_tensor);
+    (*tensor)->mutable_grad() = torch::Tensor();
+  }
+  (*tensor)->set_requires_grad(req_grad);
+  return reallocated;
+  TORCH_C_CATCH("torch_c_tensor_upload_pinned")
+}
+
+/*******************************************************************************
+ * \brief Waits for all pending device copies issued by the upload/readback
+ * paths.
+ ******************************************************************************/
+void torch_c_stream_synchronize() {
+  TORCH_C_TRY
+  if (torch::cuda::is_available()) {
+    c10::OptionalDeviceGuard guard;
+    const auto active = get_device_with_guard(guard);
+    c10::cuda::getCurrentCUDAStream().synchronize();
+    const auto devices = take_pending_devices();
+    for (const int device_index : devices) {
+      if (active.is_cuda() &&
+          static_cast<int>(active.index()) == device_index) {
+        continue; // Already synchronized above.
+      }
+      c10::DeviceGuard device_guard(torch::Device(
+          torch::kCUDA, static_cast<c10::DeviceIndex>(device_index)));
+      c10::cuda::getCurrentCUDAStream().synchronize();
+    }
+  }
+  TORCH_C_CATCH("torch_c_stream_synchronize")
 }
 
 /*******************************************************************************
@@ -497,33 +894,49 @@ bool torch_c_tensor_reset_from_array_double_status(torch_c_tensor_t **tensor,
 void torch_c_tensor_expand_dim(const torch_c_tensor_t *tensor,
                                const int64_t dim, const int64_t size,
                                torch_c_tensor_t **result) {
+  TORCH_C_TRY
   c10::OptionalDeviceGuard guard;
   get_device_with_guard(guard);
-  assert(*result == NULL);
-  assert(dim >= 0);
-  assert(dim < tensor->dim());
+  torch_c_check(*result == NULL, "Torch tensor output must be NULL");
+  torch_c_check(dim >= 0, "Torch tensor dimension must be non-negative");
+  torch_c_check(dim < tensor->dim(), "Torch tensor dimension is out of range");
   std::vector<int64_t> sizes(tensor->sizes().begin(), tensor->sizes().end());
-  assert(sizes[dim] == 1);
+  torch_c_check(sizes[dim] == 1,
+                "Torch tensor expansion requires a singleton dimension");
+  torch_c_check(size >= 0, "Torch tensor expansion size must be non-negative");
   sizes[dim] = size;
   *result = new torch_c_tensor_t(tensor->expand(sizes));
+  TORCH_C_CATCH("torch_c_tensor_expand_dim")
 }
 
 /*******************************************************************************
  * \brief Creates a tensor view narrowed along one dimension.
+ *        The result shares storage with the input tensor and stays on its
+ *        device; the input must already be on the active device.
  ******************************************************************************/
 void torch_c_tensor_narrow(const torch_c_tensor_t *tensor, const int64_t dim,
                            const int64_t start_index, const int64_t length,
                            torch_c_tensor_t **result) {
+  TORCH_C_TRY
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
-  assert(*result == NULL);
-  assert(dim >= 0);
-  assert(start_index >= 0);
-  assert(length >= 0);
-  assert(dim < tensor->ndimension());
-  assert(start_index + length <= tensor->size(dim));
-  *result =
-      new torch_c_tensor_t(tensor->narrow(dim, start_index, length).to(device));
+  torch_c_check(*result == NULL, "Torch tensor output must be NULL");
+  torch_c_check(dim >= 0, "Torch tensor dimension must be non-negative");
+  torch_c_check(start_index >= 0,
+                "Torch tensor start index must be non-negative");
+  torch_c_check(length >= 0, "Torch tensor length must be non-negative");
+  torch_c_check(dim < tensor->ndimension(),
+                "Torch tensor dimension is out of range");
+  torch_c_check(start_index <= tensor->size(dim) &&
+                    length <= tensor->size(dim) - start_index,
+                "Torch tensor narrow range is out of bounds");
+  torch_c_check(
+      tensor->device() == device,
+      "Torch tensor narrow requires the tensor to be on the active device");
+  // Keep this a pure view: calling .to(device) would silently copy on a
+  // device mismatch and break storage/autograd aliasing with the parent.
+  *result = new torch_c_tensor_t(tensor->narrow(dim, start_index, length));
+  TORCH_C_CATCH("torch_c_tensor_narrow")
 }
 
 /*******************************************************************************
@@ -534,7 +947,9 @@ void torch_c_tensor_narrow(const torch_c_tensor_t *tensor, const int64_t dim,
 void torch_c_tensor_data_ptr_int32(const torch_c_tensor_t *tensor,
                                    const int ndims, int64_t sizes[],
                                    int32_t **data_ptr) {
+  TORCH_C_TRY
   *data_ptr = (int32_t *)get_data_ptr(tensor, torch::kInt32, ndims, sizes);
+  TORCH_C_CATCH("torch_c_tensor_data_ptr_int32")
 }
 
 /*******************************************************************************
@@ -545,7 +960,9 @@ void torch_c_tensor_data_ptr_int32(const torch_c_tensor_t *tensor,
 void torch_c_tensor_data_ptr_float(const torch_c_tensor_t *tensor,
                                    const int ndims, int64_t sizes[],
                                    float **data_ptr) {
+  TORCH_C_TRY
   *data_ptr = (float *)get_data_ptr(tensor, torch::kFloat32, ndims, sizes);
+  TORCH_C_CATCH("torch_c_tensor_data_ptr_float")
 }
 
 /*******************************************************************************
@@ -556,7 +973,9 @@ void torch_c_tensor_data_ptr_float(const torch_c_tensor_t *tensor,
 void torch_c_tensor_data_ptr_int64(const torch_c_tensor_t *tensor,
                                    const int ndims, int64_t sizes[],
                                    int64_t **data_ptr) {
+  TORCH_C_TRY
   *data_ptr = (int64_t *)get_data_ptr(tensor, torch::kInt64, ndims, sizes);
+  TORCH_C_CATCH("torch_c_tensor_data_ptr_int64")
 }
 
 /*******************************************************************************
@@ -567,7 +986,9 @@ void torch_c_tensor_data_ptr_int64(const torch_c_tensor_t *tensor,
 void torch_c_tensor_data_ptr_double(const torch_c_tensor_t *tensor,
                                     const int ndims, int64_t sizes[],
                                     double **data_ptr) {
+  TORCH_C_TRY
   *data_ptr = (double *)get_data_ptr(tensor, torch::kFloat64, ndims, sizes);
+  TORCH_C_CATCH("torch_c_tensor_data_ptr_double")
 }
 
 /*******************************************************************************
@@ -576,89 +997,24 @@ void torch_c_tensor_data_ptr_double(const torch_c_tensor_t *tensor,
  ******************************************************************************/
 void torch_c_tensor_backward(const torch_c_tensor_t *tensor,
                              const torch_c_tensor_t *outer_grad) {
+  TORCH_C_TRY
   TorchFloatingPointMaskGuard fpe_guard;
   c10::OptionalDeviceGuard guard;
   get_device_with_guard(guard);
   tensor->backward(*outer_grad);
-}
-
-/*******************************************************************************
- * \brief Apply a scalar tensor's Hessian to directions of its independent
- * inputs.
- ******************************************************************************/
-void torch_c_tensor_hessian_vector(const torch_c_tensor_t *tensor,
-                                   const int count,
-                                   const torch_c_tensor_t *const inputs[],
-                                   const torch_c_tensor_t *const directions[],
-                                   torch_c_tensor_t *responses[],
-                                   const bool to_host, int *status) {
-  *status = 0;
-  for (int i = 0; i < count; i++)
-    responses[i] = nullptr;
-  try {
-    TorchFloatingPointMaskGuard fpe_guard;
-    c10::OptionalDeviceGuard guard;
-    get_device_with_guard(guard);
-    TORCH_CHECK(
-        count > 0 && tensor->numel() == 1,
-        "Hessian-vector evaluation requires a scalar and input tensors");
-    std::vector<torch::Tensor> variables;
-    std::vector<torch::Tensor> active_variables;
-    std::vector<torch::Tensor> active_directions;
-    for (int i = 0; i < count; i++) {
-      TORCH_CHECK(inputs[i]->requires_grad() &&
-                      inputs[i]->sizes() == directions[i]->sizes() &&
-                      inputs[i]->device() == directions[i]->device(),
-                  "Hessian-vector inputs and directions must have matching "
-                  "shapes and devices");
-      variables.push_back(*inputs[i]);
-      if (directions[i]->count_nonzero().item<int64_t>() != 0) {
-        active_variables.push_back(*inputs[i]);
-        active_directions.push_back(directions[i]->detach());
-      }
-    }
-    std::vector<torch::Tensor> first(active_variables.size());
-    if (tensor->requires_grad() && !active_variables.empty()) {
-      first = torch::autograd::grad({*tensor}, active_variables, {}, true, true,
-                                    true);
-    }
-    torch::Tensor contraction;
-    for (size_t i = 0; i < first.size(); i++) {
-      if (first[i].defined() && first[i].requires_grad()) {
-        auto term = (first[i] * active_directions[i]).sum();
-        contraction = contraction.defined() ? contraction + term : term;
-      }
-    }
-    std::vector<torch::Tensor> second(count);
-    if (contraction.defined()) {
-      // Retain all mixed responses, even for inputs with a zero direction.
-      second = torch::autograd::grad({contraction}, variables, {}, false, false,
-                                     true);
-    }
-    for (int i = 0; i < count; i++) {
-      auto response = second[i].defined() ? second[i].detach()
-                                          : torch::zeros_like(*inputs[i]);
-      responses[i] = new torch_c_tensor_t(to_host ? response.cpu().contiguous()
-                                                  : response);
-    }
-  } catch (const std::exception &error) {
-    fprintf(stderr, "Torch Hessian evaluation failed: %s\n", error.what());
-    for (int i = 0; i < count; i++) {
-      delete responses[i];
-      responses[i] = nullptr;
-    }
-    *status = 1;
-  }
+  TORCH_C_CATCH("torch_c_tensor_backward")
 }
 
 /*******************************************************************************
  * \brief Runs autograd on a scalar Torch tensor.
  ******************************************************************************/
 void torch_c_tensor_backward_scalar(const torch_c_tensor_t *tensor) {
+  TORCH_C_TRY
   TorchFloatingPointMaskGuard fpe_guard;
   c10::OptionalDeviceGuard guard;
   get_device_with_guard(guard);
   tensor->backward();
+  TORCH_C_CATCH("torch_c_tensor_backward_scalar")
 }
 
 /*******************************************************************************
@@ -666,111 +1022,217 @@ void torch_c_tensor_backward_scalar(const torch_c_tensor_t *tensor) {
  ******************************************************************************/
 void torch_c_tensor_to_device_leaf(torch_c_tensor_t **tensor,
                                    const bool req_grad) {
+  TORCH_C_TRY
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
   auto moved = (*tensor)->to(device).detach();
   moved.set_requires_grad(req_grad);
+  erase_grad_pool_entry(*tensor);
   delete (*tensor);
   *tensor = new torch_c_tensor_t(moved);
+  TORCH_C_CATCH("torch_c_tensor_to_device_leaf")
+}
+
+/*******************************************************************************
+ * \brief Sets a leaf tensor's requires_grad flag and clears any stale grad.
+ ******************************************************************************/
+void torch_c_tensor_set_requires_grad(torch_c_tensor_t *tensor,
+                                      const bool requires_grad) {
+  TORCH_C_TRY
+  c10::OptionalDeviceGuard guard;
+  get_device_with_guard(guard);
+  torch_c_check(tensor != nullptr && tensor->defined(),
+                "Torch tensor set_requires_grad received an undefined tensor");
+  tensor->set_requires_grad(requires_grad);
+  tensor->mutable_grad() = torch::Tensor();
+  TORCH_C_CATCH("torch_c_tensor_set_requires_grad")
 }
 
 /*******************************************************************************
  * \brief Select whether Torch wrappers should use CUDA when available.
  ******************************************************************************/
-void torch_c_use_cuda(const bool use_cuda) { use_cuda_if_available = use_cuda; }
-
-/*******************************************************************************
- * \brief Returns whether Torch wrappers currently select CUDA when available.
- ******************************************************************************/
-bool torch_c_get_use_cuda() { return use_cuda_if_available; }
-
-/*******************************************************************************
- * \brief Returns the gradient of a Torch tensor which was computed by autograd.
- * \author Ole Schuett
- ******************************************************************************/
-void torch_c_tensor_grad(const torch_c_tensor_t *tensor,
-                         torch_c_tensor_t **grad) {
-  c10::OptionalDeviceGuard guard;
-  get_device_with_guard(guard);
-  const torch::Tensor maybe_grad = tensor->grad();
-  assert(maybe_grad.defined());
-  torch::Tensor host_grad = maybe_grad.detach().cpu().contiguous();
-  if (maybe_grad.is_cpu()) {
-    host_grad = host_grad.clone();
-  }
-  *grad = new torch_c_tensor_t(std::move(host_grad));
+void torch_c_use_cuda(const bool use_cuda) {
+  use_cuda_if_available.store(use_cuda);
 }
 
 /*******************************************************************************
- * \brief Copies three autograd gradients to CPU memory.
+ * \brief Materializes a contiguous host-owned copy of an autograd gradient.
  ******************************************************************************/
-void torch_c_tensor_grad_batch3(const torch_c_tensor_t *tensor1,
-                                const torch_c_tensor_t *tensor2,
-                                const torch_c_tensor_t *tensor3,
-                                torch_c_tensor_t **grad1,
-                                torch_c_tensor_t **grad2,
-                                torch_c_tensor_t **grad3) {
-  c10::OptionalDeviceGuard guard;
-  const auto device = get_device_with_guard(guard);
-  assert(*grad1 == nullptr && *grad2 == nullptr && *grad3 == nullptr);
-
-  const torch::Tensor source1 = tensor1->grad();
-  const torch::Tensor source2 = tensor2->grad();
-  const torch::Tensor source3 = tensor3->grad();
-  assert(source1.defined() && source2.defined() && source3.defined());
-  assert(source1.device() == source2.device());
-  assert(source1.device() == source3.device());
-  if (use_batched_gradient_readback(source1)) {
-    auto host1 =
-        torch::empty(source1.sizes(),
-                     source1.options().device(torch::kCPU).pinned_memory(true));
-    auto host2 =
-        torch::empty(source2.sizes(),
-                     source2.options().device(torch::kCPU).pinned_memory(true));
-    auto host3 =
-        torch::empty(source3.sizes(),
-                     source3.options().device(torch::kCPU).pinned_memory(true));
-    host1.copy_(source1, true);
-    host2.copy_(source2, true);
-    host3.copy_(source3, true);
-    torch::cuda::synchronize(device.index());
-    *grad1 = new torch_c_tensor_t(std::move(host1));
-    *grad2 = new torch_c_tensor_t(std::move(host2));
-    *grad3 = new torch_c_tensor_t(std::move(host3));
-  } else {
-    // Materialize independent host buffers instead of aliasing gradients owned
-    // by the autograd graph when they are already contiguous CPU tensors.
-    *grad1 = new torch_c_tensor_t(source1.detach().cpu().contiguous().clone());
-    *grad2 = new torch_c_tensor_t(source2.detach().cpu().contiguous().clone());
-    *grad3 = new torch_c_tensor_t(source3.detach().cpu().contiguous().clone());
+static torch::Tensor materialize_host_gradient(const torch::Tensor &source,
+                                               const torch::Tensor &like) {
+  if (!source.defined()) {
+    return torch::zeros(
+        like.sizes(), like.options().device(torch::kCPU).requires_grad(false));
   }
+  auto host =
+      torch::empty(source.sizes(),
+                   source.options().device(torch::kCPU).requires_grad(false));
+  torch::NoGradGuard no_grad;
+  host.copy_(source);
+  return host;
+}
+
+static void grad_batch_impl(const torch_c_tensor_t *const *tensors,
+                            const int count, torch_c_tensor_t **grads,
+                            const bool synchronize) {
+  c10::OptionalDeviceGuard guard;
+  get_device_with_guard(guard);
+  torch_c_check(count >= 0, "Torch gradient batch size must be non-negative");
+  if (count == 0)
+    return;
+  for (int i = 0; i < count; ++i) {
+    torch_c_check(tensors[i] != nullptr,
+                  "Torch gradient input must not be NULL");
+    torch_c_check(grads[i] == nullptr, "Torch gradient outputs must be NULL");
+  }
+
+  std::vector<torch::Tensor> sources(count);
+  bool all_defined = true;
+  bool all_cuda_same_device = true;
+  int source_device = -1;
+  for (int i = 0; i < count; ++i) {
+    sources[i] = tensors[i]->grad();
+    if (!sources[i].defined()) {
+      all_defined = false;
+      all_cuda_same_device = false;
+      continue;
+    }
+    if (!sources[i].is_cuda()) {
+      all_cuda_same_device = false;
+      continue;
+    }
+    const int index = static_cast<int>(sources[i].get_device());
+    if (source_device < 0) {
+      source_device = index;
+    } else if (source_device != index) {
+      all_cuda_same_device = false;
+    }
+  }
+
+  if (all_defined && all_cuda_same_device) {
+    // Ensure copies and the readback synchronization use the sources' device,
+    // not merely the currently active device.
+    c10::DeviceGuard source_guard(torch::Device(
+        torch::kCUDA, static_cast<c10::DeviceIndex>(source_device)));
+    // Reuse one pinned host buffer per leaf tensor; one synchronization for the
+    // whole batch.
+    std::vector<torch::Tensor> hosts(count);
+    {
+      std::lock_guard<std::mutex> lock(grad_pinned_mutex);
+      if (grad_pinned_pool == nullptr) {
+        grad_pinned_pool =
+            new std::unordered_map<const torch_c_tensor_t *, torch::Tensor>();
+      }
+      for (int i = 0; i < count; ++i) {
+        auto &entry = (*grad_pinned_pool)[tensors[i]];
+        const auto sizes = sources[i].sizes();
+        // Only reuse a buffer no other reader still references. A previously
+        // returned gradient holds a reference to the pooled tensor (including
+        // deferred readbacks), so reusing it would overwrite live data.
+        const bool reuse = entry.defined() && entry.sizes() == sizes &&
+                           entry.scalar_type() == sources[i].scalar_type() &&
+                           entry.getIntrusivePtr().use_count() == 1;
+        if (!reuse) {
+          entry = torch::empty(
+              sizes,
+              sources[i].options().device(torch::kCPU).pinned_memory(true));
+        }
+        // Take the reference while holding the lock so concurrent callers see
+        // a non-free buffer and allocate their own.
+        hosts[i] = entry;
+      }
+    }
+    // Issue the device-to-host copies outside the global lock: the pinned
+    // buffers are now owned by this call, so no other thread can touch them.
+    for (int i = 0; i < count; ++i) {
+      hosts[i].copy_(sources[i], true);
+    }
+    if (synchronize) {
+      // The copies above were issued on the sources' current stream, so waiting
+      // on that stream is sufficient and avoids stalling unrelated device work.
+      c10::cuda::getCurrentCUDAStream(
+          static_cast<c10::DeviceIndex>(source_device))
+          .synchronize();
+    } else {
+      // The caller will synchronize later; remember the source device so the
+      // deferred sync waits on the stream the copies were actually issued on.
+      record_pending_device(source_device);
+    }
+    for (int i = 0; i < count; ++i) {
+      grads[i] = new torch_c_tensor_t(std::move(hosts[i]));
+    }
+  } else {
+    for (int i = 0; i < count; ++i) {
+      grads[i] = new torch_c_tensor_t(
+          materialize_host_gradient(sources[i], *tensors[i]));
+    }
+  }
+}
+
+void torch_c_tensor_grad_batch(const torch_c_tensor_t *const *tensors,
+                               const int count, torch_c_tensor_t **grads) {
+  TORCH_C_TRY
+  grad_batch_impl(tensors, count, grads, /*synchronize=*/true);
+  TORCH_C_CATCH("torch_c_tensor_grad_batch")
+}
+
+void torch_c_tensor_grad_batch_deferred(const torch_c_tensor_t *const *tensors,
+                                        const int count,
+                                        torch_c_tensor_t **grads) {
+  TORCH_C_TRY
+  grad_batch_impl(tensors, count, grads, /*synchronize=*/false);
+  TORCH_C_CATCH("torch_c_tensor_grad_batch_deferred")
+}
+
+/*******************************************************************************
+ * \brief Releases the cached pinned gradient buffers (e.g. at environment
+ * teardown).
+ ******************************************************************************/
+void torch_c_grad_pool_clear() {
+  TORCH_C_TRY {
+    std::lock_guard<std::mutex> lock(grad_pinned_mutex);
+    if (grad_pinned_pool != nullptr) {
+      grad_pinned_pool->clear();
+    }
+  }
+  take_pending_devices();
+  TORCH_C_CATCH("torch_c_grad_pool_clear")
 }
 
 /*******************************************************************************
  * \brief Releases a Torch tensor and all its ressources.
  * \author Ole Schuett
  ******************************************************************************/
-void torch_c_tensor_release(torch_c_tensor_t *tensor) { delete (tensor); }
+void torch_c_tensor_release(torch_c_tensor_t *tensor) {
+  if (tensor == nullptr)
+    return;
+  erase_grad_pool_entry(tensor);
+  delete (tensor);
+}
 
 /*******************************************************************************
  * \brief Creates an empty Torch dictionary.
  * \author Ole Schuett
  ******************************************************************************/
 void torch_c_dict_create(torch_c_dict_t **dict_out) {
-  assert(*dict_out == NULL);
+  TORCH_C_TRY
+  torch_c_check(*dict_out == NULL, "Torch dictionary output must be NULL");
   *dict_out = new c10::Dict<std::string, torch::Tensor>();
+  TORCH_C_CATCH("torch_c_dict_create")
 }
 
 /*******************************************************************************
  * \brief Clones a Torch dictionary.
  ******************************************************************************/
 void torch_c_dict_clone(const torch_c_dict_t *dict, torch_c_dict_t **dict_out) {
-  assert(*dict_out == NULL);
+  TORCH_C_TRY
+  torch_c_check(*dict_out == NULL, "Torch dictionary output must be NULL");
   torch_c_dict_t *clone = new c10::Dict<std::string, torch::Tensor>();
   for (const auto &entry : *dict) {
     clone->insert(entry.key(), entry.value());
   }
   *dict_out = clone;
+  TORCH_C_CATCH("torch_c_dict_clone")
 }
 
 /*******************************************************************************
@@ -779,9 +1241,32 @@ void torch_c_dict_clone(const torch_c_dict_t *dict, torch_c_dict_t **dict_out) {
  ******************************************************************************/
 void torch_c_dict_insert(const torch_c_dict_t *dict, const char *key,
                          const torch_c_tensor_t *tensor) {
+  TORCH_C_TRY
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
-  dict->insert(key, tensor->to(device));
+  if (tensor->device() == device) {
+    dict->insert(key, *tensor);
+  } else {
+    dict->insert(key, tensor->to(device));
+  }
+  TORCH_C_CATCH("torch_c_dict_insert")
+}
+
+/*******************************************************************************
+ * \brief Inserts or replaces a Torch tensor in a Torch dictionary.
+ ******************************************************************************/
+void torch_c_dict_set(const torch_c_dict_t *dict, const char *key,
+                      const torch_c_tensor_t *tensor) {
+  TORCH_C_TRY
+  c10::OptionalDeviceGuard guard;
+  const auto device = get_device_with_guard(guard);
+  auto *mutable_dict = const_cast<torch_c_dict_t *>(dict);
+  if (tensor->device() == device) {
+    mutable_dict->insert_or_assign(key, *tensor);
+  } else {
+    mutable_dict->insert_or_assign(key, tensor->to(device));
+  }
+  TORCH_C_CATCH("torch_c_dict_set")
 }
 
 /*******************************************************************************
@@ -790,8 +1275,10 @@ void torch_c_dict_insert(const torch_c_dict_t *dict, const char *key,
  ******************************************************************************/
 void torch_c_dict_get(const torch_c_dict_t *dict, const char *key,
                       torch_c_tensor_t **tensor) {
-  assert(dict->contains(key));
+  TORCH_C_TRY
+  torch_c_check(dict->contains(key), "Torch dictionary key not found");
   *tensor = new torch_c_tensor_t(dict->at(key).cpu().contiguous());
+  TORCH_C_CATCH("torch_c_dict_get")
 }
 
 /*******************************************************************************
@@ -806,7 +1293,8 @@ void torch_c_dict_release(torch_c_dict_t *dict) { delete (dict); }
  * \author Ole Schuett
  ******************************************************************************/
 void torch_c_model_load(torch_c_model_t **model_out, const char *filename) {
-  assert(*model_out == NULL);
+  TORCH_C_TRY
+  torch_c_check(*model_out == NULL, "Torch model output must be NULL");
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
   set_jit_fusion_strategy();
@@ -814,6 +1302,7 @@ void torch_c_model_load(torch_c_model_t **model_out, const char *filename) {
   *model = load_module_for_device(filename, device);
   model->eval(); // Set inference behavior for modules such as dropout.
   *model_out = model;
+  TORCH_C_CATCH("torch_c_model_load")
 }
 
 /*******************************************************************************
@@ -824,7 +1313,8 @@ void torch_c_model_load_with_metadata(torch_c_model_t **model_out,
                                       const char *key2, char **content1,
                                       int *length1, char **content2,
                                       int *length2) {
-  assert(*model_out == NULL);
+  TORCH_C_TRY
+  torch_c_check(*model_out == NULL, "Torch model output must be NULL");
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
   std::unordered_map<std::string, std::string> extra_files = {{key1, ""},
@@ -838,18 +1328,35 @@ void torch_c_model_load_with_metadata(torch_c_model_t **model_out,
   *model_out = model;
   copy_string_to_c_buffer(extra_files[key1], content1, length1);
   copy_string_to_c_buffer(extra_files[key2], content2, length2);
+  TORCH_C_CATCH("torch_c_model_load_with_metadata")
 }
 
 /*******************************************************************************
  * \brief Maps serialized TorchScript device constants to the active device.
  ******************************************************************************/
 void torch_c_model_remap_device_constants(torch_c_model_t *model) {
+  TORCH_C_TRY
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
+  // Remap even for CPU so that a CUDA export can run under USE_GPU HOST (and a
+  // CPU export under GPU) instead of failing later with a raw device mismatch.
+  remap_model_device_constants(*model, device);
   if (device.is_cuda()) {
-    remap_model_device_constants(*model, device);
     initialize_cuda_linalg(device);
   }
+
+  bool has_cuda = false;
+  bool has_cpu = false;
+  collect_model_device_constants(*model, has_cuda, has_cpu);
+  if (device.is_cuda()) {
+    torch_c_check(!has_cpu,
+                  "SKALA TorchScript model still targets the CPU "
+                  "after remapping; use the CUDA export for GPU runs");
+  } else {
+    torch_c_check(!has_cuda, "SKALA TorchScript model still targets CUDA after "
+                             "remapping; use the CPU export or a CUDA build");
+  }
+  TORCH_C_CATCH("torch_c_model_remap_device_constants")
 }
 
 /*******************************************************************************
@@ -858,44 +1365,23 @@ void torch_c_model_remap_device_constants(torch_c_model_t *model) {
  * kept.
  ******************************************************************************/
 void torch_c_model_promote_float32(torch_c_model_t *model) {
+  TORCH_C_TRY
   TorchFloatingPointMaskGuard fpe_guard;
   torch::NoGradGuard no_grad;
   promote_model_float32(*model);
-}
-
-/*******************************************************************************
- * \brief Prepare a model for higher input derivatives.
- ******************************************************************************/
-void torch_c_model_prepare_higher_derivatives(torch_c_model_t *model) {
-  // Preserve parameter values while avoiding fp32 cancellation and saturated
-  // SiLU backward in higher input derivatives.
-  torch_c_model_promote_float32(model);
-  torch::jit::SubgraphRewriter rewriter;
-  rewriter.RegisterRewritePattern(
-      "graph(%x):\n %y = aten::silu(%x)\n return (%y)", R"IR(
-graph(%x):
-  %s = aten::sigmoid(%x)
-  %y = aten::mul(%x, %s)
-  return (%y))IR");
-  std::unordered_set<torch::jit::Graph *> prepared;
-  for (const auto &module : model->modules()) {
-    for (const auto &method : module.get_methods()) {
-      auto graph = method.graph();
-      if (prepared.insert(graph.get()).second) {
-        rewriter.runOnGraph(graph);
-      }
-    }
-  }
+  TORCH_C_CATCH("torch_c_model_promote_float32")
 }
 
 /*******************************************************************************
  * \brief Disables gradients for inference-only model parameters.
  ******************************************************************************/
 void torch_c_model_disable_parameter_gradients(torch_c_model_t *model) {
+  TORCH_C_TRY
   torch::NoGradGuard no_grad;
   for (auto parameter : model->parameters()) {
     parameter.set_requires_grad(false);
   }
+  TORCH_C_CATCH("torch_c_model_disable_parameter_gradients")
 }
 
 /*******************************************************************************
@@ -904,6 +1390,7 @@ void torch_c_model_disable_parameter_gradients(torch_c_model_t *model) {
  ******************************************************************************/
 void torch_c_model_forward(torch_c_model_t *model, const torch_c_dict_t *inputs,
                            torch_c_dict_t *outputs) {
+  TORCH_C_TRY
 
   TorchFloatingPointMaskGuard fpe_guard;
   c10::OptionalDeviceGuard guard;
@@ -913,15 +1400,51 @@ void torch_c_model_forward(torch_c_model_t *model, const torch_c_dict_t *inputs,
   for (const auto &entry : untyped_output) {
     outputs->insert(entry.key().toStringView(), entry.value().toTensor());
   }
+  TORCH_C_CATCH("torch_c_model_forward")
 }
 
 /*******************************************************************************
  * \brief Evaluates a TorchScript model method expecting argument "mol".
  ******************************************************************************/
+// Cache TorchScript method handles per model and method name. The map is
+// intentionally leaked for the same reason as the pinned gradient pool.
+static std::mutex model_method_mutex;
+static std::unordered_map<const torch_c_model_t *,
+                          std::unordered_map<std::string, torch::jit::Method>>
+    *model_method_cache = nullptr;
+
+static torch::jit::Method get_cached_method(torch_c_model_t *model,
+                                            const char *method_name) {
+  std::lock_guard<std::mutex> lock(model_method_mutex);
+  if (model_method_cache == nullptr) {
+    model_method_cache = new std::unordered_map<
+        const torch_c_model_t *,
+        std::unordered_map<std::string, torch::jit::Method>>();
+  }
+  auto &methods = (*model_method_cache)[model];
+  const std::string key(method_name);
+  auto it = methods.find(key);
+  if (it == methods.end()) {
+    it = methods.emplace(key, model->get_method(key)).first;
+  }
+  // Return a value: a pointer into the map could be invalidated by a
+  // concurrent insertion (rehash) in another thread.
+  return it->second;
+}
+
+// Drop cached method handles for a model whose methods are about to change.
+static void invalidate_model_method_cache(const torch_c_model_t *model) {
+  std::lock_guard<std::mutex> lock(model_method_mutex);
+  if (model_method_cache != nullptr) {
+    model_method_cache->erase(model);
+  }
+}
+
 void torch_c_model_forward_mol_tensor(torch_c_model_t *model,
                                       const char *method_name,
                                       const torch_c_dict_t *inputs,
                                       torch_c_tensor_t **output) {
+  TORCH_C_TRY
 
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
@@ -930,9 +1453,20 @@ void torch_c_model_forward_mol_tensor(torch_c_model_t *model,
   if (device.is_cuda()) {
     graph_optimization.emplace(false);
   }
-  assert(*output == NULL);
-  *output = new torch_c_tensor_t(
-      model->get_method(method_name)({*inputs}).toTensor());
+  torch_c_check(*output == NULL, "Torch tensor output must be NULL");
+  auto method = get_cached_method(model, method_name);
+  *output = new torch_c_tensor_t(method({*inputs}).toTensor());
+  TORCH_C_CATCH("torch_c_model_forward_mol_tensor")
+}
+
+static void flatten_weighted_pair(const torch_c_tensor_t *values,
+                                  const torch_c_tensor_t *weights,
+                                  torch::Tensor &flat_values,
+                                  torch::Tensor &flat_weights) {
+  flat_values = values->flatten();
+  flat_weights = weights->to(values->device()).to(values->dtype()).flatten();
+  torch_c_check(flat_values.numel() == flat_weights.numel(),
+                "Torch weighted sum: value/weight size mismatch");
 }
 
 /*******************************************************************************
@@ -941,40 +1475,176 @@ void torch_c_model_forward_mol_tensor(torch_c_model_t *model,
 void torch_c_tensor_weighted_sum(const torch_c_tensor_t *values,
                                  const torch_c_tensor_t *weights,
                                  torch_c_tensor_t **result) {
+  TORCH_C_TRY
   c10::OptionalDeviceGuard guard;
   get_device_with_guard(guard);
-  const auto weights_on_device = weights->to(values->device());
-  *result = new torch_c_tensor_t((*values * weights_on_device).sum());
+  torch::Tensor flat_values, flat_weights;
+  flatten_weighted_pair(values, weights, flat_values, flat_weights);
+  *result = new torch_c_tensor_t(torch::dot(flat_values, flat_weights));
+  TORCH_C_CATCH("torch_c_tensor_weighted_sum")
+}
+
+/*******************************************************************************
+ * \brief Computes all weighted segment sums and copies them to host in one
+ *        device-to-host synchronization. The weight device/dtype conversion and
+ *        flattening are done once for the whole batch.
+ ******************************************************************************/
+void torch_c_tensor_weighted_sum_segments(const torch_c_tensor_t *values,
+                                          const torch_c_tensor_t *weights,
+                                          const int64_t *offsets,
+                                          const int64_t *lengths,
+                                          const int nseg, double *result) {
+  TORCH_C_TRY
+  c10::OptionalDeviceGuard guard;
+  get_device_with_guard(guard);
+  torch_c_check(nseg >= 0,
+                "Torch weighted sum segment count must be non-negative");
+  if (nseg == 0)
+    return;
+  torch_c_check(values != nullptr && weights != nullptr && offsets != nullptr &&
+                    lengths != nullptr && result != nullptr,
+                "Torch weighted sum received a NULL argument");
+  torch::Tensor flat_values, flat_weights;
+  flatten_weighted_pair(values, weights, flat_values, flat_weights);
+  const int64_t numel = flat_values.numel();
+  std::vector<torch::Tensor> dots;
+  dots.reserve(nseg);
+  for (int i = 0; i < nseg; ++i) {
+    torch_c_check(offsets[i] >= 0 && lengths[i] >= 0 && offsets[i] <= numel &&
+                      lengths[i] <= numel - offsets[i],
+                  "Torch weighted sum range is out of bounds");
+    dots.push_back(torch::dot(flat_values.narrow(0, offsets[i], lengths[i]),
+                              flat_weights.narrow(0, offsets[i], lengths[i])));
+  }
+  const auto host =
+      torch::stack(dots).to(torch::kFloat64).to(torch::kCPU).contiguous();
+  std::memcpy(result, host.data_ptr<double>(), nseg * sizeof(double));
+  TORCH_C_CATCH("torch_c_tensor_weighted_sum_segments")
+}
+
+/*******************************************************************************
+ * \brief Adds a device scalar to an accumulator without a host synchronization.
+ ******************************************************************************/
+void torch_c_tensor_accumulate(torch_c_tensor_t **accumulator,
+                               const torch_c_tensor_t *value) {
+  TORCH_C_TRY
+  c10::OptionalDeviceGuard guard;
+  get_device_with_guard(guard);
+  // Only the scalar value is consumed (and it is read back once); never let the
+  // accumulator retain the per-chunk autograd graphs.
+  torch::NoGradGuard no_grad;
+  torch_c_check(value != nullptr && value->defined(),
+                "Torch accumulator received an undefined value");
+  if (*accumulator == nullptr) {
+    *accumulator = new torch_c_tensor_t(value->detach().clone());
+  } else {
+    torch_c_check((*accumulator)->defined() &&
+                      (*accumulator)->scalar_type() == value->scalar_type() &&
+                      (*accumulator)->device() == value->device() &&
+                      (*accumulator)->sizes().equals(value->sizes()),
+                  "Torch accumulator value shape/dtype/device mismatch");
+    (*accumulator)->add_(value->detach());
+  }
+  TORCH_C_CATCH("torch_c_tensor_accumulate")
 }
 
 /*******************************************************************************
  * \brief Returns a scalar double value from a Torch tensor.
  ******************************************************************************/
 double torch_c_tensor_item_double(const torch_c_tensor_t *tensor) {
+  TORCH_C_TRY
   c10::OptionalDeviceGuard guard;
   get_device_with_guard(guard);
   return tensor->item<double>();
+  TORCH_C_CATCH("torch_c_tensor_item_double")
 }
 
 /*******************************************************************************
  * \brief Releases a Torch model and all its ressources.
  * \author Ole Schuett
  ******************************************************************************/
-void torch_c_model_release(torch_c_model_t *model) { delete (model); }
+void torch_c_model_release(torch_c_model_t *model) {
+  {
+    std::lock_guard<std::mutex> lock(model_method_mutex);
+    if (model_method_cache != nullptr) {
+      model_method_cache->erase(model);
+    }
+  }
+  delete (model);
+}
 
 /*******************************************************************************
- * \brief Reads metadata entry from given "*.pth" file.
- *        In Torch lingo they are called extra files.
- *        The returned char array has to be deallocated by caller!
- * \author Ole Schuett
+ * \brief Writes a size+mtime fingerprint of a file into a caller buffer.
  ******************************************************************************/
+static std::string file_stamp(const char *filename) {
+  struct stat file_stat{};
+  if (stat(filename, &file_stat) != 0) {
+    return std::string();
+  }
+#if defined(__linux__)
+  return std::to_string(file_stat.st_size) + ":" +
+         std::to_string(file_stat.st_mtim.tv_sec) + ":" +
+         std::to_string(file_stat.st_mtim.tv_nsec);
+#else
+  return std::to_string(file_stat.st_size) + ":" +
+         std::to_string(file_stat.st_mtime);
+#endif
+}
+
+void torch_c_file_stamp(const char *filename, char *buf, int *length) {
+  TORCH_C_TRY
+  const std::string stamp = file_stamp(filename);
+  if (buf != nullptr && length != nullptr && *length > 0) {
+    const int n = std::min<int>(static_cast<int>(stamp.size()), *length - 1);
+    std::memcpy(buf, stamp.data(), n);
+    buf[n] = '\0';
+  }
+  if (length != nullptr) {
+    *length = static_cast<int>(stamp.size());
+  }
+  TORCH_C_CATCH("torch_c_file_stamp")
+}
+
 void torch_c_model_read_metadata(const char *filename, const char *key,
                                  char **content, int *length) {
+  TORCH_C_TRY
+
+  const std::string filename_key(filename);
+  const std::string stamp = file_stamp(filename);
+  {
+    std::lock_guard<std::mutex> lock(model_metadata_mutex);
+    auto file_it = model_metadata_cache.find(filename_key);
+    if (file_it != model_metadata_cache.end() &&
+        file_it->second.stamp == stamp) {
+      auto key_it = file_it->second.files.find(key);
+      if (key_it != file_it->second.files.end()) {
+        copy_string_to_c_buffer(key_it->second, content, length);
+        return;
+      }
+    }
+  }
 
   std::unordered_map<std::string, std::string> extra_files = {{key, ""}};
   torch::jit::load(filename, torch::kCPU, extra_files);
-  const std::string &content_str = extra_files[key];
+  const std::string content_str = extra_files[key];
+  {
+    std::lock_guard<std::mutex> lock(model_metadata_mutex);
+    auto &entry = model_metadata_cache[filename_key];
+    entry.stamp = stamp;
+    entry.files[key] = content_str;
+  }
   copy_string_to_c_buffer(content_str, content, length);
+  TORCH_C_CATCH("torch_c_model_read_metadata")
+}
+
+/*******************************************************************************
+ * \brief Clears the cached TorchScript model metadata.
+ ******************************************************************************/
+void torch_c_model_metadata_clear() {
+  TORCH_C_TRY
+  std::lock_guard<std::mutex> lock(model_metadata_mutex);
+  model_metadata_cache.clear();
+  TORCH_C_CATCH("torch_c_model_metadata_clear")
 }
 
 /*******************************************************************************
@@ -987,7 +1657,9 @@ bool torch_c_cuda_is_available() { return torch::cuda::is_available(); }
  * \brief Return the number of CUDA devices visible to Torch.
  ******************************************************************************/
 int torch_c_cuda_device_count() {
+  TORCH_C_TRY
   return torch::cuda::is_available() ? torch::cuda::device_count() : 0;
+  TORCH_C_CATCH("torch_c_cuda_device_count")
 }
 
 /*******************************************************************************
@@ -997,9 +1669,11 @@ int torch_c_cuda_device_count() {
  * \author Gabriele Tocci
  ******************************************************************************/
 void torch_c_allow_tf32(const bool allow_tf32) {
+  TORCH_C_TRY
 
   at::globalContext().setAllowTF32CuBLAS(allow_tf32);
   at::globalContext().setAllowTF32CuDNN(allow_tf32);
+  TORCH_C_CATCH("torch_c_allow_tf32")
 }
 
 /******************************************************************************
@@ -1008,8 +1682,11 @@ void torch_c_allow_tf32(const bool allow_tf32) {
  * \author Gabriele Tocci
  ******************************************************************************/
 void torch_c_model_freeze(torch_c_model_t *model) {
+  TORCH_C_TRY
 
+  invalidate_model_method_cache(model);
   *model = torch::jit::freeze(*model);
+  TORCH_C_CATCH("torch_c_model_freeze")
 }
 
 /******************************************************************************
@@ -1017,9 +1694,12 @@ void torch_c_model_freeze(torch_c_model_t *model) {
  ******************************************************************************/
 void torch_c_model_freeze_preserving_method(torch_c_model_t *model,
                                             const char *method_name) {
+  TORCH_C_TRY
 
   const std::vector<std::string> preserved_methods = {method_name};
+  invalidate_model_method_cache(model);
   torch::jit::freeze_module_inplace(model, preserved_methods);
+  TORCH_C_CATCH("torch_c_model_freeze_preserving_method")
 }
 
 /*******************************************************************************
@@ -1028,7 +1708,9 @@ void torch_c_model_freeze_preserving_method(torch_c_model_t *model,
  ******************************************************************************/
 void torch_c_model_get_attr_int64(const torch_c_model_t *model, const char *key,
                                   int64_t *dest) {
+  TORCH_C_TRY
   *dest = model->attr(key).toInt();
+  TORCH_C_CATCH("torch_c_model_get_attr_int64")
 }
 
 /*******************************************************************************
@@ -1037,7 +1719,9 @@ void torch_c_model_get_attr_int64(const torch_c_model_t *model, const char *key,
  ******************************************************************************/
 void torch_c_model_get_attr_double(const torch_c_model_t *model,
                                    const char *key, double *dest) {
+  TORCH_C_TRY
   *dest = model->attr(key).toDouble();
+  TORCH_C_CATCH("torch_c_model_get_attr_double")
 }
 
 /*******************************************************************************
@@ -1046,11 +1730,9 @@ void torch_c_model_get_attr_double(const torch_c_model_t *model,
  ******************************************************************************/
 void torch_c_model_get_attr_string(const torch_c_model_t *model,
                                    const char *key, char *dest) {
-  const std::string &str = model->attr(key).toStringRef();
-  assert(str.size() < 80); // default_string_length
-  for (int i = 0; i < str.size(); i++) {
-    dest[i] = str[i];
-  }
+  TORCH_C_TRY
+  copy_attr_string_to_fortran(model->attr(key).toStringRef(), dest);
+  TORCH_C_CATCH("torch_c_model_get_attr_string")
 }
 
 /*******************************************************************************
@@ -1059,7 +1741,12 @@ void torch_c_model_get_attr_string(const torch_c_model_t *model,
  ******************************************************************************/
 void torch_c_model_get_attr_list_size(const torch_c_model_t *model,
                                       const char *key, int *size) {
-  *size = model->attr(key).toList().size();
+  TORCH_C_TRY
+  const auto list_size = model->attr(key).toList().size();
+  torch_c_check(list_size <= static_cast<size_t>(INT_MAX),
+                "Torch attribute list is too long");
+  *size = static_cast<int>(list_size);
+  TORCH_C_CATCH("torch_c_model_get_attr_list_size")
 }
 
 /*******************************************************************************
@@ -1069,12 +1756,12 @@ void torch_c_model_get_attr_list_size(const torch_c_model_t *model,
 void torch_c_model_get_attr_strlist(const torch_c_model_t *model,
                                     const char *key, const int index,
                                     char *dest) {
+  TORCH_C_TRY
   const auto list = model->attr(key).toList();
-  const std::string &str = list[index].toStringRef();
-  assert(str.size() < 80); // default_string_length
-  for (int i = 0; i < str.size(); i++) {
-    dest[i] = str[i];
-  }
+  torch_c_check(index >= 0 && static_cast<size_t>(index) < list.size(),
+                "Torch attribute list index is out of bounds");
+  copy_attr_string_to_fortran(list[index].toStringRef(), dest);
+  TORCH_C_CATCH("torch_c_model_get_attr_strlist")
 }
 
 #ifdef __cplusplus

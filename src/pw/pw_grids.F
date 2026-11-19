@@ -68,7 +68,7 @@ MODULE pw_grids
    PRIVATE
    PUBLIC :: pw_grid_create, pw_grid_retain, pw_grid_release
    PUBLIC :: get_pw_grid_info, pw_grid_compare
-   PUBLIC :: pw_grid_change
+   PUBLIC :: pw_grid_change, pw_grid_map_global_point
 
    INTEGER :: grid_tag = 0
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grids'
@@ -2279,5 +2279,65 @@ CONTAINS
       END IF
       NULLIFY (pw_grid)
    END SUBROUTINE pw_grid_release
+
+! **************************************************************************************************
+!> \brief Map a real-space grid point to the owning rank and the owner's local (column-major) index.
+!> \param pw_grid ...
+!> \param i global x index (within pw_grid%bounds(:,1))
+!> \param j global y index
+!> \param k global z index
+!> \param owner owning MPI rank
+!> \param local_index one-based local index on \p owner, in the ordering used by local-grid loops
+! **************************************************************************************************
+   SUBROUTINE pw_grid_map_global_point(pw_grid, i, j, k, owner, local_index)
+      TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
+      INTEGER, INTENT(IN)                                :: i, j, k
+      INTEGER, INTENT(OUT)                               :: owner, local_index
+
+      INTEGER                                            :: nlocal_x, nlocal_y, nx, ny
+      INTEGER, DIMENSION(2)                              :: cart_pos, limits_x, limits_y
+
+      nx = pw_grid%npts(1)
+      ny = pw_grid%npts(2)
+      cart_pos(1) = pw_grid_owner_index(i - pw_grid%bounds(1, 1) + 1, nx, &
+                                        pw_grid%para%group%num_pe_cart(1))
+      cart_pos(2) = pw_grid_owner_index(j - pw_grid%bounds(1, 2) + 1, ny, &
+                                        pw_grid%para%group%num_pe_cart(2))
+      CALL pw_grid%para%group%rank_cart(cart_pos, owner)
+      limits_x = get_limit(nx, pw_grid%para%group%num_pe_cart(1), cart_pos(1))
+      limits_y = get_limit(ny, pw_grid%para%group%num_pe_cart(2), cart_pos(2))
+      limits_x = limits_x + pw_grid%bounds(1, 1) - 1
+      limits_y = limits_y + pw_grid%bounds(1, 2) - 1
+      nlocal_x = limits_x(2) - limits_x(1) + 1
+      nlocal_y = limits_y(2) - limits_y(1) + 1
+      local_index = 1 + (i - limits_x(1)) + nlocal_x*( &
+                    (j - limits_y(1)) + nlocal_y*(k - pw_grid%bounds(1, 3)))
+
+   END SUBROUTINE pw_grid_map_global_point
+
+! **************************************************************************************************
+!> \brief Return the cartesian part owning a compact one-based grid index.
+!> \param index ...
+!> \param npts ...
+!> \param nparts ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION pw_grid_owner_index(index, npts, nparts) RESULT(owner)
+      INTEGER, INTENT(IN)                                :: index, npts, nparts
+      INTEGER                                            :: owner
+
+      INTEGER                                            :: ipart
+      INTEGER, DIMENSION(2)                              :: limits
+
+      DO ipart = 0, nparts - 1
+         limits = get_limit(npts, nparts, ipart)
+         IF (index >= limits(1) .AND. index <= limits(2)) THEN
+            owner = ipart
+            RETURN
+         END IF
+      END DO
+      CPABORT("pw_grid_map_global_point: grid index outside distributed bounds")
+
+   END FUNCTION pw_grid_owner_index
 
 END MODULE pw_grids
