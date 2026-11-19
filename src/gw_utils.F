@@ -2067,6 +2067,7 @@ CONTAINS
       CASE (tensor_small_cell_full_kp, ri_rs_small_cell_full_kp)
 
          ! calculate KS-matrix without XC
+         IF (hf_present) CALL restart_kp_hfx_from_full_density(x_data)
          CALL build_periodic_ks_with_gapw_density(qs_env)
          CALL get_qs_env(qs_env=qs_env, matrix_ks_kp=matrix_ks_kp)
 
@@ -2109,6 +2110,7 @@ CONTAINS
       IF (bs_env%gw_implementation == tensor_small_cell_full_kp .OR. &
           bs_env%gw_implementation == ri_rs_small_cell_full_kp) THEN
          ! calculate KS-matrix again with XC
+         IF (hf_present) CALL restart_kp_hfx_from_full_density(x_data)
          CALL build_periodic_ks_with_gapw_density(qs_env)
          DO ispin = 1, bs_env%n_spin
             DO img = 1, dft_control%nimages
@@ -2124,6 +2126,27 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_V_xc
+
+! **************************************************************************************************
+!> \brief k-point RI-HFX adds fraction*K(P - P_previous) to its stored exchange matrix. Clearing the
+!>        stored exchange matrix and density makes the next KS build evaluate fraction*K(P).
+!> \param x_data ...
+! **************************************************************************************************
+   SUBROUTINE restart_kp_hfx_from_full_density(x_data)
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
+
+      INTEGER                                            :: i_img, i_spin, irep
+
+      DO irep = 1, SIZE(x_data, 1)
+         DO i_img = 1, SIZE(x_data(irep, 1)%ri_data%ks_t, 2)
+            DO i_spin = 1, SIZE(x_data(irep, 1)%ri_data%ks_t, 1)
+               CALL dbt_clear(x_data(irep, 1)%ri_data%ks_t(i_spin, i_img))
+               CALL dbt_clear(x_data(irep, 1)%ri_data%rho_ao_t(i_spin, i_img))
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE restart_kp_hfx_from_full_density
 
 ! **************************************************************************************************
 !> \brief Rebuild a periodic KS matrix with the GAPW density derived from the converged AO density.
