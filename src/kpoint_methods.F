@@ -819,20 +819,22 @@ CONTAINS
 !> \param mos     Reference MOs (global)
 !> \param added_mos ...
 !> \param for_aux_fit ...
+!> \param alloc_dm Allocate per-kpoint density and energy-weighted density matrices (default .TRUE.)
 ! **************************************************************************************************
-   SUBROUTINE kpoint_initialize_mos(kpoint, mos, added_mos, for_aux_fit)
+   SUBROUTINE kpoint_initialize_mos(kpoint, mos, added_mos, for_aux_fit, alloc_dm)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mos
       INTEGER, INTENT(IN), OPTIONAL                      :: added_mos
       LOGICAL, OPTIONAL                                  :: for_aux_fit
+      LOGICAL, INTENT(IN), OPTIONAL                      :: alloc_dm
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_initialize_mos'
 
       INTEGER                                            :: handle, ic, ik, is, nadd, nao, nc, &
                                                             nelectron, nkp_loc, nmo, nmorig(2), &
                                                             nspin
-      LOGICAL                                            :: aux_fit
+      LOGICAL                                            :: aux_fit, my_alloc_dm
       REAL(KIND=dp)                                      :: flexible_electron_count, maxocc, n_el_f
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_pool_type), POINTER     :: ao_ao_fm_pool
@@ -847,6 +849,11 @@ CONTAINS
          aux_fit = for_aux_fit
       ELSE
          aux_fit = .FALSE.
+      END IF
+      IF (PRESENT(alloc_dm)) THEN
+         my_alloc_dm = alloc_dm
+      ELSE
+         my_alloc_dm = .TRUE.
       END IF
 
       CPASSERT(ASSOCIATED(kpoint))
@@ -935,36 +942,38 @@ CONTAINS
             CALL set_mo_set(mos(is), nmo=nmorig(is))
          END DO
 
-         ! allocate density matrices
-         CALL mpools_get(mpools, ao_ao_fm_pool=ao_ao_fm_pool)
-         ALLOCATE (fmlocal)
-         CALL fm_pool_create_fm(ao_ao_fm_pool, fmlocal)
-         CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
-         DO ik = 1, nkp_loc
-            IF (aux_fit) THEN
-               kp => kpoint%kp_aux_env(ik)%kpoint_env
-            ELSE
-               kp => kpoint%kp_env(ik)%kpoint_env
-            END IF
-            ! density matrix
-            CALL cp_fm_release(kp%pmat)
-            ALLOCATE (kp%pmat(nc, nspin))
-            DO is = 1, nspin
-               DO ic = 1, nc
-                  CALL cp_fm_create(kp%pmat(ic, is), matrix_struct)
+         IF (my_alloc_dm) THEN
+            ! allocate density matrices
+            CALL mpools_get(mpools, ao_ao_fm_pool=ao_ao_fm_pool)
+            ALLOCATE (fmlocal)
+            CALL fm_pool_create_fm(ao_ao_fm_pool, fmlocal)
+            CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
+            DO ik = 1, nkp_loc
+               IF (aux_fit) THEN
+                  kp => kpoint%kp_aux_env(ik)%kpoint_env
+               ELSE
+                  kp => kpoint%kp_env(ik)%kpoint_env
+               END IF
+               ! density matrix
+               CALL cp_fm_release(kp%pmat)
+               ALLOCATE (kp%pmat(nc, nspin))
+               DO is = 1, nspin
+                  DO ic = 1, nc
+                     CALL cp_fm_create(kp%pmat(ic, is), matrix_struct)
+                  END DO
+               END DO
+               ! energy weighted density matrix
+               CALL cp_fm_release(kp%wmat)
+               ALLOCATE (kp%wmat(nc, nspin))
+               DO is = 1, nspin
+                  DO ic = 1, nc
+                     CALL cp_fm_create(kp%wmat(ic, is), matrix_struct)
+                  END DO
                END DO
             END DO
-            ! energy weighted density matrix
-            CALL cp_fm_release(kp%wmat)
-            ALLOCATE (kp%wmat(nc, nspin))
-            DO is = 1, nspin
-               DO ic = 1, nc
-                  CALL cp_fm_create(kp%wmat(ic, is), matrix_struct)
-               END DO
-            END DO
-         END DO
-         CALL fm_pool_give_back_fm(ao_ao_fm_pool, fmlocal)
-         DEALLOCATE (fmlocal)
+            CALL fm_pool_give_back_fm(ao_ao_fm_pool, fmlocal)
+            DEALLOCATE (fmlocal)
+         END IF
 
       END IF
 
