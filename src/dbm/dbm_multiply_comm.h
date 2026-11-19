@@ -51,7 +51,8 @@ dbm_comm_iterator_t *dbm_comm_iterator_start(const bool transa,
                                              const bool transb,
                                              const dbm_matrix_t *matrix_a,
                                              const dbm_matrix_t *matrix_b,
-                                             const dbm_matrix_t *matrix_c);
+                                             const dbm_matrix_t *matrix_c,
+                                             const bool zero_copy);
 
 /*******************************************************************************
  * \brief Internal routine for retrieving next pair of packs.
