@@ -640,6 +640,9 @@ struct staging_slot {
 
 static std::mutex pinned_pool_mutex;
 static std::vector<staging_slot> *pinned_pool = nullptr;
+static int64_t pinned_bytes = 0;
+// Upper bound on pinned host staging memory retained by the pool.
+static constexpr int64_t kPinnedMaxBytes = 256LL * 1024 * 1024;
 static thread_local int pinned_current_slot = -1;
 static std::atomic<uint64_t> pinned_generation{0};
 static thread_local uint64_t pinned_generation_local = 0;
@@ -667,9 +670,10 @@ static void release_current_slot_locked() {
   pinned_current_slot = -1;
 }
 
-static torch::Tensor make_host_buffer(const int64_t n_doubles, bool &pinned) {
+static torch::Tensor make_host_buffer(const int64_t n_doubles, bool &pinned,
+                                      const bool allow_pinned) {
   const auto opts = torch::TensorOptions().dtype(torch::kFloat64);
-  if (torch::cuda::is_available()) {
+  if (allow_pinned && torch::cuda::is_available()) {
     try {
       auto buffer = torch::empty({n_doubles}, opts.pinned_memory(true));
       pinned = true;
@@ -709,9 +713,18 @@ void torch_c_pinned_reserve(const int64_t n_doubles) {
   }
   if (!slots[chosen].tensor.defined() ||
       slots[chosen].tensor.numel() < n_doubles) {
+    const int64_t old_bytes =
+        (slots[chosen].tensor.defined() && slots[chosen].pinned)
+            ? static_cast<int64_t>(slots[chosen].tensor.numel()) *
+                  static_cast<int64_t>(sizeof(double))
+            : 0;
+    const int64_t want_bytes = n_doubles * static_cast<int64_t>(sizeof(double));
+    const bool allow_pinned =
+        pinned_bytes - old_bytes + want_bytes <= kPinnedMaxBytes;
     bool pinned = false;
-    slots[chosen].tensor = make_host_buffer(n_doubles, pinned);
+    slots[chosen].tensor = make_host_buffer(n_doubles, pinned, allow_pinned);
     slots[chosen].pinned = pinned;
+    pinned_bytes = pinned_bytes - old_bytes + (pinned ? want_bytes : 0);
   }
   slots[chosen].in_use = true;
   pinned_current_slot = chosen;
@@ -746,6 +759,7 @@ void torch_c_pinned_release() {
     if (in_use == 0) {
       delete pinned_pool;
       pinned_pool = nullptr;
+      pinned_bytes = 0;
       pinned_generation.fetch_add(1, std::memory_order_relaxed);
     }
   }
