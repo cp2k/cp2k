@@ -13,6 +13,7 @@
 !> \date 07.2023
 ! **************************************************************************************************
 MODULE gw_utils
+   USE admm_types,                      ONLY: admm_type
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE auto_basis,                      ONLY: create_ri_aux_basis_set
@@ -75,6 +76,7 @@ MODULE gw_utils
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
                                               fm_invert,&
                                               local_complex_power
+   USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: &
         G0W0, cohsex_qp_update, do_potential_coulomb, do_potential_short, do_potential_truncated, &
         evGW0, gw_ac_nevanlinna, ri_rpa_g0w0_crossing_newton, ri_rs_large_cell_Gamma, &
@@ -1973,19 +1975,25 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_V_xc'
 
-      INTEGER                                            :: handle, img, ispin, myfun, nimages
-      LOGICAL                                            :: hf_present
-      REAL(KIND=dp)                                      :: energy_ex, energy_exc, energy_total, &
-                                                            myfraction
+      INTEGER                                            :: handle, img, ispin, myfun, &
+                                                            myfun_admm_aux, myfun_admm_primary, &
+                                                            nimages
+      LOGICAL                                            :: admm_charge_constrain, hf_present
+      REAL(KIND=dp)                                      :: energy_ex, energy_exc, energy_total
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hf_fraction
+      TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_ks_without_v_xc
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(section_vals_type), POINTER                   :: hf_section, input, xc_section
+      TYPE(section_vals_type), POINTER                   :: hf_section, input, xc_fun_admm_aux, &
+                                                            xc_fun_admm_primary, xc_section
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, input=input, energy=energy, dft_control=dft_control)
+      CALL get_qs_env(qs_env, input=input, energy=energy, dft_control=dft_control, x_data=x_data, &
+                      admm_env=admm_env)
 
       ! previously, dft_control%nimages set to # neighbor cells, revert for Γ-only KS matrix
       nimages = dft_control%nimages
@@ -2000,10 +2008,23 @@ CONTAINS
       IF (ASSOCIATED(hf_section)) THEN
          CALL section_vals_get(hf_section, explicit=hf_present)
       END IF
+      ! the KS build takes the HF fraction from x_data, not from the input section
       IF (hf_present) THEN
-         ! Special case for handling hfx
-         CALL section_vals_val_get(xc_section, "HF%FRACTION", r_val=myfraction)
-         CALL section_vals_val_set(xc_section, "HF%FRACTION", r_val=0.0_dp)
+         ALLOCATE (hf_fraction(SIZE(x_data, 1), SIZE(x_data, 2)))
+         hf_fraction(:, :) = x_data(:, :)%general_parameter%fraction
+         x_data(:, :)%general_parameter%fraction = 0.0_dp
+      END IF
+      ! ADMM evaluates the XC functional with its own copies of the XC section
+      IF (dft_control%do_admm) THEN
+         xc_fun_admm_aux => section_vals_get_subs_vals(admm_env%xc_section_aux, "XC_FUNCTIONAL")
+         CALL section_vals_val_get(xc_fun_admm_aux, "_SECTION_PARAMETERS_", i_val=myfun_admm_aux)
+         CALL section_vals_val_set(xc_fun_admm_aux, "_SECTION_PARAMETERS_", i_val=xc_none)
+         xc_fun_admm_primary => section_vals_get_subs_vals(admm_env%xc_section_primary, "XC_FUNCTIONAL")
+         CALL section_vals_val_get(xc_fun_admm_primary, "_SECTION_PARAMETERS_", i_val=myfun_admm_primary)
+         CALL section_vals_val_set(xc_fun_admm_primary, "_SECTION_PARAMETERS_", i_val=xc_none)
+         ! ADMMQ/ADMMS charge constraint must not act on the KS matrix without XC
+         admm_charge_constrain = admm_env%charge_constrain
+         admm_env%charge_constrain = .FALSE.
       END IF
 
       ! save the energy before the energy gets updated
@@ -2076,8 +2097,13 @@ CONTAINS
       CALL section_vals_val_set(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", &
                                 i_val=myfun)
       IF (hf_present) THEN
-         CALL section_vals_val_set(xc_section, "HF%FRACTION", &
-                                   r_val=myfraction)
+         x_data(:, :)%general_parameter%fraction = hf_fraction(:, :)
+         DEALLOCATE (hf_fraction)
+      END IF
+      IF (dft_control%do_admm) THEN
+         CALL section_vals_val_set(xc_fun_admm_aux, "_SECTION_PARAMETERS_", i_val=myfun_admm_aux)
+         CALL section_vals_val_set(xc_fun_admm_primary, "_SECTION_PARAMETERS_", i_val=myfun_admm_primary)
+         admm_env%charge_constrain = admm_charge_constrain
       END IF
 
       IF (bs_env%gw_implementation == tensor_small_cell_full_kp .OR. &
