@@ -17,7 +17,6 @@ MODULE xc_gauxc_interface
       error_unit
 #if defined (__HAS_IEEE_EXCEPTIONS)
    USE ieee_exceptions, ONLY: &
-      ieee_all, &
       ieee_get_halting_mode, &
       ieee_set_halting_mode
 #endif
