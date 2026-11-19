@@ -1,48 +1,34 @@
 "H2_NATIVE_SKALA_GAPW_GTH_STRESS.inp"               = [
-  {matcher = "E_total", tol = 5e-07, ref = -0.98766361870469},
-  {matcher = "M033", tol = 1e-10, ref = -0.00055191720337},
+  {matcher = "E_total", tol = 5e-7, ref = -0.98766361870469},
+  {matcher = "M033", tol = 1e-10, ref = -0.00055191720337}
 ]
-"H2_NATIVE_SKALA_GAPW_GTH_STRESS_CHUNK_REQUEST.inp" = [
-  {matcher = "E_total", tol = 5e-07, ref = -0.97023301259343},
-]
+"H2_NATIVE_SKALA_GAPW_GTH_STRESS_CHUNK_REQUEST.inp" = [{matcher = "E_total", tol = 5e-7, ref = -0.97023301259343}]
 "H2_NATIVE_SKALA_GAPW_GPWTYPE_STRESS.inp"           = [
-  {matcher = "E_total", tol = 1e-08, ref = -0.96609591046645},
-  {matcher = "M072", tol = 0.0001, ref = 0.00241025053},
-  {matcher = "M031", tol = 1e-05, ref = -86383.2142305},
+  {matcher = "E_total", tol = 1e-8, ref = -0.96609591046645},
+  {matcher = "M072", tol = 1e-4, ref = 2.41025053E-03},
+  {matcher = "M031", tol = 1e-5, ref = -8.63832142305E+04}
 ]
-"H2_NATIVE_SKALA_GAPW_XC_GTH_STRESS.inp"            = [
-  {matcher = "E_total", tol = 5e-07, ref = -0.96632918102111},
-]
-"H2_NATIVE_SKALA_GAPW_GTH_FORCE_DEBUG.inp"          = [
-  {matcher = "DEBUG_force_sum", tol = 0.2, ref = 0.0},
-]
-"H2_NATIVE_SKALA_GAPW_GTH_STRESS_DEBUG.inp"         = [
-  {matcher = "DEBUG_stress_sum", tol = 0.2, ref = 0.0},
-]
+"H2_NATIVE_SKALA_GAPW_XC_GTH_STRESS.inp"            = [{matcher = "E_total", tol = 5e-7, ref = -0.96632918102111}]
+"H2_NATIVE_SKALA_GAPW_GTH_FORCE_DEBUG.inp"          = [{matcher = "DEBUG_force_sum", tol = 2e-1, ref = 0.0}]
+"H2_NATIVE_SKALA_GAPW_GTH_STRESS_DEBUG.inp"         = [{matcher = "DEBUG_stress_sum", tol = 2e-1, ref = 0.0}]
 "H2_NATIVE_SKALA_GAPW_GTH_ATOM_COMPOSITE.inp"       = [
-  {matcher = "E_total", tol = 5e-07, ref = -0.98774952344101},
-  {matcher = "M072", tol = 0.001, ref = 0.000362647512},
-  {matcher = "M031", tol = 0.0001, ref = -41130.3520342},
-  {matcher = "SKALA_GAPW_composite_electrons", tol = 0.0005, ref = 2.00079874372127},
+  {matcher = "E_total", tol = 5e-7, ref = -0.98774952344101},
+  {matcher = "M072", tol = 1e-3, ref = 3.62647512E-04},
+  {matcher = "M031", tol = 1e-4, ref = -4.11303520342E+04},
+  {matcher = "SKALA_GAPW_composite_electrons", tol = 5e-4, ref = 2.00079874372127},
 ]
-"H2_NATIVE_SKALA_GAPW_GTH_KP_INV_STRESS.inp"        = [
-  {matcher = "E_total", tol = 1e-08, ref = -0.94578128043498},
-]
-"H2_NATIVE_SKALA_GAPW_GTH_KP_SPGLIB_STRESS.inp"     = [
-  {matcher = "E_total", tol = 1e-08, ref = -0.94578128043498},
-]
-"H2_NATIVE_SKALA_GAPW_GTH_KP_SYM_STRESS.inp"        = [
-  {matcher = "E_total", tol = 1e-08, ref = -0.94578128043498},
-]
+"H2_NATIVE_SKALA_GAPW_GTH_KP_INV_STRESS.inp"        = [{matcher = "E_total", tol = 1e-8, ref = -0.94578128043498}]
+"H2_NATIVE_SKALA_GAPW_GTH_KP_SPGLIB_STRESS.inp"     = [{matcher = "E_total", tol = 1e-8, ref = -0.94578128043498}]
+"H2_NATIVE_SKALA_GAPW_GTH_KP_SYM_STRESS.inp"        = [{matcher = "E_total", tol = 1e-8, ref = -0.94578128043498}]
 "H2_MIXED_AE_GTH_NATIVE_SKALA_DIRECT.inp"           = [
-  {matcher = "E_total", tol = 5e-07, ref = -0.95908868574872},
-  {matcher = "M072", tol = 0.0001, ref = 0.0955228094},
-  {matcher = "M031", tol = 0.0001, ref = -132828.903449},
-  {matcher = "SKALA_GAPW_composite_electrons", tol = 1e-08, ref = 2.0133764229607976},
+  {matcher = "E_total", tol = 5e-7, ref = -0.95908868574872},
+  {matcher = "M072", tol = 1e-4, ref = 9.55228094E-02},
+  {matcher = "M031", tol = 1e-4, ref = -1.32828903449E+05},
+  {matcher = "SKALA_GAPW_composite_electrons", tol = 1e-8, ref = 2.0133764229607976},
 ]
 "H2_MIXED_AE_GTH_NATIVE_SKALA_PAW.inp"              = [
-  {matcher = "E_total", tol = 5e-07, ref = -0.94786627100568},
-  {matcher = "M072", tol = 0.0001, ref = 0.0651988702},
-  {matcher = "M031", tol = 0.0001, ref = -166825.705122},
-  {matcher = "SKALA_GAPW_composite_electrons", tol = 1e-08, ref = 2.0134170143953907},
+  {matcher = "E_total", tol = 5e-7, ref = -0.94786627100568},
+  {matcher = "M072", tol = 1e-4, ref = 6.51988702E-02},
+  {matcher = "M031", tol = 1e-4, ref = -1.66825705122E+05},
+  {matcher = "SKALA_GAPW_composite_electrons", tol = 1e-8, ref = 2.0134170143953907},
 ]
