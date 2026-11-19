@@ -102,6 +102,7 @@ MODULE qs_vxc_atom
                                               xc_section_uses_gauxc_model,&
                                               xc_section_uses_native_skala_grid
    USE spherical_harmonics,             ONLY: y_lm
+   USE torch_api,                       ONLY: torch_cuda_memory_info
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
    USE xc_atom,                         ONLY: fill_rho_set,&
@@ -155,8 +156,7 @@ MODULE qs_vxc_atom
    LOGICAL, PRIVATE :: native_comp_ready = .FALSE.
    REAL(dp), PRIVATE :: native_comp_hmat(3, 3) = 0.0_dp
    REAL(dp), ALLOCATABLE, PRIVATE :: native_comp_atoms(:, :), native_comp_coords(:, :), &
-                                     native_comp_base_w(:), native_comp_atomic_w(:), &
-                                     native_comp_grid_w(:)
+                                     native_comp_base_w(:), native_comp_grid_w(:)
 
    PUBLIC :: calculate_vxc_atom, &
              calculate_vxc_atom_epr, &
@@ -284,7 +284,8 @@ CONTAINS
          jdir, local_partition_target_image, myfun, na, natom, ngl, nr, nspins, num_pe, on, pos, &
          source_atom
       INTEGER :: target_atom, xc_deriv_method_id, xc_rho_smooth_id, zatom
-      INTEGER(int_8)                                     :: lin
+      INTEGER(int_8)                                     :: lin, mem_allocated, mem_peak, &
+                                                            mem_reserved
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: composite_atomic_grid_sizes, &
                                                             composite_local_grid_sizes
       INTEGER, ALLOCATABLE, DIMENSION(:) :: composite_atom_end, composite_atom_kind, &
@@ -314,8 +315,7 @@ CONTAINS
          one_center_tau_matrix_contraction, one_center_tensor_contraction, partition_weight, &
          smooth_grid_contraction, smooth_input_contraction, target_partition_adjoint, tau_cut, zeff
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: composite_atomic_grid_weight_grad, &
-         composite_atomic_grid_weights, composite_base_grid_weights, composite_grid_weight_grad, &
-         composite_grid_weights, fw
+         composite_base_grid_weights, composite_grid_weight_grad, composite_grid_weights, fw
       REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: adjoint_compact, adjoint_local_flat, &
          composite_atom_coord_grad, composite_atom_coords, composite_cross_density, &
          composite_cross_force, composite_cross_force_local, composite_cross_kin, &
@@ -652,8 +652,7 @@ CONTAINS
                       composite_grid_atom(composite_nflat), &
                       composite_grid_coords(3, composite_nflat), &
                       composite_grid_weights(composite_nflat), &
-                      composite_base_grid_weights(composite_nflat), &
-                      composite_atomic_grid_weights(composite_nflat))
+                      composite_base_grid_weights(composite_nflat))
             IF (atom_composite_diagnostic) THEN
                ALLOCATE (composite_smooth_density_cache(composite_nflat, 2), &
                          composite_smooth_gradient_cache(composite_nflat, 3, 2), &
@@ -674,7 +673,6 @@ CONTAINS
             composite_grid_coords = 0.0_dp
             composite_grid_weights = 0.0_dp
             composite_base_grid_weights = 0.0_dp
-            composite_atomic_grid_weights = 0.0_dp
 
             CALL qs_rho_get(rho_struct, rho_r=smooth_rho_r, rho_g=smooth_rho_g, &
                             tau_r=smooth_tau_r, rho_g_valid=rho_g_valid, &
@@ -712,17 +710,15 @@ CONTAINS
             IF (comp_geometry_valid) THEN
                composite_grid_coords = native_comp_coords
                composite_base_grid_weights = native_comp_base_w
-               composite_atomic_grid_weights = native_comp_atomic_w
                composite_grid_weights = native_comp_grid_w
             ELSE
                IF (ALLOCATED(native_comp_atoms)) THEN
                   DEALLOCATE (native_comp_atoms, native_comp_coords, native_comp_base_w, &
-                              native_comp_atomic_w, native_comp_grid_w)
+                              native_comp_grid_w)
                END IF
                ALLOCATE (native_comp_atoms(SIZE(composite_atom_coords, 1), SIZE(composite_atom_coords, 2)), &
                          native_comp_coords(3, composite_nflat), &
                          native_comp_base_w(composite_nflat), &
-                         native_comp_atomic_w(composite_nflat), &
                          native_comp_grid_w(composite_nflat))
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
@@ -746,8 +742,6 @@ CONTAINS
                            composite_partition_target_image, partition_weight)
                         composite_grid_coords(:, composite_row) = composite_point
                         composite_base_grid_weights(composite_row) = grid_atom%weight(ia, ir)
-                        composite_atomic_grid_weights(composite_row) = &
-                           composite_base_grid_weights(composite_row)
                         composite_grid_weights(composite_row) = &
                            composite_base_grid_weights(composite_row)*partition_weight
                      END DO
@@ -755,7 +749,6 @@ CONTAINS
                END DO
                native_comp_coords = composite_grid_coords
                native_comp_base_w = composite_base_grid_weights
-               native_comp_atomic_w = composite_atomic_grid_weights
                native_comp_grid_w = composite_grid_weights
                native_comp_atoms = composite_atom_coords
                native_comp_hmat = cell%hmat
@@ -1435,7 +1428,7 @@ CONTAINS
             IF (atom_composite_reference .AND. my_calculate_forces) THEN
                CALL skala_gapw_atom_composite_energy( &
                   my_xc_section, para_env, composite_density, composite_grad, composite_kin, &
-                  composite_grid_coords, composite_grid_weights, composite_atomic_grid_weights, &
+                  composite_grid_coords, composite_grid_weights, composite_base_grid_weights, &
                   composite_local_grid_sizes, composite_local_atom_coords, atom_composite_exc, &
                   composite_density_grad, composite_grad_grad, composite_kin_grad, &
                   composite_grid_coord_grad, composite_grid_weight_grad, &
@@ -1517,7 +1510,7 @@ CONTAINS
 !$OMP REDUCTION(+:composite_interpolation_virial, composite_partition_strain_virial) &
 !$OMP SHARED(cell, composite_atom_coord_grad, composite_atom_coords, composite_atom_end, &
 !$OMP        composite_atom_kind, composite_atom_start, composite_atomic_grid_weight_grad, &
-!$OMP        composite_atomic_grid_weights, composite_base_grid_weights, composite_density_grad, &
+!$OMP        composite_base_grid_weights, composite_density_grad, &
 !$OMP        composite_grad_grad, composite_grid_coord_force, composite_grid_coord_grad, &
 !$OMP        composite_grid_coords, composite_grid_weight_grad, composite_image_periodicity, &
 !$OMP        composite_kin_grad, composite_local_atoms, composite_local_natom, &
@@ -1973,7 +1966,7 @@ CONTAINS
             ELSE
                CALL skala_gapw_atom_composite_energy( &
                   my_xc_section, para_env, composite_density, composite_grad, composite_kin, &
-                  composite_grid_coords, composite_grid_weights, composite_atomic_grid_weights, &
+                  composite_grid_coords, composite_grid_weights, composite_base_grid_weights, &
                   composite_local_grid_sizes, composite_local_atom_coords, atom_composite_exc, &
                   composite_density_grad, composite_grad_grad, composite_kin_grad, &
                   static_geometry_valid=comp_geometry_valid)
@@ -2514,7 +2507,7 @@ CONTAINS
                   END SELECT
                   CALL skala_gapw_atom_composite_energy( &
                      my_xc_section, para_env, composite_density, composite_grad, composite_kin, &
-                     composite_grid_coords, composite_grid_weights, composite_atomic_grid_weights, &
+                     composite_grid_coords, composite_grid_weights, composite_base_grid_weights, &
                      composite_local_grid_sizes, composite_local_atom_coords, feature_vxc_plus, &
                      static_geometry_valid=comp_geometry_valid)
                   SELECT CASE (icomponent)
@@ -2537,7 +2530,7 @@ CONTAINS
                   END SELECT
                   CALL skala_gapw_atom_composite_energy( &
                      my_xc_section, para_env, composite_density, composite_grad, composite_kin, &
-                     composite_grid_coords, composite_grid_weights, composite_atomic_grid_weights, &
+                     composite_grid_coords, composite_grid_weights, composite_base_grid_weights, &
                      composite_local_grid_sizes, composite_local_atom_coords, feature_vxc_minus, &
                      static_geometry_valid=comp_geometry_valid)
                   SELECT CASE (icomponent)
@@ -2643,6 +2636,21 @@ CONTAINS
                END IF
             END IF
             CALL xc_rho_set_release(smooth_rho_set, pw_pool=auxbas_pw_pool)
+            IF (native_grid_diagnostics) THEN
+               iw = cp_logger_get_default_io_unit()
+               IF (iw > 0) THEN
+                  WRITE (UNIT=iw, FMT="(T2,A,I0)") "SKALA_GPW| Atom-composite rows: ", composite_nflat
+                  WRITE (UNIT=iw, FMT="(T2,A,F0.1,A)") "SKALA_GPW| composite field arrays: ", &
+                     REAL(15, KIND=dp)*REAL(composite_nflat, KIND=dp)*(8.0_dp/1048576.0_dp), " MiB"
+                  CALL torch_cuda_memory_info(mem_allocated, mem_reserved, mem_peak)
+                  IF (mem_peak > 0) THEN
+                     WRITE (UNIT=iw, FMT="(T2,A,3F0.1)") "SKALA_GPW| GPU MiB alloc/reserved/peak:", &
+                        REAL(mem_allocated, KIND=dp)/1048576.0_dp, &
+                        REAL(mem_reserved, KIND=dp)/1048576.0_dp, &
+                        REAL(mem_peak, KIND=dp)/1048576.0_dp
+                  END IF
+               END IF
+            END IF
             DEALLOCATE (composite_atomic_grid_sizes, composite_atom_kind, &
                         composite_atom_kind_index, composite_atom_start, composite_atom_end, &
                         composite_atom_coords, composite_local_atoms, composite_local_grid_sizes, &
@@ -2650,7 +2658,7 @@ CONTAINS
                         composite_density, composite_grad, composite_kin, &
                         composite_density_grad, composite_grad_grad, composite_kin_grad, &
                         composite_grid_coords, composite_grid_weights, &
-                        composite_base_grid_weights, composite_atomic_grid_weights)
+                        composite_base_grid_weights)
             IF (ALLOCATED(composite_smooth_density_cache)) THEN
                DEALLOCATE (composite_smooth_density_cache, composite_smooth_gradient_cache, &
                            composite_smooth_kin_cache)
