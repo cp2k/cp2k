@@ -79,7 +79,7 @@ MODULE torch_api
    END INTERFACE torch_model_get_attr
 
    PUBLIC :: torch_tensor_type, torch_tensor_expand_dim, torch_tensor_from_array, &
-             torch_tensor_narrow, torch_tensor_release
+             torch_tensor_clone, torch_tensor_narrow, torch_tensor_release
    PUBLIC :: staged_upload, torch_pinned_reserve, torch_stream_synchronize
    PUBLIC :: torch_file_stamp, torch_grad_pool_clear, torch_model_metadata_clear, &
              torch_pinned_finish, torch_pinned_release
@@ -403,6 +403,33 @@ CONTAINS
       MARK_USED(result)
 #endif
    END SUBROUTINE torch_tensor_narrow
+
+! **************************************************************************************************
+!> \brief Deep-copies a tensor into an independent tensor on the current device.
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_clone(tensor, result)
+      TYPE(torch_tensor_type), INTENT(IN)                :: tensor
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: result
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_tensor_clone(tensor, result) BIND(C, name="torch_c_tensor_clone")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE                           :: tensor
+            TYPE(C_PTR)                                  :: result
+         END SUBROUTINE torch_c_tensor_clone
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+      CPASSERT(.NOT. C_ASSOCIATED(result%c_ptr))
+      CALL torch_c_tensor_clone(tensor%c_ptr, result%c_ptr)
+      CPASSERT(C_ASSOCIATED(result%c_ptr))
+#else
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(tensor)
+      MARK_USED(result)
+#endif
+   END SUBROUTINE torch_tensor_clone
 
 ! **************************************************************************************************
 !> \brief Runs autograd on a Torch tensor.

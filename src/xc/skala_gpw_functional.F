@@ -67,6 +67,7 @@ MODULE skala_gpw_functional
         torch_tensor_backward_scalar, torch_tensor_data_ptr, torch_tensor_from_array, &
         torch_tensor_grad, torch_tensor_grad_batch, torch_tensor_grad_batch3, &
         torch_tensor_grad_batch3_deferred, torch_tensor_grad_batch_deferred, &
+        torch_tensor_clone, &
         torch_tensor_hessian_vector, torch_tensor_item_double, torch_tensor_narrow, &
         torch_tensor_release, torch_tensor_set_requires_grad, torch_tensor_to_device_leaf, &
         torch_tensor_type, torch_use_cuda
@@ -2595,12 +2596,9 @@ CONTAINS
       CALL skala_gpw_feature_build(direction, rho1_set, rho1_r, particle_set, cell, &
                                    requires_grad=.FALSE., weights=weights, atom_partition=partition, &
                                    cuda_device=selected_device)
-      CALL torch_tensor_from_array(directions(1), direction%density)
-      CALL torch_tensor_from_array(directions(2), direction%grad)
-      CALL torch_tensor_from_array(directions(3), direction%kin)
-      DO i = 1, SIZE(directions)
-         CALL torch_tensor_to_device_leaf(directions(i), .FALSE.)
-      END DO
+      CALL torch_tensor_clone(direction%density_t, directions(1))
+      CALL torch_tensor_clone(direction%grad_t, directions(2))
+      CALL torch_tensor_clone(direction%kin_t, directions(3))
       CALL skala_gpw_feature_build(reference, rho0_set, rho1_r, particle_set, cell, &
                                    requires_grad=.TRUE., weights=weights, atom_partition=partition, &
                                    cuda_device=selected_device)
