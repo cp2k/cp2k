@@ -71,6 +71,7 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
     -DGMX_MPI="${USE_MPI}" \
     -DGMXAPI="OFF" \
     -Werror=dev \
+    -Wno-error=non-target-directive \
     &> "${GROMACS_BUILD_PATH}/cmake.log"
   EXIT_CODE=$?
   if ((EXIT_CODE != 0)); then
