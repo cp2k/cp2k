@@ -24,7 +24,8 @@ MODULE kpoint_types
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                              cp_print_key_unit_nr
+                                              cp_print_key_unit_nr,&
+                                              high_print_level
    USE input_constants,                 ONLY: rskp_backend_gemm
    USE input_cp2k_kpoints,              ONLY: use_complex_wfn,&
                                               use_k290_kpoint_backend,&
@@ -1099,7 +1100,10 @@ CONTAINS
                WRITE (punit, '(A,T76,A)') ' BRILLOUIN| Use full k-point grid     '
             END IF
             IF (kpoint%kp_scheme /= "GAMMA") THEN
-               WRITE (punit, '(A,T71,I10)') ' BRILLOUIN| List of Kpoints [2 Pi/Bohr]', kpoint%nkp
+               WRITE (punit, '(A,T71,I10)') ' BRILLOUIN| Number of k-points', kpoint%nkp
+            END IF
+            IF (kpoint%kp_scheme /= "GAMMA" .AND. logger%iter_info%print_level >= high_print_level) THEN
+               WRITE (punit, '(A)') ' BRILLOUIN| List of k-points [2 Pi/Bohr]'
                WRITE (punit, '(A,T30,A,T48,A,T63,A,T78,A)') &
                   ' BRILLOUIN| Number ', 'Weight', 'X', 'Y', 'Z'
                DO i = 1, kpoint%nkp
