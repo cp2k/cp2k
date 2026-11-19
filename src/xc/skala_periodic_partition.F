@@ -24,7 +24,7 @@ MODULE skala_periodic_partition
       REAL(dp), ALLOCATABLE :: cutoff(:, :), cutoff_gradient(:, :, :)
       INTEGER, ALLOCATABLE :: owner(:, :), self(:)
    END TYPE skala_periodic_partition_type
-   PUBLIC :: build_periodic_atom_image_layout, periodic_atom_image_partition
+   PUBLIC :: build_periodic_atom_image_layout
    PUBLIC :: periodic_atom_image_partition_from_layout
 CONTAINS
 
@@ -186,35 +186,6 @@ CONTAINS
          END DO
       END DO
    END SUBROUTINE periodic_atom_image_partition_from_layout
-
-! **************************************************************************************************
-!> \brief Convenience evaluation without retaining a layout between grid points.
-!> \param grid_point Cartesian evaluation point.
-!> \param atom_coords Base-atom coordinates.
-!> \param cell Simulation cell.
-!> \param target_atom Reference-cell atom.
-!> \param weight Normalized reference-image weight.
-!> \param dweight_datom Optional base-atom derivative at fixed grid point and cell.
-!> \param dweight_dstrain Optional cell response at fixed grid point and base atoms.
-!> \param image_periodicity Optional periodic directions.
-! **************************************************************************************************
-   SUBROUTINE periodic_atom_image_partition(grid_point, atom_coords, cell, target_atom, weight, &
-                                            dweight_datom, dweight_dstrain, image_periodicity)
-      REAL(dp), INTENT(IN)                               :: grid_point(3), atom_coords(:, :)
-      TYPE(cell_type), POINTER                           :: cell
-      INTEGER, INTENT(IN)                                :: target_atom
-      REAL(dp), INTENT(OUT)                              :: weight
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: dweight_datom(:, :), &
-                                                            dweight_dstrain(:, :)
-      INTEGER, INTENT(IN), OPTIONAL                      :: image_periodicity(3)
-
-      INTEGER                                            :: target
-      TYPE(skala_periodic_partition_type)                :: layout
-
-      CALL build_periodic_atom_image_layout(atom_coords, cell, target_atom, image_periodicity, layout, TARGET)
-      CALL periodic_atom_image_partition_from_layout(grid_point, layout, TARGET, weight, &
-                                                     dweight_datom, dweight_dstrain)
-   END SUBROUTINE periodic_atom_image_partition
 
 ! **************************************************************************************************
 !> \brief Compact quintic window in fractional coordinates.
