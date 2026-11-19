@@ -364,6 +364,7 @@ CONTAINS
       END DO
       CALL receive_minus_q_blocks(bs_env%para_env, q_partner, solves_q, n_RI, &
                                   bs_env%num_time_freq_points, gwkp_env%W_PQ_tau)
+      IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ''
       DO j_w = 1, bs_env%num_time_freq_points
          CALL bs_env%para_env%max(frequency_elapsed(j_w))
          IF (bs_env%unit_nr > 0) THEN
