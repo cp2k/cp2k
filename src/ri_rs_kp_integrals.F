@@ -215,10 +215,11 @@ CONTAINS
 
       CHARACTER(LEN=100)                                 :: progress_line
       CHARACTER(LEN=20)                                  :: count_text
-      CHARACTER(LEN=32)                                  :: phase_text
+      CHARACTER(LEN=40)                                  :: phase_text
       CHARACTER(LEN=64)                                  :: progress_format
       CHARACTER(LEN=8)                                   :: time_text
-      INTEGER                                            :: count_width, previous_progress
+      INTEGER                                            :: count_width, i, n_extra_bytes, &
+                                                            previous_progress
       REAL(KIND=dp)                                      :: percent_done, phase_time
 
       IF (unit_nr <= 0 .OR. n_total <= 0) RETURN
@@ -229,23 +230,27 @@ CONTAINS
          next_progress = next_progress + 1
       END DO
       IF (next_progress == previous_progress) RETURN
-      CPASSERT(LEN_TRIM(phase) <= 32)
+      ! UTF-8 characters such as χ, Σ and τ take more bytes than screen columns.
+      n_extra_bytes = COUNT([(IACHAR(phase(i:i)) >= 128 .AND. IACHAR(phase(i:i)) < 192, i=1, LEN(phase))])
+      CPASSERT(LEN_TRIM(phase) - n_extra_bytes <= 32)
       WRITE (count_text, '(I0)') n_total
       count_width = LEN_TRIM(count_text)
-      WRITE (progress_format, '(A,I0,A,I0,A)') &
-         '(A32,1X,I', count_width, ',A,I', count_width, ',1X,F5.1,A)'
+      WRITE (progress_format, '(A,I0,A,I0,A,I0,A)') &
+         '(A', 32 + n_extra_bytes, ',1X,I', count_width, ',A,I', count_width, ',1X,F5.1,A)'
       phase_text = phase
       WRITE (progress_line, progress_format) &
          phase_text, n_done, ' / ', n_total, percent_done, ' %'
       phase_time = m_walltime() - phase_start
       WRITE (time_text, '(F8.1)') phase_time
       IF (INDEX(time_text, '*') > 0) WRITE (time_text, '(ES8.1E3)') phase_time
-      IF (LEN_TRIM(progress_line) > 56) THEN
+      IF (LEN_TRIM(progress_line) - n_extra_bytes > 56) THEN
          WRITE (unit_nr, '(T2,A)') TRIM(phase)
-         WRITE (unit_nr, '(T2,A)') TRIM(ADJUSTL(progress_line(34:)))
+         WRITE (unit_nr, '(T2,A)') TRIM(ADJUSTL(progress_line(34 + n_extra_bytes:)))
          progress_line = ''
+         n_extra_bytes = 0
       END IF
-      WRITE (unit_nr, '(T2,A,T60,A,T71,A,A)') TRIM(progress_line), 'Total time:', time_text, ' s'
+      WRITE (progress_format, '(A,I0,A,I0,A)') '(T2,A,T', 60 + n_extra_bytes, ',A,T', 71 + n_extra_bytes, ',A,A)'
+      WRITE (unit_nr, progress_format) TRIM(progress_line), 'Total time:', time_text, ' s'
       FLUSH (unit_nr)
 
    END SUBROUTINE write_ri_rs_progress

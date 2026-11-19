@@ -168,7 +168,6 @@ MODULE gw_utils
       INTEGER, PUBLIC                                    :: n_kpoints = 1
       INTEGER(KIND=int_8)                               :: n_unstable = 0_int_8, n_multi = 0_int_8, &
                                                            n_pade = 0_int_8
-      INTEGER(KIND=int_8)                               :: n_frontier_unstable = 0_int_8, n_frontier_multi = 0_int_8
       REAL(KIND=dp)                                      :: pick_min = 0.0_dp
    END TYPE gw_qp_summary_type
 
@@ -923,8 +922,9 @@ CONTAINS
          END IF
          SELECT CASE (bs_env%ri_metric%potential_type)
          CASE (do_potential_short)
-            WRITE (u, FMT="(T2,A,T61,F12.2,A)") "Input: Attenuation of the RI metric:", &
-               bs_env%ri_metric%omega, " bohr^-1"
+            ! ⁻¹ takes three bytes more than two columns: column 83 in bytes is column 80 on screen.
+            WRITE (u, FMT="(T2,A,T73,F11.2)") "Attenuation of the RI metric (bohr⁻¹)", &
+               bs_env%ri_metric%omega
          CASE (do_potential_truncated)
             WRITE (u, FMT="(T2,2A,F15.1,A)") "Cutoff radius for the truncated Coulomb ", &
                "operator in RI metric:", bs_env%ri_metric%cutoff_radius*angstrom, " Å"
@@ -4103,8 +4103,7 @@ CONTAINS
 
       INTEGER, PARAMETER                                 :: n_progress_steps = 10
 
-      CHARACTER(LEN=2*default_string_length)             :: message
-      INTEGER                                            :: first_frontier, last_frontier, nkp, u
+      INTEGER                                            :: nkp, u
       INTEGER(KIND=int_8)                                :: done, step, total
 
       nkp = summary%n_kpoints
@@ -4118,14 +4117,10 @@ CONTAINS
                       "Increase NUM_TIME_FREQ_POINTS to obtain an error estimate.")
       END IF
 
-      first_frontier = MAX(1, bs_env%n_occ(ispin))
-      last_frontier = MIN(SIZE(unstable), bs_env%n_occ(ispin) + 1)
       summary%n_unstable = summary%n_unstable + COUNT(unstable)
       summary%n_multi = summary%n_multi + COUNT(multi)
       summary%n_pade = summary%n_pade + n_pade
       summary%pick_min = MIN(summary%pick_min, pick_min)
-      summary%n_frontier_unstable = summary%n_frontier_unstable + COUNT(unstable(first_frontier:last_frontier))
-      summary%n_frontier_multi = summary%n_frontier_multi + COUNT(multi(first_frontier:last_frontier))
 
       IF (u > 0 .AND. total >= n_progress_steps) THEN
          step = (n_progress_steps*done)/total
@@ -4144,11 +4139,6 @@ CONTAINS
          WRITE (u, '(T2,A,I0,A,I0,A,ES10.2)') 'GW full fits: Padé fallback ', summary%n_pade, '/', &
             total*SIZE(unstable), ', min. rel. Pick eig. ', summary%pick_min
          CALL m_flush(u)
-      END IF
-      IF (summary%n_frontier_unstable > 0 .OR. summary%n_frontier_multi > 0) THEN
-         WRITE (message, '(A,I0,A,I0,A)') 'GW HOMO/LUMO levels: ', summary%n_frontier_unstable, &
-            ' marked unreliable (*), ', summary%n_frontier_multi, ' with multiple solutions (m).'
-         CPWARN(TRIM(message))
       END IF
 
    END SUBROUTINE report_nevanlinna_progress
