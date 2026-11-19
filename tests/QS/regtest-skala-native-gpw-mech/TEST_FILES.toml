@@ -1,16 +1,12 @@
-"H2_NATIVE_SKALA_GPW_FORCE.inp"         = [
-  {matcher = "M072", tol = 0.0001, ref = 0.00241025053},
-]
+"H2_NATIVE_SKALA_GPW_FORCE.inp"         = [{matcher = "M072", tol = 1e-4, ref = 2.41025053E-03}]
 "H2_NATIVE_SKALA_GPW_SMOOTH_STRESS.inp" = [
-  {matcher = "E_total", tol = 1e-08, ref = -0.96570776066437},
-  {matcher = "M072", tol = 0.0001, ref = 5.55352375e-05},
-  {matcher = "M031", tol = 1e-05, ref = -165014.555674},
+  {matcher = "E_total", tol = 1e-8, ref = -0.96570776066437},
+  {matcher = "M072", tol = 1e-4, ref = 5.55352375E-05},
+  {matcher = "M031", tol = 1e-5, ref = -1.65014555674E+05}
 ]
-"H2_NATIVE_SKALA_GPW_STRESS.inp"        = [
-  {matcher = "E_total", tol = 1e-08, ref = -0.96609591046645},
-]
+"H2_NATIVE_SKALA_GPW_STRESS.inp"        = [{matcher = "E_total", tol = 1e-8, ref = -0.96609591046645}]
 "HF_NATIVE_SKALA_GPW_NLCC_FORCE.inp"    = [
-  {matcher = "M072", tol = 0.0001, ref = 0.165530631},
-  {matcher = "M031", tol = 0.0001, ref = -9430645.56589},
-  {matcher = "SKALA_GAPW_composite_electrons", tol = 1e-08, ref = 9.224035848776019},
+  {matcher = "M072", tol = 1e-4, ref = 1.65530631E-01},
+  {matcher = "M031", tol = 1e-4, ref = -9.43064556589E+06},
+  {matcher = "SKALA_GAPW_composite_electrons", tol = 1e-8, ref = 9.224035848776019}
 ]
