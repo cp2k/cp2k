@@ -23,9 +23,11 @@ MODULE arnoldi_methods
                                               get_control,&
                                               get_data,&
                                               m_x_v_vectors_type
-   USE arnoldi_vector,                  ONLY: dbcsr_matrix_colvec_multiply
+   USE arnoldi_vector,                  ONLY: dbcsr_matrix_colvec_multiply,&
+                                              transfer_dbcsr_to_local_array,&
+                                              transfer_local_array_to_dbcsr
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_get_data_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
+        dbcsr_add, dbcsr_copy, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_p_type, dbcsr_scale, dbcsr_type
    USE kinds,                           ONLY: dp
@@ -646,46 +648,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE gev_update_data
-
-! **************************************************************************************************
-!> \brief Helper routine to transfer the all data of a dbcsr matrix to a local array
-!> \param vec ...
-!> \param array ...
-!> \param n ...
-!> \param is_local ...
-! **************************************************************************************************
-   SUBROUTINE transfer_dbcsr_to_local_array(vec, array, n, is_local)
-      TYPE(dbcsr_type)                                   :: vec
-      REAL(kind=dp), DIMENSION(:)                        :: array
-      INTEGER                                            :: n
-      LOGICAL                                            :: is_local
-
-      REAL(kind=dp), DIMENSION(:), POINTER               :: data_vec
-
-      data_vec => dbcsr_get_data_p(vec)
-      IF (is_local) array(1:n) = data_vec(1:n)
-
-   END SUBROUTINE transfer_dbcsr_to_local_array
-
-! **************************************************************************************************
-!> \brief The inverse routine transferring data back from an array to a dbcsr
-!> \param vec ...
-!> \param array ...
-!> \param n ...
-!> \param is_local ...
-! **************************************************************************************************
-   SUBROUTINE transfer_local_array_to_dbcsr(vec, array, n, is_local)
-      TYPE(dbcsr_type)                                   :: vec
-      REAL(kind=dp), DIMENSION(:)                        :: array
-      INTEGER                                            :: n
-      LOGICAL                                            :: is_local
-
-      REAL(kind=dp), DIMENSION(:), POINTER               :: data_vec
-
-      data_vec => dbcsr_get_data_p(vec)
-      IF (is_local) data_vec(1:n) = array(1:n)
-
-   END SUBROUTINE transfer_local_array_to_dbcsr
 
 ! **************************************************************************************************
 !> \brief Gram-Schmidt in matrix vector form

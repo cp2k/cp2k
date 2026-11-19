@@ -18,11 +18,12 @@ MODULE arnoldi_data_methods
    USE arnoldi_types,                   ONLY: &
         arnoldi_control_type, arnoldi_data_type, arnoldi_env_type, get_control, get_data, &
         get_evals, get_sel_ind, set_control, set_data
-   USE arnoldi_vector,                  ONLY: create_col_vec_from_matrix
+   USE arnoldi_vector,                  ONLY: create_col_vec_from_matrix,&
+                                              transfer_dbcsr_to_local_array,&
+                                              transfer_local_array_to_dbcsr
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_data_p, dbcsr_get_info, &
-        dbcsr_get_matrix_type, dbcsr_mp_grid_setup, dbcsr_p_type, dbcsr_release, dbcsr_type, &
-        dbcsr_type_symmetric
+        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, dbcsr_get_matrix_type, &
+        dbcsr_mp_grid_setup, dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_symmetric
    USE kinds,                           ONLY: dp
    USE util,                            ONLY: sort
 #include "../base/base_uses.f90"
@@ -203,7 +204,6 @@ CONTAINS
       COMPLEX(dp), ALLOCATABLE, DIMENSION(:)             :: ritz_v
       INTEGER                                            :: i, myind, sspace_size, vsize
       INTEGER, DIMENSION(:), POINTER                     :: selected_ind
-      REAL(kind=dp), DIMENSION(:), POINTER               :: data_vec
       TYPE(arnoldi_control_type), POINTER                :: control
       TYPE(arnoldi_data_type), POINTER                   :: ar_data
 
@@ -222,10 +222,9 @@ CONTAINS
          DO i = 1, sspace_size
             ritz_v(:) = ritz_v(:) + ar_data%local_history(:, i)*ar_data%revec(i, myind)
          END DO
-         data_vec => dbcsr_get_data_p(vector)
          ! is a bit odd but ritz_v is always complex and matrix type determines where it goes
          ! again I hope the user knows what is required
-         data_vec(1:vsize) = REAL(ritz_v(1:vsize), KIND=dp)
+         CALL transfer_local_array_to_dbcsr(vector, REAL(ritz_v(1:vsize), KIND=dp), vsize, .TRUE.)
       END IF
 
       DEALLOCATE (ritz_v)
@@ -443,7 +442,6 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: vector
 
       INTEGER                                            :: ncol_local, nrow_local
-      REAL(kind=dp), DIMENSION(:), POINTER               :: data_vec
       TYPE(arnoldi_control_type), POINTER                :: control
       TYPE(arnoldi_data_type), POINTER                   :: ar_data
 
@@ -452,8 +450,9 @@ CONTAINS
       ar_data => get_data(arnoldi_env)
 
       CALL dbcsr_get_info(matrix=vector, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
-      data_vec => dbcsr_get_data_p(vector)
-      IF (nrow_local*ncol_local > 0) ar_data%f_vec(1:nrow_local) = data_vec(1:nrow_local)
+      IF (nrow_local*ncol_local > 0) THEN
+         CALL transfer_dbcsr_to_local_array(vector, ar_data%f_vec, nrow_local, .TRUE.)
+      END IF
 
    END SUBROUTINE set_arnoldi_initial_vector
 

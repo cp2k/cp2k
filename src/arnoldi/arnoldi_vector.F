@@ -16,7 +16,7 @@
 MODULE arnoldi_vector
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
-        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_get_data_p, dbcsr_get_info, &
+        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_release, dbcsr_set, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
@@ -66,7 +66,9 @@ MODULE arnoldi_vector
              create_col_vec_from_matrix, &
              create_row_vec_from_matrix, &
              create_replicated_col_vec_from_matrix, &
-             create_replicated_row_vec_from_matrix
+             create_replicated_row_vec_from_matrix, &
+             transfer_dbcsr_to_local_array, &
+             transfer_local_array_to_dbcsr
 
 CONTAINS
 
@@ -568,9 +570,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_vector_mult'
 
       INTEGER                                            :: col, handle, handle1, ithread, k, m, &
-                                                            mypcol, myprow, n, ncols, nrows, pcol, &
-                                                            prow, prow_handle, row
-      REAL(kind=real_8), DIMENSION(:), POINTER           :: data_vec
+                                                            mypcol, myprow, n, pcol, prow, &
+                                                            prow_handle, row
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: data_d, vec_res
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -625,9 +626,7 @@ CONTAINS
       CALL timestop(handle1)
 
       ! sum all the data onto the first processor col where the original vector is stored
-      data_vec => dbcsr_get_data_p(work_col)
-      CALL dbcsr_get_info(matrix=work_col, nfullrows_local=nrows, nfullcols_local=ncols)
-      CALL prow_group%sum(data_vec(1:nrows*ncols))
+      CALL sum_replicated_vector_blocks(work_col, prow_group)
 
       ! Local copy on the first mpi col (as this is the localtion of the vec_res blocks) of the result vector
       ! from the replicated to the original vector. Let's play it safe and use the iterator
@@ -670,10 +669,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrixT_vector_mult'
 
       INTEGER                                            :: col, col_size, handle, handle1, ithread, &
-                                                            mypcol, myprow, ncols, nrows, pcol, &
+                                                            mypcol, myprow, ncols, pcol, &
                                                             pcol_handle, prow, prow_handle, row, &
                                                             row_size
-      REAL(kind=real_8), DIMENSION(:), POINTER           :: data_vec
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: data_d, vec_bl, vec_res
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -705,8 +703,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
       ! Replicate the data on all processore in the row
-      data_vec => dbcsr_get_data_p(work_col)
-      CALL prow_group%bcast(data_vec, 0)
+      CALL bcast_replicated_vector_blocks(work_col, prow_group, 0)
 
       ! Perform the local multiply. Here it is obvious why the vectors are replicated on the mpi rows and cols
       CALL timeset(routineN//"local_mm", handle1)
@@ -739,10 +736,8 @@ CONTAINS
       CALL timestop(handle1)
 
       ! sum all the data within a processor column to obtain the replicated result
-      data_vec => dbcsr_get_data_p(work_row)
       ! we use the replicated vector but the final answer is only summed to proc_col 0 for efficiency
-      CALL dbcsr_get_info(matrix=work_row, nfullrows_local=nrows, nfullcols_local=ncols)
-      CALL pcol_group%sum(data_vec(1:nrows*ncols))
+      CALL sum_replicated_vector_blocks(work_row, pcol_group)
 
       ! Convert the result to a column wise distribution
       CALL dbcsr_rep_row_to_rep_col_vec(work_col, work_row, fast_vec_row)
@@ -780,7 +775,6 @@ CONTAINS
       INTEGER                                            :: col, handle, mypcol, myprow, ncols, &
                                                             nrows, pcol_handle, prow_handle, row
       INTEGER, DIMENSION(:), POINTER                     :: local_cols, row_dist
-      REAL(kind=real_8), DIMENSION(:), POINTER           :: data_vec, data_vec_rep
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: vec_row
       TYPE(dbcsr_distribution_type)                      :: dist_in, dist_rep_col
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -804,12 +798,16 @@ CONTAINS
       CALL dbcsr_distribution_get(dist_rep_col, row_dist=row_dist)
 
       ! Copy the local vector to the replicated on the first processor column (this is where vec_in lives)
-      CALL dbcsr_get_info(matrix=rep_col_vec, nfullrows_local=nrows, nfullcols_local=ncols)
-      data_vec_rep => dbcsr_get_data_p(rep_col_vec)
-      data_vec => dbcsr_get_data_p(vec_in)
-      IF (mypcol == 0) data_vec_rep(1:nrows*ncols) = data_vec(1:nrows*ncols)
+      IF (mypcol == 0) THEN
+         CALL dbcsr_iterator_start(iter, vec_in)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row, col, vec_row)
+            fast_vec_col%blk_map(hash_table_get(fast_vec_col%hash_table, row))%ptr(:, :) = vec_row(:, :)
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+      END IF
       ! Replicate the data along the row
-      CALL prow_group%bcast(data_vec_rep(1:nrows*ncols), 0)
+      CALL bcast_replicated_vector_blocks(rep_col_vec, prow_group, 0)
 
       ! Here it gets a bit tricky as we are dealing with two different parallel layouts:
       ! The rep_col_vec contains all blocks local to the row distribution of the vector.
@@ -828,9 +826,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
-      CALL dbcsr_get_info(matrix=rep_row_vec, nfullrows_local=nrows, nfullcols_local=ncols)
-      data_vec_rep => dbcsr_get_data_p(rep_row_vec)
-      CALL pcol_group%sum(data_vec_rep(1:ncols*nrows))
+      CALL sum_replicated_vector_blocks(rep_row_vec, pcol_group)
 
       CALL timestop(handle)
 
@@ -850,10 +846,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_rep_row_to_rep_col_vec'
 
-      INTEGER                                            :: col, handle, mypcol, myprow, ncols, &
-                                                            nrows, prow_handle, row
+      INTEGER                                            :: col, handle, mypcol, myprow, &
+                                                            prow_handle, row
       INTEGER, DIMENSION(:), POINTER                     :: col_dist
-      REAL(kind=real_8), DIMENSION(:), POINTER           :: data_vec_rep
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: vec_col
       TYPE(dbcsr_distribution_type)                      :: dist_rep_col, dist_rep_row
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -889,9 +884,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
-      CALL dbcsr_get_info(matrix=rep_col_vec, nfullrows_local=nrows, nfullcols_local=ncols)
-      data_vec_rep => dbcsr_get_data_p(rep_col_vec)
-      CALL prow_group%sum(data_vec_rep(1:nrows*ncols))
+      CALL sum_replicated_vector_blocks(rep_col_vec, prow_group)
 
       CALL timestop(handle)
 
@@ -915,10 +908,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_sym_matrix_vector_mult'
 
       INTEGER                                            :: col, handle, handle1, ithread, mypcol, &
-                                                            myprow, ncols, nrows, pcol, &
-                                                            pcol_handle, prow, row, rpcol, rprow, &
-                                                            vec_dim
-      REAL(kind=real_8), DIMENSION(:), POINTER           :: data_vec
+                                                            myprow, pcol, pcol_handle, prow, row, &
+                                                            rpcol, rprow, vec_dim
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: data_d, vec_res
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -1000,10 +991,7 @@ CONTAINS
       CALL timestop(handle1)
 
       ! sum all the data within a processor column to obtain the replicated result from lower
-      data_vec => dbcsr_get_data_p(result_row)
-      CALL dbcsr_get_info(matrix=result_row, nfullrows_local=nrows, nfullcols_local=ncols)
-
-      CALL pcol_group%sum(data_vec(1:nrows*ncols))
+      CALL sum_replicated_vector_blocks(result_row, pcol_group)
 
       ! Convert the results to a column wise distribution, this is a bit involved as the result_row is fully replicated
       ! While the result_col still has the partial results in parallel. The routine below takes care of that and saves a
@@ -1034,5 +1022,129 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE dbcsr_sym_matrix_vector_mult
+
+! **************************************************************************************************
+!> \brief Helper routine to transfer all local data of a dense dbcsr vector to a 1D array
+!> \param vec ...
+!> \param array ...
+!> \param n ...
+!> \param is_local ...
+! **************************************************************************************************
+   SUBROUTINE transfer_dbcsr_to_local_array(vec, array, n, is_local)
+      TYPE(dbcsr_type)                                   :: vec
+      REAL(kind=dp), DIMENSION(:)                        :: array
+      INTEGER, INTENT(IN)                                :: n
+      LOGICAL, INTENT(IN)                                :: is_local
+
+      INTEGER                                            :: i, j, m, offset
+      INTEGER, DIMENSION(:), POINTER                     :: local_cols, local_rows
+      LOGICAL                                            :: found
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: blk
+
+      IF (.NOT. is_local .OR. n <= 0) RETURN
+      CALL dbcsr_get_info(vec, local_rows=local_rows, local_cols=local_cols)
+      offset = 0
+      DO i = 1, SIZE(local_rows)
+         DO j = 1, SIZE(local_cols)
+            CALL dbcsr_get_block_p(vec, local_rows(i), local_cols(j), blk, found)
+            IF (.NOT. found) CYCLE
+            m = SIZE(blk)
+            IF (m > 0) THEN
+               CPASSERT(offset + m <= n)
+               array(offset + 1:offset + m) = RESHAPE(blk, [m])
+               offset = offset + m
+            END IF
+         END DO
+      END DO
+      CPASSERT(offset == n)
+   END SUBROUTINE transfer_dbcsr_to_local_array
+
+! **************************************************************************************************
+!> \brief Helper routine to transfer data back from a 1D array to a dense dbcsr vector
+!> \param vec ...
+!> \param array ...
+!> \param n ...
+!> \param is_local ...
+! **************************************************************************************************
+   SUBROUTINE transfer_local_array_to_dbcsr(vec, array, n, is_local)
+      TYPE(dbcsr_type)                                   :: vec
+      REAL(kind=dp), DIMENSION(:), INTENT(IN)            :: array
+      INTEGER, INTENT(IN)                                :: n
+      LOGICAL, INTENT(IN)                                :: is_local
+
+      INTEGER                                            :: i, j, m, offset
+      INTEGER, DIMENSION(:), POINTER                     :: local_cols, local_rows
+      LOGICAL                                            :: found
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: blk
+
+      IF (.NOT. is_local .OR. n <= 0) RETURN
+      CALL dbcsr_get_info(vec, local_rows=local_rows, local_cols=local_cols)
+      offset = 0
+      DO i = 1, SIZE(local_rows)
+         DO j = 1, SIZE(local_cols)
+            CALL dbcsr_get_block_p(vec, local_rows(i), local_cols(j), blk, found)
+            IF (.NOT. found) CYCLE
+            m = SIZE(blk)
+            IF (m > 0) THEN
+               CPASSERT(offset + m <= n)
+               blk(:, :) = RESHAPE(array(offset + 1:offset + m), [SIZE(blk, 1), SIZE(blk, 2)])
+               offset = offset + m
+            END IF
+         END DO
+      END DO
+      CPASSERT(offset == n)
+   END SUBROUTINE transfer_local_array_to_dbcsr
+
+! **************************************************************************************************
+!> \brief Sum a replicated dense vector across an MPI subgroup in deterministic block order
+!> \param vec ...
+!> \param group ...
+! **************************************************************************************************
+   SUBROUTINE sum_replicated_vector_blocks(vec, group)
+      TYPE(dbcsr_type)                                   :: vec
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
+
+      INTEGER                                            :: n, ncols, nrows
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buf
+
+      IF (group%num_pe <= 1) RETURN
+      CALL dbcsr_get_info(matrix=vec, nfullrows_local=nrows, nfullcols_local=ncols)
+      n = nrows*ncols
+      IF (n <= 0) RETURN
+      ALLOCATE (buf(n))
+      CALL transfer_dbcsr_to_local_array(vec, buf, n, .TRUE.)
+      CALL group%sum(buf)
+      CALL transfer_local_array_to_dbcsr(vec, buf, n, .TRUE.)
+      DEALLOCATE (buf)
+   END SUBROUTINE sum_replicated_vector_blocks
+
+! **************************************************************************************************
+!> \brief Broadcast a replicated dense vector across an MPI subgroup in deterministic block order
+!> \param vec ...
+!> \param group ...
+!> \param source ...
+! **************************************************************************************************
+   SUBROUTINE bcast_replicated_vector_blocks(vec, group, source)
+      TYPE(dbcsr_type)                                   :: vec
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
+      INTEGER, INTENT(IN)                                :: source
+
+      INTEGER                                            :: n, ncols, nrows
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buf
+
+      IF (group%num_pe <= 1) RETURN
+      CALL dbcsr_get_info(matrix=vec, nfullrows_local=nrows, nfullcols_local=ncols)
+      n = nrows*ncols
+      IF (n <= 0) RETURN
+      ALLOCATE (buf(n))
+      IF (group%mepos == source) THEN
+         CALL transfer_dbcsr_to_local_array(vec, buf, n, .TRUE.)
+      END IF
+      CALL group%bcast(buf, source)
+      IF (group%mepos /= source) THEN
+         CALL transfer_local_array_to_dbcsr(vec, buf, n, .TRUE.)
+      END IF
+      DEALLOCATE (buf)
+   END SUBROUTINE bcast_replicated_vector_blocks
 
 END MODULE arnoldi_vector

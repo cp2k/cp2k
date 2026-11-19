@@ -310,7 +310,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_conjugate_gradient'
 
       INTEGER                                            :: handle, i, j, nb, nloc, no
-      INTEGER, DIMENSION(:), POINTER                     :: rb_offset, rb_size
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xvec
       TYPE(arnoldi_control_type), POINTER                :: control
       TYPE(arnoldi_env_type)                             :: arnoldi_env
@@ -330,13 +329,11 @@ CONTAINS
       !
       CALL dbcsr_copy(x, vectors%input_vec)
       !
-      CALL dbcsr_get_info(x, nfullrows_local=nloc, row_blk_size=rb_size, row_blk_offset=rb_offset)
+      CALL dbcsr_get_info(x, nfullrows_local=nloc)
       !
       CALL dbcsr_iterator_start(dbcsr_iter, x)
       DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
-         CALL dbcsr_iterator_next_block(dbcsr_iter, i, j, xvec)
-         nb = rb_size(i)
-         no = rb_offset(i)
+         CALL dbcsr_iterator_next_block(dbcsr_iter, i, j, xvec, row_size=nb, row_offset=no)
          xvec(1:nb, 1) = vec_x(no:no + nb - 1)
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
@@ -361,9 +358,7 @@ CONTAINS
       vec_x = 0.0_dp
       CALL dbcsr_iterator_start(dbcsr_iter, x)
       DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
-         CALL dbcsr_iterator_next_block(dbcsr_iter, i, j, xvec)
-         nb = rb_size(i)
-         no = rb_offset(i)
+         CALL dbcsr_iterator_next_block(dbcsr_iter, i, j, xvec, row_size=nb, row_offset=no)
          vec_x(no:no + nb - 1) = xvec(1:nb, 1)
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
