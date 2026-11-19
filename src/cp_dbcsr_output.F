@@ -303,6 +303,8 @@ CONTAINS
 
       fm(:, :) = 0.0_dp
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(sparse_matrix, fm, r_offset, c_offset) &
+!$OMP PRIVATE(iter, row, col, block, i, j)
       CALL dbcsr_iterator_start(iter, sparse_matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, block)
@@ -313,6 +315,7 @@ CONTAINS
          END DO
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       DEALLOCATE (r_offset, c_offset)
 

@@ -179,6 +179,8 @@ CONTAINS
 
       CPASSERT(dbcsr_get_matrix_type(matrix) == dbcsr_type_no_symmetry)
       dense(:, :) = 0.0_dp
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix, dense) &
+!$OMP PRIVATE(iter, block, transposed, nr, nc, row, col)
       CALL dbcsr_iterator_readonly_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, block=block, transposed=transposed, &
@@ -190,6 +192,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
    END SUBROUTINE copy_dbcsr_to_local
 
 ! **************************************************************************************************
@@ -208,6 +211,8 @@ CONTAINS
 
       CPASSERT(dbcsr_get_matrix_type(matrix) == dbcsr_type_no_symmetry)
       CALL dbcsr_reserve_all_blocks(matrix)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix, dense) &
+!$OMP PRIVATE(iter, block, transposed, nr, nc, row, col)
       CALL dbcsr_iterator_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, block=block, transposed=transposed, &
@@ -219,6 +224,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
    END SUBROUTINE copy_local_to_dbcsr
 
 ! **************************************************************************************************
@@ -466,7 +472,7 @@ CONTAINS
          ELSE
             iblock = 0
             pos = 0
-            CALL dbcsr_iterator_readonly_start(iter, matrix, dynamic=.FALSE.)
+            CALL dbcsr_iterator_readonly_start(iter, matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
                CALL dbcsr_iterator_next_block(iter, row, col, block, transposed=transposed, &
                                               row_size=nrow, col_size=ncol, row_offset=row_offset, col_offset=col_offset)
@@ -600,7 +606,7 @@ CONTAINS
 !$OMP END SINGLE
             local_pos(:) = thread_pos(:, thread)
          END IF
-         CALL dbcsr_iterator_readonly_start(iter, matrix, dynamic=.FALSE.)
+         CALL dbcsr_iterator_readonly_start(iter, matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, row, col, row_size=nrow, col_size=ncol, &
                                            row_offset=row_offset, col_offset=col_offset, transposed=transposed)
@@ -852,10 +858,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_multiply_local'
 
-      INTEGER                                            :: col, coloff, my_ncol, row, rowoff, &
-                                                            timing_handle
+      INTEGER                                            :: col, coloff, my_ncol, nrows, row, &
+                                                            rowoff, timing_handle
       LOGICAL                                            :: has_symm
       REAL(dp)                                           :: my_alpha, my_alpha2
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: vec_c_priv
       REAL(dp), DIMENSION(:, :), POINTER                 :: data_d
       TYPE(dbcsr_iterator_type)                          :: iter
 
@@ -866,6 +873,7 @@ CONTAINS
 
       my_ncol = SIZE(vec_b, 2)
       IF (PRESENT(ncol)) my_ncol = ncol
+      nrows = SIZE(vec_c, 1)
 
       my_alpha2 = 0.0_dp
       IF (dbcsr_get_matrix_type(matrix_a) == dbcsr_type_symmetric) my_alpha2 = my_alpha
@@ -874,9 +882,12 @@ CONTAINS
       has_symm = (dbcsr_get_matrix_type(matrix_a) == dbcsr_type_symmetric .OR. &
                   dbcsr_get_matrix_type(matrix_a) == dbcsr_type_antisymmetric)
 
-!$OMP     PARALLEL DEFAULT(NONE) SHARED(matrix_a,vec_b,vec_c,ncol,my_alpha2,my_alpha,my_ncol,has_symm) &
-!$OMP              PRIVATE(iter,row,col,data_d,rowoff,coloff)
-      CALL dbcsr_iterator_readonly_start(iter, matrix_a, dynamic=.TRUE., dynamic_byrows=.TRUE.)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(matrix_a, vec_b, vec_c, my_alpha2, my_alpha, my_ncol, nrows, has_symm) &
+!$OMP PRIVATE(iter, row, col, data_d, rowoff, coloff, vec_c_priv)
+      ALLOCATE (vec_c_priv(nrows, my_ncol))
+      vec_c_priv(:, :) = 0.0_dp
+      CALL dbcsr_iterator_readonly_start(iter, matrix_a)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, data_d, row_offset=rowoff, col_offset=coloff)
          IF (my_ncol /= 1) THEN
@@ -884,40 +895,34 @@ CONTAINS
                        SIZE(data_d, 1), my_ncol, SIZE(data_d, 2), &
                        my_alpha, data_d(1, 1), SIZE(data_d, 1), &
                        vec_b(coloff, 1), SIZE(vec_b, 1), &
-                       1.0_dp, vec_c(rowoff, 1), SIZE(vec_c, 1))
+                       1.0_dp, vec_c_priv(rowoff, 1), nrows)
          ELSE
             CALL dgemv('N', SIZE(data_d, 1), SIZE(data_d, 2), &
                        my_alpha, data_d(1, 1), SIZE(data_d, 1), &
                        vec_b(coloff, 1), 1, &
-                       1.0_dp, vec_c(rowoff, 1), 1)
+                       1.0_dp, vec_c_priv(rowoff, 1), 1)
+         END IF
+         IF (has_symm .AND. row /= col) THEN
+            IF (my_ncol /= 1) THEN
+               CALL dgemm('T', 'N', &
+                          SIZE(data_d, 2), my_ncol, SIZE(data_d, 1), &
+                          my_alpha2, data_d(1, 1), SIZE(data_d, 1), &
+                          vec_b(rowoff, 1), SIZE(vec_b, 1), &
+                          1.0_dp, vec_c_priv(coloff, 1), nrows)
+            ELSE
+               CALL dgemv('T', SIZE(data_d, 1), SIZE(data_d, 2), &
+                          my_alpha2, data_d(1, 1), SIZE(data_d, 1), &
+                          vec_b(rowoff, 1), 1, &
+                          1.0_dp, vec_c_priv(coloff, 1), 1)
+            END IF
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
-!$OMP     END PARALLEL
-
-      ! FIXME ... in the symmetric case, the writes to vec_c depend on the column, not the row. This makes OMP-ing more difficult
-      ! needs e.g. a buffer for vec_c and a reduction of that buffer.
-      IF (has_symm) THEN
-         CALL dbcsr_iterator_readonly_start(iter, matrix_a)
-         DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, row, col, data_d, row_offset=rowoff, col_offset=coloff)
-            IF (row /= col) THEN
-               IF (my_ncol /= 1) THEN
-                  CALL dgemm('T', 'N', &
-                             SIZE(data_d, 2), my_ncol, SIZE(data_d, 1), &
-                             my_alpha2, data_d(1, 1), SIZE(data_d, 1), &
-                             vec_b(rowoff, 1), SIZE(vec_b, 1), &
-                             1.0_dp, vec_c(coloff, 1), SIZE(vec_c, 1))
-               ELSE
-                  CALL dgemv('T', SIZE(data_d, 1), SIZE(data_d, 2), &
-                             my_alpha2, data_d(1, 1), SIZE(data_d, 1), &
-                             vec_b(rowoff, 1), 1, &
-                             1.0_dp, vec_c(coloff, 1), 1)
-               END IF
-            END IF
-         END DO
-         CALL dbcsr_iterator_stop(iter)
-      END IF
+!$OMP CRITICAL(dbcsr_multiply_local_crit)
+      vec_c(:, 1:my_ncol) = vec_c(:, 1:my_ncol) + vec_c_priv(:, 1:my_ncol)
+!$OMP END CRITICAL(dbcsr_multiply_local_crit)
+      DEALLOCATE (vec_c_priv)
+!$OMP END PARALLEL
 
       CALL timestop(timing_handle)
    END SUBROUTINE dbcsr_multiply_local
