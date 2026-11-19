@@ -103,4 +103,9 @@
   {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -6.796},
   {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 23.423}
 ]
+# Periodic ADMM with AUX_FIT = orbital basis: identical to PBE0 without ADMM.
+"16_RIRS_G0W0_PBE0_ADMM_periodic_H2.inp"    = [
+  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -16.048},
+  {matcher = "E_G0W0_indirect_gap", tol = 1e-03, ref = 38.632}
+]
 #EOF
