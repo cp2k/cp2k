@@ -220,7 +220,7 @@ Use `./make_cp2k.sh --help` to display the complete list of options:
 
 <details>
 
-<summary>Click to see all options (version 2.4)</summary>
+<summary>Click to see all options (version 3.0)</summary>
 
 ```
 Usage: make_cp2k.sh [-bd | --build_deps]
@@ -243,7 +243,8 @@ Usage: make_cp2k.sh [-bd | --build_deps]
                     [-mpi | --mpi_mode (mpich | no | openmpi)]
                     [-np | --num_packages #PACKAGES]
                     [-opencl]
-                    [-preset (native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)]
+                    [-pc | --print_config]
+                    [-preset (asan | native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)]
                     [-rc | --rebuild_cp2k]
                     [-t | --test "TESTOPTS"]
                     [-ta | --test_ase]
@@ -277,6 +278,8 @@ Flags:
  --mpi_mode            : Set preferred MPI mode (default: "mpich")
  --num_packages        : Maximum number of packages built by spack in parallel (default: 4)
  -opencl               : Enable the use of the Open Computing Language (OpenCL)
+ --print_config        : Print the resolved configuration (options.conf) as KEY=value lines to stdout
+                         and quit without building anything (all other output goes to stderr)
  -preset               : Use a CMake configure preset, see "cmake --list-presets" (default: native-gnu-x86_64)
  --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)
  --test                : Perform a regression test run after a successful build
@@ -299,11 +302,11 @@ Hints:
    (see also --build_deps flag)
  - The folder ${CP2K_ROOT}/install is updated after each successful run
 
-Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | hdf5 | libfci |
+Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | gauxc | greenx | hdf5 | libfci |
           libgint | libint2 | libsmeagol | libtorch | libvdwxc | libxs | mimic | openpmd | pexsi | plumed |
           sirius | spfft | spglib | spla | tblite | trexio | vori 
 
-Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | pw_gpu |
+Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | libxc_gpu | pw_gpu |
           spla_gemm_offloading | unified_memory
 ```
 
@@ -320,6 +323,36 @@ scratch; `--build_deps` and `--build_deps_only` provide the same behavior from t
 
 By default, compiled packages are also stored in a local cache. This significantly accelerates later
 dependency builds; see `--use_cache` for the available cache backends.
+
+#### Build steps and configuration files
+
+`make_cp2k.sh` performs the build in four steps. Only the first step is part of `make_cp2k.sh`
+itself, the other steps are separate scripts in the folder `tools/make_cp2k`:
+
+1. `make_cp2k.sh` parses the flags, checks the settings, removes folders if requested (`-bd`,
+   `-rc`), and writes the resolved configuration to `install/config/options.conf`.
+1. `build_deps.sh` builds the CP2K dependencies with Spack if needed and writes
+   `install/config/deps.conf`.
+1. `build_cp2k.sh` configures, builds, and installs CP2K with CMake and writes
+   `install/config/build.conf`.
+1. `check_conventions.sh`, `run_regtests.sh`, `test_coverage.sh`, `test_performance.sh`,
+   `build_gromacs.sh`, and `build_ase.sh` perform the optional checks, tests, and builds requested
+   by the flags.
+
+The step scripts read their settings only from the configuration files passed as arguments. These
+files contain `KEY=value` lines, and `unset KEY` lines for unset variables. The resolved
+configuration can be inspected without building anything using the flag `--print_config`, which
+writes only the configuration to stdout:
+
+```shell
+./make_cp2k.sh -cv ssmp -df all -ef libxc --print_config > options.conf
+```
+
+A single step can also be re-run on its own, e.g. a rebuild of CP2K after changing the source code:
+
+```shell
+tools/make_cp2k/build_cp2k.sh install/config/options.conf install/config/deps.conf
+```
 
 ```{note}
 The way Spack resolves a dependency stack is very different from that in a toolchain-based build;

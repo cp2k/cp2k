@@ -55,6 +55,7 @@ ENV FEATURE_FLAGS="${FEATURE_FLAGS}"
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
 COPY ./make_cp2k.sh .
+COPY ./tools/make_cp2k ./tools/make_cp2k
 COPY ./tools/docker ./tools/docker
 COPY ./tools/spack ./tools/spack
 
