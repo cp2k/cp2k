@@ -71,10 +71,12 @@ static inline void set_nd_key(int *key, const int rank, const int fft_size[3],
     const int r = rank - 1;
     if (direction) {
       onembed[r] = fft_size[r] / 2 + 1;
-      if (inplace) inembed[r] = 2 * (fft_size[r] / 2 + 1);
+      if (inplace)
+        inembed[r] = 2 * (fft_size[r] / 2 + 1);
     } else {
       inembed[r] = fft_size[r] / 2 + 1;
-      if (inplace) onembed[r] = 2 * (fft_size[r] / 2 + 1);
+      if (inplace)
+        onembed[r] = 2 * (fft_size[r] / 2 + 1);
     }
   }
   for (int d = 0; d < 4; d++) {
@@ -82,13 +84,16 @@ static inline void set_nd_key(int *key, const int rank, const int fft_size[3],
     key[7 + d] = 0;
     key[11 + d] = 0;
   }
-  for (int d = 0; d < rank; d++) key[3 + d] = fft_size[d];
+  for (int d = 0; d < rank; d++)
+    key[3 + d] = fft_size[d];
   key[3 + rank] = number_of_ffts;
   key[7] = istride;
-  for (int d = 1; d < rank; d++) key[7 + d] = key[7 + d - 1] * inembed[d - 1];
+  for (int d = 1; d < rank; d++)
+    key[7 + d] = key[7 + d - 1] * inembed[d - 1];
   key[7 + rank] = idist;
   key[11] = ostride;
-  for (int d = 1; d < rank; d++) key[11 + d] = key[11 + d - 1] * onembed[d - 1];
+  for (int d = 1; d < rank; d++)
+    key[11 + d] = key[11 + d - 1] * onembed[d - 1];
   key[11 + rank] = odist;
 }
 
@@ -318,8 +323,10 @@ static inline int get_buffer_size_from_key(const fft_key_t key) {
   const bool direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD;
   const bool inplace = (key[0] & FFT_KEY_INPLACE) == FFT_KEY_INPLACE;
   int used = 4;
-  while (used > 0 && key[3 + used - 1] == 0) used--;
-  if (used == 0) return 0;
+  while (used > 0 && key[3 + used - 1] == 0)
+    used--;
+  if (used == 0)
+    return 0;
   int max_span = 1;
   for (int side = 0; side < 2; side++) {
     const int *strides = (side == 0) ? &key[7] : &key[11];
@@ -335,9 +342,11 @@ static inline int get_buffer_size_from_key(const fft_key_t key) {
         else
           n = inplace ? 2 * half : n;
       }
-      if (n > 1) span += (n - 1) * strides[d];
+      if (n > 1)
+        span += (n - 1) * strides[d];
     }
-    if (span > max_span) max_span = span;
+    if (span > max_span)
+      max_span = span;
   }
   return max_span;
 }
@@ -414,7 +423,8 @@ static inline void fetch_data_from_key_guru(const fft_key_t key,
   *inplace = (key[0] & FFT_KEY_INPLACE) == FFT_KEY_INPLACE;
   *rank = key[0] % 4;
   int used = 4;
-  while (used > 0 && key[3 + used - 1] == 0) used--;
+  while (used > 0 && key[3 + used - 1] == 0)
+    used--;
   *howmany_rank = used > *rank ? used - *rank : 0;
   for (int r = 0; r < *rank; r++) {
     dims[r].n = key[3 + r];
