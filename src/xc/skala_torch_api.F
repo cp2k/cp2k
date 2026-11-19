@@ -22,6 +22,7 @@ MODULE skala_torch_api
       torch_dict_type, torch_model_disable_parameter_gradients, torch_model_forward_mol_tensor, &
       torch_model_freeze_preserving_method, torch_model_load_with_metadata, torch_model_release, &
       torch_model_remap_device_constants, torch_model_promote_float32, torch_model_type, &
+      torch_model_prepare_higher_derivatives, &
       torch_tensor_item_double, torch_tensor_release, torch_tensor_type, &
       torch_tensor_weighted_sum, torch_tensor_weighted_sum_segments
 #include "../base/base_uses.f90"
@@ -48,15 +49,16 @@ CONTAINS
 !> \param model ...
 !> \param filename ...
 !> \param fp64 Promote float32 numerical state and casts; default true for differential consistency.
+!> \param higher_derivatives Prepare Torch operations for second input derivatives.
 ! **************************************************************************************************
-   SUBROUTINE skala_torch_model_load(model, filename, fp64)
+   SUBROUTINE skala_torch_model_load(model, filename, fp64, higher_derivatives)
       TYPE(skala_torch_model_type), INTENT(INOUT)        :: model
       CHARACTER(len=*), INTENT(IN)                       :: filename
-      LOGICAL, INTENT(IN), OPTIONAL                      :: fp64
+      LOGICAL, INTENT(IN), OPTIONAL                      :: fp64, higher_derivatives
 
       CHARACTER(:), ALLOCATABLE                          :: features_json, protocol_string
       INTEGER                                            :: ios, protocol_version
-      LOGICAL                                            :: use_fp64
+      LOGICAL                                            :: prepare_derivatives, use_fp64
 
       ! The model is loaded on the CPU (even for a CUDA target) so that all
       ! float32 -> float64 promotion and constant folding happen in host memory.
@@ -78,7 +80,13 @@ CONTAINS
       END BLOCK
       use_fp64 = .TRUE.
       IF (PRESENT(fp64)) use_fp64 = fp64
-      IF (use_fp64) CALL torch_model_promote_float32(model%torch_model)
+      prepare_derivatives = .FALSE.
+      IF (PRESENT(higher_derivatives)) prepare_derivatives = higher_derivatives
+      IF (prepare_derivatives) THEN
+         CALL torch_model_prepare_higher_derivatives(model%torch_model)
+      ELSE IF (use_fp64) THEN
+         CALL torch_model_promote_float32(model%torch_model)
+      END IF
       ! Move to the resolved device (a no-op on the CPU target) and remap the
       ! serialized device constants after promotion.
       CALL torch_model_remap_device_constants(model%torch_model)
