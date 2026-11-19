@@ -1,16 +1,13 @@
 import math
-import re
 import traceback
 from typing import Any, Dict
 
 from matcher_classes import (
-    ComputedValueMatcher,
     GenericMatcher,
     Matcher,
     MatchResult,
     TextAbsenceMatcher,
     TextPresenceMatcher,
-    restricted_fcidump_energy_offset,
 )
 
 
@@ -526,8 +523,8 @@ registry["AS_embedding_iterations"] = GenericMatcher(
 registry["FCIDUMP_MS2"] = GenericMatcher(
     r"&FCI .*MS2=\s*([-+0-9]+),", col=1, regex=True
 )
-registry["FCIDUMP_reference_energy"] = ComputedValueMatcher(
-    restricted_fcidump_energy_offset
+registry["FCIDUMP_reference_energy"] = GenericMatcher(
+    r"FCIDUMP| Reference determinant energy offset [hartree]:", col=7
 )
 registry["ROKS_FCIDUMP_spin_warning"] = TextPresenceMatcher("ROKS FCIDUMP spin blocks")
 registry["M093"] = GenericMatcher(r"SPGR| SPACE GROUP NUMBER:", col=5)

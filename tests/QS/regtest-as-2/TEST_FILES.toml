@@ -39,5 +39,8 @@
   {matcher = "M092", tol = 1e-8, ref = 4.38648605},
   {matcher = "FCIDUMP_MS2", tol = 0.0, ref = 1}
 ]
-"ch2_roks_fcidump.inp" = [{matcher = "FCIDUMP_reference_energy", tol = 1e-10}, {matcher = "ROKS_FCIDUMP_spin_warning"}]
+"ch2_roks_fcidump.inp" = [
+  {matcher = "FCIDUMP_reference_energy", tol = 1e-10, ref = 0.0},
+  {matcher = "ROKS_FCIDUMP_spin_warning"}
+]
 #EOF
