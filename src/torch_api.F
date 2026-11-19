@@ -101,7 +101,7 @@ MODULE torch_api
    PUBLIC :: torch_model_promote_float32
    PUBLIC :: torch_model_prepare_higher_derivatives
    PUBLIC :: torch_model_get_attr, torch_model_read_metadata
-   PUBLIC :: torch_cuda_device_count, torch_cuda_is_available, torch_cuda_memory_info
+   PUBLIC :: torch_cuda_device_count, torch_cuda_is_available
    PUBLIC :: torch_allow_tf32, torch_model_freeze, torch_model_freeze_preserving_method, &
              torch_use_cuda
 
@@ -469,33 +469,6 @@ CONTAINS
       MARK_USED(result)
 #endif
    END SUBROUTINE torch_tensor_gather_rows
-
-! **************************************************************************************************
-!> \brief Reports current/peak CUDA allocator usage in bytes (zero when unavailable).
-! **************************************************************************************************
-   SUBROUTINE torch_cuda_memory_info(allocated, reserved, peak)
-      INTEGER(KIND=int_8), INTENT(OUT)                   :: allocated, reserved, peak
-
-#if defined(__LIBTORCH)
-      INTERFACE
-         SUBROUTINE torch_c_cuda_memory_info(allocated, reserved, peak) &
-            BIND(C, name="torch_c_cuda_memory_info")
-            IMPORT :: C_INT64_T
-            INTEGER(C_INT64_T), INTENT(OUT)              :: allocated, reserved, peak
-         END SUBROUTINE torch_c_cuda_memory_info
-      END INTERFACE
-
-      CALL torch_c_cuda_memory_info(allocated, reserved, peak)
-#else
-      allocated = 0_int_8
-      reserved = 0_int_8
-      peak = 0_int_8
-      MARK_USED(allocated)
-      MARK_USED(reserved)
-      MARK_USED(peak)
-#endif
-   END SUBROUTINE torch_cuda_memory_info
-
 ! **************************************************************************************************
 !> \brief Runs autograd on a Torch tensor.
 !> \author Ole Schuett

@@ -102,7 +102,6 @@ MODULE qs_vxc_atom
                                               xc_section_uses_gauxc_model,&
                                               xc_section_uses_native_skala_grid
    USE spherical_harmonics,             ONLY: y_lm
-   USE torch_api,                       ONLY: torch_cuda_memory_info
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
    USE xc_atom,                         ONLY: fill_rho_set,&
@@ -284,8 +283,7 @@ CONTAINS
          jdir, local_partition_target_image, myfun, na, natom, ngl, nr, nspins, num_pe, on, pos, &
          source_atom
       INTEGER :: target_atom, xc_deriv_method_id, xc_rho_smooth_id, zatom
-      INTEGER(int_8)                                     :: lin, mem_allocated, mem_peak, &
-                                                            mem_reserved
+      INTEGER(int_8)                                     :: lin
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: composite_atomic_grid_sizes, &
                                                             composite_local_grid_sizes
       INTEGER, ALLOCATABLE, DIMENSION(:) :: composite_atom_end, composite_atom_kind, &
@@ -2636,21 +2634,6 @@ CONTAINS
                END IF
             END IF
             CALL xc_rho_set_release(smooth_rho_set, pw_pool=auxbas_pw_pool)
-            IF (native_grid_diagnostics) THEN
-               iw = cp_logger_get_default_io_unit()
-               IF (iw > 0) THEN
-                  WRITE (UNIT=iw, FMT="(T2,A,I0)") "SKALA_GPW| Atom-composite rows: ", composite_nflat
-                  WRITE (UNIT=iw, FMT="(T2,A,F0.1,A)") "SKALA_GPW| composite field arrays: ", &
-                     REAL(15, KIND=dp)*REAL(composite_nflat, KIND=dp)*(8.0_dp/1048576.0_dp), " MiB"
-                  CALL torch_cuda_memory_info(mem_allocated, mem_reserved, mem_peak)
-                  IF (mem_peak > 0) THEN
-                     WRITE (UNIT=iw, FMT="(T2,A,3F0.1)") "SKALA_GPW| GPU MiB alloc/reserved/peak:", &
-                        REAL(mem_allocated, KIND=dp)/1048576.0_dp, &
-                        REAL(mem_reserved, KIND=dp)/1048576.0_dp, &
-                        REAL(mem_peak, KIND=dp)/1048576.0_dp
-                  END IF
-               END IF
-            END IF
             DEALLOCATE (composite_atomic_grid_sizes, composite_atom_kind, &
                         composite_atom_kind_index, composite_atom_start, composite_atom_end, &
                         composite_atom_coords, composite_local_atoms, composite_local_grid_sizes, &
