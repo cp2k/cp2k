@@ -2099,7 +2099,7 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every,
         const int batch = basis / test_every;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
-#if defined(__INTEL_LLVM_COMPILER) && __INTEL_LLVM_COMPILER >= 20250200 && \
+#if defined(__INTEL_LLVM_COMPILER) && __INTEL_LLVM_COMPILER >= 20250200 &&     \
     __INTEL_LLVM_COMPILER < 20260200
             // Affected icx versions can overwrite kz=0 when vectorizing.
 #pragma clang loop vectorize(disable)
@@ -2270,7 +2270,7 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3],
         const int batch = basis / test_every;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
-#if defined(__INTEL_LLVM_COMPILER) && __INTEL_LLVM_COMPILER >= 20250200 && \
+#if defined(__INTEL_LLVM_COMPILER) && __INTEL_LLVM_COMPILER >= 20250200 &&     \
     __INTEL_LLVM_COMPILER < 20260200
             // Affected icx versions can overwrite kz=0 when vectorizing.
 #pragma clang loop vectorize(disable)
