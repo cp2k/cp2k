@@ -13,6 +13,7 @@
 #if defined(__LIBTORCH_CUDA)
 #include <ATen/cuda/CUDAContextLight.h>
 #include <c10/cuda/CUDAAllocatorConfig.h>
+#include <c10/cuda/CUDACachingAllocator.h>
 #include <c10/cuda/CUDAStream.h>
 #endif
 #include <c10/core/DeviceGuard.h>
@@ -936,6 +937,30 @@ void torch_c_tensor_gather_rows(const torch_c_tensor_t *tensor, const int nrows,
   *result = new torch_c_tensor_t(
       tensor->index_select(row_dim, index).cpu().contiguous());
   TORCH_C_CATCH("torch_c_tensor_gather_rows")
+}
+
+/*******************************************************************************
+ * \brief Reports current/peak CUDA allocator usage in bytes (device 0 of the
+ * run).
+ ******************************************************************************/
+void torch_c_cuda_memory_info(int64_t *allocated, int64_t *reserved,
+                              int64_t *peak) {
+  *allocated = 0;
+  *reserved = 0;
+  *peak = 0;
+#if defined(__LIBTORCH_CUDA)
+  TORCH_C_TRY
+  if (torch::cuda::is_available()) {
+    c10::OptionalDeviceGuard guard;
+    get_device_with_guard(guard);
+    const auto idx = static_cast<c10::DeviceIndex>(c10::cuda::current_device());
+    const auto stats = c10::cuda::CUDACachingAllocator::getDeviceStats(idx);
+    *allocated = static_cast<int64_t>(stats.allocated_bytes[0].current);
+    *reserved = static_cast<int64_t>(stats.reserved_bytes[0].current);
+    *peak = static_cast<int64_t>(stats.allocated_bytes[0].peak);
+  }
+  TORCH_C_CATCH("torch_c_cuda_memory_info")
+#endif
 }
 
 /*******************************************************************************
