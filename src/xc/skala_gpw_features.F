@@ -26,7 +26,6 @@ MODULE skala_gpw_features
         skala_key_atomic_grid_weights, skala_key_coarse_0_atomic_coords, skala_key_density, &
         skala_key_grad, skala_key_grid_coords, skala_key_grid_weights, skala_key_kin
    USE skala_periodic_partition,        ONLY: build_periodic_atom_image_layout,&
-                                              periodic_atom_image_partition,&
                                               periodic_atom_image_partition_from_layout,&
                                               skala_periodic_partition_type
    USE skala_torch_api,                 ONLY: skala_torch_model_type
@@ -64,7 +63,7 @@ MODULE skala_gpw_features
              skala_gpw_feature_release, &
              smooth_partition_derivative_action, &
              smooth_partition_weights, &
-             build_periodic_atom_image_layout, periodic_atom_image_partition, &
+             build_periodic_atom_image_layout, &
              periodic_atom_image_partition_from_layout, skala_periodic_partition_type, &
              smooth_partition_atomic_weight_scale, smooth_partition_atomic_weight_scale_derivative
 
