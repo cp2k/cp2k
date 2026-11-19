@@ -25,8 +25,7 @@ MODULE four_center_integral_interface
                                               eri4_pgf_image_type,&
                                               eri4_pgf_pair_type
    USE hfx_contraction_methods,         ONLY: contract
-   USE input_constants,                 ONLY: do_potential_TShPSC,&
-                                              do_potential_mix_cl_trunc,&
+   USE input_constants,                 ONLY: do_potential_mix_cl_trunc,&
                                               do_potential_short,&
                                               do_potential_truncated
    USE integral_library_types,          ONLY: coulomb_operator_type
@@ -117,9 +116,6 @@ CONTAINS
       CASE (do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
          has_r_cutoff = .TRUE.
          rcut_eff = potential_parameter%cutoff_radius
-      CASE (do_potential_TShPSC)
-         has_r_cutoff = .TRUE.
-         rcut_eff = potential_parameter%cutoff_radius*2.0_dp
       CASE DEFAULT
          has_r_cutoff = .FALSE.
          rcut_eff = 0.0_dp
