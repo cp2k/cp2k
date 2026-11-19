@@ -138,6 +138,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_SYMMETRY", &
+                          description="Accuracy for detection of rotational symmetry number.", &
+                          usage="EPS_SYMMETRY {REAL}", &
+                          default_r_val=1.0e-4_dp, repeats=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL create_mode_selective_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
