@@ -32,9 +32,9 @@ MODULE hfx_ri_kp
         dbcsr_add, dbcsr_clear, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, &
         dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, dbcsr_iterator_stop, &
+        dbcsr_iterator_type, dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
    USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
@@ -2213,7 +2213,13 @@ CONTAINS
          END IF
       END IF !use_template
 
+      CALL dbcsr_work_create(work, work_mutable=.TRUE.)
       cell_b(:) = index_to_cell(:, img_b)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(nimg, ri_data, index_to_cell, cell_b, cell_to_index, mat_orig, present_atoms_i, &
+!$OMP        present_atoms_j, my_offd, natom, work) &
+!$OMP PRIVATE(i_img, i_RI, cell_i, j_img, j_RI, cell_j, cell_tot, img_tot, dbcsr_iter, iatom, &
+!$OMP         jatom, pblock)
       DO i_img = 1, nimg
          i_RI = ri_data%img_to_RI_cell(i_img)
          IF (i_RI == 0) CYCLE
@@ -2229,15 +2235,13 @@ CONTAINS
             img_tot = cell_to_index(cell_tot(1), cell_tot(2), cell_tot(3))
             IF (img_tot > nimg .OR. img_tot < 1) CYCLE
 
-            CALL dbcsr_iterator_start(dbcsr_iter, mat_orig(img_tot))
+            NULLIFY (pblock)
+            CALL dbcsr_iterator_readonly_start(dbcsr_iter, mat_orig(img_tot))
             DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
-               CALL dbcsr_iterator_next_block(dbcsr_iter, row=iatom, column=jatom)
+               CALL dbcsr_iterator_next_block(dbcsr_iter, row=iatom, column=jatom, block=pblock)
                IF (present_atoms_i(iatom, i_img) == 0) CYCLE
                IF (present_atoms_j(jatom, j_img) == 0) CYCLE
                IF (my_offd .AND. (i_RI - 1)*natom + iatom == (j_RI - 1)*natom + jatom) CYCLE
-
-               CALL dbcsr_get_block_p(mat_orig(img_tot), iatom, jatom, pblock, found)
-               IF (.NOT. found) CYCLE
 
                CALL dbcsr_put_block(work, (i_RI - 1)*natom + iatom, (j_RI - 1)*natom + jatom, pblock)
 
@@ -2246,6 +2250,7 @@ CONTAINS
 
          END DO !j_img
       END DO !i_img
+!$OMP END PARALLEL
       CALL dbcsr_finalize(work)
 
       IF (do_inverse_prv) THEN
@@ -2410,7 +2415,6 @@ CONTAINS
       INTEGER, CONTIGUOUS, POINTER :: blocks(:, :), cell_to_index(:, :, :), col_dist(:), &
          col_ext(:), grid(:, :), index_to_cell(:, :), row_dist(:), row_ext(:), sizes_G(:), &
          sizes_RI(:)
-      LOGICAL                                            :: found
       LOGICAL, ALLOCATABLE                               :: needed(:, :), valid_images(:, :)
       REAL(dp), POINTER                                  :: block(:, :)
       TYPE(dbcsr_distribution_type)                      :: extended_dist, matrix_dist
@@ -2499,12 +2503,15 @@ CONTAINS
                         row_blk_size=sizes_G, col_blk_size=sizes_RI)
       CALL dbcsr_distribution_release(extended_dist)
       DEALLOCATE (row_ext, col_ext, sizes_G, sizes_RI)
+      CALL dbcsr_work_create(potential, work_mutable=.TRUE.)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(nimg, ri_data, index_to_cell, lo, hi, cell_index, natom, potential) &
+!$OMP PRIVATE(img, matrix_iter, p_atom, q_atom, block, q, cell_x, g)
       DO img = 1, nimg
-         CALL dbcsr_iterator_start(matrix_iter, ri_data%kp_mat_2c_pot(1, img))
+         NULLIFY (block)
+         CALL dbcsr_iterator_readonly_start(matrix_iter, ri_data%kp_mat_2c_pot(1, img))
          DO WHILE (dbcsr_iterator_blocks_left(matrix_iter))
-            CALL dbcsr_iterator_next_block(matrix_iter, row=p_atom, column=q_atom)
-            CALL dbcsr_get_block_p(ri_data%kp_mat_2c_pot(1, img), p_atom, q_atom, block, found)
-            IF (.NOT. found) CYCLE
+            CALL dbcsr_iterator_next_block(matrix_iter, row=p_atom, column=q_atom, block=block)
             DO q = 1, ri_data%ncell_RI
                cell_x = index_to_cell(:, ri_data%RI_cell_to_img(q)) - index_to_cell(:, img)
                IF (ANY(cell_x < lo) .OR. ANY(cell_x > hi)) CYCLE
@@ -2515,6 +2522,7 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(matrix_iter)
       END DO
+!$OMP END PARALLEL
       CALL dbcsr_finalize(potential)
       CALL dbt_create(potential, V_atom)
       CALL dbt_copy_matrix_to_tensor(potential, V_atom)
