@@ -896,6 +896,19 @@ void torch_c_tensor_narrow(const torch_c_tensor_t *tensor, const int64_t dim,
 }
 
 /*******************************************************************************
+ * \brief Deep-copies a tensor into an independent tensor on the current device.
+ ******************************************************************************/
+void torch_c_tensor_clone(const torch_c_tensor_t *tensor,
+                          torch_c_tensor_t **result) {
+  TORCH_C_TRY
+  c10::OptionalDeviceGuard guard;
+  get_device_with_guard(guard);
+  torch_c_check(*result == NULL, "Torch tensor output must be NULL");
+  *result = new torch_c_tensor_t(tensor->detach().clone());
+  TORCH_C_CATCH("torch_c_tensor_clone")
+}
+
+/*******************************************************************************
  * \brief Returns the data_ptr and sizes of a Torch tensor of int32s.
  *        The returned pointer is only valide during the tensor's live time!
  * \author Ole Schuett
