@@ -340,8 +340,9 @@ itself, the other steps are separate scripts in the folder `tools/make_cp2k`:
    by the flags.
 
 The step scripts read their settings only from the configuration files passed as arguments. These
-files contain `KEY=value` lines. The resolved configuration can be inspected without building
-anything using the flag `--print_config`, which writes only the configuration to stdout:
+files contain `KEY=value` lines, and `unset KEY` lines for unset variables. The resolved
+configuration can be inspected without building anything using the flag `--print_config`, which
+writes only the configuration to stdout:
 
 ```shell
 ./make_cp2k.sh -cv ssmp -df all -ef libxc --print_config > options.conf

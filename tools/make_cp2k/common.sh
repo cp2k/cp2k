@@ -4,8 +4,8 @@
 #
 # This file only defines functions and is sourced by each script.
 # The scripts exchange their settings only via configuration files with
-# KEY=value lines (values quoted with printf %q), which are written by
-# write_config and read by load_config:
+# KEY=value lines (values quoted with printf %q) and unset KEY lines for unset
+# variables, which are written by write_config and read by load_config:
 #
 #   options.conf : Resolved settings of make_cp2k.sh (step 1), also printed by --print_config
 #   deps.conf    : Settings provided by the CP2K dependency build with build_deps.sh (step 2)
@@ -26,12 +26,15 @@ retry_download() {
   return 1
 }
 
-# Write the given variables as KEY=value lines to stdout, unset variables are skipped
+# Write the given variables as KEY=value lines to stdout, or as unset KEY lines
+# for unset variables, so that loading a configuration reproduces its state
 write_config() {
   local name
   for name in "$@"; do
     if [[ -v ${name} ]]; then
       printf '%s=%q\n' "${name}" "${!name}"
+    else
+      printf 'unset %s\n' "${name}"
     fi
   done
 }
