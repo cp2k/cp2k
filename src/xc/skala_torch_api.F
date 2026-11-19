@@ -60,8 +60,6 @@ CONTAINS
       INTEGER                                            :: ios, protocol_version
       LOGICAL                                            :: prepare_derivatives, use_fp64
 
-      ! The model is loaded on the CPU (even for a CUDA target) so that all
-      ! float32 -> float64 promotion and constant folding happen in host memory.
       CALL torch_model_load_with_metadata(model%torch_model, filename, &
                                           "protocol_version", protocol_string, &
                                           "features", features_json)
@@ -87,8 +85,6 @@ CONTAINS
       ELSE IF (use_fp64) THEN
          CALL torch_model_promote_float32(model%torch_model)
       END IF
-      ! Move to the resolved device (a no-op on the CPU target) and remap the
-      ! serialized device constants after promotion.
       CALL torch_model_remap_device_constants(model%torch_model)
       ! Preserve the exported SKALA entry point while folding constant model state.
       CALL torch_model_freeze_preserving_method(model%torch_model, "get_exc_density")
@@ -213,8 +209,6 @@ CONTAINS
 #endif
       CALL torch_model_forward_mol_tensor(model%torch_model, "get_exc_density", inputs, exc_density)
       CALL torch_tensor_weighted_sum(exc_density, grid_weights, exc_tensor)
-      ! All segment sums are reduced on device and copied back with a single
-      ! host synchronization instead of one per segment.
       CALL torch_tensor_weighted_sum_segments(exc_density, grid_weights, seg_offsets, &
                                               seg_lengths, exc_segments)
       CALL torch_tensor_release(exc_density)

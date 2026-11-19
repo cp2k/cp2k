@@ -73,7 +73,6 @@ MODULE xc_gauxc_functional
    PUBLIC :: apply_gauxc, gauxc_gapw_all_all_electron, gauxc_gapw_all_pseudopotentials, &
              gauxc_gapw_has_paw_pseudopotentials, skala_info
 
-   ! One-time guard for the mixed execution-space FD warning.
    LOGICAL, SAVE, PRIVATE :: fd_mixed_space_warned = .FALSE.
 
 CONTAINS
@@ -395,8 +394,6 @@ CONTAINS
       CALL dbcsr_distribution_get(dist, mynode=mynode, myprow=myprow, mypcol=mypcol, &
                                   row_dist=row_dist, col_dist=col_dist)
 
-      ! The block layout is invariant for a given template/distribution; build the
-      ! owned upper-triangular block list once and only push values each SCF.
       IF (.NOT. dense_layout_matches(layout, nrows, ncols, nblkrows_total, nblkcols_total, &
                                      mynode, myprow, mypcol, row_blk_size, col_blk_size, &
                                      row_dist, col_dist)) THEN
@@ -405,9 +402,6 @@ CONTAINS
                                  row_dist, col_dist)
       END IF
 
-      ! Reuse an existing matrix only if matrix type, block sizes and
-      ! distribution match the cached layout; otherwise recreate from the
-      ! template so blocks are pushed to the correct owners.
       IF (ASSOCIATED(dbcsr_mat%matrix)) THEN
          IF (.NOT. dbcsr_target_matches_layout(dbcsr_mat%matrix, layout)) THEN
             CALL dbcsr_release(dbcsr_mat%matrix)
@@ -443,7 +437,6 @@ CONTAINS
          c1t = layout%c_offset(irow)
          c2t = c1t + nc_t - 1
          IF (PRESENT(dense_zeta)) THEN
-            ! Symmetrized channel block from total (dense_mat) and spin (dense_zeta).
             layout%blk(1:nr, 1:nc) = 0.5_dp*( &
                                      (dense_mat(r1:r2, c1:c2) + zsign*dense_zeta(r1:r2, c1:c2)) + &
                                      TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t) + zsign*dense_zeta(r1t:r2t, c1t:c2t)))
@@ -605,7 +598,6 @@ CONTAINS
          layout%c_offset(col) = layout%c_offset(col - 1) + col_blk_size(col - 1)
       END DO
 
-      ! Locally owned block row/column indices.
       ALLOCATE (local_rows(nblkrows), local_cols(nblkcols))
       nlocal_rows = 0
       DO row = 1, nblkrows
@@ -622,7 +614,6 @@ CONTAINS
          END IF
       END DO
 
-      ! Count, then build, the same blocks the original two parity loops visited.
       nblocks = 0
       DO a = 1, nlocal_rows
          irow = local_rows(a)
@@ -1066,8 +1057,6 @@ CONTAINS
       IF (.NOT. ALLOCATED(exc_grad)) ALLOCATE (exc_grad(3*SIZE(particle_set)))
       exc_grad = 0.0_dp
 
-      ! The GauXC OneDFT device path still assumes cuda:0, so only distribute
-      ! conventional functionals and HOST/CPU OneDFT evaluations over ranks.
       use_onedft_model = gauxc_model_active(model_name)
       lb_key = ADJUSTL(lb_exec_space)
       int_key = ADJUSTL(int_exec_space)
@@ -1084,16 +1073,11 @@ CONTAINS
                       "LB_EXECUTION_SPACE/INT_EXECUTION_SPACE settings; the FD sweep "// &
                       "will stay on rank 0.")
       END IF
-      ! Distribute only conventional functionals, or OneDFT when both execution
-      ! spaces use the host (the OneDFT device path assumes cuda:0).
       distribute_fd = (para_env%num_pe > 1) .AND. &
                       (.NOT. use_onedft_model .OR. (.NOT. lb_device .AND. .NOT. int_device))
       has_work = distribute_fd .OR. (para_env%mepos == 0)
 
       IF (has_work) THEN
-         ! One shared runtime for the whole sweep; gauxc_xc_energy_for_particles
-         ! rebuilds the geometry-dependent molecule/basis/grid/integrator stack
-         ! for every displaced geometry.
          CALL gauxc_create_shared_runtime(fd_runtime, mp_comm_self%get_handle(), lb_exec_space, &
                                           int_exec_space, device_runtime_fill_fraction, gauxc_status)
          CALL gauxc_check_status(gauxc_status)
@@ -2055,9 +2039,6 @@ CONTAINS
                                   rho_ao(1, img), matrix_vxc(1))
       ELSE
          CPASSERT(SIZE(matrix_vxc) == 2)
-         ! Build the alpha/beta channels directly from total/spin blocks: alpha =
-         ! scalar + zeta, beta = scalar - zeta. This avoids materializing an extra
-         ! dense channel matrix and two full-matrix passes.
          CALL dense_to_dbcsr_into(cache%dense_layout, cache%xc_result%vxc_scalar, rho_ao(1, img), &
                                   matrix_vxc(1), dense_zeta=cache%xc_result%vxc_zeta, &
                                   z_sign=1.0_dp)

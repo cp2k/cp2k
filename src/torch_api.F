@@ -104,7 +104,6 @@ MODULE torch_api
    PUBLIC :: torch_allow_tf32, torch_model_freeze, torch_model_freeze_preserving_method, &
              torch_use_cuda
 
-   ! Set once so the per-process Torch thread count follows CP2K's OpenMP budget.
    LOGICAL, SAVE :: torch_default_threads_set = .FALSE.
 
 CONTAINS

@@ -451,10 +451,6 @@ CONTAINS
                        "Native SKALA GPW stress/virial requires feature gradients.")
       END IF
 
-      ! CP2K may compute an initial non-stress energy before the stress/force
-      ! evaluation. Once stress has been requested, however, the run must stay
-      ! in stress mode. Just-energy calls (finite-difference virial diagnostics)
-      ! do not build feature gradients and are exempt.
       IF (.NOT. my_just_energy) THEN
          IF (compute_virial) THEN
             skala_state%stress_mode_entered = .TRUE.
@@ -600,10 +596,6 @@ CONTAINS
             CALL timeset("skala_gpw_static_grad_fetch", phase_handle)
             NULLIFY (grid_coord_grad_p, grid_weight_grad_p, atomic_grid_weight_grad_p, &
                      atom_coord_grad_p)
-            ! Only fetch gradients a consumer will actually use. Atom forces need
-            ! the atomic coordinate gradient, the virial also needs the grid
-            ! coordinate and weight gradients, and a smooth partition uses the
-            ! weight gradients for forces as well.
             static_grad_count = 0
             static_grad_atom_slot = 0
             static_grad_grid_slot = 0
@@ -674,8 +666,6 @@ CONTAINS
                                                atom_coord_grad_in=atom_coord_grad_p)
          END IF
 
-         ! SMOOTH partition force and virial share the O(natom^2) pair loop; compute
-         ! both in one sweep when both are requested.
          IF ((needs_atom_force .OR. compute_virial) .AND. &
              features%atom_partition == skala_gpw_atom_partition_smooth) THEN
             IF (compute_virial .AND. native_grid_diagnostics) virial_before = virial_xc
@@ -894,8 +884,6 @@ CONTAINS
       ELSE
          nvals = features%nflat
       END IF
-      ! Always enter the collective reduction, even when this rank owns no rows
-      ! (nvals == 0); otherwise idle ranks would skip the group%min and deadlock.
       cache_hit = weight_grad_cache_matches(rho_r(1)%pw_grid%para%group, particle_set, cell, &
                                             rho_r, tau, nspins, features%uses_atom_chunks, &
                                             native_grid_atom_partition, nvals)
@@ -916,10 +904,6 @@ CONTAINS
          END IF
          nsubchunks = 1
          IF (chunk_max_rows > 0) THEN
-            ! Every rank must enter this collective, including ranks that own no
-            ! atom chunk after the atom blocks were distributed. Skipping it on
-            ! the idle ranks deadlocks the active ranks here while they wait for
-            ! the others to join the subgroup maximum.
             IF (features%chunk_feature_count > 0) THEN
                nsubchunks = skala_gpw_atom_subchunk_count(chunk_max_rows)
             END IF
@@ -1148,8 +1132,6 @@ CONTAINS
          skala_state%atom_ws%nblocks = nblocks
          skala_state%atom_ws%nflat_tot = nflat_tot
          skala_state%atom_ws%device = selected_cuda_device
-         ! These two integer tensors are fully determined by the workspace
-         ! dimensions, so create them once per workspace instead of on every call.
          CALL torch_tensor_from_array(skala_state%atom_ws%atomic_grid_sizes_t, skala_state%atom_ws%atomic_grid_sizes)
          CALL torch_tensor_to_device_leaf(skala_state%atom_ws%atomic_grid_sizes_t, .FALSE.)
          CALL torch_tensor_from_array(skala_state%atom_ws%atomic_grid_size_bound_shape_t, &
@@ -1290,7 +1272,6 @@ CONTAINS
          CALL torch_tensor_data_ptr(density_grad_t, density_grad)
          CALL torch_tensor_data_ptr(grad_grad_t, grad_grad)
          CALL torch_tensor_data_ptr(kin_grad_t, kin_grad)
-         ! Both readbacks are issued asynchronously; synchronize once before use.
          CALL torch_stream_synchronize()
 
          DO iblock = 1, nblocks
@@ -1385,9 +1366,6 @@ CONTAINS
       END IF
 
       CALL torch_tensor_release(exc_tensor)
-      ! The input tensors and dict are pooled for reuse on the GPU path. The CPU
-      ! path rebuilds tensors from the host arrays on every call, so release them
-      ! there; the pooled dict keeps its reference until the next update.
       IF (.NOT. skala_state%atom_ws%tensors_active) THEN
          CALL torch_tensor_release(skala_state%atom_ws%density_t)
          CALL torch_tensor_release(skala_state%atom_ws%grad_t)
@@ -1537,9 +1515,6 @@ CONTAINS
             density_t => skala_state%atom_cuda_tensors%density_t
             grad_t => skala_state%atom_cuda_tensors%grad_t
             kin_t => skala_state%atom_cuda_tensors%kin_t
-            ! Static tensors depend only on the (unchanged) geometry/layout and
-            ! device; skip their host->device upload when the caller confirms the
-            ! geometry is unchanged. Only density/grad/kin are re-uploaded per SCF.
             upload_static = .TRUE.
             IF (PRESENT(static_geometry_valid)) THEN
                IF (static_geometry_valid .AND. skala_state%atom_static_valid .AND. &
@@ -1572,8 +1547,6 @@ CONTAINS
                upload_offset = staged_upload(atomic_coords_t, atomic_coords, upload_offset, &
                                              need_coordinate_derivatives)
             ELSE
-               ! Re-arm differentiability on the cached leaves (clears stale grads)
-               ! without re-copying the data.
                CALL torch_tensor_set_requires_grad(grid_coords_t, need_coordinate_derivatives)
                CALL torch_tensor_set_requires_grad(grid_weights_t, need_coordinate_derivatives)
                CALL torch_tensor_set_requires_grad(atomic_grid_weights_t, need_coordinate_derivatives)
@@ -1727,7 +1700,6 @@ CONTAINS
          END IF
 
          IF (active_rank) THEN
-            ! Both readbacks are issued asynchronously; synchronize once before use.
             CALL torch_stream_synchronize()
             density_grad_out(:, :) = density_grad
             grad_grad_out(:, :, :) = grad_grad
@@ -1927,7 +1899,6 @@ CONTAINS
                                      KIND=int_8)
       END DO
 
-      ! Largest blocks run first so CUDA allocations can be reused by all following calls.
       CALL sort_chunks_by_padded_rows(padded_rows, atom_begin, atom_count, row_begin, row_count)
       DEALLOCATE (padded_rows)
 
@@ -2354,8 +2325,6 @@ CONTAINS
 
       hit = MERGE(1, 0, weight_grad_cache_matches_local(particle_set, cell, rho_r, tau, &
                                                         nspins, atom_chunks, atom_partition, nvals))
-      ! Every rank must agree: a hit skips the model backward and the atom-chunk
-      ! gradient exchange, so a rank-local hit while another misses deadlocks.
       CALL group%min(hit)
       matches = (hit == 1)
 
@@ -2543,8 +2512,6 @@ CONTAINS
       CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau_r, needs, &
                              section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
                              section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), pw_pool)
-      ! Unlike rho and its gradient, xc_rho_set_update borrows tau storage.
-      ! A cached response reference must survive release of a transferred grid.
       DO ispin = 1, SIZE(tau_r)
          NULLIFY (tau_copy)
          CALL pw_pool%create_cr3d(tau_copy)
@@ -2620,20 +2587,14 @@ CONTAINS
       selected_device = configure_native_grid_cuda(use_cuda, rho1_r(1)%pw_grid%para%group)
       CALL get_skala_model_path(xc_section, model_path)
       CALL ensure_model_loaded(model_path, selected_device, xc_section, higher_derivatives=.TRUE.)
-      ! The nonlocal response requires the full-grid feature layout; release an
-      ! atom-chunk layout that the ground-state SCF may have established first.
       IF (skala_state%layout_mode_known .AND. .NOT. skala_state%layout_mode_full) THEN
          CALL skala_gpw_features_release_cache()
       END IF
 
       CALL skala_gpw_fxc_prep(rho1_set, rho1_r, tau1_r, xc_section, pw_pool)
-      ! Both maps use the fixed SCF grid. The second map packs a signed direction,
-      ! not a new physical density, without clipping or density normalization.
       CALL skala_gpw_feature_build(direction, rho1_set, rho1_r, particle_set, cell, &
                                    requires_grad=.FALSE., weights=weights, atom_partition=partition, &
                                    cuda_device=selected_device)
-      ! The feature builder reuses dynamic tensors. Keep independent direction
-      ! tensors before packing the reference into that cache.
       CALL torch_tensor_from_array(directions(1), direction%density)
       CALL torch_tensor_from_array(directions(2), direction%grad)
       CALL torch_tensor_from_array(directions(3), direction%kin)
@@ -3517,7 +3478,6 @@ CONTAINS
                        "the MPI rank-to-device mapping).")
       END IF
 
-      ! The offload library is the single source of truth for the active device.
       selected_device = offload_get_chosen_device()
       IF (selected_device < 0 .OR. selected_device >= cuda_device_count) THEN
          CALL cp_abort(__LOCATION__, &
@@ -3527,9 +3487,6 @@ CONTAINS
                        "CUDA_VISIBLE_DEVICES and the MPI rank-to-device mapping.")
       END IF
 
-      ! This routine is called from the local atom loop in qs_vxc_atom, so the
-      ! number of calls can differ between MPI ranks. Do not use collectives
-      ! here; the device choice is local and the log is written by the I/O rank.
       IF (group%mepos /= 0) RETURN
       IF (selected_device == skala_state%logged_cuda_device .AND. &
           cuda_device_count == skala_state%logged_cuda_device_count .AND. &
