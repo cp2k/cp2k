@@ -43,9 +43,6 @@ case "$with_hdf5" in
       if [ "$(find_in_paths "libsz.*" $LIB_PATHS)" != "__FALSE__" ]; then
         CMAKE_OPTIONS="${CMAKE_OPTIONS} -DHDF5_ENABLE_SZIP_SUPPORT=ON"
       fi
-      if [ "${MPI_MODE}" != "no" ]; then
-        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DHDF5_ENABLE_PARALLEL=ON"
-      fi
       cmake .. \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \

@@ -24,7 +24,7 @@ MODULE qcschema
    USE hdf5_wrapper, ONLY: &
       h5aread_double_scalar, h5awrite_boolean, h5awrite_double_scalar, h5awrite_double_simple, &
       h5awrite_fixlen_string, h5awrite_integer_scalar, h5awrite_integer_simple, &
-      h5awrite_string_simple, h5close, h5dread_double_simple, h5dwrite_double_simple, h5fclose, &
+      h5awrite_string_simple, h5dread_double_simple, h5dwrite_double_simple, h5fclose, &
       h5fcreate, h5fopen, h5gclose, h5gcreate, h5gopen, h5open, hdf5_id
 #endif
    USE input_section_types, ONLY: section_vals_get, &
@@ -931,7 +931,6 @@ CONTAINS
       CALL h5gclose(group_id)
 
       CALL h5fclose(file_id)
-      CALL h5close()
 #endif
 
    END SUBROUTINE qcschema_to_hdf5
@@ -978,7 +977,6 @@ CONTAINS
       ! close everything
       CALL h5gclose(group_id)
       CALL h5fclose(file_id)
-      CALL h5close()
 
    END SUBROUTINE read_pmat_from_hdf5
 
@@ -1008,7 +1006,6 @@ CONTAINS
       ! close everything
       CALL h5gclose(group_id)
       CALL h5fclose(file_id)
-      CALL h5close()
 
    END SUBROUTINE read_return_energy_from_hdf5
 

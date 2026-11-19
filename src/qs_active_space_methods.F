@@ -1210,7 +1210,9 @@ CONTAINS
       ! Output a QCSchema file if requested
       IF (active_space_env%qcschema) THEN
          CALL qcschema_env_create(qcschema_env, qs_env)
-         CALL qcschema_to_hdf5(qcschema_env, active_space_env%qcschema_filename)
+         IF (para_env%is_source()) THEN
+            CALL qcschema_to_hdf5(qcschema_env, active_space_env%qcschema_filename)
+         END IF
          CALL qcschema_env_release(qcschema_env)
       END IF
 

@@ -15,22 +15,18 @@ MODULE hdf5_wrapper
 
 #ifdef __HDF5
    USE hdf5, ONLY: &
-      h5aclose_f, h5acreate_f, h5aopen_f, h5aread_f, h5awrite_f, h5close_f, h5dclose_f, &
-      h5dcreate_f, h5dget_space_f, h5dopen_f, h5dread_f, h5dwrite_f, h5f_acc_rdonly_f, h5f_acc_rdwr_f, &
+      h5aclose_f, h5acreate_f, h5aopen_f, h5aread_f, h5awrite_f, h5dclose_f, &
+      h5dcreate_f, h5dget_space_f, h5dopen_f, h5dread_f, h5dwrite_f, h5f_acc_rdonly_f, &
       h5f_acc_trunc_f, h5fclose_f, h5fcreate_f, h5fopen_f, h5gclose_f, h5gcreate_f, h5gopen_f, &
       h5open_f, h5s_scalar_f, h5sclose_f, h5screate_f, h5screate_simple_f, &
       h5sget_simple_extent_npoints_f, h5t_c_s1, h5t_cset_utf8_f, h5t_enum_f, h5t_native_double, &
       h5t_native_integer, h5t_str_nullpad_f, h5t_string, h5tclose_f, h5tcopy_f, h5tcreate_f, &
       h5tenum_insert_f, h5tset_cset_f, h5tset_size_f, h5tset_strpad_f, hid_t, hsize_t, size_t
-#if defined(__parallel)
-   USE hdf5, ONLY: h5pcreate_f, h5pclose_f, h5p_file_access_f, h5p_default_f, h5pset_fapl_mpio_f
-#endif
 #endif
    USE iso_c_binding, ONLY: C_LOC, &
                             C_PTR
    USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
    USE kinds, ONLY: dp
-   USE message_passing, ONLY: mp_comm_world, mp_info_null
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -43,7 +39,7 @@ MODULE hdf5_wrapper
 
    PUBLIC :: h5aread_double_scalar, h5awrite_boolean, h5awrite_double_scalar, h5awrite_double_simple
    PUBLIC :: h5awrite_fixlen_string, h5awrite_integer_scalar, h5awrite_integer_simple
-   PUBLIC :: h5awrite_string_simple, h5close, h5dread_double_simple, h5dwrite_double_simple, h5fclose
+   PUBLIC :: h5awrite_string_simple, h5dread_double_simple, h5dwrite_double_simple, h5fclose
    PUBLIC :: h5fcreate, h5fopen, h5gclose, h5gcreate, h5gopen, h5open
 #endif
 
@@ -51,7 +47,7 @@ CONTAINS
 
 #ifdef __HDF5
 ! **************************************************************************************************
-!> \brief Initialize the HDF5 fortran API
+!> \brief Initialize the HDF5 Fortran API. Keep it initialized for other users (e.g. openPMD).
 ! **************************************************************************************************
    SUBROUTINE h5open()
       INTEGER                                            :: error
@@ -60,17 +56,6 @@ CONTAINS
       IF (error < 0) CPABORT('ERROR: failed to initialize HDF5 interface')
 
    END SUBROUTINE h5open
-
-! **************************************************************************************************
-!> \brief Close the HDF5 fortran API
-! **************************************************************************************************
-   SUBROUTINE h5close()
-      INTEGER                                            :: error
-
-      CALL h5close_f(error)
-      IF (error < 0) CPABORT('ERROR: failed to close HDF5 interface')
-
-   END SUBROUTINE h5close
 
 ! **************************************************************************************************
 !> \brief Create a HDF5 file
@@ -82,18 +67,8 @@ CONTAINS
       INTEGER(KIND=hid_t), INTENT(OUT)                   :: file_id
 
       INTEGER                                            :: error
-#if defined(__parallel)
-      INTEGER(KIND=hid_t)                                :: plist_id
-#endif
 
-#if defined(__parallel)
-      CALL h5pcreate_f(h5p_file_access_f, plist_id, error)
-      CALL h5pset_fapl_mpio_f(plist_id, mp_comm_world%get_handle(), mp_info_null%get_handle(), error)
-      CALL h5fcreate_f(filename, h5f_acc_trunc_f, file_id, error, access_prp=plist_id)
-      CALL h5pclose_f(plist_id, error)
-#else
       CALL h5fcreate_f(filename, h5f_acc_trunc_f, file_id, error)
-#endif
 
       IF (error < 0) CPABORT('ERROR: failed to create HDF5 file')
 
@@ -109,18 +84,8 @@ CONTAINS
       INTEGER(KIND=hid_t), INTENT(OUT)                   :: file_id
 
       INTEGER                                            :: error
-#if defined(__parallel)
-      INTEGER(KIND=hid_t)                                :: plist_id
-#endif
 
-#if defined(__parallel)
-      CALL h5pcreate_f(h5p_file_access_f, plist_id, error)
-      CALL h5pset_fapl_mpio_f(plist_id, mp_comm_world%get_handle(), mp_info_null%get_handle(), error)
-      CALL h5fopen_f(filename, h5f_acc_rdwr_f, file_id, error, access_prp=plist_id)
-      CALL h5pclose_f(plist_id, error)
-#else
-      CALL h5fopen_f(filename, h5f_acc_rdwr_f, file_id, error)
-#endif
+      CALL h5fopen_f(filename, h5f_acc_rdonly_f, file_id, error)
 
       IF (error < 0) CPABORT('ERROR: failed to open HDF5 file')
 
