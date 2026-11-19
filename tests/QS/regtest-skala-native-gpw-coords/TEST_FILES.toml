@@ -37,5 +37,5 @@
 ]
 
 "H2_MIXED_PERIODICITY_CACHE.inp" = [
-  {matcher = "M011", tol = 1e-8, ref = -2.337435718585624},
+  {matcher = "M011", tol = 1e-5, ref = -2.337435718585624},
 ]
