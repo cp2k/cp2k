@@ -33,7 +33,7 @@ MODULE input_cp2k_mp2
       bse_iter_or_cond, bse_iter_res_cond, bse_precond_full_diag, bse_precond_qp_diff, bse_singlet, &
       bse_triplet, do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
       do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
-      do_potential_tshpsc, eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, &
+      eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, &
       gw_read_exx, gw_skip_for_regtest, gw_two_pole_model, kp_weights_W_auto, &
       kp_weights_W_tailored, kp_weights_W_uniform, mp2_method_direct, mp2_method_gpw, &
       mp2_method_none, numerical, ot_precond_full_all, ot_precond_full_kinetic, &
@@ -1107,6 +1107,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Input for GW from direct diagonalization of the full singlet RPA problem.
+!> \param section ...
 ! **************************************************************************************************
    SUBROUTINE create_exact_rpa_diag_section(section)
       TYPE(section_type), POINTER :: section
@@ -1611,6 +1612,10 @@ CONTAINS
 
    END SUBROUTINE create_bse_section
 
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
    SUBROUTINE create_bse_screening_section(section)
       TYPE(section_type), POINTER                        :: section
 
@@ -1657,6 +1662,10 @@ CONTAINS
 
    END SUBROUTINE create_bse_screening_section
 
+! **************************************************************************************************
+!> \brief ...
+!> \param print_key ...
+! **************************************************************************************************
    SUBROUTINE create_bse_nto_section(print_key)
       TYPE(section_type), POINTER                        :: print_key
 
@@ -1740,6 +1749,10 @@ CONTAINS
 
    END SUBROUTINE create_bse_nto_section
 
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
    SUBROUTINE create_bse_spectrum_section(section)
       TYPE(section_type), POINTER                        :: section
 
@@ -2487,27 +2500,16 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="POTENTIAL_TYPE", &
-         description="Which interaction potential should be used "// &
-         "(Coulomb, TShPSC operator).", &
-         usage="POTENTIAL_TYPE TSHPSC", &
-         enum_c_vals=s2a("COULOMB", "TShPSC", "LONGRANGE", "SHORTRANGE", "TRUNCATED", "MIX_CL", "IDENTITY"), &
+         description="Which interaction potential should be used for the electron-repulsion integrals.", &
+         usage="POTENTIAL_TYPE COULOMB", &
+         enum_c_vals=s2a("COULOMB", "LONGRANGE", "SHORTRANGE", "TRUNCATED", "MIX_CL", "IDENTITY"), &
          enum_i_vals=[do_potential_coulomb, &
-                      do_potential_TShPSC, &
                       do_potential_long, &
                       do_potential_short, &
                       do_potential_truncated, &
                       do_potential_mix_cl, &
                       do_potential_id], &
          enum_desc=s2a("Coulomb potential: 1/r", &
-                       "| Range | TShPSC |"//newline// &
-                       "| ----- | ------ |"//newline// &
-                       "| $ x \leq R_c $ | $ 1/x - s/R_c $ |"//newline// &
-                       "| $ R_c < x \leq nR_c $ | "// &
-                       "$ (1 - s)/R_c - (x - R_c)/R_c^2 + (x - R_c)^2/R_c^3 - "// &
-                       "(2n^2 - 7n + 9 - 4s)(x - R_c)^3/(R_c^4(n^2 - 2n + 1)(n - 1)) + "// &
-                       "(6-3s - 4n + n^2)(x - R_c)^4/(R_c^5(n^4 - 4n^3 + 6n^2 - 4n + 1)) $ "// &
-                       "(4th order polynomial) | "//newline// &
-                       "| $ x > nR_c $ | $ 0 $ | "//newline, &
                        "Longrange Coulomb potential: $ \operatorname{erf}(wr)/r $", &
                        "Shortrange Coulomb potential: $ \operatorname{erfc}(wr)/r $", &
                        "Truncated Coulomb potential", &
@@ -2530,11 +2532,10 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="POTENTIAL_DATA", &
-         variants=s2a("TShPSC_DATA", "T_C_G_DATA"), &
-         description="Location of the file TShPSC.dat or t_c_g.dat that contains the data for the "// &
-         "evaluation of the evaluation of the truncated potentials", &
-         usage="TShPSC_DATA t_sh_p_s_c.dat", &
-         default_c_val="t_sh_p_s_c.dat")
+         variants=["T_C_G_DATA"], &
+         description="Location of the data file for evaluating the truncated Coulomb potential.", &
+         usage="POTENTIAL_DATA t_c_g.dat", &
+         default_c_val="t_c_g.dat")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

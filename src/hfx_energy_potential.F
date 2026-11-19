@@ -67,7 +67,6 @@ MODULE hfx_energy_potential
 
    USE input_constants, ONLY: do_potential_mix_cl_trunc, &
                               do_potential_truncated, &
-                              do_potential_TShPSC, &
                               do_potential_short, &
                               do_potential_coulomb, &
                               hfx_do_eval_energy, &
@@ -129,6 +128,7 @@ CONTAINS
 !> \param distribute_fock_matrix Flag that indicates whether to communicate the
 !>        new fock matrix or not
 !> \param ispin ...
+!> \param nspins ...
 !> \par History
 !>      06.2007 created [Manuel Guidon]
 !>      08.2007 optimized load balance [Manuel Guidon]

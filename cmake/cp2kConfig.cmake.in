@@ -111,7 +111,7 @@ if(NOT TARGET cp2k::cp2k)
 
   set(CP2K_USE_LIBINT2 @CP2K_USE_LIBINT2@)
   if(CP2K_USE_LIBINT2)
-    find_dependency(Libint2 REQUIRED)
+    find_dependency(Libint2 2.14.1 CONFIG REQUIRED COMPONENTS CXX)
   endif()
 
   set(CP2K_USE_LIBFCI @CP2K_USE_LIBFCI@)
