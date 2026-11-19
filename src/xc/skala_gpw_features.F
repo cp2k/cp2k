@@ -293,6 +293,7 @@ MODULE skala_gpw_features
       CHARACTER(len=default_path_length)         :: model_stamp = ""
       LOGICAL                                    :: model_loaded = .FALSE.
       LOGICAL                                    :: model_fp64 = .FALSE.
+      LOGICAL                                    :: model_higher_derivatives = .FALSE.
       INTEGER                                    :: model_cuda_device = -3
       LOGICAL                                    :: logged_torch_threads = .FALSE.
       INTEGER                                    :: logged_cuda_device = -3
@@ -2049,30 +2050,30 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE skala_gpw_features_release_cache()
       CALL release_layout_cache(skala_state%layout)
-      IF (ALLOCATED(skala_state%scratch%local_dynamic)) then
-        DEALLOCATE (skala_state%scratch%local_dynamic)
-      end if
-      IF (ALLOCATED(skala_state%scratch%global_dynamic)) then
-        DEALLOCATE (skala_state%scratch%global_dynamic)
-      end if
-      IF (ALLOCATED(skala_state%scratch%route_send_dynamic)) then
-        DEALLOCATE (skala_state%scratch%route_send_dynamic)
-      end if
-      IF (ALLOCATED(skala_state%scratch%route_recv_dynamic)) then
-        DEALLOCATE (skala_state%scratch%route_recv_dynamic)
-      end if
-      IF (ALLOCATED(skala_state%scratch%route_send_counts)) then
-        DEALLOCATE (skala_state%scratch%route_send_counts)
-      end if
-      IF (ALLOCATED(skala_state%scratch%route_send_displs)) then
-        DEALLOCATE (skala_state%scratch%route_send_displs)
-      end if
-      IF (ALLOCATED(skala_state%scratch%route_recv_counts)) then
-        DEALLOCATE (skala_state%scratch%route_recv_counts)
-      end if
-      IF (ALLOCATED(skala_state%scratch%route_recv_displs)) then
-        DEALLOCATE (skala_state%scratch%route_recv_displs)
-      end if
+      IF (ALLOCATED(skala_state%scratch%local_dynamic)) THEN
+         DEALLOCATE (skala_state%scratch%local_dynamic)
+      END IF
+      IF (ALLOCATED(skala_state%scratch%global_dynamic)) THEN
+         DEALLOCATE (skala_state%scratch%global_dynamic)
+      END IF
+      IF (ALLOCATED(skala_state%scratch%route_send_dynamic)) THEN
+         DEALLOCATE (skala_state%scratch%route_send_dynamic)
+      END IF
+      IF (ALLOCATED(skala_state%scratch%route_recv_dynamic)) THEN
+         DEALLOCATE (skala_state%scratch%route_recv_dynamic)
+      END IF
+      IF (ALLOCATED(skala_state%scratch%route_send_counts)) THEN
+         DEALLOCATE (skala_state%scratch%route_send_counts)
+      END IF
+      IF (ALLOCATED(skala_state%scratch%route_send_displs)) THEN
+         DEALLOCATE (skala_state%scratch%route_send_displs)
+      END IF
+      IF (ALLOCATED(skala_state%scratch%route_recv_counts)) THEN
+         DEALLOCATE (skala_state%scratch%route_recv_counts)
+      END IF
+      IF (ALLOCATED(skala_state%scratch%route_recv_displs)) THEN
+         DEALLOCATE (skala_state%scratch%route_recv_displs)
+      END IF
       skala_state%layout_mode_known = .FALSE.
       skala_state%layout_mode_full = .FALSE.
    END SUBROUTINE skala_gpw_features_release_cache
@@ -2545,13 +2546,13 @@ CONTAINS
       max_grid_size = MAXVAL(INT(skala_state%layout%chunk_atomic_grid_sizes(atom_begin:atom_end)))
 
       IF (ALLOCATED(features%atomic_grid_size_bound_shape)) THEN
-         IF (SIZE(features%atomic_grid_size_bound_shape, 2) /= max_grid_size) then
-           DEALLOCATE (features%atomic_grid_size_bound_shape)
-         end if
+         IF (SIZE(features%atomic_grid_size_bound_shape, 2) /= max_grid_size) THEN
+            DEALLOCATE (features%atomic_grid_size_bound_shape)
+         END IF
       END IF
-      IF (.NOT. ALLOCATED(features%atomic_grid_size_bound_shape)) then
-        ALLOCATE (features%atomic_grid_size_bound_shape(0, max_grid_size))
-      end if
+      IF (.NOT. ALLOCATED(features%atomic_grid_size_bound_shape)) THEN
+         ALLOCATE (features%atomic_grid_size_bound_shape(0, max_grid_size))
+      END IF
 
       features%chunk_feature_count = row_count
       features%nflat = parent%nflat
