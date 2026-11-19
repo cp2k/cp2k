@@ -323,19 +323,6 @@ QS/regtest-cc4s                                             libint
 QS/regtest-optbas
 xTB/regtest-tblite-gfn1                                     tblite
 xTB/regtest-4
-QS/regtest-moments-kpoints
-QS/regtest-gpw-6-4
-QS/regtest-dft-d3-s-ref                                     s_dftd3 libxc
-QS/regtest-adiis
-Fist/regtest-9
-QS/regtest-elpa                                             elpa mpiranks==1||mpiranks%2==0
-Fist/regtest-11
-QS/regtest-as-2                                             libint !ifx
-QS/regtest-mp2-admm-grad                                    libint !ifx
-QS/regtest-gauxc-gradients                                  gauxc_onedft_gradients
-QS/regtest-gauxc-energy-mpi                                 gauxc mpiranks>1
-QS/regtest-as-fci                                           libfci libint libxc !ifx
-QS/regtest-tdwf
 QMMM/SE/regtest_2
 QS/regtest-tdwf
 QS/regtest-elpa                                             elpa mpiranks==1||mpiranks%2==0
@@ -423,17 +410,6 @@ QS/regtest-cdft-hirshfeld
 QS/regtest-pao-5                                            libtorch
 QS/regtest-tddfpt-bse                                       libint libxc
 QS/regtest-gapw-2
-TMC/regtest_ana_post_proc                                   parallel mpiranks>1
-QS/regtest-skala-native-gapw-ae-kp                          skala
-QS/regtest-skala-native-gapw-mpi                            skala mpiranks%2==0
-QS/regtest-double-hybrid-grad-meta                          libxc
-QS/regtest-rtp-4
-xTB/regtest-gfn0-d                                          libdftd4
-Fist/regtest-water
-QS/regtest-trexio                                           trexio
-QS/regtest-spin-spin-1
-QS/regtest-tddfpt-prop
-QS/regtest-ri-rpa-exchange                                  libint !ifx
 QS/regtest-negf-xtb-1                                       fftw3
 xTB/regtest-gfn0-d                                          libdftd4
 QS/regtest-rtp-4
