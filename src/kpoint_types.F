@@ -1099,7 +1099,10 @@ CONTAINS
                WRITE (punit, '(A,T76,A)') ' BRILLOUIN| Use full k-point grid     '
             END IF
             IF (kpoint%kp_scheme /= "GAMMA") THEN
-               WRITE (punit, '(A,T71,I10)') ' BRILLOUIN| List of Kpoints [2 Pi/Bohr]', kpoint%nkp
+               WRITE (punit, '(A,T71,I10)') ' BRILLOUIN| Number of k-points', kpoint%nkp
+            END IF
+            IF (kpoint%kp_scheme /= "GAMMA" .AND. kpoint%verbose) THEN
+               WRITE (punit, '(A)') ' BRILLOUIN| List of k-points [2 Pi/Bohr]'
                WRITE (punit, '(A,T30,A,T48,A,T63,A,T78,A)') &
                   ' BRILLOUIN| Number ', 'Weight', 'X', 'Y', 'Z'
                DO i = 1, kpoint%nkp
