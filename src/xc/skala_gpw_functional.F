@@ -25,8 +25,6 @@ MODULE skala_gpw_functional
                                               dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_comm_type
-   USE offload_api,                     ONLY: offload_get_chosen_device,&
-                                              offload_get_device_count
    USE particle_types,                  ONLY: particle_type
    USE pw_methods,                      ONLY: pw_scale,&
                                               pw_zero
@@ -51,6 +49,7 @@ MODULE skala_gpw_functional
                                               get_skala_native_section,&
                                               resolve_skala_execution_target,&
                                               resolve_skala_model_path,&
+                                              select_cuda_target,&
                                               xc_section_uses_gauxc_model
    USE skala_torch_api,                 ONLY: skala_torch_model_get_exc,&
                                               skala_torch_model_get_exc_device,&
@@ -59,14 +58,14 @@ MODULE skala_gpw_functional
                                               skala_torch_model_release
    USE string_utilities,                ONLY: uppercase
    USE torch_api,                       ONLY: &
-        staged_upload, torch_cuda_device_count, torch_cuda_is_available, torch_dict_create, &
-        torch_dict_release, torch_dict_set, torch_dict_type, torch_file_stamp, &
-        torch_get_num_threads, torch_grad_pool_clear, torch_model_metadata_clear, &
-        torch_pinned_finish, torch_pinned_release, torch_pinned_reserve, &
-        torch_set_default_threads, torch_stream_synchronize, torch_tensor_accumulate, &
-        torch_tensor_backward_scalar, torch_tensor_clone, torch_tensor_data_ptr, &
-        torch_tensor_from_array, torch_tensor_gather_rows, torch_tensor_grad, &
-        torch_tensor_grad_batch, torch_tensor_grad_batch3, torch_tensor_grad_batch3_deferred, &
+        staged_upload, torch_cuda_device_count, torch_dict_create, torch_dict_release, &
+        torch_dict_set, torch_dict_type, torch_file_stamp, torch_get_num_threads, &
+        torch_grad_pool_clear, torch_model_metadata_clear, torch_pinned_finish, &
+        torch_pinned_release, torch_pinned_reserve, torch_set_default_threads, &
+        torch_stream_synchronize, torch_tensor_accumulate, torch_tensor_backward_scalar, &
+        torch_tensor_clone, torch_tensor_data_ptr, torch_tensor_from_array, &
+        torch_tensor_gather_rows, torch_tensor_grad, torch_tensor_grad_batch, &
+        torch_tensor_grad_batch3, torch_tensor_grad_batch3_deferred, &
         torch_tensor_grad_batch_deferred, torch_tensor_hessian_vector, torch_tensor_item_double, &
         torch_tensor_narrow, torch_tensor_release, torch_tensor_set_requires_grad, &
         torch_tensor_to_device_leaf, torch_tensor_type, torch_use_cuda
@@ -1424,8 +1423,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT), OPTIONAL :: grid_weight_grad_out, &
                                                                          atomic_grid_weight_grad_out
       LOGICAL, INTENT(IN), OPTIONAL                      :: static_geometry_valid
-
       CHARACTER(len=default_path_length)                 :: model_path
+
       INTEGER :: atom_begin, atom_count, chunk_max_rows, chunk_row_count, chunk_row_start, &
                  ichunk, local_natom, local_nrow, max_grid_size, &
                  nchunks, phase_handle, selected_cuda_device
@@ -2558,7 +2557,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau
 
-      CHARACTER(len=default_path_length)                 :: model_path
       INTEGER                                            :: i, partition, selected_device
       LOGICAL                                            :: fp64, use_cuda
       REAL(KIND=dp)                                      :: exc
@@ -2589,11 +2587,9 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "Unknown SKALA_NATIVE%ATOM_PARTITION value.")
       END SELECT
-      use_cuda = skala_execution_use_cuda(xc_section)
+      CALL ensure_model_context(xc_section, rho1_r(1)%pw_grid%para%group, &
+                                use_cuda, selected_device, higher_derivatives=.TRUE.)
       CALL torch_use_cuda(use_cuda)
-      selected_device = configure_native_grid_cuda(use_cuda, rho1_r(1)%pw_grid%para%group)
-      CALL get_skala_model_path(xc_section, model_path)
-      CALL ensure_model_loaded(model_path, selected_device, xc_section, higher_derivatives=.TRUE.)
       IF (skala_state%layout_mode_known .AND. .NOT. skala_state%layout_mode_full) THEN
          CALL skala_gpw_features_release_cache()
       END IF
@@ -3462,38 +3458,15 @@ CONTAINS
       CLASS(mp_comm_type), INTENT(IN)                    :: group
 
       INTEGER                                            :: cuda_device_count, iw, selected_device
+      TYPE(skala_execution_target_type)                  :: target
 
       selected_device = -1
 
       IF (.NOT. use_cuda) RETURN
 
-      IF (.NOT. torch_cuda_is_available()) THEN
-         cuda_device_count = 0
-      ELSE
-         cuda_device_count = torch_cuda_device_count()
-      END IF
-      IF (cuda_device_count <= 0) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "GPU execution was requested, but no usable CUDA device was "// &
-                       "found. Set USE_GPU HOST to force CPU execution.")
-      END IF
-      IF (offload_get_device_count() <= 0) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "GPU execution was requested for native SKALA, but the offload "// &
-                       "library reports no usable device. Set USE_GPU HOST in the "// &
-                       "&SKALA_NATIVE section to run on the CPU, or start CP2K with a "// &
-                       "valid offload device selected (check CUDA_VISIBLE_DEVICES and "// &
-                       "the MPI rank-to-device mapping).")
-      END IF
-
-      selected_device = offload_get_chosen_device()
-      IF (selected_device < 0 .OR. selected_device >= cuda_device_count) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "GPU execution was requested for native SKALA, but the offload "// &
-                       "library did not select a device visible to Torch. Set USE_GPU "// &
-                       "HOST in the &SKALA_NATIVE section to run on the CPU, or fix "// &
-                       "CUDA_VISIBLE_DEVICES and the MPI rank-to-device mapping.")
-      END IF
+      CALL select_cuda_target("SKALA", TARGET)
+      selected_device = target%device
+      cuda_device_count = torch_cuda_device_count()
 
       IF (group%mepos /= 0) RETURN
       IF (selected_device == skala_state%logged_cuda_device .AND. &
@@ -3520,18 +3493,29 @@ CONTAINS
 !> \param group ...
 !> \param use_cuda ...
 !> \param cuda_device ...
+!> \param higher_derivatives ...
 ! **************************************************************************************************
-   SUBROUTINE ensure_model_context(xc_section, group, use_cuda, cuda_device)
+   SUBROUTINE ensure_model_context(xc_section, group, use_cuda, cuda_device, higher_derivatives)
       TYPE(section_vals_type), POINTER                   :: xc_section
 
       CLASS(mp_comm_type), INTENT(IN)                    :: group
       LOGICAL, INTENT(OUT), OPTIONAL                     :: use_cuda
       INTEGER, INTENT(OUT)                               :: cuda_device
+      LOGICAL, INTENT(IN), OPTIONAL                      :: higher_derivatives
 
       CHARACTER(len=default_path_length)                 :: model_path
+      LOGICAL                                            :: prepare_derivatives
+
+      prepare_derivatives = .FALSE.
+      IF (PRESENT(higher_derivatives)) prepare_derivatives = higher_derivatives
 
       IF (skala_state%model_context%valid) THEN
          IF (ASSOCIATED(skala_state%model_context%xc_section, xc_section)) THEN
+            IF (prepare_derivatives .AND. .NOT. skala_state%model_higher_derivatives) THEN
+               CALL get_skala_model_path(xc_section, model_path)
+               CALL ensure_model_loaded(model_path, skala_state%model_context%device, xc_section, &
+                                        higher_derivatives=.TRUE.)
+            END IF
             IF (PRESENT(use_cuda)) use_cuda = skala_state%model_context%use_cuda
             cuda_device = skala_state%model_context%device
             RETURN
@@ -3541,7 +3525,8 @@ CONTAINS
       CALL get_skala_model_path(xc_section, model_path)
       skala_state%model_context%use_cuda = skala_execution_use_cuda(xc_section)
       skala_state%model_context%device = configure_native_grid_cuda(skala_state%model_context%use_cuda, group)
-      CALL ensure_model_loaded(model_path, skala_state%model_context%device, xc_section)
+      CALL ensure_model_loaded(model_path, skala_state%model_context%device, xc_section, &
+                               higher_derivatives=prepare_derivatives)
       skala_state%model_context%xc_section => xc_section
       skala_state%model_context%valid = .TRUE.
       IF (PRESENT(use_cuda)) use_cuda = skala_state%model_context%use_cuda

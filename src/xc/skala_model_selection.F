@@ -35,7 +35,7 @@ MODULE skala_model_selection
    PUBLIC :: find_single_functional_subsection, &
              gauxc_model_none_selected, get_gauxc_section, get_skala_native_section, &
              model_key_is_none, &
-             resolve_skala_execution_target, resolve_skala_model_path, &
+             resolve_skala_execution_target, resolve_skala_model_path, select_cuda_target, &
              skala_execution_target_type, &
              xc_section_uses_gauxc, xc_section_uses_gauxc_model, &
              xc_section_uses_native_skala_grid, xc_section_uses_skala_model
