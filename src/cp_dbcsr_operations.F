@@ -946,11 +946,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_sm_fm_multiply'
 
       INTEGER                                            :: a_ncol, a_nrow, b_ncol, b_nrow, c_ncol, &
-                                                            c_nrow, k_in, k_out, timing_handle, &
+                                                            c_nrow, icol_local, k_in, k_out, &
+                                                            ncol_local, timing_handle, &
                                                             timing_handle_mult
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, col_blk_size_right_in, &
                                                             col_blk_size_right_out, col_dist, &
                                                             row_blk_size, row_dist
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices
       TYPE(dbcsr_type)                                   :: in, out
       TYPE(dbcsr_distribution_type)                      :: dist, dist_right_in, product_dist
       REAL(dp)                                           :: my_alpha, my_beta
@@ -1004,6 +1006,12 @@ CONTAINS
 
          CALL copy_fm_to_dbcsr(fm_in, in)
          IF (ncol /= k_out .OR. my_beta /= 0.0_dp) THEN
+            IF (my_beta == 0.0_dp) THEN
+               CALL cp_fm_get_info(fm_out, ncol_local=ncol_local, col_indices=col_indices)
+               DO icol_local = 1, ncol_local
+                  IF (col_indices(icol_local) <= ncol) fm_out%local_data(:, icol_local) = 0.0_dp
+               END DO
+            END IF
             CALL copy_fm_to_dbcsr(fm_out, out)
          END IF
 
