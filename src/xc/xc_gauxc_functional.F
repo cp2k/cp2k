@@ -26,7 +26,10 @@ MODULE xc_gauxc_functional
    USE external_potential_types,        ONLY: all_potential_type,&
                                               gth_potential_type,&
                                               sgp_potential_type
-   USE input_constants,                 ONLY: xc_vdw_fun_nonloc
+   USE input_constants,                 ONLY: do_gpu_auto,&
+                                              do_gpu_device,&
+                                              do_gpu_host,&
+                                              xc_vdw_fun_nonloc
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
                                               section_vals_type,&
@@ -56,6 +59,7 @@ MODULE xc_gauxc_functional
    USE string_utilities,                ONLY: uppercase
    USE xc_gauxc_cache,                  ONLY: cp_gauxc_cache_params,&
                                               cp_gauxc_cache_type,&
+                                              gauxc_cache_ensure_gradient,&
                                               gauxc_cache_init
    USE xc_gauxc_interface,              ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
@@ -64,7 +68,6 @@ MODULE xc_gauxc_functional
         gauxc_create_grid, gauxc_create_integrator, gauxc_create_molecule, gauxc_destroy_basisset, &
         gauxc_destroy_grid, gauxc_destroy_integrator, gauxc_destroy_molecule, &
         gauxc_write_basisset_hdf5, gauxc_write_molecule_hdf5
-   USE xc_input_constants,              ONLY: skala_gapw_paw_one_center
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
 #include "../base/base_uses.f90"
 
@@ -364,7 +367,7 @@ CONTAINS
          ifun = ifun + 1
          xc_fun => section_vals_get_subs_vals2(functionals, i_section=ifun)
          IF (.NOT. ASSOCIATED(xc_fun)) EXIT
-         IF (xc_fun%section%name == "GAUXC") THEN
+         IF (xc_fun%section%name == "GAUXC" .OR. xc_fun%section%name == "SKALA_NATIVE") THEN
             uses_gauxc = .TRUE.
             EXIT
          END IF
@@ -625,7 +628,8 @@ CONTAINS
                       device_runtime_fill_fraction, &
                       gauxc_status, &
                       mpi_comm=mp_comm_self%get_handle(), &
-                      force_new_runtime=.TRUE.)
+                      force_new_runtime=.TRUE., &
+                      int_exec_space=int_exec_space)
       CALL gauxc_check_status(gauxc_status)
       gauxc_integrator_fd = gauxc_create_integrator( &
                             TRIM(xc_fun_name), &
@@ -949,15 +953,28 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name
       CHARACTER(len=default_string_length)               :: xc_fun_key, xc_fun_name
-      INTEGER                                            :: gapw_representation
-      LOGICAL                                            :: native_grid
+
+      IF (functional%section%name == "SKALA_NATIVE") THEN
+         CALL section_vals_val_get(functional, "MODEL", c_val=model_name)
+         IF (PRESENT(reference)) reference = "CP2K-native SKALA TorchScript model "//TRIM(model_name)
+         IF (PRESENT(shortform)) shortform = "SKALA (native)"
+         IF (PRESENT(needs)) THEN
+            IF (lsd) THEN
+               needs%rho_spin = .TRUE.
+               needs%drho_spin = .TRUE.
+               needs%tau_spin = .TRUE.
+            ELSE
+               needs%rho = .TRUE.
+               needs%drho = .TRUE.
+               needs%tau = .TRUE.
+            END IF
+         END IF
+         IF (PRESENT(max_deriv)) max_deriv = 1
+         RETURN
+      END IF
 
       CALL section_vals_val_get(functional, "FUNCTIONAL", c_val=xc_fun_name)
       CALL section_vals_val_get(functional, "MODEL", c_val=model_name)
-      CALL section_vals_val_get(functional, "NATIVE_GRID", l_val=native_grid)
-      CALL section_vals_val_get(functional, "PSEUDOPOTENTIAL_GAPW_REPRESENTATION", &
-                                i_val=gapw_representation)
-      native_grid = native_grid .OR. gapw_representation == skala_gapw_paw_one_center
       model_key = ADJUSTL(model_name)
       xc_fun_key = ADJUSTL(xc_fun_name)
       CALL uppercase(model_key)
@@ -980,22 +997,9 @@ CONTAINS
          END IF
       END IF
       IF (PRESENT(needs)) THEN
-         IF (native_grid .AND. TRIM(model_key) /= "NONE" .AND. TRIM(model_key) /= "" .AND. &
-             TRIM(model_key) /= TRIM(xc_fun_key)) THEN
-            IF (lsd) THEN
-               needs%rho_spin = .TRUE.
-               needs%drho_spin = .TRUE.
-               needs%tau_spin = .TRUE.
-            ELSE
-               needs%rho = .TRUE.
-               needs%drho = .TRUE.
-               needs%tau = .TRUE.
-            END IF
-         ELSE
-            needs%rho = .TRUE.
-            IF (lsd) THEN
-               needs%rho_spin = .TRUE.
-            END IF
+         needs%rho = .TRUE.
+         IF (lsd) THEN
+            needs%rho_spin = .TRUE.
          END IF
       END IF
       IF (PRESENT(max_deriv)) max_deriv = 1
@@ -1035,14 +1039,15 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name, output_path
       CHARACTER(len=default_string_length) :: gradient_runtime, gradient_runtime_key, grid_key, &
-         int_exec_space_key, lwd_kernel_key, pruning_key, skala_runtime, skala_runtime_key, &
-         xc_fun_key
-      INTEGER                                            :: atom_chunk_size, env_status, img, ispin, &
-                                                            nimages
+         int_exec_space_key, lb_exec_space_key, lwd_kernel_key, pruning_key, skala_runtime, &
+         skala_runtime_key, xc_fun_key
+      INTEGER                                            :: atom_chunk_size, env_status, gpu_mode, &
+                                                            img, ispin, nimages
       LOGICAL :: atom_chunk_size_explicit, do_kpoints, external_density, gapw_method, &
          gapw_paw_pseudopotentials, gapw_pseudopotentials, grid_explicit, hdf5_output, &
-         is_periodic, low_spin_scope, molecular_virial, molecular_virial_debug, need_xc_gradient, &
-         periodic_reference, pruning_explicit, use_skala_model, write_hdf5_output
+         int_space_explicit, is_periodic, lb_space_explicit, low_spin_scope, molecular_virial, &
+         molecular_virial_debug, need_xc_gradient, periodic_reference, pruning_explicit, use_cuda, &
+         use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: exc_value, molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1201,12 +1206,50 @@ CONTAINS
          r_val=molecular_virial_debug_dx)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
+         "USE_GPU", &
+         i_val=gpu_mode)
+      SELECT CASE (gpu_mode)
+      CASE (do_gpu_auto)
+#if defined(GAUXC_HAS_DEVICE) && defined(__LIBTORCH_CUDA)
+         use_cuda = .TRUE.
+#else
+         use_cuda = .FALSE.
+#endif
+      CASE (do_gpu_host)
+         use_cuda = .FALSE.
+      CASE (do_gpu_device)
+         use_cuda = .TRUE.
+      CASE DEFAULT
+         CALL cp_abort(__LOCATION__, "Unknown GAUXC%USE_GPU value.")
+      END SELECT
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
          "LB_EXECUTION_SPACE", &
-         c_val=params%lb_exec_space)
+         c_val=params%lb_exec_space, &
+         explicit=lb_space_explicit)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "INT_EXECUTION_SPACE", &
-         c_val=params%int_exec_space)
+         c_val=params%int_exec_space, &
+         explicit=int_space_explicit)
+      lb_exec_space_key = ADJUSTL(params%lb_exec_space)
+      int_exec_space_key = ADJUSTL(params%int_exec_space)
+      CALL uppercase(lb_exec_space_key)
+      CALL uppercase(int_exec_space_key)
+      IF (.NOT. use_cuda) THEN
+         IF ((lb_space_explicit .AND. TRIM(lb_exec_space_key) == "DEVICE") .OR. &
+             (int_space_explicit .AND. TRIM(int_exec_space_key) == "DEVICE")) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "GAUXC%USE_GPU disables GPU execution, but an explicit "// &
+                          "DEVICE execution space was requested. Use USE_GPU GPU "// &
+                          "or remove the explicit DEVICE setting.")
+         END IF
+         params%lb_exec_space = "HOST"
+         params%int_exec_space = "HOST"
+      ELSE
+         IF (.NOT. lb_space_explicit) params%lb_exec_space = "DEVICE"
+         IF (.NOT. int_space_explicit) params%int_exec_space = "DEVICE"
+      END IF
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "LWD_KERNEL", &
@@ -1387,7 +1430,6 @@ CONTAINS
          END IF
       END IF
 
-      ! Resolve the gradient route once the cache knows the actual basis angular momentum.
       params%gapw_method = gapw_method
       params%need_xc_gradient = need_xc_gradient
 
@@ -1400,6 +1442,9 @@ CONTAINS
          particle_set, &
          qs_kind_set, &
          gauxc_status)
+
+      CALL gauxc_cache_ensure_gradient(cache, params, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
 
       hdf5_output = (TRIM(output_path) /= "")
       write_hdf5_output = hdf5_output .AND. para_env%mepos == 0 .AND. .NOT. external_density

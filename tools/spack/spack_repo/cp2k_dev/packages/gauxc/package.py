@@ -33,6 +33,12 @@ class Gauxc(CMakePackage, CudaPackage, ROCmPackage):
     )
     version("1.1", sha256="17de077fb23e44d03b0ed14dcd8117c01e5b3431fbefa2352d751639ada7f91c")
 
+    # Avoid dividing by zero when inverting the diagonal of the RAB distance
+    # matrix. The diagonal is zero by construction and unused, and dividing it
+    # produces inf/NaN that raises SIGFPE when the caller enables FP traps
+    # (e.g. CP2K's Debug build with -ffpe-trap=zero).
+    patch("gauxc-dev-no-diag-rab-inv.patch", when="@dev20260717")
+
     variant("c", default=True, description="Build with C API support", when="@master")
     variant("c", default=True, description="Build with C API support", when="@1.2.dev2")
     variant("c", default=True, description="Build with C API support", when="@dev20260717")

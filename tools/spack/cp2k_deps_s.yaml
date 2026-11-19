@@ -114,6 +114,7 @@ spack:
         - spec: "~magma"
           when: "+cuda"
         - "~mkldnn"
+        - "~qnnpack"
         - "~rocm"
         - "~valgrind"
         - "~xnnpack"

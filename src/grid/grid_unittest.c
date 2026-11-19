@@ -95,6 +95,10 @@ static int run_sheared_case(const double dh[3][3], const double ra[3],
   double grid_ref[64] = {0.0}, grid_cpu[64] = {0.0};
   double hab_ref[1][1] = {{0.0}}, hab_cpu[1][1] = {{0.0}};
   double forces[2][3] = {{0.0}}, virials[2][3][3] = {{{0.0}}};
+  // Optional derivative outputs; dummy arrays keep GCC's -Wnonnull happy.
+  double dummy_hdab[1][1][3] = {{{0.0}}};
+  double dummy_hadb[1][1][3] = {{{0.0}}};
+  double dummy_a_hdab[1][1][3][3] = {{{{0.0}}}};
 
   grid_cpu_collocate_pgf_product(
       false, 0, GRID_FUNC_AB, 0, 0, 0, 0, zeta, zeta, 1.0, dh, dh_inv, ra, rab,
@@ -107,7 +111,7 @@ static int run_sheared_case(const double dh[3][3], const double ra[3],
     grid_ref_integrate_pgf_product(
         false, false, 0, 0, 0, 0, 0, zeta, zeta, dh, dh_inv, ra, rab,
         npts_global, npts_local, zero3, zero3, radius, 0, 0, 1, 1, grid_ref,
-        hab_ref, pab, forces, virials, NULL, NULL, NULL);
+        hab_ref, pab, forces, virials, dummy_hdab, dummy_hadb, dummy_a_hdab);
   } else {
     // Only (0, 0, 0) maps into npts_local={1,1,1}; avoids stack VLA in grid_ref
     // when the sheared sphere spans thousands of lattice indices.
@@ -118,7 +122,7 @@ static int run_sheared_case(const double dh[3][3], const double ra[3],
   grid_cpu_integrate_pgf_product(
       false, false, 0, 0, 0, 0, 0, zeta, zeta, dh, dh_inv, ra, rab, npts_global,
       npts_local, zero3, zero3, radius, 0, 0, 1, 1, grid_ref, hab_cpu, pab,
-      forces, virials, NULL, NULL, NULL);
+      forces, virials, dummy_hdab, dummy_hadb, dummy_a_hdab);
 
   double ref_norm = 0.0, max_diff = fabs(hab_cpu[0][0] - hab_ref[0][0]);
   for (int i = 0; i < ng; i++) {

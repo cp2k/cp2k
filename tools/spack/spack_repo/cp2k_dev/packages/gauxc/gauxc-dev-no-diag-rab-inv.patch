@@ -1,0 +1,16 @@
+diff --git a/src/xc_integrator/xc_data/device/xc_device_stack_data.cxx b/src/xc_integrator/xc_data/device/xc_device_stack_data.cxx
+index 83e4e11..b2d0e68 100644
+--- a/src/xc_integrator/xc_data/device/xc_device_stack_data.cxx
++++ b/src/xc_integrator/xc_data/device/xc_device_stack_data.cxx
+@@ -411,7 +411,10 @@ void XCDeviceStackData::send_static_data_weights( const Molecule& mol, const Mol
+   // Invert and send RAB
+   const auto ldatoms = get_ldatoms();
+   std::vector<double> rab_inv(natoms*natoms);
+-  for( auto i = 0ul; i < (natoms*natoms); ++i) rab_inv[i] = 1./meta.rab().data()[i];
++  for( auto i = 0ul; i < (natoms*natoms); ++i) {
++    const double r = meta.rab().data()[i];
++    rab_inv[i] = (r > 0.0) ? 1. / r : 0.;
++  }
+   device_backend_->copy_async_2d( natoms, natoms, rab_inv.data(), natoms,
+     static_stack.rab_device, ldatoms, "RAB H2D" );
+ 
