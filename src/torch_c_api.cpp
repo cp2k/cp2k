@@ -909,6 +909,36 @@ void torch_c_tensor_clone(const torch_c_tensor_t *tensor,
 }
 
 /*******************************************************************************
+ * \brief Gathers selected rows of a 2D+ tensor onto the host by index.
+ ******************************************************************************/
+void torch_c_tensor_gather_rows(const torch_c_tensor_t *tensor, const int nrows,
+                                const int32_t rows[],
+                                torch_c_tensor_t **result) {
+  TORCH_C_TRY
+  c10::OptionalDeviceGuard guard;
+  get_device_with_guard(guard);
+  torch_c_check(*result == NULL, "Torch tensor output must be NULL");
+  torch_c_check(nrows >= 0, "Torch gather row count must be non-negative");
+  int64_t max_index = -1;
+  for (int r = 0; r < nrows; ++r) {
+    max_index = std::max<int64_t>(max_index, rows[r]);
+  }
+  TORCH_CHECK(tensor->dim() >= 1,
+              "Torch gather requires at least one dimension");
+  const int64_t row_dim = tensor->dim() - 1;
+  TORCH_CHECK(max_index < tensor->size(row_dim), "torch gather row index ",
+              max_index, " is out of range for extent ", tensor->size(row_dim),
+              " (nrows ", nrows, ")");
+  auto index = torch::from_blob(const_cast<int32_t *>(rows),
+                                {static_cast<int64_t>(nrows)}, torch::kInt32)
+                   .to(torch::kInt64)
+                   .to(tensor->device());
+  *result = new torch_c_tensor_t(
+      tensor->index_select(row_dim, index).cpu().contiguous());
+  TORCH_C_CATCH("torch_c_tensor_gather_rows")
+}
+
+/*******************************************************************************
  * \brief Returns the data_ptr and sizes of a Torch tensor of int32s.
  *        The returned pointer is only valide during the tensor's live time!
  * \author Ole Schuett

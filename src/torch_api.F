@@ -79,7 +79,8 @@ MODULE torch_api
    END INTERFACE torch_model_get_attr
 
    PUBLIC :: torch_tensor_type, torch_tensor_expand_dim, torch_tensor_from_array, &
-             torch_tensor_clone, torch_tensor_narrow, torch_tensor_release
+             torch_tensor_clone, torch_tensor_gather_rows, torch_tensor_narrow, &
+             torch_tensor_release
    PUBLIC :: staged_upload, torch_pinned_reserve, torch_stream_synchronize
    PUBLIC :: torch_file_stamp, torch_grad_pool_clear, torch_model_metadata_clear, &
              torch_pinned_finish, torch_pinned_release
@@ -430,6 +431,44 @@ CONTAINS
       MARK_USED(result)
 #endif
    END SUBROUTINE torch_tensor_clone
+
+! **************************************************************************************************
+!> \brief Gathers selected rows of a tensor onto the host (independent copy).
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_gather_rows(tensor, rows, result)
+      TYPE(torch_tensor_type), INTENT(IN)                :: tensor
+      INTEGER, INTENT(IN)                                :: rows(:)
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: result
+
+#if defined(__LIBTORCH)
+      INTEGER(KIND=C_INT32_T), ALLOCATABLE               :: rows_c(:)
+      INTERFACE
+         SUBROUTINE torch_c_tensor_gather_rows(tensor, nrows, rows, result) &
+            BIND(C, name="torch_c_tensor_gather_rows")
+            IMPORT :: C_INT, C_INT32_T, C_PTR
+            TYPE(C_PTR), VALUE                           :: tensor
+            INTEGER(C_INT), VALUE                        :: nrows
+            INTEGER(C_INT32_T), INTENT(IN)               :: rows(*)
+            TYPE(C_PTR)                                  :: result
+         END SUBROUTINE torch_c_tensor_gather_rows
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+      CPASSERT(.NOT. C_ASSOCIATED(result%c_ptr))
+      ALLOCATE (rows_c(SIZE(rows)))
+      CPASSERT(MINVAL(rows) >= 1)
+      rows_c = INT(rows, C_INT32_T) - 1
+      CALL torch_c_tensor_gather_rows(tensor%c_ptr, INT(SIZE(rows), C_INT), &
+                                      rows_c, result%c_ptr)
+      DEALLOCATE (rows_c)
+      CPASSERT(C_ASSOCIATED(result%c_ptr))
+#else
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(tensor)
+      MARK_USED(rows)
+      MARK_USED(result)
+#endif
+   END SUBROUTINE torch_tensor_gather_rows
 
 ! **************************************************************************************************
 !> \brief Runs autograd on a Torch tensor.

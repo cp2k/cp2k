@@ -64,13 +64,12 @@ MODULE skala_gpw_functional
         torch_get_num_threads, torch_grad_pool_clear, torch_model_metadata_clear, &
         torch_pinned_finish, torch_pinned_release, torch_pinned_reserve, &
         torch_set_default_threads, torch_stream_synchronize, torch_tensor_accumulate, &
-        torch_tensor_backward_scalar, torch_tensor_data_ptr, torch_tensor_from_array, &
-        torch_tensor_grad, torch_tensor_grad_batch, torch_tensor_grad_batch3, &
-        torch_tensor_grad_batch3_deferred, torch_tensor_grad_batch_deferred, &
-        torch_tensor_clone, &
-        torch_tensor_hessian_vector, torch_tensor_item_double, torch_tensor_narrow, &
-        torch_tensor_release, torch_tensor_set_requires_grad, torch_tensor_to_device_leaf, &
-        torch_tensor_type, torch_use_cuda
+        torch_tensor_backward_scalar, torch_tensor_clone, torch_tensor_data_ptr, &
+        torch_tensor_from_array, torch_tensor_gather_rows, torch_tensor_grad, &
+        torch_tensor_grad_batch, torch_tensor_grad_batch3, torch_tensor_grad_batch3_deferred, &
+        torch_tensor_grad_batch_deferred, torch_tensor_hessian_vector, torch_tensor_item_double, &
+        torch_tensor_narrow, torch_tensor_release, torch_tensor_set_requires_grad, &
+        torch_tensor_to_device_leaf, torch_tensor_type, torch_use_cuda
    USE xc_input_constants,              ONLY: skala_gapw_atom_composite_grid,&
                                               skala_gapw_common_grid,&
                                               skala_gapw_cp2k_default,&
@@ -2427,26 +2426,28 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: kin_grad
       TYPE(torch_tensor_type), INTENT(IN), OPTIONAL      :: derivatives(3)
 
-      INTEGER                                            :: feature_pos, local_row, row
+      INTEGER                                            :: feature_pos, local_row, nrows_all, row
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: density_grad_all, kin_grad_all
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grad_grad_all
       TYPE(torch_tensor_type)                            :: density_grad_t, grad_grad_t, kin_grad_t
 
       NULLIFY (density_grad_all, grad_grad_all, kin_grad_all)
       IF (PRESENT(derivatives)) THEN
+         nrows_all = SIZE(features%local_feature_rows)
          CALL torch_tensor_data_ptr(derivatives(1), density_grad_all)
          CALL torch_tensor_data_ptr(derivatives(2), grad_grad_all)
          CALL torch_tensor_data_ptr(derivatives(3), kin_grad_all)
       ELSE
+         nrows_all = features%nflat
          CALL get_feature_grad_views(features, density_grad_t, grad_grad_t, kin_grad_t, &
                                      density_grad_all, grad_grad_all, kin_grad_all)
       END IF
-      CPASSERT(SIZE(density_grad_all, 1) == features%nflat)
+      CPASSERT(SIZE(density_grad_all, 1) == nrows_all)
       CPASSERT(SIZE(density_grad_all, 2) == 2)
-      CPASSERT(SIZE(grad_grad_all, 1) == features%nflat)
+      CPASSERT(SIZE(grad_grad_all, 1) == nrows_all)
       CPASSERT(SIZE(grad_grad_all, 2) == 3)
       CPASSERT(SIZE(grad_grad_all, 3) == 2)
-      CPASSERT(SIZE(kin_grad_all, 1) == features%nflat)
+      CPASSERT(SIZE(kin_grad_all, 1) == nrows_all)
       CPASSERT(SIZE(kin_grad_all, 2) == 2)
 
       density_grad = 0.0_dp
@@ -2455,8 +2456,12 @@ CONTAINS
       DO local_row = 1, features%nflat_local
          DO feature_pos = features%local_feature_offsets(local_row), &
             features%local_feature_offsets(local_row + 1) - 1
-            row = features%local_feature_rows(feature_pos)
-            CPASSERT(row >= 1 .AND. row <= features%nflat)
+            IF (PRESENT(derivatives)) THEN
+               row = feature_pos
+            ELSE
+               row = features%local_feature_rows(feature_pos)
+               CPASSERT(row >= 1 .AND. row <= features%nflat)
+            END IF
             density_grad(local_row, :) = density_grad(local_row, :) + &
                                          density_grad_all(row, :)
             grad_grad(local_row, :, :) = grad_grad(local_row, :, :) + &
@@ -2561,7 +2566,8 @@ CONTAINS
                                                             kin_grad(:, :)
       TYPE(section_vals_type), POINTER                   :: native_section
       TYPE(skala_gpw_feature_type)                       :: direction, reference
-      TYPE(torch_tensor_type)                            :: directions(3), exc_tensor, responses(3)
+      TYPE(torch_tensor_type)                            :: compact(3), directions(3), exc_tensor, &
+                                                            responses(3)
       TYPE(xc_rho_set_type)                              :: rho1_set
 
       fp64 = .TRUE.
@@ -2605,16 +2611,20 @@ CONTAINS
       CALL skala_torch_model_get_exc(skala_state%model, reference%inputs, reference%grid_weights_t, exc_tensor, exc)
       CALL torch_tensor_hessian_vector(exc_tensor, &
                                        [reference%density_t, reference%grad_t, reference%kin_t], &
-                                       directions, responses)
+                                       directions, responses, to_host=.FALSE.)
+      DO i = 1, SIZE(responses)
+         CALL torch_tensor_gather_rows(responses(i), reference%local_feature_rows, compact(i))
+         CALL torch_tensor_release(responses(i))
+      END DO
       ALLOCATE (density_grad(reference%nflat_local, 2), &
                 grad_grad(reference%nflat_local, 3, 2), &
                 kin_grad(reference%nflat_local, 2))
-      CALL fetch_local_feature_grads(reference, density_grad, grad_grad, kin_grad, responses)
+      CALL fetch_local_feature_grads(reference, density_grad, grad_grad, kin_grad, compact)
       CALL build_vxc_from_feature_grads(fxc_rho, fxc_tau, rho1_r, pw_pool, &
                                         density_grad, grad_grad, kin_grad, &
                                         section_get_ival(xc_section, "XC_GRID%XC_DERIV"))
-      DO i = 1, SIZE(responses)
-         CALL torch_tensor_release(responses(i))
+      DO i = 1, SIZE(compact)
+         CALL torch_tensor_release(compact(i))
          CALL torch_tensor_release(directions(i))
       END DO
       CALL torch_tensor_release(exc_tensor)

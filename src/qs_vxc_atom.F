@@ -281,8 +281,9 @@ CONTAINS
          gapw_density_partition, gapw_representation, gather_handle, handle, ia, iat, iatom, &
          icomponent, idir, ikind, image_i1, image_i2, image_i3, image_lower(3), image_shell(3), &
          image_shift(3), image_upper(3), inode_x, inode_y, inode_z, interp_handle, ir, ispin, iw, &
-         jdir, myfun, na, natom, ngl, nr, nspins, num_pe, on, pos, source_atom, target_atom
-      INTEGER :: xc_deriv_method_id, xc_rho_smooth_id, zatom
+         jdir, local_partition_target_image, myfun, na, natom, ngl, nr, nspins, num_pe, on, pos, &
+         source_atom
+      INTEGER :: target_atom, xc_deriv_method_id, xc_rho_smooth_id, zatom
       INTEGER(int_8)                                     :: lin
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: composite_atomic_grid_sizes, &
                                                             composite_local_grid_sizes
@@ -384,9 +385,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input, model_section, my_xc_section, &
                                                             native_section, xc_fun_section
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
-      TYPE(skala_periodic_partition_type) :: composite_partition_image_coords
-      TYPE(skala_periodic_partition_type) :: local_partition_layout
-      INTEGER                                            :: local_partition_target_image
+      TYPE(skala_periodic_partition_type) :: composite_partition_image_coords, &
+         local_partition_layout
       TYPE(tau_basis_cache_type)                         :: tau_basis_cache
       TYPE(virial_type), POINTER                         :: virial
       TYPE(xc_derivative_set_type)                       :: deriv_set
