@@ -87,7 +87,6 @@ MODULE qs_vxc_atom
         create_tau_basis_cache, dgaVtaudgb, evaluate_nlcc_primitive_fields, gaVxcgb_GC, &
         gaVxcgb_noGC, gapw_atom_grid_support_radius, release_tau_basis_cache, tau_basis_cache_type
    USE skala_gpw_features,              ONLY: build_periodic_atom_image_layout,&
-                                              periodic_atom_image_partition,&
                                               periodic_atom_image_partition_from_layout,&
                                               skala_periodic_partition_type
    USE skala_gpw_functional,            ONLY: build_vxc_from_feature_grads,&
@@ -386,6 +385,8 @@ CONTAINS
                                                             native_section, xc_fun_section
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
       TYPE(skala_periodic_partition_type) :: composite_partition_image_coords
+      TYPE(skala_periodic_partition_type) :: local_partition_layout
+      INTEGER                                            :: local_partition_target_image
       TYPE(tau_basis_cache_type)                         :: tau_basis_cache
       TYPE(virial_type), POINTER                         :: virial
       TYPE(xc_derivative_set_type)                       :: deriv_set
@@ -1510,8 +1511,8 @@ CONTAINS
 !$OMP         nlcc_density, nlcc_gradient, nlcc_hessian, nlcc_spatial_derivative, &
 !$OMP         nlcc_spin_factor, composite_nlcc_center_force_local, &
 !$OMP         composite_partition_force_local, &
-!$OMP         local_partition_datom, local_partition_dstrain, &
-!$OMP         local_partition_weight, sgp_potential, source_atom, &
+!$OMP         local_partition_datom, local_partition_dstrain, local_partition_layout, &
+!$OMP         local_partition_target_image, local_partition_weight, sgp_potential, source_atom, &
 !$OMP         spatial_derivative, target_atom, target_partition_adjoint, interpolation_stencil) &
 !$OMP REDUCTION(+:composite_interpolation_virial, composite_partition_strain_virial) &
 !$OMP SHARED(cell, composite_atom_coord_grad, composite_atom_coords, composite_atom_end, &
@@ -1532,6 +1533,9 @@ CONTAINS
 !$OMP DO SCHEDULE(DYNAMIC)
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
+                  CALL build_periodic_atom_image_layout(composite_atom_coords, cell, iatom, &
+                                                        composite_image_periodicity, local_partition_layout, &
+                                                        local_partition_target_image)
                   composite_model_atom_force(:, iatom) = &
                      composite_atom_coord_grad(:, composite_local_atom)
                   DO composite_row = composite_atom_start(iatom), composite_atom_end(iatom)
@@ -1627,10 +1631,10 @@ CONTAINS
                               composite_nlcc_center_force_local(:, source_atom) - nlcc_spatial_derivative
                         END DO
                      END IF
-                     CALL periodic_atom_image_partition( &
-                        composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
-                        iatom, local_partition_weight, local_partition_datom, &
-                        local_partition_dstrain, composite_image_periodicity)
+                     CALL periodic_atom_image_partition_from_layout( &
+                        composite_grid_coords(:, composite_row), local_partition_layout, &
+                        local_partition_target_image, local_partition_weight, &
+                        local_partition_datom, local_partition_dstrain)
                      target_partition_adjoint = composite_base_grid_weights(composite_row)* &
                                                 composite_grid_weight_grad(composite_row)
                      DO target_atom = 1, SIZE(particle_set)
