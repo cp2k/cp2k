@@ -16,7 +16,7 @@ MODULE rt_propagation_output
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_binary_write, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
+        dbcsr_add, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
         dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_filter, &
         dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
@@ -25,6 +25,7 @@ MODULE rt_propagation_output
    USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum,&
                                               dbcsr_trace
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_io,                     ONLY: dbcsr_binary_write
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set

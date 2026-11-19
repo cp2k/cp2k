@@ -20,9 +20,10 @@ MODULE ri_rs_setup
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_binary_read, dbcsr_binary_write, dbcsr_create, dbcsr_distribution_get, &
-        dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
-        dbcsr_finalize, dbcsr_get_info, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_info, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_io,                     ONLY: dbcsr_binary_read,&
+                                              dbcsr_binary_write
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
