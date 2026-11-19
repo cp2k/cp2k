@@ -1267,6 +1267,7 @@ list(
   motion/rt_propagation.F
   motion/shell_opt.F
   motion/simpar_methods.F
+  motion/solid_state_coordinates.F
   motion/space_groups.F
   motion/space_groups_types.F
   motion/thermal_region_types.F

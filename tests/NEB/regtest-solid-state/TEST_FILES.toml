@@ -1,0 +1,6 @@
+# Analytic Lennard-Jones shear force and volume after an improved-tangent step and a climbing step.
+"argon.inp" = [
+  {matcher = "Ssneb_initial_shear_force", tol = 2e-4, ref = 4.24019199e-5},
+  {matcher = "Ssneb_final_middle_volume", tol = 1e-7, ref = 6878.05002324}
+]
+#EOF

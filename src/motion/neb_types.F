@@ -28,6 +28,8 @@ MODULE neb_types
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE solid_state_coordinates,         ONLY: solid_state_frame_type,&
+                                              ss_cell_dof
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -51,10 +53,13 @@ MODULE neb_types
       LOGICAL       :: rotate_frames = .FALSE., align_frames = .FALSE.
       LOGICAL       :: optimize_end_points = .FALSE.
       LOGICAL       :: use_colvar = .FALSE.
+      LOGICAL       :: solid_state = .FALSE.
       LOGICAL       :: reparametrize_frames = .FALSE.
       INTEGER       :: spline_order = 0
       REAL(KIND=dp) :: K = 0.0_dp, spring_energy = 0.0_dp, avg_distance = 0.0_dp
       REAL(KIND=dp) :: smoothing = 0.0_dp
+      REAL(KIND=dp) :: external_pressure = 0.0_dp, cell_weight = 1.0_dp
+      TYPE(solid_state_frame_type) :: solid_frame = solid_state_frame_type()
       CHARACTER(LEN=default_string_length) :: opt_type_label = ""
       ! Section used for restart
       TYPE(force_env_type), POINTER        :: force_env => NULL()
@@ -69,6 +74,7 @@ MODULE neb_types
       INTEGER :: in_use = do_band_collective, size_wrk(2) = 0
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: xyz => NULL(), int => NULL(), wrk => NULL()
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER  :: Mmatrix => NULL()
+      REAL(KIND=dp), ALLOCATABLE :: cells(:, :, :)
    END TYPE neb_var_type
 
 CONTAINS
@@ -104,6 +110,13 @@ CONTAINS
          ALLOCATE (neb_var%int(neb_env%nsize_int, neb_nr_replica))
          neb_var%int = 0.0_dp
          neb_var%wrk => neb_var%int
+      ELSE IF (neb_env%solid_state) THEN
+         neb_var%in_use = do_band_cartesian
+         IF (.NOT. allocate_all) ALLOCATE (neb_var%xyz(neb_env%nsize_xyz, neb_nr_replica))
+         ALLOCATE (neb_var%wrk(neb_env%nsize_xyz + ss_cell_dof, neb_nr_replica))
+         IF (allocate_all) ALLOCATE (neb_var%cells(3, 3, neb_nr_replica))
+         neb_var%xyz = 0.0_dp
+         neb_var%wrk = 0.0_dp
       ELSE
          neb_var%in_use = do_band_cartesian
          IF (.NOT. allocate_all) THEN
@@ -127,6 +140,9 @@ CONTAINS
       TYPE(neb_var_type), POINTER                        :: neb_var
 
       CPASSERT(ASSOCIATED(neb_var))
+      IF (ASSOCIATED(neb_var%wrk) .AND. neb_var%in_use == do_band_cartesian) THEN
+         IF (.NOT. ASSOCIATED(neb_var%wrk, neb_var%xyz)) DEALLOCATE (neb_var%wrk)
+      END IF
       IF (ASSOCIATED(neb_var%xyz)) THEN
          DEALLOCATE (neb_var%xyz)
       END IF
