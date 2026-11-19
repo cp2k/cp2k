@@ -50,7 +50,6 @@ MODULE skala_gpw_features
    REAL(KIND=dp), PARAMETER, PRIVATE    :: smooth_partition_eps = 1.0E-12_dp
    REAL(KIND=dp), PARAMETER, PRIVATE    :: smooth_partition_taper_end = &
                                            10.0_dp*smooth_partition_eps
-   INTEGER, PARAMETER, PRIVATE          :: periodic_partition_image_shell = 1
 
    PUBLIC :: skala_gpw_atom_subchunk_count, skala_gpw_atom_subchunk_layout, &
              skala_gpw_atom_partition_hard, skala_gpw_atom_partition_smooth, &

@@ -2623,7 +2623,7 @@ CONTAINS
       CALL skala_gpw_feature_release(direction)
       CALL skala_gpw_feature_release(reference)
       CALL xc_rho_set_release(rho1_set)
-      CALL torch_use_cuda(.TRUE.)
+      CALL torch_use_cuda(use_cuda)
    END SUBROUTINE skala_gpw_fxc
 
 ! **************************************************************************************************
