@@ -16,6 +16,14 @@
 #include "fft_lib_test.h"
 #include "fft_timer.h"
 
+/*******************************************************************************
+ * \brief Run all FFT unit tests for the selected backend.
+ * \param backend FFT backend selector.
+ * \param planning_mode FFTW planning mode.
+ * \param use_guru Whether to use the FFTW Guru interface.
+ * \param threshold Minimum relative timing value to report.
+ * \return Number of failed checks.
+ ******************************************************************************/
 int run_unittests(const int backend, const int planning_mode,
                   const bool use_guru, const double threshold) {
   int errors = 0;
@@ -36,6 +44,12 @@ int run_unittests(const int backend, const int planning_mode,
   return errors;
 }
 
+/*******************************************************************************
+ * \brief Entry point of the FFT unit-test program.
+ * \param argc Number of command-line arguments.
+ * \param argv Command-line arguments.
+ * \return Exit status (0 on success).
+ ******************************************************************************/
 int main(int argc, char *argv[]) {
   cp_mpi_init(&argc, &argv);
 

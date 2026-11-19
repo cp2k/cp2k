@@ -49,6 +49,7 @@ int buffer_size_timed_routines = 0;
 /*******************************************************************************
  * \brief String duplication. Can be removed with migration to C23.
  * \param handle Handle of the pushed function
+ * \param src Source string to duplicate.
  * \author Frederick Stein
  ******************************************************************************/
 inline char *strdup(const char *src) {
@@ -62,6 +63,7 @@ inline char *strdup(const char *src) {
 /*******************************************************************************
  * \brief Get a routine handle to a given routine name.
  * \param handle Handle of the pushed function
+ * \param routine_name Name of the timed routine.
  * \author Frederick Stein
  ******************************************************************************/
 int get_routine_handle(const char *routine_name) {
@@ -106,6 +108,10 @@ char *get_routine_name(const int handle) {
 /*******************************************************************************
  * \brief Get a routine handle to a given routine name.
  * \param handle Handle of the pushed function
+ * \param routine_name Name of the timed routine.
+ * \param total_time Total time of the timed routine.
+ * \param self_time Self time of the timed routine.
+ * \param number_of_calls Number of calls of the timed routine.
  * \author Frederick Stein
  ******************************************************************************/
 void get_routine_infos(const char *routine_name, double *total_time,
@@ -127,6 +133,8 @@ void get_routine_infos(const char *routine_name, double *total_time,
 /*******************************************************************************
  * \brief Get a routine handle to a given routine name.
  * \param handle Handle of the pushed function
+ * \param total_time Total time of the timed routine.
+ * \param self_time Self time of the timed routine.
  * \author Frederick Stein
  ******************************************************************************/
 void update_routine(const int handle, const double total_time,
@@ -253,6 +261,10 @@ static void fft_report_printf(fft_print_func_t print_func,
  * \brief Prints the timing report.
  * \note To be called by all threads or outside of a parallel region.
  * \note To be called by all MPI ranks
+ * \param threshold Minimum relative timing value to report.
+ * \param print_func Callback used to print the timing report.
+ * \param output_unit Destination output unit.
+ * \param comm MPI communicator.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_print_timing_report_unit(const double threshold,
@@ -426,6 +438,7 @@ void fft_finalize_timer() {
 /*******************************************************************************
  * \brief Start a timing section.
  * \note Thread-safe. Only the master-thread does something.
+ * \param routine_name Name of the timed routine.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_start_timer(const char *routine_name) {
@@ -441,6 +454,7 @@ int fft_start_timer(const char *routine_name) {
 /*******************************************************************************
  * \brief Stop a timing.
  * \note Thread-safe. Only the master-thread does something.
+ * \param handle Timer handle.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_stop_timer(const int handle) {

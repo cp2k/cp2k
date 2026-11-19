@@ -99,6 +99,8 @@ void fft_print_timing_report_unit_F(const double threshold,
 
 /*******************************************************************************
  * \brief Allocate buffer of type double.
+ * \param length Number of elements.
+ * \param buffer Buffer pointer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_allocate_double_F(const int length, double **buffer) {
@@ -107,6 +109,8 @@ void fft_allocate_double_F(const int length, double **buffer) {
 
 /*******************************************************************************
  * \brief Allocate buffer of type double complex.
+ * \param length Number of elements.
+ * \param buffer Buffer pointer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_allocate_complex_F(const int length, double complex **buffer) {
@@ -115,12 +119,14 @@ void fft_allocate_complex_F(const int length, double complex **buffer) {
 
 /*******************************************************************************
  * \brief Allocate buffer of type double.
+ * \param buffer Buffer pointer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_free_double_F(double *buffer) { fft_free_double(buffer); }
 
 /*******************************************************************************
  * \brief Allocate buffer of type double complex.
+ * \param buffer Buffer pointer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_free_complex_F(double complex *buffer) { fft_free_complex(buffer); }

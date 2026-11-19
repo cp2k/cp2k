@@ -19,6 +19,17 @@
 #include <string.h>
 #include <time.h>
 
+/*******************************************************************************
+ * \brief Compute the linear index of a point in a batched 3D grid.
+ * \param fft_size Size of the transform in each dimension.
+ * \param x Index along the first dimension.
+ * \param y Index along the second dimension.
+ * \param z Index along the third dimension.
+ * \param batch Index of the transform batch.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose Whether the array uses the transposed layout.
+ * \return Linear index into the grid buffer.
+ ******************************************************************************/
 static inline int fft3d_index(const int fft_size[3], const int x, const int y,
                               const int z, const int batch,
                               const int number_of_ffts, const bool transpose) {
@@ -28,6 +39,18 @@ static inline int fft3d_index(const int fft_size[3], const int x, const int y,
              : batch * (fft_size[0] * fft_size[1] * fft_size[2]) + spatial;
 }
 
+/*******************************************************************************
+ * \brief Compute the linear index of a point in a batched 3D complex
+ * half-spectrum grid.
+ * \param fft_size Size of the transform in each dimension.
+ * \param x Index along the first dimension.
+ * \param y Index along the second dimension.
+ * \param z Index along the third dimension.
+ * \param batch Index of the transform batch.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose Whether the array uses the transposed layout.
+ * \return Linear index into the grid buffer.
+ ******************************************************************************/
 static inline int fft3d_index_complex(const int fft_size[3], const int x,
                                       const int y, const int z, const int batch,
                                       const int number_of_ffts,
@@ -39,6 +62,17 @@ static inline int fft3d_index_complex(const int fft_size[3], const int x,
                    spatial;
 }
 
+/*******************************************************************************
+ * \brief Compute the linear index of a point in a padded batched 3D grid.
+ * \param fft_size Size of the transform in each dimension.
+ * \param x Index along the first dimension.
+ * \param y Index along the second dimension.
+ * \param z Index along the third dimension.
+ * \param batch Index of the transform batch.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose Whether the array uses the transposed layout.
+ * \return Linear index into the grid buffer.
+ ******************************************************************************/
 static inline int fft3d_index_padded(const int fft_size[3], const int x,
                                      const int y, const int z, const int batch,
                                      const int number_of_ffts,
@@ -52,6 +86,11 @@ static inline int fft3d_index_padded(const int fft_size[3], const int x,
 
 /*******************************************************************************
  * \brief Function to test the local FFT backend.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_rs Whether the real-space array uses the transposed layout.
+ * \param transpose_gs Whether the reciprocal-space array uses the transposed
+ * layout.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
@@ -238,6 +277,9 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Function to test the local FFT backend (inplace).
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose Whether the array uses the transposed layout.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_1d_local_inplace_low(const int fft_size, const int number_of_ffts,
@@ -420,6 +462,11 @@ int fft_test_1d_local_inplace_low(const int fft_size, const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Function to test the local FFT backend.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_rs Whether the real-space array uses the transposed layout.
+ * \param transpose_gs Whether the reciprocal-space array uses the transposed
+ * layout.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_1d_local_r2c_low(const int fft_size, const int number_of_ffts,
@@ -610,6 +657,9 @@ int fft_test_1d_local_r2c_low(const int fft_size, const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Function to test the local FFT backend.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose Whether the array uses the transposed layout.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_1d_local_r2c_inplace_low(const int fft_size,
@@ -803,6 +853,11 @@ int fft_test_1d_local_r2c_inplace_low(const int fft_size,
 
 /*******************************************************************************
  * \brief Function to test the local FFT backend.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_rs Whether the real-space array uses the transposed layout.
+ * \param transpose_gs Whether the reciprocal-space array uses the transposed
+ * layout.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts,
@@ -1008,6 +1063,9 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Function to test the local FFT backend.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose Whether the array uses the transposed layout.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_2d_local_inplace_low(const int fft_size[2],
@@ -1215,6 +1273,11 @@ int fft_test_2d_local_inplace_low(const int fft_size[2],
 
 /*******************************************************************************
  * \brief Function to test the local FFT backend.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_rs Whether the real-space array uses the transposed layout.
+ * \param transpose_gs Whether the reciprocal-space array uses the transposed
+ * layout.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
@@ -1452,6 +1515,9 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Function to test the local FFT backend.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose Whether the array uses the transposed layout.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_2d_local_r2c_inplace_low(const int fft_size[2],
@@ -1694,6 +1760,10 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2],
 
 /*******************************************************************************
  * \brief Function to test the local FFT backend.
+ * \param fft_size Size of the transform in each dimension.
+ * \param test_every Stride selecting the basis vectors to test.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_3d_local_low(const int fft_size[3], const int test_every,
@@ -1851,6 +1921,9 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every,
 
 /*******************************************************************************
  * \brief Function to test the local FFT backend.
+ * \param fft_size Size of the transform in each dimension.
+ * \param test_every Stride selecting the basis vectors to test.
+ * \param transpose Whether the array uses the transposed layout.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every,
@@ -1999,6 +2072,10 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every,
 
 /*******************************************************************************
  * \brief Function to test the local FFT backend.
+ * \param fft_size Size of the transform in each dimension.
+ * \param test_every Stride selecting the basis vectors to test.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every,
@@ -2171,6 +2248,9 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every,
 
 /*******************************************************************************
  * \brief Function to test the local FFT backend.
+ * \param fft_size Size of the transform in each dimension.
+ * \param test_every Stride selecting the basis vectors to test.
+ * \param transpose Whether the array uses the transposed layout.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_3d_local_r2c_inplace_low(const int fft_size[3],

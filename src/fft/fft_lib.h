@@ -128,8 +128,6 @@ void fft_register_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Register a local 3D FFT.
- * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
- * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_3d_local(const bool dir, const int fft_size[3],

@@ -323,6 +323,22 @@ static inline int get_buffer_size_from_key(const fft_key_t key) {
   return imax(buffer_size, buffer_size_out) * number_of_ffts;
 }
 
+/*******************************************************************************
+ * \brief Decode a key for a local (non-Guru) FFT into its plan parameters.
+ * \param key Encoded FFT key.
+ * \param rank Number of transform dimensions.
+ * \param fft_size Transform sizes (up to three dimensions).
+ * \param number_of_ffts Number of batched transforms.
+ * \param number_of_threads Number of FFTW threads used by the plan.
+ * \param direction FFT direction (forward or backward).
+ * \param inplace Whether the transform is in-place.
+ * \param inembed Input array dimensions.
+ * \param onembed Output array dimensions.
+ * \param idist Distance between consecutive input transforms.
+ * \param odist Distance between consecutive output transforms.
+ * \param istride Stride between consecutive input elements.
+ * \param ostride Stride between consecutive output elements.
+ ******************************************************************************/
 static inline void fetch_data_from_key_nd(
     const fft_key_t key, int *rank, int *fft_size, int *number_of_ffts,
     int *number_of_threads, bool *direction, bool *inplace, int *inembed,
@@ -364,6 +380,17 @@ static inline void fetch_data_from_key_nd(
   }
 }
 
+/*******************************************************************************
+ * \brief Decode a key for a local Guru FFT into its plan parameters.
+ * \param key Encoded FFT key.
+ * \param direction FFT direction (forward or backward).
+ * \param rank Number of transform dimensions.
+ * \param dims Transform dimensions with their input and output strides.
+ * \param howmany_rank Number of howmany dimensions.
+ * \param howmany_dims Howmany dimensions with their in/output strides.
+ * \param number_of_threads Number of FFTW threads used by the plan.
+ * \param inplace Whether the transform is in-place.
+ ******************************************************************************/
 static inline void fetch_data_from_key_guru(const fft_key_t key,
                                             bool *direction, int *rank,
                                             fftw_iodim *dims, int *howmany_rank,

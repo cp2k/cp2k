@@ -45,6 +45,10 @@ int fft_init_acc_lib() {
 
 /*******************************************************************************
  * \brief Initialize the FFT library (if not done externally).
+ * \param lib FFT backend to use.
+ * \param fftw_planning_flag FFTW planning mode.
+ * \param use_guru_interface Whether the FFTW Guru interface may be used.
+ * \param wisdom_file Path to the FFTW wisdom file.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
@@ -94,6 +98,7 @@ void fft_finalize_acc_lib() {
 
 /*******************************************************************************
  * \brief Finalize the FFT library (if not done externally).
+ * \param wisdom_file Path to the FFTW wisdom file.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_finalize_lib(const char *wisdom_file) {
@@ -132,6 +137,8 @@ bool fft_lib_has_guru_interface() {
 
 /*******************************************************************************
  * \brief Allocate buffer of type double.
+ * \param length Number of elements.
+ * \param buffer Buffer pointer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_allocate_double(const int length, double **buffer) {
@@ -149,6 +156,8 @@ void fft_allocate_double(const int length, double **buffer) {
 
 /*******************************************************************************
  * \brief Allocate buffer of type double complex.
+ * \param length Number of elements.
+ * \param buffer Buffer pointer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_allocate_complex(const int length, double complex **buffer) {
@@ -166,6 +175,7 @@ void fft_allocate_complex(const int length, double complex **buffer) {
 
 /*******************************************************************************
  * \brief Allocate buffer of type double.
+ * \param buffer Buffer pointer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_free_double(double *buffer) {
@@ -180,6 +190,7 @@ void fft_free_double(double *buffer) {
 
 /*******************************************************************************
  * \brief Allocate buffer of type double complex.
+ * \param buffer Buffer pointer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_free_complex(double complex *buffer) {
@@ -194,6 +205,15 @@ void fft_free_complex(double complex *buffer) {
 
 /*******************************************************************************
  * \brief Register a local 1D C2C FFT.
+ * \param dir FFT direction (forward or backward).
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_1d_local(const bool dir, const int fft_size,
@@ -231,6 +251,14 @@ void fft_register_1d_local(const bool dir, const int fft_size,
 
 /*******************************************************************************
  * \brief Register a local 1D R2C FFT.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_1d_r2c_local(const int fft_size, const int number_of_ffts,
@@ -268,6 +296,14 @@ void fft_register_1d_r2c_local(const int fft_size, const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Register a local 1D C2R FFT.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_1d_c2r_local(const int fft_size, const int number_of_ffts,
@@ -305,6 +341,13 @@ void fft_register_1d_c2r_local(const int fft_size, const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Register a local 2D FFT.
+ * \param dir FFT direction (forward or backward).
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_2d_local(const bool dir, const int fft_size[2],
@@ -338,6 +381,12 @@ void fft_register_2d_local(const bool dir, const int fft_size[2],
 
 /*******************************************************************************
  * \brief Register a local 2D R2C FFT.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
@@ -371,6 +420,12 @@ void fft_register_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Register a local 2D C2R FFT.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
@@ -407,6 +462,13 @@ void fft_register_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
  * \brief Register a local 3D FFT.
  * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \param dir FFT direction (forward or backward).
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_3d_local(const bool dir, const int fft_size[3],
@@ -440,6 +502,12 @@ void fft_register_3d_local(const bool dir, const int fft_size[3],
 
 /*******************************************************************************
  * \brief Register a local 3D R2C FFT.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_3d_r2c_local(const int fft_size[3], const int number_of_ffts,
@@ -473,6 +541,12 @@ void fft_register_3d_r2c_local(const int fft_size[3], const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Register a local 3D C2R FFT.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_3d_c2r_local(const int fft_size[3], const int number_of_ffts,
@@ -507,6 +581,15 @@ void fft_register_3d_c2r_local(const int fft_size[3], const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Perform a local 1D FFT.
+ * \param dir FFT direction (forward or backward).
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_1d_local(const bool dir, const int fft_size, const int number_of_ffts,
@@ -543,6 +626,14 @@ void fft_1d_local(const bool dir, const int fft_size, const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Perform a local 1D R2C FFT.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_1d_r2c_local(const int fft_size, const int number_of_ffts,
@@ -578,6 +669,14 @@ void fft_1d_r2c_local(const int fft_size, const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Perform a local 1D C2R FFT.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_1d_c2r_local(const int fft_size, const int number_of_ffts,
@@ -613,6 +712,13 @@ void fft_1d_c2r_local(const int fft_size, const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Perform a local 2D FFT.
+ * \param dir FFT direction (forward or backward).
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_local(const bool dir, const int fft_size[2],
@@ -646,6 +752,12 @@ void fft_2d_local(const bool dir, const int fft_size[2],
 
 /*******************************************************************************
  * \brief Perform a local 2D R2C FFT.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
@@ -678,6 +790,12 @@ void fft_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Perform a local 2D C2R FFT.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
@@ -710,6 +828,13 @@ void fft_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Perform a local 3D FFT.
+ * \param dir FFT direction (forward or backward).
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_local(const bool dir, const int fft_size[3],
@@ -743,6 +868,12 @@ void fft_3d_local(const bool dir, const int fft_size[3],
 
 /*******************************************************************************
  * \brief Perform a local 3D R2C FFT.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_r2c_local(const int fft_size[3], const int number_of_ffts,
@@ -775,6 +906,12 @@ void fft_3d_r2c_local(const int fft_size[3], const int number_of_ffts,
 
 /*******************************************************************************
  * \brief Perform a local 3D C2R FFT.
+ * \param fft_size Size of the transform in each dimension.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param grid_in Input grid buffer.
+ * \param grid_out Output grid buffer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_c2r_local(const int fft_size[3], const int number_of_ffts,

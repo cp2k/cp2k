@@ -60,6 +60,10 @@ static bool is_initialized = false;
 #define allocated_map_size (gpu_data[GPU_THREAD_ID].map_size)
 #define stream (gpu_data[GPU_THREAD_ID].dev_stream)
 
+/*******************************************************************************
+ * \brief Initialize the per-thread GPU FFT data.
+ * \param data Per-thread GPU data to initialize.
+ ******************************************************************************/
 static void init_thread_data(gpu_thread_data *data) {
   offload_activate_chosen_device();
   data->buffer_size = 1;
@@ -145,6 +149,8 @@ void fft_gpu_finalize(void) {
 
 /*******************************************************************************
  * \brief Checks size of device buffers and re-allocates them if necessary.
+ * \param requested_buffer_size Requested device buffer size in elements.
+ * \param requested_map_size Requested index-map size in elements.
  * \author Ole Schuett
  ******************************************************************************/
 void ensure_memory_sizes(const size_t requested_buffer_size,
@@ -172,6 +178,8 @@ void ensure_memory_sizes(const size_t requested_buffer_size,
 
 /*******************************************************************************
  * \brief Allocate buffer of type double.
+ * \param length Number of elements.
+ * \param buffer Buffer pointer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_gpu_allocate_double(const int length, double **buffer) {
@@ -187,6 +195,8 @@ void fft_gpu_allocate_double(const int length, double **buffer) {
 
 /*******************************************************************************
  * \brief Allocate buffer of type double complex.
+ * \param length Number of elements.
+ * \param buffer Buffer pointer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_gpu_allocate_complex(const int length, double complex **buffer) {
@@ -202,6 +212,7 @@ void fft_gpu_allocate_complex(const int length, double complex **buffer) {
 
 /*******************************************************************************
  * \brief Allocate buffer of type double.
+ * \param buffer Buffer pointer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_gpu_free_double(double *buffer) {
@@ -216,6 +227,7 @@ void fft_gpu_free_double(double *buffer) {
 
 /*******************************************************************************
  * \brief Allocate buffer of type double complex.
+ * \param buffer Buffer pointer.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_gpu_free_complex(double complex *buffer) {
@@ -231,6 +243,7 @@ void fft_gpu_free_complex(double complex *buffer) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
 /*******************************************************************************
  * \brief Fetches an fft plan from the cache. Returns NULL if not found.
+ * \param key Encoded FFT key.
  * \author Ole Schuett
  ******************************************************************************/
 static offload_fftHandle *lookup_plan_from_cache(const fft_key_t key) {
@@ -254,6 +267,8 @@ static offload_fftHandle *lookup_plan_from_cache(const fft_key_t key) {
 
 /*******************************************************************************
  * \brief Adds an fft plan to the cache. Assumes ownership of plan's memory.
+ * \param key Encoded FFT key.
+ * \param plan FFT plan handle.
  * \author Ole Schuett
  ******************************************************************************/
 static void add_plan_to_cache(const fft_key_t key, offload_fftHandle *plan) {
@@ -283,6 +298,7 @@ static void add_plan_to_cache(const fft_key_t key, offload_fftHandle *plan) {
 
 /*******************************************************************************
  * \brief Returns an owned plan to the cache, or frees it if it was uncached.
+ * \param plan FFT plan handle.
  * \author Frederick Stein
  ******************************************************************************/
 static void return_plan_to_cache(offload_fftHandle *plan) {
@@ -304,6 +320,14 @@ static void return_plan_to_cache(offload_fftHandle *plan) {
  * \brief   Performs a scaled double precision complex 1D-FFT many times on
  *          the GPU.
  *          Input/output are DEVICE pointers (data_in, date_out).
+ * \param direction FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param inplace Whether the transform is performed in-place.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 static void fft_gpu_register_1d(const int direction, const int n, const int m,
@@ -338,6 +362,14 @@ static void fft_gpu_register_1d(const int direction, const int n, const int m,
  * \brief   Performs a scaled double precision complex 1D-FFT many times on
  *          the GPU.
  *          Input/output are DEVICE pointers (data_in, date_out).
+ * \param direction FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param inplace Whether the transform is performed in-place.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 static void fft_gpu_register_r2c_1d(const int direction, const int n,
@@ -379,6 +411,12 @@ static void fft_gpu_register_r2c_1d(const int direction, const int n,
  * \brief   Performs a scaled double precision complex 1D-FFT many times on
  *          the GPU.
  *          Input/output are DEVICE pointers (data_in, date_out).
+ * \param direction FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param inplace Whether the transform is performed in-place.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 static void fft_gpu_register_2d(const int direction, const int n[2],
@@ -409,6 +447,12 @@ static void fft_gpu_register_2d(const int direction, const int n[2],
 /*******************************************************************************
  * \brief   Performs a scaled double precision complex R2C/C2R-2D-FFT many times
  * on the GPU. Input/output are DEVICE pointers (data_in, date_out).
+ * \param direction FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param inplace Whether the transform is performed in-place.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 static void fft_gpu_register_r2c_2d(const int direction, const int n[2],
@@ -449,6 +493,14 @@ static void fft_gpu_register_r2c_2d(const int direction, const int n[2],
 /*******************************************************************************
  * \brief   Performs a scaled double precision complex 3D-FFT on the GPU.
  *          Input/output is a DEVICE pointer (data).
+ * \param direction FFT direction (forward or backward).
+ * \param nx Transform size along x.
+ * \param ny Transform size along y.
+ * \param nz Transform size along z.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param inplace Whether the transform is performed in-place.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 static void fft_gpu_register_3d(const int direction, const int nx, const int ny,
@@ -480,6 +532,14 @@ static void fft_gpu_register_3d(const int direction, const int nx, const int ny,
 /*******************************************************************************
  * \brief   Performs a scaled double precision complex 3D-FFT on the GPU.
  *          Input/output is a DEVICE pointer (data).
+ * \param direction FFT direction (forward or backward).
+ * \param nx Transform size along x.
+ * \param ny Transform size along y.
+ * \param nz Transform size along z.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param inplace Whether the transform is performed in-place.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 static void fft_gpu_register_r2c_3d(const int direction, const int nx,
@@ -516,6 +576,15 @@ static void fft_gpu_register_r2c_3d(const int direction, const int nx,
  * \brief   Performs a scaled double precision complex 1D-FFT many times on
  *          the GPU.
  *          Input/output are DEVICE pointers (data_in, date_out).
+ * \param direction FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param data_in Input data buffer.
+ * \param data_out Output data buffer.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 static void fft_gpu_1d(const int direction, const int n, const int m,
@@ -551,6 +620,15 @@ static void fft_gpu_1d(const int direction, const int n, const int m,
  * \brief   Performs a scaled double precision complex 1D-FFT many times on
  *          the GPU.
  *          Input/output are DEVICE pointers (data_in, date_out).
+ * \param direction FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param data_in Input data buffer.
+ * \param data_out Output data buffer.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 static void fft_gpu_r2c_1d(const int direction, const int n, const int m,
@@ -591,6 +669,13 @@ static void fft_gpu_r2c_1d(const int direction, const int n, const int m,
  * \brief   Performs a scaled double precision complex 1D-FFT many times on
  *          the GPU.
  *          Input/output are DEVICE pointers (data_in, date_out).
+ * \param direction FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param data_in Input data buffer.
+ * \param data_out Output data buffer.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 static void fft_gpu_2d(const int direction, const int n[2], const int m,
@@ -624,6 +709,13 @@ static void fft_gpu_2d(const int direction, const int n[2], const int m,
 /*******************************************************************************
  * \brief   Performs a scaled double precision complex R2C/C2R-2D-FFT many times
  * on the GPU. Input/output are DEVICE pointers (data_in, date_out).
+ * \param direction FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param data_in Input data buffer.
+ * \param data_out Output data buffer.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 static void fft_gpu_r2c_2d(const int direction, const int n[2], const int m,
@@ -671,6 +763,15 @@ static void fft_gpu_r2c_2d(const int direction, const int n[2], const int m,
 /*******************************************************************************
  * \brief   Performs a scaled double precision complex 3D-FFT on the GPU.
  *          Input/output is a DEVICE pointer (data).
+ * \param direction FFT direction (forward or backward).
+ * \param nx Transform size along x.
+ * \param ny Transform size along y.
+ * \param nz Transform size along z.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param data_in Input data buffer.
+ * \param data_out Output data buffer.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 static void fft_gpu_3d(const int direction, const int nx, const int ny,
@@ -704,6 +805,15 @@ static void fft_gpu_3d(const int direction, const int nx, const int ny,
 /*******************************************************************************
  * \brief   Performs a scaled double precision complex 3D-FFT on the GPU.
  *          Input/output is a DEVICE pointer (data).
+ * \param direction FFT direction (forward or backward).
+ * \param nx Transform size along x.
+ * \param ny Transform size along y.
+ * \param nz Transform size along z.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param data_in Input data buffer.
+ * \param data_out Output data buffer.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 static void fft_gpu_r2c_3d(const int direction, const int nx, const int ny,
@@ -743,6 +853,12 @@ static void fft_gpu_r2c_3d(const int direction, const int nx, const int ny,
 
 /*******************************************************************************
  * \brief   Performs a (double precision complex) 3D-FFT on the GPU.
+ * \param dir FFT direction (forward or backward).
+ * \param npts Transform grid dimensions.
+ * \param inplace Whether the transform is performed in-place.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_register_3d_local(const bool dir, const int *npts,
@@ -770,6 +886,12 @@ void fft_gpu_register_3d_local(const bool dir, const int *npts,
 
 /*******************************************************************************
  * \brief   Performs a 3D-R2C/C2R-FFT, on the GPU.
+ * \param dir FFT direction (forward or backward).
+ * \param npts Transform grid dimensions.
+ * \param inplace Whether the transform is performed in-place.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_register_3d_r2c_local(const bool dir, const int *npts,
@@ -798,6 +920,14 @@ void fft_gpu_register_3d_r2c_local(const bool dir, const int *npts,
 
 /*******************************************************************************
  * \brief   Performs a (double precision complex) 1D-FFT on the GPU.
+ * \param dir FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param inplace Whether the transform is performed in-place.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_register_1d_local(const bool dir, const int n, const int m,
@@ -830,6 +960,14 @@ void fft_gpu_register_1d_local(const bool dir, const int n, const int m,
 
 /*******************************************************************************
  * \brief   Performs a (double precision complex) 1D-FFT on the GPU.
+ * \param dir FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param inplace Whether the transform is performed in-place.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_register_1d_r2c_local(const bool dir, const int n, const int m,
@@ -863,6 +1001,12 @@ void fft_gpu_register_1d_r2c_local(const bool dir, const int n, const int m,
 
 /*******************************************************************************
  * \brief   Performs a (double precision complex) 2D-FFT on the GPU.
+ * \param dir FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param inplace Whether the transform is performed in-place.
  * \author  Frederick Stein
  ******************************************************************************/
 void fft_gpu_register_2d_local(const bool dir, const int n[2], const int m,
@@ -890,6 +1034,12 @@ void fft_gpu_register_2d_local(const bool dir, const int n[2], const int m,
 
 /*******************************************************************************
  * \brief   Performs a (double precision complex) R2C/C2R2D-FFT on the GPU.
+ * \param dir FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param inplace Whether the transform is performed in-place.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_register_2d_r2c_local(const bool dir, const int n[2], const int m,
@@ -918,6 +1068,12 @@ void fft_gpu_register_2d_r2c_local(const bool dir, const int n[2], const int m,
 /*******************************************************************************
  * \brief   Performs a (double precision complex) FFT, followed by a (double
  *          precision complex) gather, on the GPU.
+ * \param din Input data buffer.
+ * \param zout Output complex data.
+ * \param ghatmap Index map for reciprocal-space points.
+ * \param npts Transform grid dimensions.
+ * \param ngpts Number of grid points.
+ * \param scale Scaling factor.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_cfffg(const double *din, double *zout, const int *ghatmap,
@@ -966,6 +1122,13 @@ void fft_gpu_cfffg(const double *din, double *zout, const int *ghatmap,
 /*******************************************************************************
  * \brief   Performs a (double precision complex) scatter, followed by a
  *          (double precision complex) FFT, on the GPU.
+ * \param zin Input complex data.
+ * \param dout Output data buffer.
+ * \param ghatmap Index map for reciprocal-space points.
+ * \param npts Transform grid dimensions.
+ * \param ngpts Number of grid points.
+ * \param nmaps Number of index maps.
+ * \param scale Scaling factor.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_sfffc(const double *zin, double *dout, const int *ghatmap,
@@ -1015,6 +1178,13 @@ void fft_gpu_sfffc(const double *zin, double *dout, const int *ghatmap,
 
 /*******************************************************************************
  * \brief   Performs a (double precision complex) 3D-FFT on the GPU.
+ * \param zin Input complex data.
+ * \param zout Output complex data.
+ * \param dir FFT direction (forward or backward).
+ * \param npts Transform grid dimensions.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_3d_local(const double *zin, double *zout, const bool dir,
@@ -1057,6 +1227,13 @@ void fft_gpu_3d_local(const double *zin, double *zout, const bool dir,
 
 /*******************************************************************************
  * \brief   Performs a 3D-R2C/C2R-FFT, on the GPU.
+ * \param zin Input complex data.
+ * \param zout Output complex data.
+ * \param dir FFT direction (forward or backward).
+ * \param npts Transform grid dimensions.
+ * \param number_of_ffts Number of independent (batched) transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_3d_r2c_local(const double *zin, double *zout, const bool dir,
@@ -1105,6 +1282,9 @@ void fft_gpu_3d_r2c_local(const double *zin, double *zout, const bool dir,
 /*******************************************************************************
  * \brief   Performs a (double to complex double) blow-up and a (double
  *          precision complex) 2D-FFT on the GPU.
+ * \param din Input data buffer.
+ * \param zout Output complex data.
+ * \param npts Transform grid dimensions.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_cff(const double *din, double *zout, const int *npts) {
@@ -1144,6 +1324,9 @@ void fft_gpu_cff(const double *din, double *zout, const int *npts) {
 /*******************************************************************************
  * \brief   Performs a (double precision complex) 2D-FFT and a (double complex
  *          to double) shrink-down on the GPU.
+ * \param zin Input complex data.
+ * \param dout Output data buffer.
+ * \param npts Transform grid dimensions.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_ffc(const double *zin, double *dout, const int *npts) {
@@ -1183,6 +1366,9 @@ void fft_gpu_ffc(const double *zin, double *dout, const int *npts) {
 /*******************************************************************************
  * \brief   Performs a (double to complex double) blow-up and a (double
  *          precision complex) 1D-FFT on the GPU.
+ * \param din Input data buffer.
+ * \param zout Output complex data.
+ * \param npts Transform grid dimensions.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_cf(const double *din, double *zout, const int *npts) {
@@ -1219,6 +1405,9 @@ void fft_gpu_cf(const double *din, double *zout, const int *npts) {
 /*******************************************************************************
  * \brief   Performs a (double precision complex) 1D-FFT and a (double complex
  *          to double) shrink-down on the GPU.
+ * \param zin Input complex data.
+ * \param dout Output data buffer.
+ * \param npts Transform grid dimensions.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_fc(const double *zin, double *dout, const int *npts) {
@@ -1254,6 +1443,15 @@ void fft_gpu_fc(const double *zin, double *dout, const int *npts) {
 
 /*******************************************************************************
  * \brief   Performs a (double precision complex) 1D-FFT on the GPU.
+ * \param zin Input complex data.
+ * \param zout Output complex data.
+ * \param dir FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_1d_local(const double *zin, double *zout, const bool dir,
@@ -1310,6 +1508,15 @@ void fft_gpu_1d_local(const double *zin, double *zout, const bool dir,
 
 /*******************************************************************************
  * \brief   Performs a (double precision complex) 1D-FFT on the GPU.
+ * \param zin Input complex data.
+ * \param zout Output complex data.
+ * \param dir FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_1d_r2c_local(const double *zin, double *zout, const bool dir,
@@ -1363,6 +1570,13 @@ void fft_gpu_1d_r2c_local(const double *zin, double *zout, const bool dir,
 
 /*******************************************************************************
  * \brief   Performs a (double precision complex) 2D-FFT on the GPU.
+ * \param zin Input complex data.
+ * \param zout Output complex data.
+ * \param dir FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
  * \author  Frederick Stein
  ******************************************************************************/
 void fft_gpu_2d_local(const double *zin, double *zout, const bool dir,
@@ -1404,6 +1618,13 @@ void fft_gpu_2d_local(const double *zin, double *zout, const bool dir,
 
 /*******************************************************************************
  * \brief   Performs a (double precision complex) R2C/C2R2D-FFT on the GPU.
+ * \param zin Input complex data.
+ * \param zout Output complex data.
+ * \param dir FFT direction (forward or backward).
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_2d_r2c_local(const double *zin, double *zout, const bool dir,
@@ -1449,6 +1670,13 @@ void fft_gpu_2d_r2c_local(const double *zin, double *zout, const bool dir,
 /*******************************************************************************
  * \brief   Performs a (double precision complex) 1D-FFT, followed by a (double
  *          precision complex) gather, on the GPU.
+ * \param zin Input complex data.
+ * \param zout Output complex data.
+ * \param ghatmap Index map for reciprocal-space points.
+ * \param npts Transform grid dimensions.
+ * \param mmax Maximum Miller index.
+ * \param ngpts Number of grid points.
+ * \param scale Scaling factor.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_fg(const double *zin, double *zout, const int *ghatmap,
@@ -1498,6 +1726,14 @@ void fft_gpu_fg(const double *zin, double *zout, const int *ghatmap,
 /*******************************************************************************
  * \brief   Performs a (double precision complex) scatter, followed by a
  *          (double precision complex) 1D-FFT, on the GPU.
+ * \param zin Input complex data.
+ * \param zout Output complex data.
+ * \param ghatmap Index map for reciprocal-space points.
+ * \param npts Transform grid dimensions.
+ * \param mmax Maximum Miller index.
+ * \param ngpts Number of grid points.
+ * \param nmaps Number of index maps.
+ * \param scale Scaling factor.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_sf(const double *zin, double *zout, const int *ghatmap,
