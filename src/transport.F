@@ -30,12 +30,22 @@ MODULE transport
    USE bibliography,                    ONLY: Bruck2014,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_create, &
-        dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, dbcsr_csr_dbcsr_blkrow_dist, &
-        dbcsr_csr_print_sparsity, dbcsr_csr_type, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_has_symmetry, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_deallocate_matrix,&
+                                              dbcsr_desymmetrize,&
+                                              dbcsr_has_symmetry,&
+                                              dbcsr_set,&
+                                              dbcsr_type,&
+                                              dbcsr_type_no_symmetry
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
+   USE cp_dbcsr_csr,                    ONLY: dbcsr_convert_csr_to_dbcsr,&
+                                              dbcsr_convert_dbcsr_to_csr,&
+                                              dbcsr_csr_create,&
+                                              dbcsr_csr_create_from_dbcsr,&
+                                              dbcsr_csr_dbcsr_blkrow_dist,&
+                                              dbcsr_csr_print_sparsity,&
+                                              dbcsr_csr_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type

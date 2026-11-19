@@ -23,13 +23,18 @@ MODULE pexsi_methods
                                               set_arnoldi_initial_vector,&
                                               setup_arnoldi_env
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_create, &
-        dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, dbcsr_csr_destroy, &
-        dbcsr_csr_eqrow_floor_dist, dbcsr_csr_print_sparsity, dbcsr_csr_type_real_8, &
-        dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
-        dbcsr_has_symmetry, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
+        dbcsr_distribution_type, dbcsr_get_info, dbcsr_has_symmetry, dbcsr_p_type, dbcsr_release, &
+        dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
+   USE cp_dbcsr_csr,                    ONLY: dbcsr_convert_csr_to_dbcsr,&
+                                              dbcsr_convert_dbcsr_to_csr,&
+                                              dbcsr_csr_create,&
+                                              dbcsr_csr_create_from_dbcsr,&
+                                              dbcsr_csr_destroy,&
+                                              dbcsr_csr_eqrow_floor_dist,&
+                                              dbcsr_csr_print_sparsity,&
+                                              dbcsr_csr_type_real_8
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&

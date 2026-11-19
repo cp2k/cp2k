@@ -1106,7 +1106,8 @@ list(
   dbt/tas/dbt_tas_types.F
   dbt/tas/dbt_tas_util.F)
 
-list(APPEND CP2K_SRCS_F dbx/cp_dbcsr_api.F dbx/cp_dbcsr_contrib.F)
+list(APPEND CP2K_SRCS_F dbx/cp_dbcsr_api.F dbx/cp_dbcsr_contrib.F
+     dbx/cp_dbcsr_csr.F)
 
 list(
   APPEND

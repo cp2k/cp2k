@@ -19,11 +19,11 @@ MODULE transport_env_types
    USE ISO_C_BINDING,                   ONLY: &
         C_ASSOCIATED, C_BOOL, C_DOUBLE, C_FUNPTR, C_F_POINTER, C_INT, C_NULL_FUNPTR, C_NULL_PTR, &
         C_PTR
-   USE cp_dbcsr_api,                    ONLY: dbcsr_csr_destroy,&
-                                              dbcsr_csr_type,&
-                                              dbcsr_deallocate_matrix,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_release,&
                                               dbcsr_type
+   USE cp_dbcsr_csr,                    ONLY: dbcsr_csr_destroy,&
+                                              dbcsr_csr_type
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
