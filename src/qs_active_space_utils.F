@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 MODULE qs_active_space_utils
 
-   USE cp_dbcsr_api,                    ONLY: dbcsr_csr_type
+   USE cp_dbcsr_csr,                    ONLY: dbcsr_csr_type
    USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                               cp_fm_get_info,&
                                               cp_fm_type

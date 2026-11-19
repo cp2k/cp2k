@@ -14,11 +14,19 @@ MODULE pao_io
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
-   USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_csr_create_from_dbcsr, &
-        dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, dbcsr_csr_type, dbcsr_csr_write, &
-        dbcsr_desymmetrize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_has_symmetry, dbcsr_release, &
-        dbcsr_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
+                                              dbcsr_desymmetrize,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_get_info,&
+                                              dbcsr_has_symmetry,&
+                                              dbcsr_release,&
+                                              dbcsr_type
+   USE cp_dbcsr_csr,                    ONLY: dbcsr_convert_dbcsr_to_csr,&
+                                              dbcsr_csr_create_from_dbcsr,&
+                                              dbcsr_csr_dbcsr_blkrow_dist,&
+                                              dbcsr_csr_destroy,&
+                                              dbcsr_csr_type,&
+                                              dbcsr_csr_write
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&

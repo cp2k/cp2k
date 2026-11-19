@@ -7,17 +7,12 @@
 
 MODULE cp_dbcsr_api
    USE dbcsr_api,                       ONLY: &
-        convert_csr_to_dbcsr_prv => dbcsr_convert_csr_to_dbcsr, &
-        convert_dbcsr_to_csr_prv => dbcsr_convert_dbcsr_to_csr, dbcsr_add_prv => dbcsr_add, &
-        dbcsr_binary_read_prv => dbcsr_binary_read, dbcsr_binary_write_prv => dbcsr_binary_write, &
-        dbcsr_clear_mempools, dbcsr_clear_prv => dbcsr_clear, &
+        dbcsr_add_prv => dbcsr_add, dbcsr_binary_read_prv => dbcsr_binary_read, &
+        dbcsr_binary_write_prv => dbcsr_binary_write, dbcsr_clear_mempools, &
+        dbcsr_clear_prv => dbcsr_clear, &
         dbcsr_complete_redistribute_prv => dbcsr_complete_redistribute, &
         dbcsr_convert_offsets_to_sizes, dbcsr_convert_sizes_to_offsets, &
-        dbcsr_copy_prv => dbcsr_copy, dbcsr_create_prv => dbcsr_create, dbcsr_csr_create, &
-        dbcsr_csr_create_from_dbcsr_prv => dbcsr_csr_create_from_dbcsr, &
-        dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, dbcsr_csr_eqrow_floor_dist, &
-        dbcsr_csr_p_type, dbcsr_csr_print_sparsity, dbcsr_csr_type, &
-        dbcsr_csr_type_real_8 => dbcsr_type_real_8, dbcsr_csr_write, &
+        dbcsr_copy_prv => dbcsr_copy, dbcsr_create_prv => dbcsr_create, &
         dbcsr_desymmetrize_prv => dbcsr_desymmetrize, dbcsr_distribute_prv => dbcsr_distribute, &
         dbcsr_distribution_get_num_images, dbcsr_distribution_get_prv => dbcsr_distribution_get, &
         dbcsr_distribution_hold_prv => dbcsr_distribution_hold, &
@@ -45,17 +40,14 @@ MODULE cp_dbcsr_api
         dbcsr_run_tests, dbcsr_scale_prv => dbcsr_scale, dbcsr_set_config, &
         dbcsr_set_prv => dbcsr_set, dbcsr_sum_replicated_prv => dbcsr_sum_replicated, &
         dbcsr_test_mm, dbcsr_transpose, dbcsr_transposed_prv => dbcsr_transposed, &
-        dbcsr_type_antisymmetric, dbcsr_type_complex_8, dbcsr_type_no_symmetry, &
-        dbcsr_type_prv => dbcsr_type, dbcsr_type_real_8, dbcsr_type_symmetric, &
-        dbcsr_valid_index_prv => dbcsr_valid_index, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_prv => dbcsr_type, &
+        dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_valid_index_prv => dbcsr_valid_index, &
         dbcsr_verify_matrix_prv => dbcsr_verify_matrix, dbcsr_work_create_prv => dbcsr_work_create
    USE dbm_api,                         ONLY: &
         dbm_add, dbm_clear, dbm_copy, dbm_create, dbm_distribution_new, dbm_distribution_obj, &
         dbm_iterator, dbm_redistribute, dbm_scale, dbm_type, dbm_zero
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE mathconstants,                   ONLY: gaussi,&
-                                              z_one
    USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
@@ -147,21 +139,6 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_run_tests
    PUBLIC :: dbcsr_test_mm
    PUBLIC :: dbcsr_dot_threadsafe
-
-   ! csr conversion
-   PUBLIC :: dbcsr_csr_type
-   PUBLIC :: dbcsr_csr_p_type
-   PUBLIC :: dbcsr_convert_csr_to_dbcsr
-   PUBLIC :: dbcsr_convert_dbcsr_to_csr
-   PUBLIC :: dbcsr_csr_create_from_dbcsr
-   PUBLIC :: dbcsr_csr_destroy
-   PUBLIC :: dbcsr_csr_create
-   PUBLIC :: dbcsr_csr_eqrow_floor_dist
-   PUBLIC :: dbcsr_csr_dbcsr_blkrow_dist
-   PUBLIC :: dbcsr_csr_print_sparsity
-   PUBLIC :: dbcsr_csr_write
-   PUBLIC :: dbcsr_csr_create_and_convert_complex
-   PUBLIC :: dbcsr_csr_type_real_8
 
    ! binary io
    PUBLIC :: dbcsr_binary_write
@@ -327,38 +304,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param dbcsr_mat ...
-!> \param csr_mat ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_convert_csr_to_dbcsr(dbcsr_mat, csr_mat)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: dbcsr_mat
-      TYPE(dbcsr_csr_type), INTENT(INOUT)                :: csr_mat
-
-      IF (USE_DBCSR_BACKEND) THEN
-         CALL convert_csr_to_dbcsr_prv(dbcsr_mat%dbcsr, csr_mat)
-      ELSE
-         CPABORT("Not yet implemented for DBM.")
-      END IF
-   END SUBROUTINE dbcsr_convert_csr_to_dbcsr
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dbcsr_mat ...
-!> \param csr_mat ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_convert_dbcsr_to_csr(dbcsr_mat, csr_mat)
-      TYPE(dbcsr_type), INTENT(IN)                       :: dbcsr_mat
-      TYPE(dbcsr_csr_type), INTENT(INOUT)                :: csr_mat
-
-      IF (USE_DBCSR_BACKEND) THEN
-         CALL convert_dbcsr_to_csr_prv(dbcsr_mat%dbcsr, csr_mat)
-      ELSE
-         CPABORT("Not yet implemented for DBM.")
-      END IF
-   END SUBROUTINE dbcsr_convert_dbcsr_to_csr
-
-! **************************************************************************************************
-!> \brief ...
 !> \param matrix_b ...
 !> \param matrix_a ...
 !> \param name ...
@@ -459,65 +404,6 @@ CONTAINS
          CPABORT("Not yet implemented for DBM.")
       END IF
    END SUBROUTINE dbcsr_create_template
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dbcsr_mat ...
-!> \param csr_mat ...
-!> \param dist_format ...
-!> \param csr_sparsity ...
-!> \param numnodes ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_csr_create_from_dbcsr(dbcsr_mat, csr_mat, dist_format, csr_sparsity, numnodes)
-
-      TYPE(dbcsr_type), INTENT(IN)                       :: dbcsr_mat
-      TYPE(dbcsr_csr_type), INTENT(OUT)                  :: csr_mat
-      INTEGER                                            :: dist_format
-      TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: csr_sparsity
-      INTEGER, INTENT(IN), OPTIONAL                      :: numnodes
-
-      IF (USE_DBCSR_BACKEND) THEN
-         IF (PRESENT(csr_sparsity)) THEN
-            CALL dbcsr_csr_create_from_dbcsr_prv(dbcsr_mat%dbcsr, csr_mat, dist_format, &
-                                                 csr_sparsity%dbcsr, numnodes)
-         ELSE
-            CALL dbcsr_csr_create_from_dbcsr_prv(dbcsr_mat%dbcsr, csr_mat, &
-                                                 dist_format, numnodes=numnodes)
-         END IF
-      ELSE
-         CPABORT("Not yet implemented for DBM.")
-      END IF
-   END SUBROUTINE dbcsr_csr_create_from_dbcsr
-
-! **************************************************************************************************
-!> \brief Combines csr_create_from_dbcsr and convert_dbcsr_to_csr to produce a complex CSR matrix.
-!> \param rmatrix Real part of the matrix.
-!> \param imatrix Imaginary part of the matrix.
-!> \param csr_mat The resulting CSR matrix.
-!> \param dist_format ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_csr_create_and_convert_complex(rmatrix, imatrix, csr_mat, dist_format)
-      TYPE(dbcsr_type), INTENT(IN)                       :: rmatrix, imatrix
-      TYPE(dbcsr_csr_type), INTENT(INOUT)                :: csr_mat
-      INTEGER                                            :: dist_format
-
-      TYPE(dbcsr_type)                                   :: cmatrix, tmp_matrix
-
-      IF (USE_DBCSR_BACKEND) THEN
-         CALL dbcsr_create_prv(tmp_matrix%dbcsr, template=rmatrix%dbcsr, data_type=dbcsr_type_complex_8)
-         CALL dbcsr_create_prv(cmatrix%dbcsr, template=rmatrix%dbcsr, data_type=dbcsr_type_complex_8)
-         CALL dbcsr_copy_prv(cmatrix%dbcsr, rmatrix%dbcsr)
-         CALL dbcsr_copy_prv(tmp_matrix%dbcsr, imatrix%dbcsr)
-         CALL dbcsr_add_prv(cmatrix%dbcsr, tmp_matrix%dbcsr, z_one, gaussi)
-         CALL dbcsr_release_prv(tmp_matrix%dbcsr)
-         ! Convert to csr
-         CALL dbcsr_csr_create_from_dbcsr_prv(cmatrix%dbcsr, csr_mat, dist_format)
-         CALL convert_dbcsr_to_csr_prv(cmatrix%dbcsr, csr_mat)
-         CALL dbcsr_release_prv(cmatrix%dbcsr)
-      ELSE
-         CPABORT("Not yet implemented for DBM.")
-      END IF
-   END SUBROUTINE dbcsr_csr_create_and_convert_complex
 
 ! **************************************************************************************************
 !> \brief ...

@@ -20,10 +20,10 @@ MODULE pexsi_types
    USE bibliography,                    ONLY: Lin2009,&
                                               Lin2013,&
                                               cite_reference
-   USE cp_dbcsr_api,                    ONLY: dbcsr_csr_type,&
-                                              dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_scale,&
                                               dbcsr_type
+   USE cp_dbcsr_csr,                    ONLY: dbcsr_csr_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
