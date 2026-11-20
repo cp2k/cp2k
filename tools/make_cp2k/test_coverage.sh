@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 #
-# test_coverage.sh: Analyse the code coverage and generate a coverage report (step 4 of make_cp2k.sh)
+# test_coverage.sh: Analyse the code coverage and generate a coverage report
 #
-# Usage: test_coverage.sh CONFIG_FILE...
+# Usage: test_coverage.sh [OPTIONS] [CONFIG_FILE...]
 #
-# The settings are read from the configuration files options.conf, deps.conf,
-# and build.conf written by make_cp2k.sh and build_deps.sh.
+# This script is used by make_cp2k.sh (step 4) and by the toolchain-based coverage
+# test (tools/docker/scripts/test_coverage.sh):
+#
+#  - With configuration files (options.conf, deps.conf, and build.conf written by
+#    make_cp2k.sh and build_deps.sh), the defaults are taken from these files and
+#    the Spack environment with the CP2K dependencies is activated
+#  - Without configuration files, the environment has to be set up by the caller
+#    and at least the flag --build_dir is required
+#
+# The flags override the defaults from the configuration files.
 
 # shellcheck disable=SC2154 # the variables are defined by the configuration files
 
@@ -13,27 +21,129 @@ set -uo pipefail
 
 # shellcheck source=/dev/null
 source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/common.sh"
-load_config "$@"
-activate_spack_env
 
-# Analyse code coverage of the regression test run and generate a coverage report
-if [[ "${IN_CONTAINER}" == "yes" ]]; then
-  COVERAGE_OUTPUT_DIR="/workspace/artifacts/coverage"
-else
-  COVERAGE_OUTPUT_DIR="${INSTALL_PREFIX}"/coverage
+print_usage() {
+  echo "Usage: $(basename "${0}") [OPTIONS] [CONFIG_FILE...]"
+  echo ""
+  echo "Options:"
+  echo " -b, --build_dir DIR    : Build folder with the coverage data (.gcda files)"
+  echo "                          (default: \${CMAKE_BUILD_PATH}/src)"
+  echo " -o, --output_dir DIR   : Folder for the coverage report"
+  echo "                          (default: /workspace/artifacts/coverage within a container,"
+  echo "                          otherwise \${INSTALL_PREFIX}/coverage)"
+  echo " -x, --exclude PATTERN  : Exclude the files matching PATTERN from the coverage analysis"
+  echo "                          (can be repeated, /usr/* and \${SPACK_BUILD_PATH}/* are always excluded)"
+  echo " -t, --title TITLE      : Title of the HTML coverage report"
+  echo "                          (default: CP2K Regtests (\${CP2K_REVISION}))"
+  echo " -gt, --gcov_timeout T  : Remove the coverage data files for which gcov takes longer than T"
+  echo "                          (e.g. 10s) to bypass gcov hanging on some files (default: no check)"
+  echo " -h, --help             : Print this help information"
+}
+
+# Parse the flags
+BUILD_DIR=""
+OUTPUT_DIR=""
+TITLE=""
+GCOV_TIMEOUT=""
+EXCLUDES=("/usr/*")
+CONFIG_FILES=()
+while (($# > 0)); do
+  case "${1}" in
+    -b | --build_dir | -o | --output_dir | -x | --exclude | -t | --title | -gt | --gcov_timeout)
+      if (($# < 2)) || [[ -z "${2}" ]] || [[ "${2}" == -* ]]; then
+        echo "ERROR: No argument found for flag \"${1}\""
+        exit 1
+      fi
+      case "${1}" in
+        -b | --build_dir) BUILD_DIR="${2}" ;;
+        -o | --output_dir) OUTPUT_DIR="${2}" ;;
+        -x | --exclude) EXCLUDES+=("${2}") ;;
+        -t | --title) TITLE="${2}" ;;
+        -gt | --gcov_timeout) GCOV_TIMEOUT="${2}" ;;
+      esac
+      shift 2
+      ;;
+    -h | --help)
+      print_usage
+      exit 0
+      ;;
+    -*)
+      echo "ERROR: Unknown flag \"${1}\" found"
+      print_usage
+      exit 1
+      ;;
+    *)
+      CONFIG_FILES+=("${1}")
+      shift 1
+      ;;
+  esac
+done
+
+# Take the defaults from the configuration files if provided
+if ((${#CONFIG_FILES[@]} > 0)); then
+  load_config "${CONFIG_FILES[@]}"
+  activate_spack_env
+  [[ -n "${BUILD_DIR}" ]] || BUILD_DIR="${CMAKE_BUILD_PATH}/src"
+  if [[ -z "${OUTPUT_DIR}" ]]; then
+    if [[ "${IN_CONTAINER}" == "yes" ]]; then
+      OUTPUT_DIR="/workspace/artifacts/coverage"
+    else
+      OUTPUT_DIR="${INSTALL_PREFIX}/coverage"
+    fi
+  fi
+  [[ -n "${SPACK_BUILD_PATH:-}" ]] && EXCLUDES+=("${SPACK_BUILD_PATH}/*")
+  [[ -n "${TITLE}" ]] || TITLE="CP2K Regtests (${CP2K_REVISION})"
+elif [[ -z "${BUILD_DIR}" ]]; then
+  echo "ERROR: Either configuration files or the flag --build_dir have to be specified"
+  print_usage
+  exit 1
 fi
-mkdir -p "${COVERAGE_OUTPUT_DIR}"
-COVERAGE_OUTPUT_FILE="${COVERAGE_OUTPUT_DIR}/coverage.info"
-lcov --directory "${CMAKE_BUILD_PATH}/src" \
-  --exclude "${SPACK_BUILD_PATH}/*" \
-  --exclude "/usr/*" \
+[[ -n "${OUTPUT_DIR}" ]] || OUTPUT_DIR="${PWD}/coverage"
+[[ -n "${TITLE}" ]] || TITLE="CP2K Regtests"
+
+if [[ ! -d "${BUILD_DIR}" ]]; then
+  echo "ERROR: The build folder ${BUILD_DIR} was not found"
+  exit 1
+fi
+BUILD_DIR="$(realpath "${BUILD_DIR}")"
+for tool in gcov lcov genhtml; do
+  if ! command -v "${tool}" &> /dev/null; then
+    echo "ERROR: The command ${tool} is mandatory for the coverage analysis, but it was not found"
+    exit 1
+  fi
+done
+
+# Remove the coverage data files for which gcov takes too long, since gcov gets
+# stuck on some files (maybe related to https://bugs.launchpad.net/gcc-arm-embedded/+bug/1694644)
+if [[ -n "${GCOV_TIMEOUT}" ]]; then
+  GCOV_WORK_DIR="$(mktemp -d)"
+  find "${BUILD_DIR}" -name "*.gcda" -print0 | while read -r -d $'\0' gcda_file; do
+    (cd "${GCOV_WORK_DIR}" && timeout "${GCOV_TIMEOUT}" gcov "${gcda_file}" &> /dev/null)
+    # The exit code of timeout is 124 if the time limit was exceeded
+    if (($? == 124)); then
+      echo "Skipping ${gcda_file} because gcov took longer than ${GCOV_TIMEOUT}"
+      rm -f "${gcda_file}"
+    fi
+  done
+  rm -rf "${GCOV_WORK_DIR}"
+fi
+
+# Analyse the code coverage of the regression test run and generate a coverage report
+mkdir -p "${OUTPUT_DIR}"
+COVERAGE_OUTPUT_FILE="${OUTPUT_DIR}/coverage.info"
+LCOV_EXCLUDE_FLAGS=()
+for pattern in "${EXCLUDES[@]}"; do
+  LCOV_EXCLUDE_FLAGS+=(--exclude "${pattern}")
+done
+lcov --directory "${BUILD_DIR}" \
+  "${LCOV_EXCLUDE_FLAGS[@]}" \
   --capture \
   --keep-going \
-  --output-file "${COVERAGE_OUTPUT_FILE}" &> "${COVERAGE_OUTPUT_DIR}"/lcov.log
+  --output-file "${COVERAGE_OUTPUT_FILE}" &> "${OUTPUT_DIR}"/lcov.log
 # Print coverage summary
 lcov --summary "${COVERAGE_OUTPUT_FILE}"
-genhtml --output-directory "${COVERAGE_OUTPUT_DIR}" --keep-going --title "CP2K Regtests (${CP2K_REVISION})" \
-  "${COVERAGE_OUTPUT_FILE}" &> "${COVERAGE_OUTPUT_DIR}"/genhtml.log
+genhtml --output-directory "${OUTPUT_DIR}" --keep-going --title "${TITLE}" \
+  "${COVERAGE_OUTPUT_FILE}" &> "${OUTPUT_DIR}"/genhtml.log
 # Create plot data
 LINE_COV=$(lcov --summary "${COVERAGE_OUTPUT_FILE}" | grep lines | awk '{print substr($2, 1, length($2)-1)}')
 FUNC_COV=$(lcov --summary "${COVERAGE_OUTPUT_FILE}" | grep funct | awk '{print substr($2, 1, length($2)-1)}')
