@@ -22,6 +22,7 @@ MODULE four_center_integral_interface
                                               prepare_eri4_primitive,&
                                               prepare_eri4_product
    USE four_center_integral_types,      ONLY: eri4_cell_type,&
+                                              eri4_image_group_type,&
                                               eri4_pgf_image_type,&
                                               eri4_pgf_pair_type
    USE hfx_contraction_methods,         ONLY: contract
@@ -46,12 +47,6 @@ MODULE four_center_integral_interface
              prepare_four_center_batch, evaluate_eri, &
              evaluate_deriv_eri, &
              evaluate_eri_screen
-
-!> \brief Range of a multi-image group and its pair displacements before translation.
-   TYPE :: eri4_image_group_type
-      INTEGER :: first = 0, last = 0
-      REAL(dp) :: displacements(3, 2) = 0.0_dp
-   END TYPE eri4_image_group_type
 
 !> \brief Context owning the energy and first-derivative backend workspaces.
 !> \note Each thread owns its context. Pass it directly without intrinsic copying.

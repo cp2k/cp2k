@@ -15,7 +15,7 @@ MODULE four_center_integral_types
    PRIVATE
 
    PUBLIC :: eri4_cell_type, eri4_contraction_type, eri4_screen_coeff_type, eri4_pgf_image_type, &
-             eri4_pgf_pair_type
+             eri4_pgf_pair_type, eri4_image_group_type
 
 ! **************************************************************************************************
 !> \brief Contraction data for one angular momentum in a basis set.
@@ -54,5 +54,12 @@ MODULE four_center_integral_types
       REAL(dp)                                 :: zeta = 0.0_dp, zetb = 0.0_dp
       INTEGER                                  :: ipgf = 0, jpgf = 0
    END TYPE eri4_pgf_pair_type
+
+! **************************************************************************************************
+!> \brief Range of a multi-image group and its pair displacements before translation.
+   TYPE eri4_image_group_type
+      INTEGER :: first = 0, last = 0
+      REAL(dp) :: displacements(3, 2) = 0.0_dp
+   END TYPE eri4_image_group_type
 
 END MODULE four_center_integral_types
