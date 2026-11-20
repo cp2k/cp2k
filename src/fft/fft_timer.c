@@ -39,12 +39,12 @@ struct fft_stack_type {
   struct fft_stack_type *next;
 };
 
-fft_timed_routine *timed_routines = NULL;
-struct fft_stack_type *stack = NULL;
+static fft_timed_routine *timed_routines = NULL;
+static struct fft_stack_type *stack = NULL;
 
-bool timers_initialized = false;
-int number_of_timed_routines = 0;
-int buffer_size_timed_routines = 0;
+static bool timers_initialized = false;
+static int number_of_timed_routines = 0;
+static int buffer_size_timed_routines = 0;
 
 /*******************************************************************************
  * \brief String duplication. Can be removed with migration to C23.
@@ -52,27 +52,32 @@ int buffer_size_timed_routines = 0;
  * \param src Source string to duplicate.
  * \author Frederick Stein
  ******************************************************************************/
-inline char *strdup(const char *src) {
-  // Allocate memory for the length of the string +1 (for the Null character)
-  char *dst = malloc((strlen(src) + 1) * sizeof(char));
-  // Copy the data
+static char *fft_strdup(const char *src) {
+  char *dst = malloc(strlen(src) + 1);
+  assert(dst != NULL);
   strcpy(dst, src);
   return dst;
 }
 
 /*******************************************************************************
+ * \brief Find the index of a timed routine by name.
+ ******************************************************************************/
+static int find_routine_by_name(const char *routine_name) {
+  for (int routine = 0; routine < number_of_timed_routines; routine++)
+    if (strcmp(routine_name, timed_routines[routine].routine_name) == 0)
+      return routine;
+  return -1;
+}
+
+/*******************************************************************************
  * \brief Get a routine handle to a given routine name.
- * \param handle Handle of the pushed function
  * \param routine_name Name of the timed routine.
  * \author Frederick Stein
  ******************************************************************************/
 int get_routine_handle(const char *routine_name) {
-  // Check whether we ever used a routine with this name
-  for (int routine = 0; routine < number_of_timed_routines; routine++) {
-    if (strcmp(routine_name, timed_routines[routine].routine_name) == 0) {
-      return timed_routines[routine].handle;
-    }
-  }
+  const int found = find_routine_by_name(routine_name);
+  if (found >= 0)
+    return timed_routines[found].handle;
   // If we haven't found it, we create a new one
   if (number_of_timed_routines == buffer_size_timed_routines) {
     // If the buffer is full, double its size
@@ -81,28 +86,13 @@ int get_routine_handle(const char *routine_name) {
                                                  sizeof(fft_timed_routine));
   }
   // Copy the data
-  timed_routines[number_of_timed_routines].routine_name = strdup(routine_name);
+  timed_routines[number_of_timed_routines].routine_name = fft_strdup(routine_name);
   timed_routines[number_of_timed_routines].handle = number_of_timed_routines;
   timed_routines[number_of_timed_routines].total_time = 0.0;
   timed_routines[number_of_timed_routines].self_time = 0.0;
   timed_routines[number_of_timed_routines].number_of_calls = 0;
   // Update the counter and return its OLD value
   return number_of_timed_routines++;
-}
-
-/*******************************************************************************
- * \brief Get a routine handle to a given routine name.
- * \param handle Handle of the pushed function
- * \author Frederick Stein
- ******************************************************************************/
-char *get_routine_name(const int handle) {
-  // Check whether we ever used a routine with this name
-  for (int routine = 0; routine < number_of_timed_routines; routine++) {
-    if (timed_routines[routine].handle == handle) {
-      return timed_routines[routine].routine_name;
-    }
-  }
-  return NULL;
 }
 
 /*******************************************************************************
@@ -120,13 +110,11 @@ void get_routine_infos(const char *routine_name, double *total_time,
   *total_time = 0.0;
   *self_time = 0.0;
   *number_of_calls = 0;
-  // Check whether we ever used a routine with this name
-  for (int routine = 0; routine < number_of_timed_routines; routine++) {
-    if (strcmp(routine_name, timed_routines[routine].routine_name) == 0) {
-      *total_time = timed_routines[routine].total_time;
-      *self_time = timed_routines[routine].self_time;
-      *number_of_calls = timed_routines[routine].number_of_calls;
-    }
+  const int routine = find_routine_by_name(routine_name);
+  if (routine >= 0) {
+    *total_time = timed_routines[routine].total_time;
+    *self_time = timed_routines[routine].self_time;
+    *number_of_calls = timed_routines[routine].number_of_calls;
   }
 }
 
@@ -139,18 +127,12 @@ void get_routine_infos(const char *routine_name, double *total_time,
  ******************************************************************************/
 void update_routine(const int handle, const double total_time,
                     const double self_time) {
-  // Check whether we have ever used a routine with this name
-  bool found = false;
-  for (int routine = 0; routine < number_of_timed_routines; routine++) {
-    if (handle == timed_routines[routine].handle) {
-      timed_routines[routine].total_time += total_time;
-      timed_routines[routine].self_time += self_time;
-      timed_routines[routine].number_of_calls++;
-      found = true;
-      break;
-    }
-  }
-  cp_assert(found && "Requested routine not found!");
+  cp_assert(handle >= 0 && handle < number_of_timed_routines &&
+         "Requested routine not found!");
+  cp_assert(timed_routines[handle].handle == handle);
+  timed_routines[handle].total_time += total_time;
+  timed_routines[handle].self_time += self_time;
+  timed_routines[handle].number_of_calls++;
 }
 
 /*******************************************************************************
@@ -273,7 +255,6 @@ void fft_print_timing_report_unit(const double threshold,
                                   const cp_mpi_comm_t comm) {
   cp_assert(omp_get_num_threads() == 1);
 
-  // Ensure that all ranks have initialized the timer
   int initialized_ranks = timers_initialized ? 1 : 0;
   cp_mpi_sum_int(&initialized_ranks, 1, comm);
   if (initialized_ranks != cp_mpi_comm_size(comm)) {
@@ -284,126 +265,88 @@ void fft_print_timing_report_unit(const double threshold,
           "available!\n");
     return;
   }
-  if (timers_initialized) {
-    // We restrict ourselves to the routines from rank 0
-    if (cp_mpi_comm_rank(comm) == 0) {
-      fft_timing_statistics *timing_statistics =
-          calloc(number_of_timed_routines, sizeof(fft_timing_statistics));
-      int size_of_timing_statistics = 0;
-      // Broadcast the number of routines to consider
-      cp_mpi_bcast_int(&number_of_timed_routines, 1, 0, comm);
-      for (int routine = 0; routine < number_of_timed_routines; routine++) {
-        // Exchange the length of the routine name
-        int length = strlen(timed_routines[routine].routine_name) + 1;
-        cp_mpi_bcast_int(&length, 1, 0, comm);
-        // Exchange the actual routine name
-        cp_mpi_bcast_char(timed_routines[routine].routine_name, length, 0,
-                          comm);
-        // Fetch the times and counts ...
-        double total_time, self_time;
-        int number_of_calls;
-        get_routine_infos(timed_routines[routine].routine_name, &total_time,
-                          &self_time, &number_of_calls);
-        double summed_info[2];
-        summed_info[0] = total_time;
-        summed_info[1] = self_time;
-        // ... and exchange them
-        cp_mpi_sum_root_double(summed_info, 2, 0, comm);
-        double max_info[2];
-        max_info[0] = total_time;
-        max_info[1] = self_time;
-        cp_mpi_max_root_double(max_info, 2, 0, comm);
-        // Add it to the final statistics
-        timing_statistics[size_of_timing_statistics].routine_name =
-            strdup(timed_routines[routine].routine_name);
-        timing_statistics[size_of_timing_statistics].avg_total_time =
-            summed_info[0] / cp_mpi_comm_size(comm);
-        timing_statistics[size_of_timing_statistics].avg_self_time =
-            summed_info[1] / cp_mpi_comm_size(comm);
-        timing_statistics[size_of_timing_statistics].max_total_time =
-            max_info[0];
-        timing_statistics[size_of_timing_statistics].max_self_time =
-            max_info[1];
-        timing_statistics[size_of_timing_statistics].number_of_calls =
-            number_of_calls;
-        size_of_timing_statistics++;
-      }
-      // Sort the statistics
-      qsort(timing_statistics, size_of_timing_statistics,
-            sizeof(fft_timing_statistics), compare_fft_timing_statistics);
-      // Print the statistics
-      fft_report_printf(
-          print_func, output_unit,
-          " -------------------------------------------------------"
-          "------------------------\n");
-      fft_report_printf(
-          print_func, output_unit,
-          " -                                                      "
-          "                       -\n");
-      fft_report_printf(
-          print_func, output_unit,
-          " -                             FFT TIMING REPORT        "
-          "                       -\n");
-      fft_report_printf(
-          print_func, output_unit,
-          " -                                                      "
-          "                       -\n");
-      fft_report_printf(
-          print_func, output_unit,
-          " -------------------------------------------------------"
-          "------------------------\n");
-      fft_report_printf(print_func, output_unit,
-                        " ROUTINE                          CALLS           "
-                        "SELF TIME            MAX TIME\n");
-      fft_report_printf(print_func, output_unit,
-                        "                                          "
-                        "AVERAGE   MAXIMUM   AVERAGE   MAXIMUM\n");
-      for (int routine = 0; routine < size_of_timing_statistics; routine++) {
-        if (timing_statistics[routine].max_total_time >=
-            threshold * timing_statistics[0].max_total_time) {
-          if (timing_statistics[routine].number_of_calls > 0)
-            fft_report_printf(print_func, output_unit,
-                              " %-30s %7i %9.3f %9.3f %9.3f %9.3f\n",
-                              timing_statistics[routine].routine_name,
-                              timing_statistics[routine].number_of_calls,
-                              timing_statistics[routine].avg_self_time,
-                              timing_statistics[routine].max_self_time,
-                              timing_statistics[routine].avg_total_time,
-                              timing_statistics[routine].max_total_time);
-        }
-        free(timing_statistics[routine].routine_name);
-      }
-      fft_report_printf(
-          print_func, output_unit,
-          " -------------------------------------------------------"
-          "------------------------\n");
-      free(timing_statistics);
+  if (!timers_initialized)
+    return;
+
+  const int rank = cp_mpi_comm_rank(comm);
+  const int number_of_ranks = cp_mpi_comm_size(comm);
+  int number_of_routines = rank == 0 ? number_of_timed_routines : 0;
+  cp_mpi_bcast_int(&number_of_routines, 1, 0, comm);
+
+  fft_timing_statistics *statistics =
+      rank == 0 ? calloc(number_of_routines, sizeof(fft_timing_statistics))
+                : NULL;
+  for (int routine = 0; routine < number_of_routines; routine++) {
+    int length = rank == 0 ? (int)strlen(timed_routines[routine].routine_name) + 1 : 0;
+    cp_mpi_bcast_int(&length, 1, 0, comm);
+    char *routine_name = malloc((size_t)length);
+    assert(routine_name != NULL);
+    if (rank == 0)
+      memcpy(routine_name, timed_routines[routine].routine_name,
+             (size_t)length);
+    cp_mpi_bcast_char(routine_name, length, 0, comm);
+
+    double total_time, self_time;
+    int number_of_calls;
+    get_routine_infos(routine_name, &total_time, &self_time,
+                      &number_of_calls);
+    double summed_info[2] = {total_time, self_time};
+    cp_mpi_sum_root_double(summed_info, 2, 0, comm);
+    double max_info[2] = {total_time, self_time};
+    cp_mpi_max_root_double(max_info, 2, 0, comm);
+
+    if (rank == 0) {
+      statistics[routine].routine_name = routine_name;
+      statistics[routine].avg_total_time =
+          summed_info[0] / number_of_ranks;
+      statistics[routine].avg_self_time = summed_info[1] / number_of_ranks;
+      statistics[routine].max_total_time = max_info[0];
+      statistics[routine].max_self_time = max_info[1];
+      statistics[routine].number_of_calls = number_of_calls;
     } else {
-      int number_of_routines_to_consider = -1;
-      cp_mpi_bcast_int(&number_of_routines_to_consider, 1, 0, comm);
-      for (int routine = 0; routine < number_of_routines_to_consider;
-           routine++) {
-        int length = -1;
-        cp_mpi_bcast_int(&length, 1, 0, comm);
-        char *routine_name = malloc(length * sizeof(char));
-        cp_mpi_bcast_char(routine_name, length, 0, comm);
-        double total_time, self_time;
-        int number_of_calls;
-        get_routine_infos(routine_name, &total_time, &self_time,
-                          &number_of_calls);
-        double function_info[2];
-        function_info[0] = total_time;
-        function_info[1] = self_time;
-        cp_mpi_sum_root_double(function_info, 2, 0, comm);
-        function_info[0] = total_time;
-        function_info[1] = self_time;
-        cp_mpi_max_root_double(function_info, 2, 0, comm);
-        free(routine_name);
-      }
+      free(routine_name);
     }
-    // Wait for the printing to be finished
-    cp_mpi_barrier(comm);
   }
+
+  if (rank == 0) {
+    qsort(statistics, number_of_routines, sizeof(fft_timing_statistics),
+          compare_fft_timing_statistics);
+    fft_report_printf(
+        print_func, output_unit,
+        " -------------------------------------------------------"
+        "------------------------\n"
+        " -                                                      "
+        "                       -\n"
+        " -                             FFT TIMING REPORT        "
+        "                       -\n"
+        " -                                                      "
+        "                       -\n"
+        " -------------------------------------------------------"
+        "------------------------\n"
+        " ROUTINE                          CALLS           "
+        "SELF TIME            MAX TIME\n"
+        "                                          "
+        "AVERAGE   MAXIMUM   AVERAGE   MAXIMUM\n");
+    for (int routine = 0; routine < number_of_routines; routine++) {
+      if (statistics[routine].max_total_time >=
+              threshold * statistics[0].max_total_time &&
+          statistics[routine].number_of_calls > 0)
+        fft_report_printf(print_func, output_unit,
+                          " %-30s %7i %9.3f %9.3f %9.3f %9.3f\n",
+                          statistics[routine].routine_name,
+                          statistics[routine].number_of_calls,
+                          statistics[routine].avg_self_time,
+                          statistics[routine].max_self_time,
+                          statistics[routine].avg_total_time,
+                          statistics[routine].max_total_time);
+      free(statistics[routine].routine_name);
+    }
+    fft_report_printf(print_func, output_unit,
+                      " -------------------------------------------------------"
+                      "------------------------\n");
+    free(statistics);
+  }
+  cp_mpi_barrier(comm);
 }
 
 /*******************************************************************************
