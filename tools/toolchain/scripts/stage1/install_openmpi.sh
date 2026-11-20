@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-openmpi_ver="5.0.11"
-openmpi_sha256="e668a3c4acd50c41dc204c8a6dd98a611e0f26af89cf677577fa9be8a2698003"
+openmpi_ver="6.0.0rc3"
+openmpi_sha256="62d5420325d56e79718c7015d2d6653da735c98430ed2cd6f61771ba43067525"
 openmpi_pkg="openmpi-${openmpi_ver}.tar.bz2"
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -30,7 +30,12 @@ case "${with_openmpi}" in
     if verify_checksums "${install_lock_file}"; then
       echo "openmpi-${openmpi_ver} is already installed, skipping it."
     else
-      retrieve_package "${openmpi_sha256}" "${openmpi_pkg}"
+      # retrieve_package "${openmpi_sha256}" "${openmpi_pkg}"
+      if [ -f "${openmpi_pkg}" ]; then
+        echo "${openmpi_pkg} is found"
+      else
+        download_pkg_from_urlpath "${openmpi_sha256}" "${openmpi_pkg}" "https://download.open-mpi.org/release/open-mpi/v6.0"
+      fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d openmpi-${openmpi_ver} ] && rm -rf openmpi-${openmpi_ver}
       tar -xjf ${openmpi_pkg}
@@ -58,8 +63,7 @@ case "${with_openmpi}" in
       make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
       cd ..
-      write_checksums "${install_lock_file}" \
-        "${SCRIPT_DIR}/stage1/$(basename ${SCRIPT_NAME})"
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage1/$(basename ${SCRIPT_NAME})"
     fi
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
