@@ -21,6 +21,7 @@ MODULE qs_native_grid_cache
    TYPE native_grid_interpolation_stencil_type
       INTEGER :: relative_index(native_grid_interp_npts, 3) = 0
       REAL(dp) :: weight(native_grid_interp_npts, 3) = 0.0_dp
+      REAL(dp) :: derivative_weight(native_grid_interp_npts, 3) = 0.0_dp
       LOGICAL :: valid(native_grid_interp_npts, 3) = .FALSE.
       LOGICAL :: active = .FALSE.
    END TYPE native_grid_interpolation_stencil_type

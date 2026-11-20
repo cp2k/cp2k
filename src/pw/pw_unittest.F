@@ -22,6 +22,7 @@ PROGRAM pw_unittest
                                               HALFSPACE,&
                                               pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
+                                              pw_grid_map_global_point,&
                                               pw_grid_release
    USE pw_methods,                      ONLY: do_accurate_sum,&
                                               do_standard_sum,&
@@ -51,6 +52,7 @@ PROGRAM pw_unittest
    DO mode = 0, 8
       CALL check_copy(mode)
    END DO
+   CALL check_grid_mapping()
    max_error = 0.0_dp
    CALL check_pw_integral_and_poisson()
    CALL check_mt2d_kernel()
@@ -154,6 +156,66 @@ CONTAINS
       DEALLOCATE (source%array, destination%array)
       CALL source_grid%para%group%free()
    END SUBROUTINE check_copy
+
+! **************************************************************************************************
+!> \brief Verify the global-to-local PW grid point mapping is a bijection onto local grid points.
+! **************************************************************************************************
+   SUBROUTINE check_grid_mapping()
+      INTEGER                                            :: count, i, i_loc, j, j_loc, k, k_loc, &
+                                                            local_index, nlocal, nx, nxy, ny, &
+                                                            owner, rank, rem
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: seen
+      INTEGER, DIMENSION(2, 3)                           :: bo
+      REAL(dp)                                           :: cell(3, 3)
+      TYPE(mp_comm_type)                                 :: comm
+      TYPE(pw_grid_type), POINTER                        :: grid
+
+      CALL comm%set_handle(mp_comm_world%get_handle())
+      cell = 0.0_dp
+      DO i = 1, 3
+         cell(i, i) = 6.0_dp
+      END DO
+      NULLIFY (grid)
+      CALL pw_grid_create(grid, comm, cell, grid_span=FULLSPACE, npts=[6, 7, 5], odd=.TRUE., &
+                          fft_usage=.FALSE.)
+
+      rank = para_env%mepos
+      bo = grid%bounds_local
+      nx = bo(2, 1) - bo(1, 1) + 1
+      ny = bo(2, 2) - bo(1, 2) + 1
+      nlocal = grid%ngpts_local
+      ALLOCATE (seen(nlocal))
+      seen = 0
+      count = 0
+      nxy = nx*ny
+      DO k = grid%bounds(1, 3), grid%bounds(2, 3)
+         DO j = grid%bounds(1, 2), grid%bounds(2, 2)
+            DO i = grid%bounds(1, 1), grid%bounds(2, 1)
+               CALL pw_grid_map_global_point(grid, i, j, k, owner, local_index)
+               IF (owner /= rank) CYCLE
+               IF (local_index < 1 .OR. local_index > nlocal) THEN
+                  ERROR STOP 'pw_grid_map_global_point: local index out of range'
+               END IF
+               seen(local_index) = seen(local_index) + 1
+               count = count + 1
+               rem = local_index - 1
+               k_loc = rem/nxy
+               rem = MOD(rem, nxy)
+               j_loc = rem/nx
+               i_loc = MOD(rem, nx)
+               IF (bo(1, 1) + i_loc /= i .OR. bo(1, 2) + j_loc /= j .OR. &
+                   bo(1, 3) + k_loc /= k) THEN
+                  ERROR STOP 'pw_grid_map_global_point: reconstructed point mismatch'
+               END IF
+            END DO
+         END DO
+      END DO
+      IF (count /= nlocal) ERROR STOP 'pw_grid_map_global_point: wrong local point count'
+      IF (ANY(seen /= 1)) ERROR STOP 'pw_grid_map_global_point: local index is not a bijection'
+      DEALLOCATE (seen)
+
+      CALL pw_grid_release(grid)
+   END SUBROUTINE check_grid_mapping
 
 ! **************************************************************************************************
 !> \brief Check PW multiplicity and volume normalization, and auxiliary-density Poisson routes.

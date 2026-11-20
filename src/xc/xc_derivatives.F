@@ -13,6 +13,7 @@ MODULE xc_derivatives
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE skala_model_selection,           ONLY: gauxc_model_none_selected
    USE string_utilities,                ONLY: uppercase
    USE xc_b97,                          ONLY: b97_lda_eval,&
                                               b97_lda_info,&
@@ -570,28 +571,6 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE xc_functional_eval
-
-! **************************************************************************************************
-!> \brief true for GAUXC sections that wrap a conventional LibXC functional
-!> \param functional the GAUXC section
-!> \return whether MODEL NONE is active
-! **************************************************************************************************
-   FUNCTION gauxc_model_none_selected(functional)
-      TYPE(section_vals_type), POINTER                   :: functional
-      LOGICAL                                            :: gauxc_model_none_selected
-
-      CHARACTER(LEN=default_string_length)               :: model_key, model_name, xc_fun_name, &
-                                                            xc_key
-
-      CALL section_vals_val_get(functional, "MODEL", c_val=model_name)
-      CALL section_vals_val_get(functional, "FUNCTIONAL", c_val=xc_fun_name)
-      model_key = ADJUSTL(model_name)
-      xc_key = ADJUSTL(xc_fun_name)
-      CALL uppercase(model_key)
-      CALL uppercase(xc_key)
-      gauxc_model_none_selected = (TRIM(model_key) == "" .OR. TRIM(model_key) == "NONE" .OR. &
-                                   TRIM(model_key) == TRIM(xc_key))
-   END FUNCTION gauxc_model_none_selected
 
 ! **************************************************************************************************
 !> \brief map GAUXC MODEL NONE shorthand names to LibXC exchange/correlation components

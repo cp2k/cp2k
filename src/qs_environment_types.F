@@ -155,6 +155,7 @@ MODULE qs_environment_types
                                               semi_empirical_si_type
    USE semi_empirical_types,            ONLY: se_taper_release,&
                                               se_taper_type
+   USE skala_gpw_functional,            ONLY: skala_gpw_release_caches
    USE task_list_types,                 ONLY: task_list_type
    USE tblite_types,                    ONLY: deallocate_tblite_type,&
                                               tblite_type
@@ -1715,6 +1716,7 @@ CONTAINS
       END IF
 
       CALL release_native_grid_cache(qs_env%native_grid_cache)
+      CALL skala_gpw_release_caches()
 
    END SUBROUTINE qs_env_release
 

@@ -160,10 +160,6 @@ dedicated periodic GauXC interface.
 
 ### Skala Runtime Controls
 
-`MODEL_ATOM_CHUNK_SIZE` controls atom-blocked Torch inference. A positive value selects the number
-of atoms per block, zero disables chunking, and the default lets GauXC or the
-`GAUXC_ONEDFT_ATOM_CHUNK_SIZE` environment variable choose the policy.
-
 For MPI calculations, `SKALA_RUNTIME` controls the communicator used for Skala energy and potential
 evaluation. `AUTO` uses the force-evaluation communicator for closed-shell calculations and a
 replicated rank-local runtime for open-shell calculations. The corresponding
@@ -240,14 +236,15 @@ runtime are printed when a gradient cache is initialized. The `PAW_ONE_CENTER` r
 instead propagates the Skala feature adjoint analytically through the CP2K smooth-field
 interpolation, one-center reconstruction, atom partition, and NLCC center coordinates.
 `MOLECULAR_VIRIAL` is a finite-system diagnostic constructed from the nuclear gradients; it is not a
-periodic stress tensor.
+periodic stress tensor. Analytical `STRESS_TENSOR` requests with GauXC abort because GauXC uses a
+molecular quadrature restricted to non-periodic/isolated systems. Use `STRESS_TENSOR NUMERICAL` or
+the native SKALA implementation (`SKALA_NATIVE`) for analytical stress, or disable the stress
+tensor.
 
 Direct molecular GauXC evaluation with NLCC pseudopotentials is not supported because GauXC does not
-receive the frozen-core density and its derivatives. Molecular pseudopotential GAPW with
-`PAW_ONE_CENTER` is a separate, supported route: CP2K evaluates the NLCC density and gradient on the
-same atom-centered composite quadrature, adds them to the reconstructed primitive fields before
-Skala constructs its features, and differentiates the core and grid-center coordinates analytically.
-The kinetic-energy density remains valence-only. Non-local `VDW_POTENTIAL` corrections,
+receive the frozen-core density and its derivatives. This applies to both conventional GauXC and
+GauXC Skala models; NLCC calculations must use the native `SKALA_NATIVE` implementation, which
+evaluates the NLCC density and gradient on CP2K's grids. Non-local `VDW_POTENTIAL` corrections,
 higher-XC-derivative response and kernel properties, and real-time propagation remain unsupported
 through GauXC.
 

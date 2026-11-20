@@ -22,9 +22,10 @@ MODULE xc_gauxc_cache
    USE xc_gauxc_gradient_policy,        ONLY: gauxc_resolve_gradient_policy
    USE xc_gauxc_interface,              ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
-        cp_gauxc_molecule_type, cp_gauxc_status_type, gauxc_check_status, gauxc_create_basisset, &
-        gauxc_create_grid, gauxc_create_integrator, gauxc_create_molecule, gauxc_destroy_basisset, &
-        gauxc_destroy_grid, gauxc_destroy_integrator, gauxc_destroy_molecule
+        cp_gauxc_molecule_type, cp_gauxc_status_type, cp_gauxc_xc_gradient_type, cp_gauxc_xc_type, &
+        gauxc_check_status, gauxc_create_basisset, gauxc_create_grid, gauxc_create_integrator, &
+        gauxc_create_molecule, gauxc_destroy_basisset, gauxc_destroy_grid, &
+        gauxc_destroy_integrator, gauxc_destroy_molecule
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -52,7 +53,30 @@ MODULE xc_gauxc_cache
       LOGICAL                                      :: use_gradient_self_runtime = .FALSE.
       LOGICAL                                      :: use_fd_gradient = .FALSE.
       LOGICAL                                      :: use_gauxc_model = .FALSE.
+      INTEGER                                      :: nimages = -1
+      INTEGER                                      :: nkind = -1
+      CHARACTER(LEN=default_string_length), ALLOCATABLE :: kind_basis_names(:)
    END TYPE cp_gauxc_cache_params
+
+   TYPE dense_to_dbcsr_layout_type
+      LOGICAL                                      :: valid = .FALSE.
+      INTEGER                                      :: nrows = -1
+      INTEGER                                      :: ncols = -1
+      INTEGER                                      :: nblkrows = -1
+      INTEGER                                      :: nblkcols = -1
+      INTEGER                                      :: mynode = -1
+      INTEGER                                      :: myprow = -1
+      INTEGER                                      :: mypcol = -1
+      INTEGER, ALLOCATABLE, DIMENSION(:)           :: row_blk_size
+      INTEGER, ALLOCATABLE, DIMENSION(:)           :: col_blk_size
+      INTEGER, ALLOCATABLE, DIMENSION(:)           :: row_dist
+      INTEGER, ALLOCATABLE, DIMENSION(:)           :: col_dist
+      INTEGER, ALLOCATABLE, DIMENSION(:)           :: r_offset
+      INTEGER, ALLOCATABLE, DIMENSION(:)           :: c_offset
+      INTEGER, ALLOCATABLE, DIMENSION(:)           :: blk_row
+      INTEGER, ALLOCATABLE, DIMENSION(:)           :: blk_col
+      REAL(c_double), ALLOCATABLE, DIMENSION(:, :) :: blk
+   END TYPE dense_to_dbcsr_layout_type
 
    TYPE, extends(cp_gauxc_cache_params)            :: cp_gauxc_cache_type
       TYPE(cp_gauxc_molecule_type)                 :: molecule = cp_gauxc_molecule_type()
@@ -61,10 +85,15 @@ MODULE xc_gauxc_cache
       TYPE(cp_gauxc_grid_type)                     :: gradient_grid = cp_gauxc_grid_type()
       TYPE(cp_gauxc_integrator_type)               :: integrator = cp_gauxc_integrator_type()
       TYPE(cp_gauxc_integrator_type)               :: gradient_integrator = cp_gauxc_integrator_type()
+      TYPE(cp_gauxc_xc_type)                       :: xc_result = cp_gauxc_xc_type()
+      TYPE(cp_gauxc_xc_gradient_type)              :: xc_gradient = cp_gauxc_xc_gradient_type()
+      TYPE(dense_to_dbcsr_layout_type)             :: dense_layout
+      REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: density_scalar, density_zeta
       INTEGER                                      :: mpi_comm = -1
       LOGICAL                                      :: is_init = .FALSE.
       LOGICAL                                      :: gradient_is_init = .FALSE.
       LOGICAL                                      :: gradient_notice_printed = .FALSE.
+      LOGICAL                                      :: execution_spaces_logged = .FALSE.
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: last_positions
    CONTAINS
 
@@ -74,12 +103,11 @@ MODULE xc_gauxc_cache
 
    PUBLIC :: &
       cp_gauxc_cache_type, &
+      dense_to_dbcsr_layout_type, &
       gauxc_cache_init, &
       gauxc_cache_is_valid, &
       gauxc_cache_ensure_gradient, &
       gauxc_cache_release, cp_gauxc_cache_params
-
-   LOGICAL, SAVE :: execution_spaces_logged = .FALSE.
 
 CONTAINS
 
@@ -154,7 +182,7 @@ CONTAINS
                        particle_set, &
                        status)
       IF (status%status%code /= 0) THEN
-         CALL cleanup_after_molecule()
+         CALL gauxc_check_status(status)
          RETURN
       END IF
 
@@ -163,14 +191,15 @@ CONTAINS
                        particle_set, &
                        status)
       IF (status%status%code /= 0) THEN
-         CALL cleanup_after_basisset()
+         CALL gauxc_check_status(status)
          RETURN
       END IF
 
       CALL gauxc_resolve_gradient_policy( &
-         .TRUE., params%gapw_method, cache%max_l(), params%use_gauxc_model, para_env%num_pe, &
-         params%use_self_runtime, TRIM(params%gradient_runtime), params%force_fd_gradient, &
-         params%use_fd_gradient, params%use_gradient_mpi_runtime, params%use_gradient_self_runtime, gradient_error)
+         params%need_xc_gradient, params%gapw_method, cache%max_l(), params%use_gauxc_model, &
+         para_env%num_pe, params%use_self_runtime, TRIM(params%gradient_runtime), &
+         params%force_fd_gradient, params%use_fd_gradient, params%use_gradient_mpi_runtime, &
+         params%use_gradient_self_runtime, gradient_error)
       SELECT CASE (gradient_error)
       CASE (1)
          CALL cp_abort(__LOCATION__, &
@@ -186,23 +215,13 @@ CONTAINS
          CALL cp_abort(__LOCATION__, "Unknown GAUXC%MODEL_GRADIENT_RUNTIME value.")
       END SELECT
 
-      IF (params%use_self_runtime .OR. .NOT. params%use_gauxc_model) THEN
-         ! SKALA currently needs a replicated molecular runtime for reproducible
+      IF (params%use_self_runtime) THEN
          ! open-shell densities across CP2K MPI ranks.
-         ! Conventional GauXC also uses a replicated runtime here: CP2K has
-         ! already allreduced the dense AO density matrix on every rank.
          cache%grid = gauxc_create_grid( &
-                      cache%molecule, &
-                      cache%basisset, &
-                      params%grid_type, &
-                      params%radial_quadrature, &
-                      params%pruning_scheme, &
-                      params%lb_exec_space, &
-                      params%batch_size, &
-                      params%device_runtime_fill_fraction, &
-                      status, &
-                      mpi_comm=mp_comm_self%get_handle(), &
-                      force_new_runtime=.TRUE., &
+                      cache%molecule, cache%basisset, params%grid_type, params%radial_quadrature, &
+                      params%pruning_scheme, params%lb_exec_space, params%batch_size, &
+                      params%device_runtime_fill_fraction, status, &
+                      mpi_comm=mp_comm_self%get_handle(), force_new_runtime=.TRUE., &
                       int_exec_space=params%int_exec_space)
       ELSE
          ! Use the QS force-evaluation communicator rather than GauXC's global
@@ -210,20 +229,14 @@ CONTAINS
          ! MPI subgroups; using the global communicator would make GauXC wait
          ! for ranks that are working on another state.
          cache%grid = gauxc_create_grid( &
-                      cache%molecule, &
-                      cache%basisset, &
-                      params%grid_type, &
-                      params%radial_quadrature, &
-                      params%pruning_scheme, &
-                      params%lb_exec_space, &
-                      params%batch_size, &
-                      params%device_runtime_fill_fraction, &
-                      status, &
-                      mpi_comm=para_env%get_handle(), &
+                      cache%molecule, cache%basisset, params%grid_type, params%radial_quadrature, &
+                      params%pruning_scheme, params%lb_exec_space, params%batch_size, &
+                      params%device_runtime_fill_fraction, status, &
+                      mpi_comm=para_env%get_handle(), force_new_runtime=.FALSE., &
                       int_exec_space=params%int_exec_space)
       END IF
       IF (status%status%code /= 0) THEN
-         CALL cleanup_after_grid()
+         CALL gauxc_check_status(status)
          RETURN
       END IF
 
@@ -235,18 +248,18 @@ CONTAINS
                          params%nspins, &
                          status)
       IF (status%status%code /= 0) THEN
-         CALL cleanup_after_integrator()
+         CALL gauxc_check_status(status)
          RETURN
       END IF
 
-      IF (.NOT. execution_spaces_logged .AND. para_env%mepos == 0) THEN
+      IF (.NOT. cache%execution_spaces_logged .AND. para_env%mepos == 0) THEN
          unit_nr = cp_logger_get_default_io_unit()
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(A)') " GAUXC| Execution spaces: LB "// &
                TRIM(params%lb_exec_space)//", INT "//TRIM(params%int_exec_space)// &
                ", runtime "//MERGE("DEVICE", "HOST  ", cache%grid%uses_device_runtime)
          END IF
-         execution_spaces_logged = .TRUE.
+         cache%execution_spaces_logged = .TRUE.
       END IF
 
       cache%gradient_is_init = .FALSE.
@@ -255,7 +268,7 @@ CONTAINS
       cache%natom = params%natom
       cache%nspins = params%nspins
       cache%batch_size = params%batch_size
-      cache%device_runtime_fill_fraction = REAL(params%device_runtime_fill_fraction, c_double)
+      cache%device_runtime_fill_fraction = params%device_runtime_fill_fraction
       cache%xc_fun_name = TRIM(params%xc_fun_name)
       cache%grid_type = TRIM(params%grid_type)
       cache%radial_quadrature = TRIM(params%radial_quadrature)
@@ -273,6 +286,13 @@ CONTAINS
       cache%use_gradient_self_runtime = params%use_gradient_self_runtime
       cache%use_self_runtime = params%use_self_runtime
       cache%use_fd_gradient = params%use_fd_gradient
+      cache%nimages = params%nimages
+      cache%nkind = params%nkind
+      IF (ALLOCATED(cache%kind_basis_names)) DEALLOCATE (cache%kind_basis_names)
+      IF (ALLOCATED(params%kind_basis_names)) THEN
+         ALLOCATE (cache%kind_basis_names(SIZE(params%kind_basis_names)))
+         cache%kind_basis_names = params%kind_basis_names
+      END IF
       IF (ALLOCATED(cache%last_positions)) THEN
          DEALLOCATE (cache%last_positions)
       END IF
@@ -281,7 +301,7 @@ CONTAINS
       BLOCK
          INTEGER :: iatom
          DO iatom = 1, params%natom
-            cache%last_positions(:, iatom) = REAL(particle_set(iatom)%r(:), c_double)
+            cache%last_positions(:, iatom) = particle_set(iatom)%r(:)
          END DO
       END BLOCK
 
@@ -296,53 +316,6 @@ CONTAINS
       MARK_USED(status)
       cache%is_init = .FALSE.
 #endif
-
-   CONTAINS
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE cleanup_after_integrator()
-         CALL gauxc_destroy_integrator(cache%integrator, status)
-         CALL gauxc_check_status(status)
-         CALL cleanup_after_grid()
-      END SUBROUTINE cleanup_after_integrator
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE cleanup_after_grid()
-         CALL gauxc_destroy_grid(cache%grid, status)
-         CALL gauxc_check_status(status)
-         CALL cleanup_after_basisset()
-      END SUBROUTINE cleanup_after_grid
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE cleanup_after_basisset()
-         CALL gauxc_destroy_basisset(cache%basisset, status)
-         CALL gauxc_check_status(status)
-         CALL cleanup_after_molecule()
-      END SUBROUTINE cleanup_after_basisset
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE cleanup_after_molecule()
-         CALL gauxc_destroy_molecule(cache%molecule, status)
-         CALL gauxc_check_status(status)
-         CALL cleanup_final()
-      END SUBROUTINE cleanup_after_molecule
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE cleanup_final()
-         IF (ALLOCATED(cache%last_positions)) DEALLOCATE (cache%last_positions)
-         cache%gradient_is_init = .FALSE.
-         cache%gradient_notice_printed = .FALSE.
-         cache%is_init = .FALSE.
-      END SUBROUTINE cleanup_final
 
    END SUBROUTINE gauxc_cache_init
 
@@ -372,17 +345,34 @@ CONTAINS
          CALL gauxc_destroy_molecule(cache%molecule, status)
          CALL gauxc_check_status(status)
       END IF
-      IF (ALLOCATED(cache%last_positions)) DEALLOCATE (cache%last_positions)
-      cache%gradient_is_init = .FALSE.
-      cache%gradient_notice_printed = .FALSE.
-      cache%is_init = .FALSE.
 #else
       MARK_USED(cache)
+#endif
+
       IF (ALLOCATED(cache%last_positions)) DEALLOCATE (cache%last_positions)
+      IF (ALLOCATED(cache%kind_basis_names)) DEALLOCATE (cache%kind_basis_names)
+      IF (ALLOCATED(cache%xc_result%vxc_scalar)) DEALLOCATE (cache%xc_result%vxc_scalar)
+      IF (ALLOCATED(cache%xc_result%vxc_zeta)) DEALLOCATE (cache%xc_result%vxc_zeta)
+      IF (ALLOCATED(cache%xc_result%scratch_rks)) DEALLOCATE (cache%xc_result%scratch_rks)
+      IF (ALLOCATED(cache%xc_result%scratch_zeta_zero)) DEALLOCATE (cache%xc_result%scratch_zeta_zero)
+      IF (ALLOCATED(cache%xc_gradient%exc_grad)) DEALLOCATE (cache%xc_gradient%exc_grad)
+      IF (ALLOCATED(cache%xc_gradient%scratch_rks)) DEALLOCATE (cache%xc_gradient%scratch_rks)
+      IF (ALLOCATED(cache%xc_gradient%scratch_zeta_zero)) DEALLOCATE (cache%xc_gradient%scratch_zeta_zero)
+      IF (ALLOCATED(cache%density_scalar)) DEALLOCATE (cache%density_scalar)
+      IF (ALLOCATED(cache%density_zeta)) DEALLOCATE (cache%density_zeta)
+      IF (ALLOCATED(cache%dense_layout%row_blk_size)) THEN
+         DEALLOCATE (cache%dense_layout%row_blk_size, cache%dense_layout%col_blk_size, &
+                     cache%dense_layout%row_dist, cache%dense_layout%col_dist, &
+                     cache%dense_layout%r_offset, cache%dense_layout%c_offset, &
+                     cache%dense_layout%blk_row, cache%dense_layout%blk_col, &
+                     cache%dense_layout%blk)
+      END IF
+      cache%dense_layout%valid = .FALSE.
       cache%gradient_is_init = .FALSE.
       cache%gradient_notice_printed = .FALSE.
+      cache%execution_spaces_logged = .FALSE.
       cache%is_init = .FALSE.
-#endif
+
    END SUBROUTINE gauxc_cache_release
 
 ! **************************************************************************************************
@@ -399,6 +389,7 @@ CONTAINS
 
 #ifdef __GAUXC
       INTEGER                                            :: error_code, unit_nr
+      CHARACTER(LEN=6)                                   :: gradient_runtime_label
 
       IF (.NOT. params%need_xc_gradient) RETURN
 
@@ -412,10 +403,17 @@ CONTAINS
          END IF
          unit_nr = cp_logger_get_default_io_unit()
          IF (unit_nr > 0) THEN
+            IF (params%use_gradient_self_runtime) THEN
+               gradient_runtime_label = "SELF"
+            ELSE IF (params%use_gradient_mpi_runtime) THEN
+               gradient_runtime_label = "MPI"
+            ELSE
+               gradient_runtime_label = "SHARED"
+            END IF
             WRITE (unit_nr, '(A,A)') " GAUXC| Molecular XC gradient method: ", &
                TRIM(MERGE("FD        ", "ANALYTICAL", params%use_fd_gradient))
             WRITE (unit_nr, '(A,A)') " GAUXC| Molecular XC gradient runtime: ", &
-               MERGE("MPI ", "SELF", params%use_gradient_mpi_runtime)
+               TRIM(gradient_runtime_label)
          END IF
          cache%gradient_notice_printed = .TRUE.
       END IF
@@ -426,17 +424,11 @@ CONTAINS
       IF (cache%gradient_is_init) RETURN
 
       cache%gradient_grid = gauxc_create_grid( &
-                            cache%molecule, &
-                            cache%basisset, &
-                            params%grid_type, &
-                            params%radial_quadrature, &
-                            params%pruning_scheme, &
-                            params%lb_exec_space, &
-                            params%batch_size, &
-                            params%device_runtime_fill_fraction, &
-                            status, &
-                            mpi_comm=mp_comm_self%get_handle(), &
-                            force_new_runtime=.TRUE., &
+                            cache%molecule, cache%basisset, params%grid_type, &
+                            params%radial_quadrature, params%pruning_scheme, &
+                            params%lb_exec_space, params%batch_size, &
+                            params%device_runtime_fill_fraction, status, &
+                            mpi_comm=mp_comm_self%get_handle(), force_new_runtime=.TRUE., &
                             int_exec_space=params%int_exec_space)
       IF (status%status%code /= 0) THEN
          error_code = status%status%code
@@ -454,6 +446,7 @@ CONTAINS
                                   status)
       IF (status%status%code /= 0) THEN
          error_code = status%status%code
+         CALL gauxc_destroy_integrator(cache%gradient_integrator, status)
          CALL gauxc_destroy_grid(cache%gradient_grid, status)
          status%status%code = error_code
          RETURN
@@ -497,7 +490,7 @@ CONTAINS
       IF (cache%natom /= params%natom) RETURN
       IF (cache%nspins /= params%nspins) RETURN
       IF (cache%batch_size /= params%batch_size) RETURN
-      IF (ABS(cache%device_runtime_fill_fraction - REAL(params%device_runtime_fill_fraction, c_double)) > &
+      IF (ABS(cache%device_runtime_fill_fraction - params%device_runtime_fill_fraction) > &
           1.0E-10_c_double) RETURN
       IF (TRIM(cache%xc_fun_name) /= TRIM(params%xc_fun_name)) RETURN
       IF (TRIM(cache%grid_type) /= TRIM(params%grid_type)) RETURN
@@ -509,17 +502,25 @@ CONTAINS
       IF (TRIM(cache%lwd_kernel) /= TRIM(params%lwd_kernel)) RETURN
       IF (cache%use_self_runtime .NEQV. params%use_self_runtime) RETURN
 
+      IF (cache%need_xc_gradient .NEQV. params%need_xc_gradient) RETURN
       IF (cache%gradient_runtime /= params%gradient_runtime) RETURN
       IF (cache%gapw_method .NEQV. params%gapw_method) RETURN
       IF (cache%force_fd_gradient .NEQV. params%force_fd_gradient) RETURN
       IF (cache%use_gauxc_model .NEQV. params%use_gauxc_model) RETURN
       IF (cache%mpi_comm /= para_env%get_handle()) RETURN
+      IF (cache%nimages /= params%nimages) RETURN
+      IF (cache%nkind /= params%nkind) RETURN
+      IF (ALLOCATED(cache%kind_basis_names) .NEQV. ALLOCATED(params%kind_basis_names)) RETURN
+      IF (ALLOCATED(params%kind_basis_names)) THEN
+         IF (SIZE(cache%kind_basis_names) /= SIZE(params%kind_basis_names)) RETURN
+         IF (ANY(cache%kind_basis_names /= params%kind_basis_names)) RETURN
+      END IF
 
       IF (.NOT. ALLOCATED(cache%last_positions)) RETURN
       IF (SIZE(cache%last_positions, 2) /= params%natom) RETURN
       DO iatom = 1, params%natom
          IF (ANY(ABS(cache%last_positions(:, iatom) - &
-                     REAL(particle_set(iatom)%r(:), c_double)) > pos_tol)) RETURN
+                     particle_set(iatom)%r(:)) > pos_tol)) RETURN
       END DO
       cache_valid = .TRUE.
 #else

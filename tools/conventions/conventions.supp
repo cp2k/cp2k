@@ -156,8 +156,7 @@ xyz2dcd.F: Found WRITE statement with hardcoded unit in "xyz2dcd" https://cp2k.o
 # external resource locations, or diagnostics.
 machine.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "m_getlog" https://cp2k.org/conv#c107
 machine.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "m_omp_get_stacksize" https://cp2k.org/conv#c107
-skala_gpw_functional.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "get_skala_model_path" https://cp2k.org/conv#c107
-xc_gauxc_functional.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "apply_gauxc" https://cp2k.org/conv#c107
+skala_model_selection.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "resolve_skala_model_path" https://cp2k.org/conv#c107
 xc_gauxc_interface.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "print_gauxc_status_message" https://cp2k.org/conv#c107
 
 # MCL_COMM_MODE is MCL's own setting. It must be checked before the input is read to decide whether MCL is initialized for a MiMiC run

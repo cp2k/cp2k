@@ -54,8 +54,12 @@ void offload_init(void) {
 #if defined(__OFFLOAD_CUDA)
   CUresult error = cuInit(0);
   if (error != CUDA_SUCCESS) {
-    fprintf(stderr, "ERROR: %s %d %s %d\n", "cuInit failed with error: ", error,
-            __FILE__, __LINE__);
+    fprintf(
+        stderr,
+        "ERROR: cuInit failed with error %d; no usable CUDA device was found. "
+        "Set USE_GPU HOST to run on the CPU if a CPU-only run is intended. "
+        "(%s %d)\n",
+        error, __FILE__, __LINE__);
     abort();
   }
 #elif defined(__OFFLOAD_HIP)

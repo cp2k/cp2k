@@ -340,9 +340,29 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
 
   ((VERBOSE > 0)) && spack find -c
 
-  # Install CP2K dependencies via Spack (a retry skips already installed packages)
-  if ! retry_download spack -e "${CP2K_ENV}" install -j "${NUM_PROCS}" -p "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
+  # Install CP2K dependencies via Spack (a retry skips already installed
+  # packages). Keep the stage on disk and capture the output so a failed
+  # package's build log is available instead of only Spack's short context.
+  SPACK_INSTALL_LOG="${SPACK_BUILD_PATH}/spack-install.log"
+  if ! retry_download spack -e "${CP2K_ENV}" install -j "${NUM_PROCS}" -p "${NUM_PACKAGES}" \
+    --keep-stage "${VERBOSE_SPACK}" 2>&1 | tee "${SPACK_INSTALL_LOG}"; then
     echo "ERROR: Building the CP2K dependencies with spack failed"
+    mapfile -t FAILED_LOGS < <(
+      grep -oE '/[^[:space:]]*spack-stage-[^[:space:]]*\.log' "${SPACK_INSTALL_LOG}" \
+        2> /dev/null | sort -u
+    )
+    for log in "${FAILED_LOGS[@]}"; do
+      [[ -f "${log}" ]] || continue
+      echo ""
+      echo "===== Build log: ${log} ====="
+      if [[ "$(wc -l < "${log}" 2> /dev/null || echo 0)" -gt 4000 ]]; then
+        echo "----- (truncated, showing last 4000 lines) -----"
+        tail -n 4000 "${log}"
+      else
+        cat "${log}"
+      fi
+      echo "===== End of build log: ${log} ====="
+    done
     if [[ "${USE_EXTERNALS}" == "yes" ]]; then
       echo "HINT:  Try to re-run the build without the (-ue | --use_externals) flag which avoids"
       echo "       errors or conflicts caused by externals from the host system"
