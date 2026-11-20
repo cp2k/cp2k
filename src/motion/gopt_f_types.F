@@ -177,16 +177,12 @@ CONTAINS
                ALLOCATE (gopt_env%gopt_dimer_param)
                CALL gopt_param_read(gopt_env%gopt_dimer_param, rot_opt_section, &
                                     type_id=default_minimization_method_id)
-               IF (gopt_env%solid_state_dimer) THEN
-                  IF (gopt_param%method_id /= default_cg_method_id .OR. &
-                      gopt_env%gopt_dimer_param%method_id /= default_cg_method_id) THEN
-                     CALL cp_abort(__LOCATION__, &
-                                   "Solid-state Dimer requires CG for translation and rotation.")
-                  END IF
-                  IF (gopt_env%spgr%keep_space_group) THEN
-                     CALL cp_abort(__LOCATION__, &
-                                   "Solid-state Dimer does not support KEEP_SPACE_GROUP.")
-                  END IF
+               IF (gopt_param%method_id /= default_cg_method_id .OR. &
+                   gopt_env%gopt_dimer_param%method_id /= default_cg_method_id) THEN
+                  CALL cp_abort(__LOCATION__, "Dimer requires CG for translation and rotation.")
+               END IF
+               IF (gopt_env%solid_state_dimer .AND. gopt_env%spgr%keep_space_group) THEN
+                  CALL cp_abort(__LOCATION__, "Solid-state Dimer does not support KEEP_SPACE_GROUP.")
                END IF
                gopt_env%gopt_dimer_param%type_id = default_ts_method_id
 
