@@ -204,7 +204,7 @@ static inline void get_key_3d(const bool direction, const int fft_size[3],
                               const bool transpose_out,
                               const int number_of_threads, const bool inplace,
                               int *key) {
-  assert((!inplace || (transpose_in == transpose_out)) &&
+  cp_assert((!inplace || (transpose_in == transpose_out)) &&
          "Inplace plans need the same strides for input and output arrays!");
   const int volume = fft_size[0] * fft_size[1] * fft_size[2];
   const int istride = transpose_in ? number_of_ffts : 1;
@@ -228,7 +228,7 @@ static inline void get_key_3d_r2c(const bool direction, const int fft_size[3],
                                   const bool transpose_out,
                                   const int number_of_threads,
                                   const bool inplace, int *key) {
-  assert((!inplace || (transpose_in == transpose_out)) &&
+  cp_assert((!inplace || (transpose_in == transpose_out)) &&
          "Inplace plans need the same strides for input and output arrays!");
   const int real_volume = fft_size[0] * fft_size[1] * fft_size[2];
   const int complex_volume = fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1);
@@ -258,7 +258,7 @@ static inline void get_key_guru(const bool direction, int rank,
                                 const int number_of_threads, const bool inplace,
                                 int *key) {
   key[0] = rank + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
-  assert(rank + howmany_rank <= 4 &&
+  cp_assert(rank + howmany_rank <= 4 &&
          "Larger combined ranks than 4 are not implemented\n");
 
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
@@ -291,7 +291,7 @@ static inline void get_key_guru_r2c(const bool direction, int rank,
                                     const bool inplace, int *key) {
   key[0] = rank + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace +
            direction * FFT_KEY_FORWARD;
-  assert(rank + howmany_rank <= 4 &&
+  cp_assert(rank + howmany_rank <= 4 &&
          "Larger combined ranks than 4 are not implemented\n");
 
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());

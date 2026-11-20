@@ -810,7 +810,7 @@ int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
   caches =
       calloc((size_t)number_of_caches * FFTW_CACHE_SIZE, sizeof(cache_entry));
   cache_oldest_entries = calloc((size_t)number_of_caches, sizeof(int));
-  assert(caches != NULL && cache_oldest_entries != NULL);
+  cp_assert(caches != NULL && cache_oldest_entries != NULL);
   omp_init_nest_lock(&cache_lock);
 
   fftw_planning_mode = fftw_planning_flag;
@@ -1192,9 +1192,6 @@ fftw_plan *fft_fftw_create_3d_plan(const fft_key_t key, double complex *grid_in,
                          &number_of_threads, &direction, &inplace, inembed,
                          onembed, &idist, &odist, &istride, &ostride);
   cp_assert(rank == 3);
-  cp_assert(istride == 1);
-  cp_assert(ostride == 1);
-  cp_assert(number_of_ffts == 1);
   fftw_plan_with_nthreads(number_of_threads);
   fftw_plan *plan = malloc(sizeof(fftw_plan));
   *plan = fftw_plan_many_dft(rank, fft_size, number_of_ffts, grid_in, inembed,
@@ -1229,9 +1226,6 @@ fftw_plan *fft_fftw_create_3d_plan_r2c(const fft_key_t key, double *grid_in,
                          &number_of_threads, &direction, &inplace, inembed,
                          onembed, &idist, &odist, &istride, &ostride);
   cp_assert(rank == 3);
-  cp_assert(istride == 1);
-  cp_assert(ostride == 1);
-  cp_assert(number_of_ffts == 1);
   fftw_plan_with_nthreads(number_of_threads);
   fftw_plan *plan = malloc(sizeof(fftw_plan));
   if (direction) {
@@ -1378,7 +1372,6 @@ void fft_fftw_register_1d_local(
     const int leading_dimension_in, const int leading_dimension_out,
     double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size == 0 || number_of_ffts == 0)
     return;
@@ -1448,7 +1441,6 @@ void fft_fftw_register_1d_r2c_local(const int fft_size,
                                     const int leading_dimension_out,
                                     double *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size == 0 || number_of_ffts == 0)
     return;
@@ -1523,7 +1515,6 @@ void fft_fftw_register_1d_c2r_local(const int fft_size,
                                     const int leading_dimension_out,
                                     double complex *grid_in, double *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size == 0 || number_of_ffts == 0)
     return;
@@ -1596,7 +1587,6 @@ void fft_fftw_register_2d_local(const bool direction, const int fft_size[2],
                                 double complex *grid_in,
                                 double complex *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0)
     return;
@@ -1668,7 +1658,6 @@ void fft_fftw_register_2d_r2c_local(const int fft_size[2],
                                     const bool transpose_out, double *grid_in,
                                     double complex *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0)
     return;
@@ -1750,7 +1739,6 @@ void fft_fftw_register_2d_c2r_local(const int fft_size[2],
                                     const bool transpose_out,
                                     double complex *grid_in, double *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0)
     return;
@@ -1834,7 +1822,6 @@ void fft_fftw_register_3d_local(const bool direction, const int fft_size[3],
                                 double complex *grid_in,
                                 double complex *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0 ||
       number_of_ffts == 0)
@@ -1883,7 +1870,6 @@ void fft_fftw_register_3d_r2c_local(const int fft_size[3],
                                     const bool transpose_out, double *grid_in,
                                     double complex *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0 ||
       number_of_ffts == 0)
@@ -1932,7 +1918,6 @@ void fft_fftw_register_3d_c2r_local(const int fft_size[3],
                                     const bool transpose_out,
                                     double complex *grid_in, double *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0 ||
       number_of_ffts == 0)
@@ -1984,7 +1969,6 @@ void fft_fftw_1d_local(const bool direction, const int fft_size,
                        const int leading_dimension_out, double complex *grid_in,
                        double complex *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size == 0 || number_of_ffts == 0)
     return;
@@ -2086,7 +2070,6 @@ void fft_fftw_1d_r2c_local(const int fft_size, const int number_of_ffts,
                            const int leading_dimension_out, double *grid_in,
                            double complex *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size == 0 || number_of_ffts == 0)
     return;
@@ -2189,7 +2172,6 @@ void fft_fftw_1d_c2r_local(const int fft_size, const int number_of_ffts,
                            const int leading_dimension_out,
                            double complex *grid_in, double *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size == 0 || number_of_ffts == 0)
     return;
@@ -2290,7 +2272,6 @@ void fft_fftw_2d_local(const bool direction, const int fft_size[2],
                        const bool transpose_out, double complex *grid_in,
                        double complex *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0)
     return;
@@ -2391,7 +2372,6 @@ void fft_fftw_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
                            const bool transpose_in, const bool transpose_out,
                            double *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0)
     return;
@@ -2503,7 +2483,6 @@ void fft_fftw_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
                            const bool transpose_in, const bool transpose_out,
                            double complex *grid_in, double *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0)
     return;
@@ -2619,7 +2598,6 @@ void fft_fftw_3d_local(const bool direction, const int fft_size[3],
                        const bool transpose_out, double complex *grid_in,
                        double complex *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0 ||
       number_of_ffts == 0)
@@ -2673,7 +2651,6 @@ void fft_fftw_3d_r2c_local(const int fft_size[3], const int number_of_ffts,
                            const bool transpose_in, const bool transpose_out,
                            double *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0 ||
       number_of_ffts == 0)
@@ -2727,7 +2704,6 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], const int number_of_ffts,
                            const bool transpose_in, const bool transpose_out,
                            double complex *grid_in, double *grid_out) {
 #if defined(__FFTW3)
-  cp_assert(omp_get_num_threads() == 1);
   cp_assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0 ||
       number_of_ffts == 0)

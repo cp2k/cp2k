@@ -54,7 +54,7 @@ static int buffer_size_timed_routines = 0;
  ******************************************************************************/
 static char *fft_strdup(const char *src) {
   char *dst = malloc(strlen(src) + 1);
-  assert(dst != NULL);
+  cp_assert(dst != NULL);
   strcpy(dst, src);
   return dst;
 }
@@ -280,7 +280,7 @@ void fft_print_timing_report_unit(const double threshold,
     int length = rank == 0 ? (int)strlen(timed_routines[routine].routine_name) + 1 : 0;
     cp_mpi_bcast_int(&length, 1, 0, comm);
     char *routine_name = malloc((size_t)length);
-    assert(routine_name != NULL);
+    cp_assert(routine_name != NULL);
     if (rank == 0)
       memcpy(routine_name, timed_routines[routine].routine_name,
              (size_t)length);

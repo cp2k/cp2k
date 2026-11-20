@@ -1768,7 +1768,7 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2],
  ******************************************************************************/
 int fft_test_3d_local_low(const int fft_size[3], const int test_every,
                           const bool transpose_in, const bool transpose_out) {
-  assert(test_every > 0);
+  cp_assert(test_every > 0);
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
@@ -1928,7 +1928,7 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every,
  ******************************************************************************/
 int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every,
                                   const bool transpose) {
-  assert(test_every > 0);
+  cp_assert(test_every > 0);
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
@@ -2081,7 +2081,7 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every,
 int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every,
                               const bool transpose_in,
                               const bool transpose_out) {
-  assert(test_every > 0);
+  cp_assert(test_every > 0);
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
@@ -2256,7 +2256,7 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every,
 int fft_test_3d_local_r2c_inplace_low(const int fft_size[3],
                                       const int test_every,
                                       const bool transpose) {
-  assert(test_every > 0);
+  cp_assert(test_every > 0);
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
