@@ -201,9 +201,6 @@ cmake_dependent_option(
   CP2K_ENABLE_PW_GPU "Enable the ffts accelerated backend (mostly GPU)." ON
   "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
 
-cmake_dependent_option(CP2K_ENABLE_LIBXC_GPU "Enable the GPU backend of libxc."
-                       ON "CP2K_USE_ACCEL MATCHES \"CUDA\"" OFF)
-
 cmake_dependent_option(
   CP2K_ENABLE_NNP_GPU "Enable the GPU backend of the NNP force evaluation." ON
   "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
@@ -700,14 +697,16 @@ if(CP2K_USE_LIBXC)
                       INTERFACE_INCLUDE_DIRECTORIES)
   get_target_property(LIBXC_CPU_LIBRARIES Libxc::xcf03 INTERFACE_LINK_LIBRARIES)
 
-  if(CP2K_USE_CUDA)
-    set(CP2K_LIBXC_CUDA_SUPPORT
-        ON
-        CACHE BOOL "libxc CUDA support available")
-    set(LIBXC_CUDA_FOUND TRUE)
-    message(STATUS "Found CUDA Libxc (${Libxc_VERSION})")
+  if(Libxc_ENABLE_CUDA OR Libxc_ENABLE_HIP)
+    cmake_dependent_option(
+      CP2K_ENABLE_LIBXC_GPU "Enable the GPU backend of libxc."
+      "${Libxc_ENABLE_CUDA} OR ${Libxc_ENABLE_HIP}"
+      "CP2K_USE_ACCEL MATCHES \"CUDA|HIP\"" OFF)
+  endif()
+
+  if(CP2K_ENABLE_LIBXC_GPU)
+    message(STATUS "Found CUDA|HIP Libxc (${Libxc_VERSION})")
   else()
-    set(LIBXC_CPU_FOUND TRUE)
     message(STATUS "Found CPU Libxc (${Libxc_VERSION})")
   endif()
 endif()
