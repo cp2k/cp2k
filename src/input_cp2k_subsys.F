@@ -763,24 +763,42 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="velocity", &
-                          description="The velocities for simple systems or "// &
-                          "the centroid mode in PI runs, xyz format by default", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+      CALL section_create(section, __LOCATION__, name="VELOCITY", &
+                          description="The initial velocities for simple systems in MD runs "// &
+                          "or the centroid mode in PI runs. This section does not set up any "// &
+                          "constant velocity of particle motion throughout the run. For MD "// &
+                          "runs, if velocities are read from this section then the option "// &
+                          "MOTION/MD/INITIALIZATION_METHOD will not be active; however, all "// &
+                          "velocities read from this section are still adjusted to match the "// &
+                          "MOTION/CONSTRAINT/FIXED_ATOM control (by resetting fixed components "// &
+                          "to 0 if any) and the MOTION/MD/THERMAL_REGION/FORCE_RESCALING "// &
+                          "switch (if thermal regions are used).", &
+                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="PINT_UNIT", &
-                          description="Specify the units of measurement for the velocities "// &
-                          "(currently works only for the path integral code). "// &
-                          "All available CP2K units can be used.", &
-                          usage="PINT_UNIT angstrom*au_t^-1", &
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT", &
+                          description="Specify the units of measurement for the velocities. "// &
+                          "Formerly named PINT_UNIT that works only for the path integral code, "// &
+                          "this keyword is now renamed UNIT to generalize to conventional MD, "// &
+                          "retaining the old name as an alias for compatibility."//newline//newline// &
+                          "All available CP2K units can be used; the default is atomic unit "// &
+                          "[bohr\*au_t^-1], which is about 1/137.036-th of the speed of light "// &
+                          "or $2.18769 \times 10^6$ [m\*s^-1]. The kinetic energy $K_i$ "// &
+                          "in [hartree] of an atom $i$ with mass $m_i$ in atomic mass units "// &
+                          "[amu] (or just [u]) and velocity $v_i$ can be obtained from "// &
+                          "$K_i = \frac{1}{2}f_u\,m_i\,v_i^2$ with $f_u = 1822.888$ as the "// &
+                          "conversion factor from [u] to [a.u.]. All relevant conversion "// &
+                          "factors can be printed in full precision in the top of the CP2K "// &
+                          "output by setting the GLOBAL/PRINT/PHYSCON keyword to ON.", &
+                          variants=["PINT_UNIT"], &
+                          usage="UNIT angstrom*au_t^-1", &
                           default_c_val="bohr*au_t^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="The atomic velocities in the format: "// &
-                          "$ v_x \ v_y \ v_z$ "// &
-                          "The same order as for the atomic coordinates is assumed.", &
+                          "$ v_x \ v_y \ v_z$. No need to specify kind or index; "// &
+                          "the same order as for the atomic coordinates is assumed.", &
                           repeats=.TRUE., usage="{Real} {Real} {Real}", &
                           type_of_var=real_t, n_var=3)
       CALL section_add_keyword(section, keyword)
@@ -802,13 +820,22 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="shell_velocity", &
                           description="The velocities of shells for shell-model potentials, "// &
                           "in xyz format  ", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT", &
+                          description="Specify the units of measurement for the velocities. "// &
+                          "All available CP2K units can be used; the default is atomic unit "// &
+                          "[bohr\*au_t^-1], which is about 1/137.036-th of the speed of light "// &
+                          "or $2.18769 \times 10^6$ [m\*s^-1].", &
+                          usage="UNIT angstrom*au_t^-1", &
+                          default_c_val="bohr*au_t^-1")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="The shell particle velocities in the format: "// &
-                          "$v_x \ v_y \ v_z$ "// &
-                          "The same order as for the shell particle coordinates is assumed.", &
+                          "$v_x \ v_y \ v_z$. No need to specify kind or index; "// &
+                          "the same order as for the shell particle coordinates is assumed.", &
                           repeats=.TRUE., usage="{Real} {Real} {Real}", &
                           type_of_var=real_t, n_var=3)
       CALL section_add_keyword(section, keyword)
@@ -830,13 +857,22 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="core_velocity", &
                           description="The velocities of cores for shell-model potentials, "// &
                           "in xyz format  ", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT", &
+                          description="Specify the units of measurement for the velocities. "// &
+                          "All available CP2K units can be used; the default is atomic unit "// &
+                          "[bohr\*au_t^-1], which is about 1/137.036-th of the speed of light "// &
+                          "or $2.18769 \times 10^6$ [m\*s^-1].", &
+                          usage="UNIT angstrom*au_t^-1", &
+                          default_c_val="bohr*au_t^-1")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="The core particle velocities in the format: "// &
-                          "$v_x \ v_y \ v_z$ "// &
-                          "The same order as for the core particle coordinates is assumed.", &
+                          "$v_x \ v_y \ v_z$. No need to specify kind or index; "// &
+                          "the same order as for the core particle coordinates is assumed.", &
                           repeats=.TRUE., usage="{Real} {Real} {Real}", &
                           type_of_var=real_t, n_var=3)
       CALL section_add_keyword(section, keyword)
