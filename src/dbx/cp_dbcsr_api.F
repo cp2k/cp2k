@@ -7,9 +7,7 @@
 
 MODULE cp_dbcsr_api
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add_prv => dbcsr_add, dbcsr_binary_read_prv => dbcsr_binary_read, &
-        dbcsr_binary_write_prv => dbcsr_binary_write, dbcsr_clear_mempools, &
-        dbcsr_clear_prv => dbcsr_clear, &
+        dbcsr_add_prv => dbcsr_add, dbcsr_clear_mempools, dbcsr_clear_prv => dbcsr_clear, &
         dbcsr_complete_redistribute_prv => dbcsr_complete_redistribute, &
         dbcsr_convert_offsets_to_sizes, dbcsr_convert_sizes_to_offsets, &
         dbcsr_copy_prv => dbcsr_copy, dbcsr_create_prv => dbcsr_create, &
@@ -140,10 +138,6 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_test_mm
    PUBLIC :: dbcsr_dot_threadsafe
 
-   ! binary io
-   PUBLIC :: dbcsr_binary_write
-   PUBLIC :: dbcsr_binary_read
-
    TYPE dbcsr_p_type
       TYPE(dbcsr_type), POINTER :: matrix => Null()
    END TYPE dbcsr_p_type
@@ -237,40 +231,6 @@ CONTAINS
          CALL dbm_add(matrix_a%dbm, matrix_b%dbm)
       END IF
    END SUBROUTINE dbcsr_add
-
-! **************************************************************************************************
-!> \brief ...
-!> \param filepath ...
-!> \param distribution ...
-!> \param matrix_new ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_binary_read(filepath, distribution, matrix_new)
-      CHARACTER(len=*), INTENT(IN)                       :: filepath
-      TYPE(dbcsr_distribution_type), INTENT(IN)          :: distribution
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_new
-
-      IF (USE_DBCSR_BACKEND) THEN
-         CALL dbcsr_binary_read_prv(filepath, distribution%dbcsr, matrix_new%dbcsr)
-      ELSE
-         CPABORT("Not yet implemented for DBM.")
-      END IF
-   END SUBROUTINE dbcsr_binary_read
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param filepath ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_binary_write(matrix, filepath)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      CHARACTER(LEN=*), INTENT(IN)                       :: filepath
-
-      IF (USE_DBCSR_BACKEND) THEN
-         CALL dbcsr_binary_write_prv(matrix%dbcsr, filepath)
-      ELSE
-         CPABORT("Not yet implemented for DBM.")
-      END IF
-   END SUBROUTINE dbcsr_binary_write
 
 ! **************************************************************************************************
 !> \brief ...

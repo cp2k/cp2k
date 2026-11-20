@@ -26,12 +26,12 @@ MODULE qs_mo_io
                                               gto_basis_set_type
    USE cp_cfm_types,                    ONLY: cp_cfm_get_submatrix,&
                                               cp_cfm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_binary_write,&
-                                              dbcsr_create,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_type
    USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum
+   USE cp_dbcsr_io,                     ONLY: dbcsr_binary_write
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               dbcsr_deallocate_matrix_set

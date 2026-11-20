@@ -49,16 +49,17 @@ MODULE almo_scf
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_binary_read, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, &
-        dbcsr_filter, dbcsr_finalize, dbcsr_get_info, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, &
+        dbcsr_finalize, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric, dbcsr_work_create
    USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
                                               dbcsr_checksum,&
                                               dbcsr_init_random,&
                                               dbcsr_reserve_all_blocks
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd
+   USE cp_dbcsr_io,                     ONLY: dbcsr_binary_read
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
