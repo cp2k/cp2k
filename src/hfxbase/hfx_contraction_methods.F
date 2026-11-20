@@ -164,36 +164,19 @@ CONTAINS
    #:def call_generic()
       CALL contract_generic(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
                             work, nl_a, nl_b, nl_c, nl_d, &
-                            sphi_a, sphi_b, sphi_c, sphi_d, primitives, buffer1, buffer2)
+                            angular_a, angular_b, angular_c, angular_d, &
+                            weight_a, weight_b, weight_c, weight_d, nsgfa, nsgfb, nsgfc, primitives, buffer1, buffer2)
    #:enddef
 
-   #! The first three stages transpose into a work buffer; the last accumulates
-   #! into the four-dimensional output. All sparse terms are expanded by Fypp.
-   #:def transform(angular, stage, ns)
-      #:set axis = 'abcd'[stage]
-      #:set source = ['work', 'buffer1', 'buffer2', 'buffer1'][stage]
-      #:if stage < 3
-         #:set target = ['buffer1', 'buffer2', 'buffer1'][stage]
-         DO i = 1, imax
-            #:for k, j in terms[angular]
-               ${target}$ (i + imax*(${j}$-1)) = ${target}$ (i + imax*(${j}$-1)) &
-                                                 + ${source}$ (${k}$+(i - 1)*kmax)*sphi_${axis}$ (${k}$, ${j}$+s_offset_${axis}$1)
-            #:endfor
-         END DO
-      #:else
-         DO i1 = 1, ${ns[2]}$
-         DO i2 = 1, ${ns[1]}$
-         DO i3 = 1, ${ns[0]}$
-            i = i + 1
-            #:for k, j in terms[angular]
-               primitives(s_offset_a1 + i3, s_offset_b1 + i2, s_offset_c1 + i1, s_offset_d1 + ${j}$) = &
-                  primitives(s_offset_a1 + i3, s_offset_b1 + i2, s_offset_c1 + i1, s_offset_d1 + ${j}$) &
-                  + buffer1(${k}$+(i - 1)*kmax)*sphi_d(${k}$, ${j}$+s_offset_d1)
-            #:endfor
-         END DO
-         END DO
-         END DO
-      #:endif
+   #:def transform(angular, source, target, tmat)
+      #:set ncart = cartesian[angular]
+      DO i = 1, imax
+         #:for j in range(1, spherical[angular]+1)
+            #:set summands = [f'{source}({k}+(i-1)*{ncart})*{tmat}({k},{j})' for k, m in terms[angular] if j == m]
+            ${target}$ (i + imax*${j-1}$) = &
+               ${' + &\n               '.join(summands) or '0.0_dp'}$
+         #:endfor
+      END DO
    #:enddef
 
    #! Share the loop structure between all specialized kernels and the fallback.
@@ -226,102 +209,125 @@ CONTAINS
 !> \param nl_${axis}$ Number of contractions on center ${axis}$
       #:endfor
       #:for axis in 'abcd'
-!> \param sphi_${axis}$ Contraction and spherical transformation coefficients
+!> \param angular_${axis}$ Cartesian-to-spherical transformation
       #:endfor
-!> \param primitives Accumulated spherical integrals
+      #:for axis in 'abcd'
+!> \param weight_${axis}$ Radial weights for the current primitive
+      #:endfor
+!> \param nsgfa Leading dimension along center A in the full shell set
+!> \param nsgfb Leading dimension along center B in the full shell set
+!> \param nsgfc Leading dimension along center C in the full shell set
+!> \param primitives Spherical integrals starting at the first element of the target block
 !> \param buffer1 Work buffer
 !> \param buffer2 Work buffer
 ! **************************************************************************************************
       #:if generic
          SUBROUTINE contract_generic(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
                                      work, nl_a, nl_b, nl_c, nl_d, &
-                                     sphi_a, sphi_b, sphi_c, sphi_d, primitives, buffer1, buffer2)
+                                     angular_a, angular_b, angular_c, angular_d, &
+                                     weight_a, weight_b, weight_c, weight_d, nsgfa, nsgfb, nsgfc, &
+                                     primitives, buffer1, buffer2)
 
             INTEGER, INTENT(IN) :: ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod
             #:else
             SUBROUTINE contract_${name}$ (work, nl_a, nl_b, nl_c, nl_d, &
-                                          sphi_a, sphi_b, sphi_c, sphi_d, primitives, buffer1, buffer2)
+                                          angular_a, angular_b, angular_c, angular_d, &
+                                          weight_a, weight_b, weight_c, weight_d, nsgfa, nsgfb, nsgfc, &
+                                          primitives, buffer1, buffer2)
 
                #:endif
                REAL(dp), DIMENSION(${ '*'.join(nc) }$), INTENT(IN) :: work
                INTEGER :: nl_a, nl_b, nl_c, nl_d
                #:for axis, ncart, nsph in zip('abcd', nc, ns)
-                  REAL(dp), DIMENSION(${ncart}$, ${nsph}$*nl_${axis}$), INTENT(IN) :: sphi_${axis}$
+                  REAL(dp), DIMENSION(${ncart}$, ${nsph}$), INTENT(IN) :: angular_${axis}$
                #:endfor
-               REAL(dp), DIMENSION(${ns[0]}$*nl_a, ${ns[1]}$*nl_b, ${ns[2]}$*nl_c, ${ns[3]}$*nl_d) :: primitives
+               INTEGER, INTENT(IN) :: nsgfa, nsgfb, nsgfc
+               REAL(dp), INTENT(INOUT) :: primitives(nsgfa, nsgfb, nsgfc, *)
                REAL(dp), DIMENSION(${ '*'.join(nc) }$) :: buffer1, buffer2
+               REAL(dp), INTENT(IN) :: weight_a(nl_a), weight_b(nl_b), weight_c(nl_c), weight_d(nl_d)
 
-               INTEGER :: i, i1, i2, i3, ia, ib, ic, id, imax, &
-   #:if generic
-                          j, jmax, k, &
-   #:endif
-                          kmax, s_offset_a1, s_offset_b1, s_offset_c1, s_offset_d1
+               INTEGER :: i, ia, ib, ic, id, ma, mb, mc, md
+               #:if generic or any(angular)
+                  INTEGER :: imax
+               #:endif
+               #:if generic
+                  INTEGER :: j, k, kmax
+               #:endif
+               INTEGER :: oa, ob, oc, od
+               REAL(dp) :: weight, wcd, wbcd
 
-               s_offset_a1 = 0
-               DO ia = 1, nl_a
-                  s_offset_b1 = 0
-                  DO ib = 1, nl_b
-                     s_offset_c1 = 0
-                     DO ic = 1, nl_c
-                        s_offset_d1 = 0
-                        DO id = 1, nl_d
-                           #:for stage, axis in enumerate('abcd')
-                              #:set source = ['work', 'buffer1', 'buffer2', 'buffer1'][stage]
-                              #:if stage < 3
-                                 #:set target = ['buffer1', 'buffer2', 'buffer1'][stage]
-                                 ${target}$ = 0.0_dp
-                              #:endif
-                              imax = ${ '*'.join(ns[:stage] + nc[stage + 1:]) }$
-                              #:if generic
-                                 jmax = ${ns[stage]}$
-                              #:endif
-                              kmax = ${nc[stage]}$
-                              #:if stage == 3
-                                 i = 0
-                              #:endif
-                              #:if generic
-                                 SELECT CASE (kmax)
-                                    #:for l, ncart in enumerate(cartesian[:lmax_generic + 1])
-                                       CASE (${ncart}$)
-                                       $:transform(l, stage, ns)
-                                    #:endfor
-                                 CASE DEFAULT
-                                    DO j = 1, jmax
-                                       #:if stage < 3
-                                          DO i = 1, imax
-                                             DO k = 1, kmax
-                                                ${target}$ (i + imax*(j - 1)) = ${target}$ (i + imax*(j - 1)) &
-                                                           + ${source}$ (k + (i - 1)*kmax)*sphi_${axis}$ (k, j + s_offset_${axis}$1)
-                                             END DO
-                                          END DO
-                                       #:else
-                                          i = 0
-                                          DO i1 = 1, nsoc
-                                          DO i2 = 1, nsob
-                                          DO i3 = 1, nsoa
-                                             i = i + 1
-                                             DO k = 1, kmax
-                                               primitives(s_offset_a1 + i3, s_offset_b1 + i2, s_offset_c1 + i1, s_offset_d1 + j) = &
-                                                 primitives(s_offset_a1 + i3, s_offset_b1 + i2, s_offset_c1 + i1, s_offset_d1 + j) &
-                                                   + buffer1(k + (i - 1)*kmax)*sphi_d(k, j + s_offset_d1)
-                                             END DO
-                                          END DO
-                                          END DO
-                                          END DO
-                                       #:endif
-                                    END DO
-                                 END SELECT
-                              #:else
-                                 $:transform(angular[stage], stage, ns)
-                              #:endif
+               #! In a fixed kernel s axes are identities after extracting their scalar weights.
+               #! Skipping their length-one transposes preserves the layout.
+               #:if not generic
+                  #:for axis, l in zip('abcd', angular)
+                     #:if l == 0
+                        MARK_USED(angular_${axis}$)
+                     #:endif
+                  #:endfor
+                  #:if not any(angular)
+                     MARK_USED(buffer1)
+                  #:endif
+                  #:if sum(l > 0 for l in angular) < 2
+                     MARK_USED(buffer2)
+                  #:endif
+               #:endif
+               ! Transform the primitive block once, alternating between the two buffers.
+               #:set source = 'work'
+               #:for stage, axis in enumerate('abcd')
+                  #:if generic or angular[stage] > 0
+                     #:set target = 'buffer2' if source == 'buffer1' else 'buffer1'
+                     imax = ${'*'.join(ns[:stage] + nc[stage + 1:])}$
+                     #:if generic
+                        kmax = ${nc[stage]}$
+                        SELECT CASE (kmax)
+                           #:for l, ncart in enumerate(cartesian[:lmax_generic + 1])
+                              CASE (${ncart}$)
+                              $:transform(l, source, target, 'angular_' + axis)
                            #:endfor
-                           s_offset_d1 = s_offset_d1 + ${ns[3]}$
+                        CASE DEFAULT
+                           DO j = 1, ${ns[stage]}$
+                              DO i = 1, imax
+                                 ${target}$ (i + imax*(j - 1)) = 0.0_dp
+                                 DO k = 1, kmax
+                                    ${target}$ (i + imax*(j - 1)) = ${target}$ (i + imax*(j - 1)) + &
+                                                                    ${source}$ (k + (i - 1)*kmax)*angular_${axis}$ (k, j)
+                                 END DO
+                              END DO
+                           END DO
+                        END SELECT
+                     #:else
+                        $:transform(angular[stage], source, target, 'angular_' + axis)
+                     #:endif
+                     #:set source = target
+                  #:endif
+               #:endfor
+
+               DO id = 1, nl_d
+                  od = (id - 1)*${ns[3]}$
+                  DO ic = 1, nl_c
+                     oc = (ic - 1)*${ns[2]}$
+                     wcd = weight_d(id)*weight_c(ic)
+                     DO ib = 1, nl_b
+                        ob = (ib - 1)*${ns[1]}$
+                        wbcd = wcd*weight_b(ib)
+                        DO ia = 1, nl_a
+                           oa = (ia - 1)*${ns[0]}$
+                           weight = wbcd*weight_a(ia)
+                           i = 0
+                           DO md = 1, ${ns[3]}$
+                              DO mc = 1, ${ns[2]}$
+                                 DO mb = 1, ${ns[1]}$
+                                    DO ma = 1, ${ns[0]}$
+                                       i = i + 1
+                                       primitives(oa + ma, ob + mb, oc + mc, od + md) = &
+                                          primitives(oa + ma, ob + mb, oc + mc, od + md) + weight*${source}$ (i)
+                                    END DO
+                                 END DO
+                              END DO
+                           END DO
                         END DO
-                        s_offset_c1 = s_offset_c1 + ${ns[2]}$
                      END DO
-                     s_offset_b1 = s_offset_b1 + ${ns[1]}$
                   END DO
-                  s_offset_a1 = s_offset_a1 + ${ns[0]}$
                END DO
             END SUBROUTINE contract_${name}$
             #:if not generic
@@ -348,30 +354,39 @@ CONTAINS
 !> \param nl_c ...
 !> \param nl_d ...
 !> \param work ...
-!> \param sphi_a ...
-!> \param sphi_b ...
-!> \param sphi_c ...
-!> \param sphi_d ...
-!> \param primitives ...
+!> \param angular_a ...
+!> \param angular_b ...
+!> \param angular_c ...
+!> \param angular_d ...
+!> \param weight_a ...
+!> \param weight_b ...
+!> \param weight_c ...
+!> \param weight_d ...
+!> \param nsgfa Leading dimension along center A in the full shell set
+!> \param nsgfb Leading dimension along center B in the full shell set
+!> \param nsgfc Leading dimension along center C in the full shell set
+!> \param primitives Spherical integrals starting at the first element of the target block
 !> \param buffer1 ...
 !> \param buffer2 ...
 ! **************************************************************************************************
             SUBROUTINE contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
                                 n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work, &
-                                sphi_a, sphi_b, sphi_c, sphi_d, &
-                                primitives, &
+                                angular_a, angular_b, angular_c, angular_d, weight_a, weight_b, weight_c, weight_d, &
+                                nsgfa, nsgfb, nsgfc, primitives, &
                                 buffer1, buffer2)
 
                INTEGER, INTENT(IN)         :: ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
                                               n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d
                REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod), INTENT(IN) :: work
-               REAL(dp), DIMENSION(ncoa, nsoa*nl_a), INTENT(IN)   :: sphi_a
-               REAL(dp), DIMENSION(ncob, nsob*nl_b), INTENT(IN)   :: sphi_b
-               REAL(dp), DIMENSION(ncoc, nsoc*nl_c), INTENT(IN)   :: sphi_c
-               REAL(dp), DIMENSION(ncod, nsod*nl_d), INTENT(IN)   :: sphi_d
+               REAL(dp), DIMENSION(ncoa, nsoa), INTENT(IN)   :: angular_a
+               REAL(dp), DIMENSION(ncob, nsob), INTENT(IN)   :: angular_b
+               REAL(dp), DIMENSION(ncoc, nsoc), INTENT(IN)   :: angular_c
+               REAL(dp), DIMENSION(ncod, nsod), INTENT(IN)   :: angular_d
 
-               REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b, nsoc*nl_c, nsod*nl_d) :: primitives
+               INTEGER, INTENT(IN) :: nsgfa, nsgfb, nsgfc
+               REAL(dp), INTENT(INOUT) :: primitives(nsgfa, nsgfb, nsgfc, *)
                REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod)  :: buffer1, buffer2
+               REAL(dp), INTENT(IN) :: weight_a(nl_a), weight_b(nl_b), weight_c(nl_c), weight_d(nl_d)
 
 #if !defined(__LIBINT)
                MARK_USED(ncoa)
@@ -390,12 +405,19 @@ CONTAINS
                MARK_USED(nl_b)
                MARK_USED(nl_c)
                MARK_USED(nl_d)
-               MARK_USED(sphi_a)
-               MARK_USED(sphi_b)
-               MARK_USED(sphi_c)
-               MARK_USED(sphi_d)
+               MARK_USED(angular_a)
+               MARK_USED(angular_b)
+               MARK_USED(angular_c)
+               MARK_USED(angular_d)
+               MARK_USED(weight_a)
+               MARK_USED(weight_b)
+               MARK_USED(weight_c)
+               MARK_USED(weight_d)
                MARK_USED(work)
-               MARK_USED(primitives)
+               MARK_USED(nsgfa)
+               MARK_USED(nsgfb)
+               MARK_USED(nsgfc)
+               MARK_USED(primitives(1, 1, 1, 1))
                MARK_USED(buffer1)
                MARK_USED(buffer2)
                CPABORT("libint not compiled in")
@@ -416,7 +438,9 @@ CONTAINS
 #if __MAX_CONTR >= ${max_contr}$
                                        CALL contract_${''.join(shells[l] for l in (a, b, c, d))}$ (work, &
                                                                                                    nl_a, nl_b, nl_c, nl_d, &
-                                                                       sphi_a, sphi_b, sphi_c, sphi_d, primitives, buffer1, buffer2)
+                                                                                       angular_a, angular_b, angular_c, angular_d, &
+                                                                                           weight_a, weight_b, weight_c, weight_d, &
+                                                                                  nsgfa, nsgfb, nsgfc, primitives, buffer1, buffer2)
 #else
                                        $:call_generic()
 #endif

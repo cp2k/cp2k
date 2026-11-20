@@ -406,9 +406,7 @@ CONTAINS
          llB, lset, max_num_call_sec_transf, max_pgf, max_set, multiple
       INTEGER :: my_num_call_sec_transf, natom, ncob, nints, nseta, nsetb, nsgf_max, nspins, &
          primitive_counter, proc_num, proc_receive, proc_send, R_offset_rec, Rsize_rec, &
-         S_offset_rec, same_size_kl_index, sphi_a_u1, sphi_a_u2, sphi_a_u3, sphi_b_u1, sphi_b_u2, &
-         sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, sphi_d_u3, Ssize_rec, &
-         step_size, total_num_RS_task
+         S_offset_rec, same_size_kl_index, Ssize_rec, step_size, total_num_RS_task
       INTEGER(int_8)                                     :: estimate_to_store_int, neris_tmp, &
                                                             neris_total, nprim_ints
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, nimages, proc_num_task, &
@@ -421,7 +419,6 @@ CONTAINS
                                                             lc_min, ld_max, ld_min, npgfa, npgfb, &
                                                             npgfc, npgfd, nsgfa, nsgfb, nsgfc, &
                                                             nsgfd
-      INTEGER, DIMENSION(:, :), POINTER                  :: nsgfl_a, nsgfl_b, nsgfl_c, nsgfl_d
       LOGICAL                                            :: alpha_beta_case, case_send_receive, &
                                                             copy_integrals, do_periodic
       LOGICAL, DIMENSION(:, :), POINTER                  :: shm_atomic_pair_list
@@ -430,16 +427,12 @@ CONTAINS
          pmax_atom, pmax_entry, ra(3), rab2, rb(3), rc(3), rcd2, rd(3), screen_kind_ij, &
          screen_kind_kl
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cost_RS, cost_RS_temp, ee_buffer1, &
-                                                            ee_buffer2, ee_primitives_tmp, &
-                                                            ee_work2, primitive_integrals
+                                                            ee_buffer2, ee_work2, &
+                                                            primitive_integrals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_RS_mat_rec, C_beta_T, max_contraction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb, BIb_RS_mat_rec_big, zero_mat_big
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: BI1, MNRS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: shm_pmax_block, zeta, zetb, zetc, zetd
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: sphi_a_ext_set, sphi_b_ext_set, &
-                                                            sphi_c_ext_set, sphi_d_ext_set
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: sphi_a_ext, sphi_b_ext, sphi_c_ext, &
-                                                            sphi_d_ext
       REAL(KIND=dp), DIMENSION(dimen, 2)                 :: zero_mat
       REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_T
       TYPE(cell_type), POINTER                           :: cell
@@ -474,7 +467,7 @@ CONTAINS
       CALL prepare_integral_calc(cell, qs_env, mp2_env, para_env, mp2_potential_parameter, actual_x_data, &
                                  do_periodic, basis_parameter, max_set, particle_set, natom, kind_of, &
                                  nsgf_max, primitive_integrals, ee_work2, ee_buffer1, ee_buffer2, &
-                                 ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
+                                 nspins, max_contraction, max_pgf, pgf_list_ij, &
                                  pgf_list_kl, nimages, eps_schwarz, log10_eps_schwarz, &
                                  screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
                                  radii_pgf)
@@ -647,11 +640,6 @@ CONTAINS
             nseta = basis_parameter(ikind)%nset
             zeta => basis_parameter(ikind)%zet
             nsgfa => basis_parameter(ikind)%nsgf
-            sphi_a_ext => basis_parameter(ikind)%sphi_ext(:, :, :, :)
-            nsgfl_a => basis_parameter(ikind)%nsgfl
-            sphi_a_u1 = UBOUND(sphi_a_ext, 1)
-            sphi_a_u2 = UBOUND(sphi_a_ext, 2)
-            sphi_a_u3 = UBOUND(sphi_a_ext, 3)
 
             lb_max => basis_parameter(jkind)%lmax
             lb_min => basis_parameter(jkind)%lmin
@@ -659,11 +647,6 @@ CONTAINS
             nsetb = basis_parameter(jkind)%nset
             zetb => basis_parameter(jkind)%zet
             nsgfb => basis_parameter(jkind)%nsgf
-            sphi_b_ext => basis_parameter(jkind)%sphi_ext(:, :, :, :)
-            nsgfl_b => basis_parameter(jkind)%nsgfl
-            sphi_b_u1 = UBOUND(sphi_b_ext, 1)
-            sphi_b_u2 = UBOUND(sphi_b_ext, 2)
-            sphi_b_u3 = UBOUND(sphi_b_ext, 3)
 
             iset = set_list_ij(i_set_list_ij)%pair(1)
             jset = set_list_ij(i_set_list_ij)%pair(2)
@@ -671,9 +654,6 @@ CONTAINS
             ncob = npgfb(jset)*ncoset(lb_max(jset))
             max_val1 = screen_coeffs_set(jset, iset, jkind, ikind)%x(1)*rab2 + &
                        screen_coeffs_set(jset, iset, jkind, ikind)%x(2)
-
-            sphi_a_ext_set => sphi_a_ext(:, :, :, iset)
-            sphi_b_ext_set => sphi_b_ext(:, :, :, jset)
 
             IF (case_index == 1) THEN
                global_counter = kl_list_proc(index_kl, 3)
@@ -717,22 +697,12 @@ CONTAINS
                npgfc => basis_parameter(kkind)%npgf
                zetc => basis_parameter(kkind)%zet
                nsgfc => basis_parameter(kkind)%nsgf
-               sphi_c_ext => basis_parameter(kkind)%sphi_ext(:, :, :, :)
-               nsgfl_c => basis_parameter(kkind)%nsgfl
-               sphi_c_u1 = UBOUND(sphi_c_ext, 1)
-               sphi_c_u2 = UBOUND(sphi_c_ext, 2)
-               sphi_c_u3 = UBOUND(sphi_c_ext, 3)
 
                ld_max => basis_parameter(lkind)%lmax
                ld_min => basis_parameter(lkind)%lmin
                npgfd => basis_parameter(lkind)%npgf
                zetd => basis_parameter(lkind)%zet
                nsgfd => basis_parameter(lkind)%nsgf
-               sphi_d_ext => basis_parameter(lkind)%sphi_ext(:, :, :, :)
-               nsgfl_d => basis_parameter(lkind)%nsgfl
-               sphi_d_u1 = UBOUND(sphi_d_ext, 1)
-               sphi_d_u2 = UBOUND(sphi_d_ext, 2)
-               sphi_d_u3 = UBOUND(sphi_d_ext, 3)
 
                DO i_set_list_kl = i_set_list_kl_start, i_set_list_kl_stop
                   kset = set_list_kl(i_set_list_kl)%pair(1)
@@ -746,8 +716,6 @@ CONTAINS
 
                   !! Near field screening
                   IF (max_val2 + pmax_atom < log10_eps_schwarz) CYCLE
-                  sphi_c_ext_set => sphi_c_ext(:, :, :, kset)
-                  sphi_d_ext_set => sphi_d_ext(:, :, :, lset)
                   !! get max_vals if we screen on initial density
                   pmax_entry = 0.0_dp
 
@@ -775,10 +743,6 @@ CONTAINS
                                    la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                    lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset), &
                                    nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                   sphi_a_u1, sphi_a_u2, sphi_a_u3, &
-                                   sphi_b_u1, sphi_b_u2, sphi_b_u3, &
-                                   sphi_c_u1, sphi_c_u2, sphi_c_u3, &
-                                   sphi_d_u1, sphi_d_u2, sphi_d_u3, &
                                    zeta(1:npgfa(iset), iset), zetb(1:npgfb(jset), jset), &
                                    zetc(1:npgfc(kset), kset), zetd(1:npgfd(lset), lset), &
                                    primitive_integrals, &
@@ -788,13 +752,10 @@ CONTAINS
                                    max_contraction_val, cartesian_estimate, cell, neris_tmp, &
                                    log10_pmax, log10_eps_schwarz, &
                                    tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2, &
-                                   pgf_list_ij, pgf_list_kl, nsgfl_a(:, iset), nsgfl_b(:, jset), &
-                                   nsgfl_c(:, kset), nsgfl_d(:, lset), &
-                                   sphi_a_ext_set, &
-                                   sphi_b_ext_set, &
-                                   sphi_c_ext_set, &
-                                   sphi_d_ext_set, &
-                                   ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
+                                   pgf_list_ij, pgf_list_kl, &
+                                   basis_parameter(ikind)%contraction(:, iset), basis_parameter(jkind)%contraction(:, jset), &
+                                   basis_parameter(kkind)%contraction(:, kset), basis_parameter(lkind)%contraction(:, lset), &
+                                   ee_work2, ee_buffer1, ee_buffer2, &
                                    nimages, do_periodic)
 
                      nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
@@ -1092,7 +1053,7 @@ CONTAINS
 
       DEALLOCATE (max_contraction, kind_of)
 
-      DEALLOCATE (ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
+      DEALLOCATE (ee_work2, ee_buffer1, ee_buffer2)
 
       DEALLOCATE (nimages)
 
