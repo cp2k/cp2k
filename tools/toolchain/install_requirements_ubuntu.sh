@@ -29,6 +29,7 @@ apt-get install -qq --no-install-recommends \
   ninja-build \
   nano \
   patch \
+  patchelf \
   pkg-config \
   python3 \
   python3-dev \

@@ -272,7 +272,6 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:cp2k::libsmeagol::smeagol>
     $<$<BOOL:${CP2K_USE_LIBXC}>:Libxc::xcf03>
-    $<$<BOOL:${CP2K_USE_GAUXC}>:gauxc::gauxc>
     $<$<BOOL:${CP2K_USE_ELPA}>:cp2k::ELPA::elpa>
     $<$<BOOL:${CP2K_USE_PLUMED}>:cp2k::plumed::plumed>
     $<$<BOOL:${CP2K_USE_FFTW3_}>:cp2k::FFTW3::fftw3>
@@ -294,8 +293,6 @@ target_link_libraries(
     DBCSR::dbcsr
     $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
     cp2k_linalg_libs
-    # Torch includes some LAPACK routines, but with floating-point exceptions.
-    $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>
     $<$<BOOL:${CP2K_USE_OPENPMD}>:openPMD::openPMD>)
 
 set(CP2K_BUILD_INFO_FILE "${CMAKE_CURRENT_BINARY_DIR}/cp2k_build_info.h")
@@ -320,6 +317,18 @@ if(CP2K_DATA_DIR STREQUAL "default")
 endif()
 
 target_link_libraries(cp2k PUBLIC cp2k_link_libs)
+
+# Link Torch and GauXC PRIVATE so TorchConfig.cmake's -Wl,--no-as-needed flags,
+# static helper archives, and caffe2::mkl link directories do not leak into
+# downstream executables. Expose GauXC's module path for Fortran consumers of
+# xc_gauxc_interface.
+if(CP2K_USE_GAUXC)
+  target_include_directories(
+    cp2k PUBLIC $<TARGET_PROPERTY:gauxc::gauxc,INTERFACE_INCLUDE_DIRECTORIES>)
+endif()
+target_link_libraries(
+  cp2k PRIVATE $<$<BOOL:${CP2K_USE_GAUXC}>:gauxc::gauxc>
+               $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>)
 
 if(CP2K_USE_ACCEL MATCHES "CUDA"
    AND CP2K_LIBXC_CUDA_SUPPORT
