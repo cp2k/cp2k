@@ -36,6 +36,9 @@ typedef struct {
   int data_size;
   dbm_pack_block_t *blocks;
   double *data;
+  // Zero-copy (CPU only): data == NULL and block->offset indexes into src[].
+  double **src;
+  bool transposed; // raw shard layout is transposed vs. the packed layout
 } dbm_pack_t;
 
 /*******************************************************************************

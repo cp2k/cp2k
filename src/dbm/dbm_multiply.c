@@ -479,9 +479,17 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
   backend_context_t *ctx = backend_start(matrix_c);
   phase[DBM_PHASE_SETUP] += phase_lap(&tick);
 
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
+  // The GPU backend uploads packed buffers, so zero-copy is not possible.
+  const bool zero_copy = false;
+#else
+  // The CPU backend reads blocks in place.
+  const bool zero_copy = true;
+#endif
+
   // Redistribute matrix_a and matrix_b across MPI ranks.
-  dbm_comm_iterator_t *iter =
-      dbm_comm_iterator_start(transa, transb, matrix_a, matrix_b, matrix_c);
+  dbm_comm_iterator_t *iter = dbm_comm_iterator_start(
+      transa, transb, matrix_a, matrix_b, matrix_c, zero_copy);
   const double redistribute = phase_lap(&tick);
   phase[DBM_PHASE_ALLTOALL] += iter->seconds_alltoall;
   phase[DBM_PHASE_SORT] += iter->seconds_sort;
@@ -516,8 +524,8 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
 
   if (NULL != matrix_d) {
     ctx = backend_start(matrix_d);
-    iter =
-        dbm_comm_iterator_start(transa, transb, matrix_a, matrix_b, matrix_d);
+    iter = dbm_comm_iterator_start(transa, transb, matrix_a, matrix_b, matrix_d,
+                                   zero_copy);
     while (dbm_comm_iterator_next(iter, &pack_a, &pack_b)) {
       multiply_packs(transa, transb, alpha, pack_a, pack_b, matrix_a, matrix_b,
                      matrix_d, rows_max_eps, retain_sparsity, true, NULL, ctx);
