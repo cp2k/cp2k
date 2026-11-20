@@ -17,6 +17,12 @@ MODULE libint_wrapper
 #if(__LIBINT)
 #include <libint2/libint2_params.h>
 #include <libint2/config.h>
+! Borrow the scalar kernel scratch for each group without per-record profiling or accumulation state.
+#if LIBINT_CONTRACTED_INTS && LIBINT2_MAX_VECLEN == 1 && !LIBINT2_FLOP_COUNT && !defined(LIBINT_FLOP_COUNT)
+#if !defined(LIBINT_PROFILE) && !defined(LIBINT2_PROFILE) && !defined(LIBINT_ACCUM_INTS) && !defined(LIBINT2_ACCUM_INTS)
+#define CP2K_LIBINT_IMAGE_CONTRACTION 1
+#endif
+#endif
 #endif
 
 ! maximum angular momentum to be supported in CP2K-LIBINT interface
@@ -43,6 +49,14 @@ MODULE libint_wrapper
    IMPLICIT NONE
    PRIVATE
    PUBLIC :: get_eri_permutation, reorder_eri_block
+   PUBLIC :: libint_can_contract_images, cp_libint_image_workspace_type, &
+             cp_libint_get_image_eris, cp_libint_get_image_derivs
+
+#if CP2K_LIBINT_IMAGE_CONTRACTION
+   LOGICAL, PARAMETER :: libint_can_contract_images = .TRUE.
+#else
+   LOGICAL, PARAMETER :: libint_can_contract_images = .FALSE.
+#endif
    PUBLIC :: cp_libint_t, prim_data_f_size, &
              libint_max_am, cp_libint_get_eris, cp_libint_get_derivs, &
              cp_libint_init_eri, cp_libint_init_eri1, cp_libint_cleanup_eri, &
@@ -82,6 +96,16 @@ MODULE libint_wrapper
       INTEGER :: unused = -1
 #endif
    END TYPE cp_libint_t
+
+!> \brief Storage for one group of native records. Its leading record borrows the kernel scratch.
+   TYPE :: cp_libint_image_workspace_type
+      PRIVATE
+#if(__LIBINT)
+      TYPE(libint_t), ALLOCATABLE :: records(:)
+#else
+      INTEGER :: unused = -1
+#endif
+   END TYPE cp_libint_image_workspace_type
 
 #if(__LIBINT)
    INTERFACE
@@ -174,13 +198,13 @@ CONTAINS
    #:for rank in range(2, 5)
 ! **************************************************************************************************
 !> \brief Validate and invoke a generated Libint kernel without indexing outside its task table.
-!> \param lib backend workspace
+!> \param records native primitive records, starting with the one holding the scratch
 !> \param kernels zero-based kernel table for this integral task and derivative order
 !> \param angular_momenta indices in the table's own center order
 !> \param kernel_name integral task used in diagnostics
 ! **************************************************************************************************
-      SUBROUTINE build_eri_kernel_${rank}$c(lib, kernels, angular_momenta, kernel_name)
-         TYPE(cp_libint_t), INTENT(INOUT) :: lib
+      SUBROUTINE build_eri_kernel_${rank}$c(records, kernels, angular_momenta, kernel_name)
+         TYPE(libint_t), INTENT(INOUT) :: records(*)
          TYPE(C_FUNPTR), INTENT(IN) :: kernels(${", ".join(["0:"]*rank)}$)
          INTEGER, INTENT(IN) :: angular_momenta(${rank}$)
          CHARACTER(LEN=*), INTENT(IN) :: kernel_name
@@ -197,11 +221,81 @@ CONTAINS
                "LIBINT has no "//TRIM(kernel_name)//" kernel for angular momenta: ", angular_momenta
             CPABORT(TRIM(error_msg))
          END IF
-         CALL cp_libint_build(build_funptr, lib%prv)
+         CALL cp_libint_build(build_funptr, records)
       END SUBROUTINE build_eri_kernel_${rank}$c
 
    #:endfor
 #endif
+
+   #! Emit the same primitive packing for the scalar setter and image groups.
+   #:def pack_eri_fields(record, grouped)
+      INTEGER :: pair_order(2)
+      REAL(dp) :: product_centers(3, 2), inverse_exponents(2)
+
+      CPASSERT(m_max <= params%prepared_max_order)
+
+      pair_order = [1, 2]
+      IF (permutation(1) > 2) pair_order = [2, 1]
+      product_centers(:, 1) = params%P
+      product_centers(:, 2) = params%Q
+      inverse_exponents = [params%ZetaInv, params%EtaInv]
+
+      ASSOCIATE (A => params%centers(:, permutation(1)), B => params%centers(:, permutation(2)), &
+                 C => params%centers(:, permutation(3)), D => params%centers(:, permutation(4)), &
+                 P => product_centers(:, pair_order(1)), Q => product_centers(:, pair_order(2)), &
+                 W => params%W, ZetaInv => inverse_exponents(pair_order(1)), &
+                 EtaInv => inverse_exponents(pair_order(2)), ZetapEtaInv => params%ZetapEtaInv, &
+                 Rho => params%Rho, F => params%Fm)
+         #:if grouped
+            ${record}$%AB_x(1) = displacements(1, 1)
+            ${record}$%AB_y(1) = displacements(2, 1)
+            ${record}$%AB_z(1) = displacements(3, 1)
+            ${record}$%CD_x(1) = displacements(1, 2)
+            ${record}$%CD_y(1) = displacements(2, 2)
+            ${record}$%CD_z(1) = displacements(3, 2)
+         #:else
+            ${record}$%AB_x(1) = A(1) - B(1)
+            ${record}$%AB_y(1) = A(2) - B(2)
+            ${record}$%AB_z(1) = A(3) - B(3)
+            ${record}$%CD_x(1) = C(1) - D(1)
+            ${record}$%CD_y(1) = C(2) - D(2)
+            ${record}$%CD_z(1) = C(3) - D(3)
+         #:endif
+
+         ${record}$%PA_x(1) = P(1) - A(1)
+         ${record}$%PA_y(1) = P(2) - A(2)
+         ${record}$%PA_z(1) = P(3) - A(3)
+
+         ${record}$%QC_x(1) = Q(1) - C(1)
+         ${record}$%QC_y(1) = Q(2) - C(2)
+         ${record}$%QC_z(1) = Q(3) - C(3)
+
+         ${record}$%WP_x(1) = W(1) - P(1)
+         ${record}$%WP_y(1) = W(2) - P(2)
+         ${record}$%WP_z(1) = W(3) - P(3)
+
+         ${record}$%WQ_x(1) = W(1) - Q(1)
+         ${record}$%WQ_y(1) = W(2) - Q(2)
+         ${record}$%WQ_z(1) = W(3) - Q(3)
+
+         ${record}$%oo2z(1) = 0.5_dp*ZetaInv
+         ${record}$%oo2e(1) = 0.5_dp*EtaInv
+         ${record}$%oo2ze(1) = 0.5_dp*ZetapEtaInv
+         ${record}$%roz(1) = Rho*ZetaInv
+         ${record}$%roe(1) = Rho*EtaInv
+
+         #:for m_max in range(0, 4*libint_max_am_supported)
+#if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
+
+            IF (${m_max}$ <= m_max) THEN
+               ${record}$%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) &
+                  = F(${m_max}$+1)
+            END IF
+#endif
+         #:endfor
+
+      END ASSOCIATE
+   #:enddef
 
 ! **************************************************************************************************
 !> \brief Fill an ERI backend from one prepared primitive and a pair-symmetry permutation.
@@ -216,66 +310,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: permutation(4), m_max
 
 #if(__LIBINT)
-      INTEGER :: pair_order(2)
-      REAL(dp) :: product_centers(3, 2), inverse_exponents(2)
-#endif
-
-      CPASSERT(m_max <= params%prepared_max_order)
-
-#if(__LIBINT)
-      pair_order = [1, 2]
-      IF (permutation(1) > 2) pair_order = [2, 1]
-      product_centers(:, 1) = params%P
-      product_centers(:, 2) = params%Q
-      inverse_exponents = [params%ZetaInv, params%EtaInv]
-
-      ASSOCIATE (A => params%centers(:, permutation(1)), B => params%centers(:, permutation(2)), &
-                 C => params%centers(:, permutation(3)), D => params%centers(:, permutation(4)), &
-                 P => product_centers(:, pair_order(1)), Q => product_centers(:, pair_order(2)), &
-                 W => params%W, ZetaInv => inverse_exponents(pair_order(1)), &
-                 EtaInv => inverse_exponents(pair_order(2)), ZetapEtaInv => params%ZetapEtaInv, &
-                 Rho => params%Rho, F => params%Fm)
-         libint%prv(1)%AB_x(1) = A(1) - B(1)
-         libint%prv(1)%AB_y(1) = A(2) - B(2)
-         libint%prv(1)%AB_z(1) = A(3) - B(3)
-
-         libint%prv(1)%CD_x(1) = C(1) - D(1)
-         libint%prv(1)%CD_y(1) = C(2) - D(2)
-         libint%prv(1)%CD_z(1) = C(3) - D(3)
-
-         libint%prv(1)%PA_x(1) = P(1) - A(1)
-         libint%prv(1)%PA_y(1) = P(2) - A(2)
-         libint%prv(1)%PA_z(1) = P(3) - A(3)
-
-         libint%prv(1)%QC_x(1) = Q(1) - C(1)
-         libint%prv(1)%QC_y(1) = Q(2) - C(2)
-         libint%prv(1)%QC_z(1) = Q(3) - C(3)
-
-         libint%prv(1)%WP_x(1) = W(1) - P(1)
-         libint%prv(1)%WP_y(1) = W(2) - P(2)
-         libint%prv(1)%WP_z(1) = W(3) - P(3)
-
-         libint%prv(1)%WQ_x(1) = W(1) - Q(1)
-         libint%prv(1)%WQ_y(1) = W(2) - Q(2)
-         libint%prv(1)%WQ_z(1) = W(3) - Q(3)
-
-         libint%prv(1)%oo2z(1) = 0.5_dp*ZetaInv
-         libint%prv(1)%oo2e(1) = 0.5_dp*EtaInv
-         libint%prv(1)%oo2ze(1) = 0.5_dp*ZetapEtaInv
-         libint%prv(1)%roz(1) = Rho*ZetaInv
-         libint%prv(1)%roe(1) = Rho*EtaInv
-
-         #:for m_max in range(0, 4*libint_max_am_supported)
-#if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
-
-            IF (${m_max}$ <= m_max) THEN
-               libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) &
-                  = F(${m_max}$+1)
-            END IF
-#endif
-         #:endfor
-
-      END ASSOCIATE
+      $:pack_eri_fields("libint%prv(1)", False)
 #else
       MARK_USED(libint)
       MARK_USED(params)
@@ -284,6 +319,25 @@ CONTAINS
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
    END SUBROUTINE cp_libint_set_params_eri
+
+#if CP2K_LIBINT_IMAGE_CONTRACTION
+! **************************************************************************************************
+!> \brief Pack one primitive into a native Libint record.
+!> \param record native primitive storage
+!> \param params primitive data in original center order
+!> \param permutation original center index for each backend center
+!> \param m_max highest required radial order
+!> \param displacements shared pair displacements in backend order
+! **************************************************************************************************
+   SUBROUTINE set_eri_primitive(record, params, permutation, m_max, displacements)
+      TYPE(libint_t), INTENT(INOUT) :: record
+      TYPE(eri_primitive_data_type), INTENT(IN) :: params
+      INTEGER, INTENT(IN) :: permutation(4), m_max
+      REAL(dp), INTENT(IN) :: displacements(3, 2)
+
+      $:pack_eri_fields("record", True)
+   END SUBROUTINE set_eri_primitive
+#endif
 
 ! **************************************************************************************************
 !> \brief Fill common ERI fields and the additional first-derivative recurrence fields.
@@ -297,46 +351,58 @@ CONTAINS
       TYPE(eri_primitive_data_type), INTENT(IN) :: params
       INTEGER, INTENT(IN) :: permutation(4), m_max
 
-#if(__LIBINT)
-      REAL(dp) :: P(3), exponents(4), gammap, gammaq, gammapq, rhop, rhoq
-#endif
-
       CALL cp_libint_set_params_eri(libint, params, permutation, m_max)
+#if(__LIBINT)
+      CALL set_eri_derivative(libint%prv(1), params, permutation)
+#endif
+   END SUBROUTINE cp_libint_set_params_eri_deriv
 
 #if(__LIBINT)
+! **************************************************************************************************
+!> \brief Pack the remaining first-derivative recurrence fields.
+!> \param record native primitive storage
+!> \param params primitive data in original center order
+!> \param permutation original center index for each backend center
+! **************************************************************************************************
+   SUBROUTINE set_eri_derivative(record, params, permutation)
+      TYPE(libint_t), INTENT(INOUT) :: record
+      TYPE(eri_primitive_data_type), INTENT(IN) :: params
+      INTEGER, INTENT(IN) :: permutation(4)
+      REAL(dp) :: P(3), exponents(4), gammap, gammaq, gammapq, rhop, rhoq
+
       P = params%P
       IF (permutation(1) > 2) P = params%Q
       exponents = params%exponents(permutation)
       ASSOCIATE (B => params%centers(:, permutation(2)), &
                  Zeta_A => exponents(1), Zeta_B => exponents(2), &
                  Zeta_C => exponents(3), Zeta_D => exponents(4))
-         libint%prv(1)%PB_x(1) = P(1) - B(1)
-         libint%prv(1)%PB_y(1) = P(2) - B(2)
-         libint%prv(1)%PB_z(1) = P(3) - B(3)
+         record%PB_x(1) = P(1) - B(1)
+         record%PB_y(1) = P(2) - B(2)
+         record%PB_z(1) = P(3) - B(3)
 
-         libint%prv(1)%two_alpha0_bra(1) = 2.0_dp*Zeta_A
-         libint%prv(1)%two_alpha0_ket(1) = 2.0_dp*Zeta_B
-         libint%prv(1)%two_alpha1_ket(1) = 2.0_dp*Zeta_D
+         record%two_alpha0_bra(1) = 2.0_dp*Zeta_A
+         record%two_alpha0_ket(1) = 2.0_dp*Zeta_B
+         record%two_alpha1_ket(1) = 2.0_dp*Zeta_D
 
          gammap = Zeta_A + Zeta_B
          gammaq = Zeta_C + Zeta_D
          gammapq = gammap*gammaq/(gammap + gammaq)
-         libint%prv(1)%alpha1_rho_over_zeta2(1) = Zeta_A*gammapq/(gammap*gammap)
-         libint%prv(1)%alpha2_rho_over_zeta2(1) = Zeta_B*gammapq/(gammap*gammap)
-         libint%prv(1)%alpha4_rho_over_eta2(1) = Zeta_D*gammapq/(gammaq*gammaq)
-         libint%prv(1)%alpha1_over_zetapluseta(1) = Zeta_A/(gammap + gammaq)
-         libint%prv(1)%alpha2_over_zetapluseta(1) = Zeta_B/(gammap + gammaq)
-         libint%prv(1)%alpha4_over_zetapluseta(1) = Zeta_D/(gammap + gammaq)
+         record%alpha1_rho_over_zeta2(1) = Zeta_A*gammapq/(gammap*gammap)
+         record%alpha2_rho_over_zeta2(1) = Zeta_B*gammapq/(gammap*gammap)
+         record%alpha4_rho_over_eta2(1) = Zeta_D*gammapq/(gammaq*gammaq)
+         record%alpha1_over_zetapluseta(1) = Zeta_A/(gammap + gammaq)
+         record%alpha2_over_zetapluseta(1) = Zeta_B/(gammap + gammaq)
+         record%alpha4_over_zetapluseta(1) = Zeta_D/(gammap + gammaq)
 
          rhop = Zeta_A*Zeta_B/gammap
          rhoq = Zeta_C*Zeta_D/gammaq
-         libint%prv(1)%rho12_over_alpha1(1) = rhop/Zeta_A
+         record%rho12_over_alpha1(1) = rhop/Zeta_A
 
-         libint%prv(1)%rho34_over_alpha3(1) = rhoq/Zeta_C
+         record%rho34_over_alpha3(1) = rhoq/Zeta_C
 
       END ASSOCIATE
+   END SUBROUTINE set_eri_derivative
 #endif
-   END SUBROUTINE cp_libint_set_params_eri_deriv
 ! **************************************************************************************************
 !> \brief ...
 !> \param n_d ...
@@ -352,7 +418,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
 #if(__LIBINT)
-      CALL build_eri_kernel(lib, libint2_build_eri, [n_d, n_c, n_b, n_a], "4-center ERI")
+      CALL build_eri_kernel(lib%prv, libint2_build_eri, [n_d, n_c, n_b, n_a], "4-center ERI")
 
       CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=[nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)])
 #else
@@ -381,7 +447,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
 #if(__LIBINT)
-      CALL build_eri_kernel(lib, libint2_build_3eri, [n_c, n_b, n_a], "3-center ERI")
+      CALL build_eri_kernel(lib%prv, libint2_build_3eri, [n_c, n_b, n_a], "3-center ERI")
 
       CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=[nco(n_a)*nco(n_b)*nco(n_c)])
 #else
@@ -416,7 +482,7 @@ CONTAINS
       CPASSERT(SIZE(p_work, 1) >= ncart)
       CPASSERT(SIZE(p_work, 2) >= 6)
 
-      CALL build_eri_kernel(lib, libint2_build_3eri1, [n_c, n_b, n_a], "3-center ERI derivative")
+      CALL build_eri_kernel(lib%prv, libint2_build_3eri1, [n_c, n_b, n_a], "3-center ERI derivative")
 
       !Derivatives 1-3 can be obtained using translational invariance
       DO i = 4, 9
@@ -455,7 +521,7 @@ CONTAINS
       CPASSERT(SIZE(p_work, 1) >= ncart)
       CPASSERT(SIZE(p_work, 2) >= 3)
 
-      CALL build_eri_kernel(lib, libint2_build_2eri1, [n_b, n_a], "2-center ERI derivative")
+      CALL build_eri_kernel(lib%prv, libint2_build_2eri1, [n_b, n_a], "2-center ERI derivative")
 
       !Derivatives 1-3 can be obtained using translational invariance
       DO i = 4, 6
@@ -487,7 +553,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
 #if(__LIBINT)
-      CALL build_eri_kernel(lib, libint2_build_2eri, [n_b, n_a], "2-center ERI")
+      CALL build_eri_kernel(lib%prv, libint2_build_2eri, [n_b, n_a], "2-center ERI")
 
       CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=[nco(n_a)*nco(n_b)])
 #else
@@ -516,29 +582,8 @@ CONTAINS
                           (n_d), 12)                                      :: work_forces
 
 #if(__LIBINT)
-      REAL(dp), DIMENSION(:), POINTER                    :: p_work
-
-      INTEGER                                            :: i, k, ncart
-#endif
-
-#if(__LIBINT)
-      ncart = SIZE(work_forces, 1)
-      CALL build_eri_kernel(lib, libint2_build_eri1, [n_d, n_c, n_b, n_a], "4-center ERI derivative")
-
-      DO k = 1, 12
-         IF (k == 4 .OR. k == 5 .OR. k == 6) CYCLE
-         CALL C_F_POINTER(lib%prv(1)%targets(k), p_work, SHAPE=[ncart])
-         DO i = 1, ncart
-            work_forces(i, k) = p_work(i)
-         END DO
-      END DO
-      ! Libint omits the canonical second-center derivatives; recover them by translation invariance.
-      DO k = 4, 6
-         DO i = 1, ncart
-            work_forces(i, k) = -1.0_dp*(work_forces(i, k - 3) + &
-                                         work_forces(i, k + 3) + work_forces(i, k + 6))
-         END DO
-      END DO
+      CALL build_eri_kernel(lib%prv, libint2_build_eri1, [n_d, n_c, n_b, n_a], "4-center ERI derivative")
+      CALL copy_eri_derivatives(lib%prv(1), SIZE(work_forces, 1), work_forces)
 #else
       MARK_USED(n_d)
       MARK_USED(n_c)
@@ -550,6 +595,147 @@ CONTAINS
 #endif
 
    END SUBROUTINE cp_libint_get_derivs
+
+#if(__LIBINT)
+! **************************************************************************************************
+!> \brief Copy generated first derivatives and restore the omitted center.
+!> \param record first native record of the evaluated batch
+!> \param ncart number of Cartesian integrals for each component
+!> \param work_forces derivative blocks in canonical center order
+! **************************************************************************************************
+   SUBROUTINE copy_eri_derivatives(record, ncart, work_forces)
+      TYPE(libint_t), INTENT(IN) :: record
+      INTEGER, INTENT(IN) :: ncart
+      REAL(dp), INTENT(OUT) :: work_forces(ncart, 12)
+      REAL(dp), POINTER :: p_work(:)
+      INTEGER :: i, k
+
+      DO k = 1, 12
+         IF (k == 4 .OR. k == 5 .OR. k == 6) CYCLE
+         CALL C_F_POINTER(record%targets(k), p_work, SHAPE=[ncart])
+         DO i = 1, ncart
+            work_forces(i, k) = p_work(i)
+         END DO
+      END DO
+      ! Libint omits the canonical second-center derivatives; recover them by translation invariance.
+      DO k = 4, 6
+         DO i = 1, ncart
+            work_forces(i, k) = -1.0_dp*(work_forces(i, k - 3) + &
+                                         work_forces(i, k + 3) + work_forces(i, k + 6))
+         END DO
+      END DO
+   END SUBROUTINE copy_eri_derivatives
+#endif
+
+! **************************************************************************************************
+!> \brief Sum a group of image quartets with common pair displacements.
+!> \param lib workspace owning the generated kernel scratch
+!> \param images reusable storage for the native records
+!> \param angular_momenta shell angular momenta in backend order
+!> \param params image-resolved primitives in original center order
+!> \param permutation original center index for each backend center
+!> \param displacements shared pair displacements in original center order
+!> \param p_work grouped Cartesian integrals, valid until the workspace is reused
+! **************************************************************************************************
+   SUBROUTINE cp_libint_get_image_eris(lib, images, angular_momenta, params, permutation, displacements, p_work)
+      TYPE(cp_libint_t), INTENT(IN) :: lib
+      TYPE(cp_libint_image_workspace_type), INTENT(INOUT) :: images
+      INTEGER, INTENT(IN) :: angular_momenta(4), permutation(4)
+      TYPE(eri_primitive_data_type), INTENT(IN) :: params(:)
+      REAL(dp), INTENT(IN) :: displacements(3, 2)
+      REAL(dp), POINTER :: p_work(:)
+
+#if CP2K_LIBINT_IMAGE_CONTRACTION
+      CALL pack_image_group(lib, images, params, permutation, SUM(angular_momenta), displacements, .FALSE.)
+      CALL build_eri_kernel(images%records, libint2_build_eri, angular_momenta(4:1:-1), "4-center ERI")
+      CALL C_F_POINTER(images%records(1)%targets(1), p_work, SHAPE=[PRODUCT(nco(angular_momenta))])
+#else
+      MARK_USED(lib)
+      MARK_USED(images)
+      MARK_USED(angular_momenta)
+      MARK_USED(params)
+      MARK_USED(permutation)
+      MARK_USED(displacements)
+      MARK_USED(p_work)
+      CPABORT("This Libint build does not support image contraction.")
+#endif
+   END SUBROUTINE cp_libint_get_image_eris
+
+! **************************************************************************************************
+!> \brief Sum unweighted image derivatives with common pair displacements.
+!> \param lib workspace owning the generated kernel scratch
+!> \param images reusable storage for the native records
+!> \param angular_momenta shell angular momenta in backend order
+!> \param params image-resolved primitives in original center order
+!> \param permutation original center index for each backend center
+!> \param displacements shared pair displacements in original center order
+!> \param work_forces grouped derivative blocks in canonical center order
+! **************************************************************************************************
+   SUBROUTINE cp_libint_get_image_derivs(lib, images, angular_momenta, params, permutation, displacements, work_forces)
+      TYPE(cp_libint_t), INTENT(IN) :: lib
+      TYPE(cp_libint_image_workspace_type), INTENT(INOUT) :: images
+      INTEGER, INTENT(IN) :: angular_momenta(4), permutation(4)
+      TYPE(eri_primitive_data_type), INTENT(IN) :: params(:)
+      REAL(dp), INTENT(IN) :: displacements(3, 2)
+      REAL(dp), INTENT(OUT) :: work_forces(PRODUCT(nco(angular_momenta)), 12)
+
+#if CP2K_LIBINT_IMAGE_CONTRACTION
+      CALL pack_image_group(lib, images, params, permutation, SUM(angular_momenta) + 1, displacements, .TRUE.)
+      CALL build_eri_kernel(images%records, libint2_build_eri1, angular_momenta(4:1:-1), "4-center ERI derivative")
+      CALL copy_eri_derivatives(images%records(1), SIZE(work_forces, 1), work_forces)
+#else
+      MARK_USED(lib)
+      MARK_USED(images)
+      MARK_USED(angular_momenta)
+      MARK_USED(params)
+      MARK_USED(permutation)
+      MARK_USED(displacements)
+      MARK_USED(work_forces)
+      CPABORT("This Libint build does not support image contraction.")
+#endif
+   END SUBROUTINE cp_libint_get_image_derivs
+
+#if CP2K_LIBINT_IMAGE_CONTRACTION
+! **************************************************************************************************
+!> \brief Prepare the native records of a group without allocating another kernel stack.
+!> \param lib existing Libint workspace
+!> \param images reusable storage for the native records
+!> \param params image-resolved primitives in original center order
+!> \param permutation original center index for each backend center
+!> \param m_max highest required radial order
+!> \param displacements shared pair displacements in original center order
+!> \param derivative whether to populate first-derivative fields
+! **************************************************************************************************
+   SUBROUTINE pack_image_group(lib, images, params, permutation, m_max, displacements, derivative)
+      TYPE(cp_libint_t), INTENT(IN) :: lib
+      TYPE(cp_libint_image_workspace_type), INTENT(INOUT) :: images
+      TYPE(eri_primitive_data_type), INTENT(IN) :: params(:)
+      INTEGER, INTENT(IN) :: permutation(4), m_max
+      REAL(dp), INTENT(IN) :: displacements(3, 2)
+      LOGICAL, INTENT(IN) :: derivative
+
+      INTEGER :: i, n
+      REAL(dp) :: backend_displacements(3, 2)
+
+      n = SIZE(params)
+      IF (ALLOCATED(images%records)) THEN
+         IF (SIZE(images%records) < n) DEALLOCATE (images%records)
+      END IF
+      IF (.NOT. ALLOCATED(images%records)) ALLOCATE (images%records(n))
+      backend_displacements(:, 1) = displacements(:, (permutation(1) + 1)/2)
+      backend_displacements(:, 2) = displacements(:, (permutation(3) + 1)/2)
+      IF (permutation(1) > permutation(2)) backend_displacements(:, 1) = -backend_displacements(:, 1)
+      IF (permutation(3) > permutation(4)) backend_displacements(:, 2) = -backend_displacements(:, 2)
+      DO i = 1, n
+         CALL set_eri_primitive(images%records(i), params(i), permutation, m_max, backend_displacements)
+         IF (derivative) CALL set_eri_derivative(images%records(i), params(i), permutation)
+      END DO
+      ! Only the leading record uses the stack and owns the contraction depth.
+      images%records(1)%stack = lib%prv(1)%stack
+      images%records(1)%vstack = lib%prv(1)%vstack
+      images%records(1)%contrdepth = n
+   END SUBROUTINE pack_image_group
+#endif
 
    SUBROUTINE cp_libint_init_eri(lib, max_am)
       TYPE(cp_libint_t)               :: lib

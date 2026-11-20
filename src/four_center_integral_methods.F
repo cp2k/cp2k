@@ -294,7 +294,7 @@ CONTAINS
 
             CALL prepare_four_center_batch(context, pgf_list_ij(list_ij), pgf_list_kl(list_kl), &
                                            nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
-                                           potential_parameter, max_l, do_periodic)
+                                           potential_parameter, max_l, do_periodic, group_images=.TRUE.)
             IF (nproducts == 0) CYCLE
 
             s_offset_a = 0
@@ -499,7 +499,7 @@ CONTAINS
 
             CALL prepare_four_center_batch(context, pgf_list_ij(list_ij), pgf_list_kl(list_kl), &
                                            nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
-                                           potential_parameter, max_l, do_periodic)
+                                           potential_parameter, max_l, do_periodic, group_images=.NOT. use_virial)
             IF (nproducts == 0) CYCLE
             s_offset_a = 0
             DO la = la_min, la_max
