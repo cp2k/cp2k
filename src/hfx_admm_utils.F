@@ -84,7 +84,8 @@ MODULE hfx_admm_utils
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE integral_library_types,          ONLY: cutoff_screen_factor
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE kpoint_methods,                  ONLY: kpoint_initialize_mos
    USE kpoint_transitional,             ONLY: kpoint_transitional_release,&
                                               set_2d_pointer
@@ -299,11 +300,18 @@ CONTAINS
                INTEGER                                               :: ik, ikk, is
                INTEGER, PARAMETER                                    :: nwork1 = 4
                LOGICAL                                               :: use_real_wfn
+               CHARACTER(LEN=default_string_length)                  :: kp_scheme
 
                NULLIFY (ao_mo_fm_pools_aux_fit, mos_aux_fit_kp)
 
                CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
-               CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn)
+               CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn, kp_scheme=kp_scheme)
+
+               ! The ADMM exchange correction is folded back to real space on the Born-von Karman
+               ! supercell of a regular k-point mesh
+               IF (TRIM(kp_scheme) == "GENERAL") THEN
+                  CPABORT("ADMM with k-points needs a MONKHORST-PACK, MACDONALD or GAMMA k-point mesh")
+               END IF
 
                !Test combinations of input values. So far, only ADMM2 is availavle
                IF (.NOT. admm_env%purification_method == do_admm_purify_none) THEN
