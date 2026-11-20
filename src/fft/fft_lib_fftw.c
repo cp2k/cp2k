@@ -77,8 +77,8 @@ static inline cache_entry *current_cache(void) {
 }
 
 /*******************************************************************************
- * \brief LRU position of the calling thread's cache.
- * \return pointer to the thread-local LRU index
+ * \brief FIFO position of the calling thread's cache.
+ * \return pointer to the thread-local FIFO index
  * \author Frederick Stein
  ******************************************************************************/
 static inline int *current_cache_oldest_entry(void) {

@@ -37,7 +37,7 @@ typedef struct {
 
 #define FFT_GPU_CACHE_SIZE 64
 static cache_entry cache[FFT_GPU_CACHE_SIZE];
-static int cache_oldest_entry = 0; // used for LRU eviction
+static int cache_oldest_entry = 0; // used for FIFO eviction
 static omp_lock_t cache_lock;
 
 typedef struct {
