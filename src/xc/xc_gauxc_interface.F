@@ -670,6 +670,7 @@ CONTAINS
       MARK_USED(batch_size)
       MARK_USED(device_runtime_fill_fraction)
       MARK_USED(grid_type)
+      MARK_USED(int_exec_space)
       MARK_USED(lb_exec_space)
       MARK_USED(mpi_comm)
       MARK_USED(force_new_runtime)
