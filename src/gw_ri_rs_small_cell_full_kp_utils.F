@@ -39,27 +39,28 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
                                               fft_dealloc
    USE gw_ri_rs_small_cell_full_kp_lattice,ONLY: &
         assemble_AA_contraction, block_range, build_full_cell_grid, build_ri_2c_lattice, &
-        complex_bytes, gamma_auxiliary_charges, owned_mo_coefficients, real_bytes, &
-        ri_2c_lattice_to_kp, ri_metric_head_zero
-   USE gw_ri_rs_small_cell_full_kp_q0_corr,ONLY: add_gamma_corr_cell_correction,&
-                                              add_gamma_corr_pair_cell,&
+        complex_bytes, gamma_auxiliary_charges, grid_pair_gemm, grid_pair_indices, &
+        grid_pair_panel_cols, grid_pair_shift, grid_pair_stencil_denominator, &
+        grid_pair_stencil_weight, grid_pair_upper_multiply, image_weight, owned_mo_coefficients, &
+        real_bytes, ri_2c_lattice_to_kp, ri_metric_head_zero
+   USE gw_ri_rs_small_cell_full_kp_q0_corr,ONLY: add_gamma_corr_pairs,&
                                               gamma_point_correction,&
                                               q_mesh_and_gamma_shell_average,&
                                               singular_head_cell_factors
    USE gw_ri_rs_small_cell_full_kp_types,ONLY: gwkp_type,&
                                               ri_q_matrix_block_type
    USE gw_utils_fm,                     ONLY: local_complex_power
-   USE input_constants,                 ONLY: evGW0,&
-                                              rskp_backend_fft
+   USE input_constants,                 ONLY: evGW0
    USE kinds,                           ONLY: dp,&
+                                              int_1,&
+                                              int_1_size,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: add_ewald_reciprocal
-   USE kpoint_lattice_fft,              ONLY: fft_profile_enabled,&
-                                              lattice_fft_execute_pair_major,&
-                                              lattice_fft_prepare_geometry,&
-                                              lattice_fft_profile_type
-   USE kpoint_transform,                ONLY: cell_to_k_transform,&
-                                              k_to_real_cell_transform
+   USE kpoint_lattice_fft,              ONLY: &
+        fft_profile_enabled, k_grid_to_cell_execute, k_grid_to_cell_panel_width, &
+        k_grid_to_cell_prepare, k_grid_to_cell_release, k_grid_to_cell_work_type, &
+        lattice_fft_execute_pair_major, lattice_fft_profile_type, lattice_fft_real_sink_type
+   USE kpoint_transform,                ONLY: cell_to_k_transform
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathconstants,                   ONLY: fourpi,&
@@ -81,7 +82,6 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
                                               evaluate_mu_rl_R_values
    USE ri_rs_kp_integrals,              ONLY: write_ri_rs_progress
    USE ri_rs_utils,                     ONLY: precompute_ri_rs_radii
-   USE util,                            ONLY: sort
 
 !$ USE omp_lib, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -97,7 +97,6 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
              compute_sigma_c_from_w_pq, &
              prepare_ri_rs, &
              release_gw_work
-   PUBLIC :: product_to_k_pair_centered, gw_pair_fft_work_type
 
    ! Tolerance for a sum of fractional k-point coordinates to be a reciprocal lattice vector.
    REAL(KIND=dp), PARAMETER :: eps_kpoint = 1.0E-8_dp
@@ -114,30 +113,243 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
    ! data alive reserve reserve_share of it (at least min_reserve_GB) and add library_bytes.
    REAL(KIND=dp), PARAMETER :: stage_memory_share = 0.5_dp, reserve_share = 0.1_dp, &
                                min_reserve_GB = 1.0_dp, library_bytes = 256.0_dp*bytes_per_MiB
-   ! Fixed workspace of the band projection and the Σ(k) of one projection round.
+   ! Fixed workspace of band projection, received chi batches, and Σ(k) of one projection round.
    REAL(KIND=dp), PARAMETER :: projection_workspace = 64.0_dp*bytes_per_MiB, &
                                projection_round_bytes = 512.0_dp*bytes_per_MiB
+   INTEGER(KIND=int_8), PARAMETER :: fft_panel_bytes = 32_int_8*1024_int_8**2
 
-   ! Optional cache of stencil factors, shared by repeated transforms on one pair block.
-   ! Geometry is still prepared by the common lattice FFT interface at each call.
+   ! One stencil representation: signed bytes with denominator 64 and a shared cell phase.
    TYPE gw_pair_fft_batch_type
-      LOGICAL :: use_combined = .FALSE.
-      INTEGER :: axis_count = 0, combined_count = 0
-      INTEGER(KIND=int_8) :: cached_count = 0_int_8
-      INTEGER, ALLOCATABLE :: axis_class(:, :), combined_class(:)
-      COMPLEX(KIND=dp), ALLOCATABLE :: axis_factor(:, :, :), combined_factor(:, :)
+      INTEGER(KIND=int_1), ALLOCATABLE :: weight(:, :)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER :: input(:) => NULL()
    END TYPE gw_pair_fft_batch_type
 
    TYPE gw_pair_fft_work_type
       PRIVATE
-      LOGICAL :: initialized = .FALSE.
-      INTEGER :: first_pair = 0, n_pairs = 0, width = 0, ngrid = 0, nmesh(3) = 0
-      INTEGER, ALLOCATABLE :: cells(:, :)
-      REAL(KIND=dp), ALLOCATABLE :: xkp(:, :)
+      INTEGER :: n_pairs = 0, width = 0, k_batch = 0, nmesh(3) = 0
+      INTEGER(KIND=int_8) :: nfft_grid = 0_int_8, spectrum_columns = 0_int_8
+      LOGICAL :: cache_hit = .FALSE.
+      COMPLEX(KIND=dp), ALLOCATABLE :: product_phase(:)
+      INTEGER, ALLOCATABLE :: grid_linear(:), partner_linear(:), extract_q(:), extract_partner(:), mirror_cell(:)
+      INTEGER, ALLOCATABLE :: input_to_native(:)
+      LOGICAL, ALLOCATABLE :: diagonal(:)
+      TYPE(k_grid_to_cell_work_type) :: inverse
       TYPE(gw_pair_fft_batch_type), ALLOCATABLE :: batches(:)
+      TYPE(lattice_fft_profile_type) :: profile = lattice_fft_profile_type()
+      REAL(KIND=dp) :: setup_seconds = 0.0_dp
    END TYPE gw_pair_fft_work_type
 
+   TYPE, EXTENDS(lattice_fft_real_sink_type) :: gw_pair_extraction_type
+      LOGICAL :: product = .FALSE.
+      REAL(KIND=dp) :: scale = 1.0_dp
+      REAL(KIND=dp), ALLOCATABLE :: norms(:, :)
+      REAL(KIND=dp), CONTIGUOUS, POINTER :: values(:, :, :) => NULL(), multiply(:, :, :) => NULL()
+      TYPE(gw_pair_fft_work_type), POINTER :: fft => NULL()
+   CONTAINS
+      PROCEDURE :: consume => extract_grid_pairs
+   END TYPE gw_pair_extraction_type
+
+   TYPE pair_segment_type
+      INTEGER :: rank = -1, first_row = 0, last_row = 0, displacement = 0
+   END TYPE pair_segment_type
+
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Release the inverse FFT workspace and the aligned inputs of the product panels.
+!> \param work ...
+! **************************************************************************************************
+   SUBROUTINE release_pair_fft(work)
+      TYPE(gw_pair_fft_work_type), INTENT(INOUT)         :: work
+
+      INTEGER                                            :: ibatch
+
+      CALL k_grid_to_cell_release(work%inverse)
+      IF (ALLOCATED(work%batches)) THEN
+         DO ibatch = 1, SIZE(work%batches)
+            IF (ASSOCIATED(work%batches(ibatch)%input)) CALL fft_dealloc(work%batches(ibatch)%input)
+         END DO
+         DEALLOCATE (work%batches, work%product_phase, work%grid_linear, work%partner_linear, &
+                     work%extract_q, work%extract_partner, work%mirror_cell, work%diagonal, work%input_to_native)
+      END IF
+      work%profile = lattice_fft_profile_type()
+      work%setup_seconds = 0.0_dp
+      work%cache_hit = .FALSE.
+   END SUBROUTINE release_pair_fft
+
+! **************************************************************************************************
+!> \brief Consume K2R spectra once: original Green norms, physical output and next-FFT input.
+!> Chi stores its first Green in the input panel and replaces it in place with the weighted
+!> product on the second call. Self-energy retains the physical product for band interpolation.
+!> \param sink extraction recipe and result
+!> \param first first local pair in this FFT panel
+!> \param nbatch physical pairs in this panel
+!> \param spectrum pair-major FFT output
+!> \param cell_slot FFT slot of each physical cell
+!> \param cell_phase common inverse-transform phase and normalization
+! **************************************************************************************************
+   SUBROUTINE extract_grid_pairs(sink, first, nbatch, spectrum, cell_slot, cell_phase)
+      CLASS(gw_pair_extraction_type), INTENT(INOUT) :: sink
+      INTEGER(KIND=int_8), INTENT(IN) :: first
+      INTEGER, INTENT(IN) :: nbatch, cell_slot(:)
+      COMPLEX(KIND=dp), INTENT(IN) :: spectrum(:, :), cell_phase(:)
+
+      COMPLEX(KIND=dp) :: input_phase, phase, raw, saved
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER :: input(:, :)
+      INTEGER :: fft_count, i, ia, ib, icell, ipair, jpair, slot
+      REAL(KIND=dp) :: a, b, norm, offnorm, product_a, product_b
+      LOGICAL :: collect_norm
+      TYPE(gw_pair_fft_batch_type), POINTER :: batch
+      TYPE(gw_pair_fft_work_type), POINTER :: plan
+
+      fft_count = (nbatch + 1)/2
+      IF (.NOT. sink%two_real) THEN
+         CPASSERT(nbatch == 1)
+      END IF
+      NULLIFY (input, batch)
+      collect_norm = ALLOCATED(sink%norms)
+      plan => sink%fft
+      IF (ASSOCIATED(plan)) THEN
+         CPASSERT(MODULO(INT(first) - 1, plan%width) == 0)
+         batch => plan%batches((INT(first) - 1)/plan%width + 1)
+         input(1:fft_count, 1:INT(plan%nfft_grid)) => batch%input
+      END IF
+      !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+      !$OMP SHARED(sink, first, nbatch, fft_count, spectrum, cell_slot, cell_phase, plan, batch, input) &
+      !$OMP SHARED(collect_norm) &
+      !$OMP PRIVATE(icell, slot, phase, i, ia, ib, ipair, jpair, raw, saved, A, b, product_a, product_b, norm, offnorm) &
+      !$OMP PRIVATE(input_phase)
+      DO icell = 1, SIZE(cell_slot)
+         slot = cell_slot(icell)
+         phase = MERGE(0.5_dp, 1.0_dp, sink%two_real)*cell_phase(icell)
+         norm = 0.0_dp
+         offnorm = 0.0_dp
+         IF (sink%product) input_phase = plan%product_phase(icell)
+         !$OMP SIMD REDUCTION(+:norm, offnorm) &
+         !$OMP PRIVATE(ia, ib, ipair, jpair, raw, saved, A, b, product_a, product_b)
+         DO i = 1, fft_count
+            ia = 2*i - 1
+            ib = MIN(2*i, nbatch)
+            ipair = INT(first) + ia - 1
+            jpair = INT(first) + ib - 1
+            raw = phase*spectrum(i, slot)
+            a = REAL(raw, dp)
+            b = 0.0_dp
+            IF (ib > ia) b = AIMAG(raw)
+            IF (collect_norm) THEN
+               norm = norm + a*a + b*b
+               IF (.NOT. plan%diagonal(ipair)) offnorm = offnorm + a*a
+               IF (ib > ia) THEN
+                  IF (.NOT. plan%diagonal(jpair)) offnorm = offnorm + b*b
+               END IF
+            END IF
+            product_a = a
+            product_b = b
+            IF (ASSOCIATED(sink%multiply)) THEN
+               product_a = (sink%scale*a)*sink%multiply(ipair, 1, icell)
+               IF (ib > ia) product_b = (sink%scale*b)*sink%multiply(jpair, 1, icell)
+            ELSE IF (sink%product) THEN
+               saved = input(i, slot)
+               product_a = (sink%scale*REAL(saved, dp))*a
+               product_b = (sink%scale*AIMAG(saved))*b
+            END IF
+            IF (ASSOCIATED(sink%values)) THEN
+               sink%values(ipair, 1, icell) = product_a
+               IF (ib > ia) sink%values(jpair, 1, icell) = product_b
+            END IF
+            IF (.NOT. ASSOCIATED(plan)) CYCLE
+            IF (.NOT. sink%product) THEN
+               input(i, slot) = CMPLX(a, b, dp)
+               CYCLE
+            END IF
+            input(i, slot) = input_phase* &
+                             CMPLX(REAL(batch%weight(ia, icell), dp)*product_a, REAL(batch%weight(ib, icell), dp)*product_b, dp)
+         END DO
+         IF (collect_norm) THEN
+            sink%norms(1, icell) = sink%norms(1, icell) + norm
+            sink%norms(2, icell) = sink%norms(2, icell) + offnorm
+         END IF
+      END DO
+      !$OMP END PARALLEL DO
+   END SUBROUTINE extract_grid_pairs
+
+! **************************************************************************************************
+!> \brief Single GW K2R pipeline for unordered pairs and fused product consumers.
+!> The squared Frobenius norm counts each upper pair at R and its missing lower partner at -R;
+!> a diagonal is counted once. The MP boundary twist drops out of this squared norm.
+!> \param values_k unordered pairs on the input mesh
+!> \param work shared lattice geometry and next-FFT input
+!> \param values_R optional physical field or product required by a later consumer
+!> \param multiply_R second physical field for the self-energy product
+!> \param product_scale finish the R2K stencil using multiply_R or the saved chi Green
+!> \param norm_squared original full-matrix squared norm per cell
+! **************************************************************************************************
+   SUBROUTINE k_to_grid_pairs(values_k, work, values_R, multiply_R, product_scale, norm_squared)
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN)           :: values_k(:, :, :)
+      TYPE(gw_pair_fft_work_type), INTENT(INOUT), TARGET :: work
+      REAL(KIND=dp), CONTIGUOUS, INTENT(INOUT), &
+         OPTIONAL, TARGET                                :: values_R(:, :, :)
+      REAL(KIND=dp), CONTIGUOUS, INTENT(IN), OPTIONAL, &
+         TARGET                                          :: multiply_R(:, :, :)
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: product_scale
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: norm_squared(:)
+
+      CHARACTER(LEN=14), PARAMETER :: stages(9) = [CHARACTER(LEN=14) :: 'initialize', 'geometry', &
+         'buffers', 'grid-fill', 'FFT-X/plan', 'FFT-Y/plan', 'FFT-Z/plan', 'extract', 'release']
+
+      INTEGER                                            :: i, n_cells, unit_nr
+      REAL(KIND=dp)                                      :: total_started
+      TYPE(gw_pair_extraction_type)                      :: sink
+      TYPE(lattice_fft_profile_type), ALLOCATABLE        :: profile
+
+      IF (fft_profile_enabled) total_started = m_walltime()
+      CPASSERT(ALLOCATED(work%batches))
+      CPASSERT(SIZE(values_k, 1) == work%n_pairs .AND. SIZE(values_k, 2) == 1)
+      n_cells = SIZE(work%inverse%cell_slot)
+      sink%product = PRESENT(product_scale)
+      IF (PRESENT(product_scale)) sink%scale = product_scale
+      IF (sink%product .OR. .NOT. PRESENT(values_R)) sink%fft => work
+      IF (PRESENT(values_R)) THEN
+         CPASSERT(ALL(SHAPE(values_R) == [work%n_pairs, 1, n_cells]))
+         sink%values => values_R
+      END IF
+      IF (PRESENT(multiply_R)) THEN
+         CPASSERT(sink%product)
+         CPASSERT(ALL(SHAPE(multiply_R) == [work%n_pairs, 1, n_cells]))
+         sink%multiply => multiply_R
+      END IF
+      IF (PRESENT(norm_squared)) THEN
+         CPASSERT(ASSOCIATED(sink%fft))
+         CPASSERT(SIZE(norm_squared) == n_cells)
+         ALLOCATE (sink%norms(2, n_cells), SOURCE=0.0_dp)
+      END IF
+      IF (fft_profile_enabled) ALLOCATE (profile)
+      CALL k_grid_to_cell_execute(work%inverse, values_k, require_fft=.TRUE., profile=profile, &
+                                  max_workspace_bytes=fft_panel_bytes, real_sink=sink)
+      IF (PRESENT(norm_squared)) THEN
+         norm_squared = sink%norms(1, :) + sink%norms(2, work%mirror_cell)
+      END IF
+      unit_nr = 0
+      IF (fft_profile_enabled) unit_nr = cp_logger_get_default_io_unit()
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A)') 'K2R_FFT_PROFILE| Unordered grid pairs; logger-rank wall seconds, no MPI reduction'
+         WRITE (unit_nr, '(T2,A,3I10)') 'K2R_FFT_PROFILE| source shape: ', SHAPE(values_k)
+         WRITE (unit_nr, '(T2,A,6I8)') 'K2R_FFT_PROFILE| grid / padded: ', work%nmesh, profile%nfft
+         WRITE (unit_nr, '(T2,A,L2)') 'K2R_FFT_PROFILE| two real outputs per complex FFT: ', profile%two_real
+         WRITE (unit_nr, '(T2,A,L2)') 'K2R_FFT_PROFILE| extraction feeds next FFT input: ', ASSOCIATED(sink%fft)
+         WRITE (unit_nr, '(T2,A,2I16)') 'K2R_FFT_PROFILE| FFT transforms / real outputs: ', profile%transforms, profile%elements
+         WRITE (unit_nr, '(T2,A,2I16)') 'K2R_FFT_PROFILE| complex FFT elements / full: ', &
+            PRODUCT(INT(profile%nfft, int_8))*profile%transforms, PRODUCT(INT(profile%nfft, int_8))*profile%elements
+         WRITE (unit_nr, '(T2,A,2I16,2I8)') 'K2R_FFT_PROFILE| elements/batches/tile min/max: ', &
+            profile%elements, profile%batches, profile%tile_min, profile%tile_max
+         WRITE (unit_nr, '(T2,A,L2)') 'K2R_FFT_PROFILE| pair-major FFT input/output: ', profile%pair_major
+         WRITE (unit_nr, '(T2,A)') 'K2R_FFT_PROFILE| FFT-X/plan reports full 3D batched FFT (Y/Z entries zero)'
+         DO i = 1, SIZE(stages)
+            WRITE (unit_nr, '(T2,A,A14,F14.6)') 'K2R_FFT_PROFILE| ', stages(i), profile%seconds(i)
+         END DO
+         WRITE (unit_nr, '(T2,A,F14.6)') 'K2R_FFT_PROFILE| total         ', m_walltime() - total_started
+      END IF
+   END SUBROUTINE k_to_grid_pairs
 
 ! **************************************************************************************************
 !> \brief Prepare RI-RS radial data, grid values, and Bloch orbitals.
@@ -472,16 +684,20 @@ CONTAINS
          n_stored_q = (n_k + i_group_size - 1)/i_group_size
          persistent_bytes = complex_bytes*(REAL(n_stored_q, dp)*REAL(n_grid, dp)*REAL(n_aux, dp) + &
                                            REAL(n_aux, dp)**2*REAL(n_stored_q*n_local_time, dp))
-         n_pairs = REAL(CEILING(REAL(n_grid, dp)**2/REAL(i_group_size, dp), KIND=int_8), dp)
-         ! G(k), gwkp_env%W_PQ_tau(R), and Σ(R) coexist: 16 + 8 + 8 bytes per pair and mesh point,
-         ! next to the band orbitals of the owned band k points.
+         n_pairs = REAL(CEILING(REAL(n_grid, dp)*REAL(n_grid + 1, dp)/(2.0_dp*REAL(i_group_size, dp)), KIND=int_8), dp)
+         ! G(k), W(R), the retained off-mesh product, and the prepared FFT input coexist.
+         ! Count the band orbitals of the owned band k points alongside these panels.
          ! q matrices, band projection, and Green blocks belong to separate stages.
-         grid_bytes = n_pairs*(complex_bytes + 2.0_dp*real_bytes)*REAL(n_k, dp) + &
+         grid_bytes = (n_pairs*(complex_bytes + 3.0_dp*real_bytes) + real_bytes)*REAL(n_k, dp) + &
+                      REAL(int_1_size, dp)*n_pairs*REAL(n_k, dp) + &
+                      MAX(REAL(fft_panel_bytes, dp), 3.0_dp*complex_bytes*REAL(n_k, dp)) + &
+                      real_bytes*(n_pairs + REAL(n_k, dp)) + &
                       complex_bytes*REAL(n_grid, dp)*REAL(n_ao, dp)*REAL(n_spin, dp)* &
                       REAL((bs_env%nkp_bs_and_DOS + i_group_size - 1)/i_group_size, dp) + &
-                      MAX(complex_bytes*REAL(n_grid, dp)**2*REAL(n_local_k, dp) + &
+                      MAX(complex_bytes*REAL(n_grid, dp)*REAL(n_grid + 1, dp)*REAL(n_local_k, dp)/2.0_dp + &
                           complex_bytes*REAL(n_aux, dp)**2*REAL(n_local_k, dp) + &
-                          complex_bytes*REAL(n_threads, dp)*REAL(n_grid, dp)*REAL(n_ao + n_aux, dp), &
+                          complex_bytes*REAL(n_threads, dp)*REAL(n_grid, dp)* &
+                          REAL(n_ao + n_aux + MIN(n_grid, grid_pair_panel_cols), dp), &
                           projection_workspace_bytes(n_grid, i_group_size, &
                                                      PRODUCT(bs_env%kpoints_scf_desymm%nkp_grid + 2), n_ao, n_threads)) + &
                       2.0_dp*complex_bytes*REAL(n_threads*n_k, dp) + library_bytes
@@ -624,23 +840,21 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_chi'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: chi_grid_local_q(:, :, :), &
-                                                            chi_grid_q(:, :, :), chi_q(:, :, :), &
-                                                            G_grid_k(:, :, :), work(:, :)
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: chi_grid_q(:, :, :), chi_q(:, :, :), &
+                                                            G_grid_k(:, :, :)
       COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: psi_time(:, :, :, :), Z_group(:, :, :)
       COMPLEX(KIND=dp), POINTER                          :: psi_values(:, :, :, :), Z_time(:, :, :)
-      INTEGER :: first_pair, handle, i_group, i_needed, i_q_world, i_rank, i_root, i_size, &
-         i_source, i_t, i_tag, i_time_group, i_time_local, i_z, iq, iq_local, ispin, n_aux, &
-         n_cells, n_grid, n_groups, n_local, n_needed_local, n_pairs_local, n_q_local, n_threads, &
-         n_time_local, n_world
+      INTEGER :: first_pair, handle, i_aux, i_group, i_needed, i_q_world, i_rank, i_root, i_size, &
+         i_source, i_t, i_tag, i_time_group, i_time_local, iq, iq_local, ispin, n_aux, n_cells, &
+         n_grid, n_groups, n_local, n_needed_local, n_pairs_local, n_q_local, n_threads, &
+         n_time_local, n_world, q_batch, unit_nr
+      INTEGER(KIND=int_8)                                :: n_pairs_total
       INTEGER, ALLOCATABLE                               :: full_cells(:, :), needed_local(:), &
-                                                            q_partner(:)
-      LOGICAL, ALLOCATABLE                               :: needed(:)
-      REAL(KIND=dp)                                      :: available_GB, budget, input_bytes, &
-                                                            live_bytes, n_pair_max, n_q_max, peak, &
-                                                            q_bytes, rows_bytes, tau, time_bytes
-      REAL(KIND=dp), ALLOCATABLE                         :: chi_grid_R(:, :, :), G_occ_R(:, :, :), &
-                                                            qpoints(:, :)
+                                                            needed_q(:), q_partner(:)
+      LOGICAL, ALLOCATABLE                               :: cell_active(:), needed(:)
+      REAL(KIND=dp) :: available_GB, budget, chi_seconds(7), chi_started, input_bytes, live_bytes, &
+         n_pair_max, n_q_max, peak, q_bytes, rows_bytes, stage_started, tau, time_bytes
+      REAL(KIND=dp), ALLOCATABLE                         :: green_norms(:, :), qpoints(:, :)
       TYPE(gw_pair_fft_work_type)                        :: fft_stencil_work
       TYPE(mp_comm_type)                                 :: column_env
       TYPE(mp_para_env_type), POINTER                    :: chi_env
@@ -651,6 +865,7 @@ CONTAINS
       CPASSERT(gwkp_env%ngroups == 1 .AND. gwkp_env%my_group == 0)
       CALL build_full_cell_grid(bs_env, full_cells)
       n_grid = bs_env%ri_rs%n_grid_points
+      n_pairs_total = INT(n_grid, int_8)*(n_grid + 1)/2
       n_aux = bs_env%n_RI
       n_world = gwkp_env%group_env%num_pe
       ALLOCATE (qpoints(3, bs_env%nkp_scf_desymm))
@@ -659,11 +874,16 @@ CONTAINS
       CALL minus_q_partners(qpoints, q_partner)
       ALLOCATE (needed(bs_env%nkp_scf_desymm))
       needed(:) = [(q_partner(iq) >= iq, iq=1, bs_env%nkp_scf_desymm)]
+      ALLOCATE (needed_q(COUNT(needed)))
+      needed_q(:) = PACK([(iq, iq=1, SIZE(needed))], needed)
       CALL mp_mem_avail_per_rank_GB(gwkp_env%group_env, available_GB)
       budget = budget_after_reserve(available_GB)
       n_cells = SIZE(full_cells, 2)
       n_threads = 1
 !$    n_threads = omp_get_max_threads()
+      CALL gwkp_env%group_env%max(n_threads)
+      ! Keep received q matrices near their consumer; cap a batch at 64 MiB, or one matrix.
+      q_batch = MAX(1, MIN(4*n_threads, INT(projection_workspace/(complex_bytes*REAL(n_pairs_total, dp)))))
       DO i_size = MIN(2, MAX(1, n_world/2)), n_world
          IF (MODULO(n_world, i_size) /= 0) CYCLE
          n_groups = n_world/i_size
@@ -671,7 +891,7 @@ CONTAINS
          i_rank = MODULO(gwkp_env%group_env%mepos, i_size)
          i_group = gwkp_env%group_env%mepos/i_size
          n_time_local = (bs_env%num_time_freq_points + n_groups - 1 - i_group)/n_groups
-         n_pair_max = REAL(INT(n_grid, int_8)**2*(i_rank + 1)/i_size - INT(n_grid, int_8)**2*i_rank/i_size, dp)
+         n_pair_max = REAL(n_pairs_total*(i_rank + 1)/i_size - n_pairs_total*i_rank/i_size, dp)
          n_q_max = REAL(COUNT([(MODULO(iq, i_size) == i_rank .AND. needed(iq), &
                                 iq=1, bs_env%nkp_scf_desymm)]), dp)
          input_bytes = 0.0_dp
@@ -684,15 +904,20 @@ CONTAINS
          time_bytes = complex_bytes*REAL(n_aux, dp)**2*n_q_max*REAL(n_time_local, dp)
          ! Keep only this group's time slices, not a full frequency set per group.
          ! The shared lattice backend uses bounded matrix tiles; library_bytes reserves its scratch.
-         rows_bytes = n_pair_max*complex_bytes*REAL(bs_env%nkp_scf_desymm + n_cells, dp)
-         q_bytes = complex_bytes*REAL(n_grid, dp)**2*n_q_max
-         ! G(k) and the pair transfers hold two full grid matrices.
-         live_bytes = MAX(rows_bytes + 2.0_dp*complex_bytes*REAL(n_grid, dp)**2 + &
-                          complex_bytes*REAL(n_grid, dp)*REAL(bs_env%n_ao, dp), &
-                          complex_bytes*n_pair_max*REAL(bs_env%nkp_scf_desymm, dp) + q_bytes + &
-                          2.0_dp*complex_bytes*REAL(n_grid, dp)**2, &
-                          q_bytes + complex_bytes*REAL(n_grid, dp)*REAL(n_aux, dp)* &
-                          MAX(1.0_dp, MIN(REAL(n_threads, dp), n_q_max)))
+         ! The occupied K2R stores directly in the persistent input; the virtual K2R updates it.
+         rows_bytes = n_pair_max*complex_bytes*REAL(bs_env%nkp_scf_desymm, dp) + &
+                      real_bytes*(n_pair_max + 1.0_dp)*REAL(n_cells, dp)
+         q_bytes = complex_bytes*REAL(n_pairs_total, dp)*MIN(REAL(q_batch, dp), n_q_max)
+         ! The pair-local FFT output remains live while a bounded received batch is projected.
+         live_bytes = MAX(rows_bytes + projection_workspace + &
+                          complex_bytes*REAL(n_threads, dp)*REAL(n_grid, dp)*REAL(bs_env%n_ao + 32, dp), &
+                          real_bytes*(n_pair_max + 1.0_dp)*REAL(n_cells, dp) + &
+                          complex_bytes*n_pair_max*REAL(SIZE(needed_q), dp) + q_bytes + &
+                          complex_bytes*REAL(n_grid, dp)*REAL(n_aux + MIN(n_grid, grid_pair_panel_cols), dp)* &
+                          MAX(1.0_dp, MIN(REAL(n_threads, dp), n_q_max, REAL(q_batch, dp)))) + &
+                      REAL(int_1_size, dp)*n_pair_max*REAL(n_cells, dp) + &
+                      MAX(REAL(fft_panel_bytes, dp), 3.0_dp*complex_bytes*REAL(n_cells, dp)) + &
+                      real_bytes*(n_pair_max + REAL(n_cells, dp))
          peak = input_bytes + time_bytes + complex_bytes*REAL(n_aux, dp)**2*n_q_max + &
                 MAX(live_bytes, complex_bytes*REAL(n_aux, dp)**2*REAL(bs_env%num_time_freq_points, dp)) + &
                 2.0_dp*complex_bytes*REAL(n_threads*bs_env%nkp_scf_desymm, dp) + library_bytes
@@ -716,7 +941,7 @@ CONTAINS
          Z_time => gwkp_env%Z_lP_q
       END IF
       n_time_local = (bs_env%num_time_freq_points + n_groups - 1 - i_group)/n_groups
-      CALL block_range(n_grid**2, chi_env%mepos, chi_env%num_pe, first_pair, n_pairs_local)
+      CALL block_range(INT(INT(n_grid, int_8)*(n_grid + 1)/2), chi_env%mepos, chi_env%num_pe, first_pair, n_pairs_local)
       n_q_local = COUNT([(MODULO(iq, chi_env%num_pe) == chi_env%mepos, iq=1, bs_env%nkp_scf_desymm)])
       ALLOCATE (needed_local(n_q_local))
       ALLOCATE (chi_partial(n_q_local))
@@ -731,6 +956,9 @@ CONTAINS
       END DO
       ALLOCATE (chi_q(n_aux, n_aux, n_needed_local))
 
+      ALLOCATE (green_norms(n_cells, 2), cell_active(n_cells))
+      CALL prepare_pair_fft(bs_env, full_cells, first_pair, n_pairs_local, chi_env%num_pe, &
+                            fft_stencil_work, .FALSE., needed_q)
       CALL start_time_loop_progress(bs_env, 'χ(iτ)', 'k points of G and q points of χ', n_groups, i_size, &
                                     INT(n_time_local*bs_env%n_spin, int_8)* &
                                     INT(2*bs_env%nkp_scf_desymm + COUNT(needed), int_8))
@@ -739,58 +967,71 @@ CONTAINS
          tau = bs_env%time_frequency_grid%imaginary_time(i_t)
          chi_q = z_zero
          DO ispin = 1, bs_env%n_spin
+            chi_seconds = 0.0_dp
+            IF (fft_profile_enabled) THEN
+               chi_started = m_walltime()
+               stage_started = chi_started
+            END IF
             ALLOCATE (G_grid_k(n_pairs_local, 1, bs_env%nkp_scf_desymm))
-            ALLOCATE (G_occ_R(n_pairs_local, 1, n_cells))
-            ALLOCATE (chi_grid_R, MOLD=G_occ_R)
-            CALL build_green_pairs(bs_env, psi_values(:, :, :, ispin), chi_env, tau, ispin, .TRUE., G_grid_k)
-            CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
-                                          bs_env%kpoints_scf_desymm%nkp_grid, full_cells, &
-                                          G_occ_R, rskp_backend_fft, profile_fft=fft_profile_enabled)
-            CALL build_green_pairs(bs_env, psi_values(:, :, :, ispin), chi_env, tau, ispin, .FALSE., G_grid_k)
-            CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
-                                          bs_env%kpoints_scf_desymm%nkp_grid, full_cells, &
-                                          chi_grid_R, rskp_backend_fft, profile_fft=fft_profile_enabled)
-            CALL filter_full_green_cells(bs_env, chi_env, G_occ_R)
-            CALL filter_full_green_cells(bs_env, chi_env, chi_grid_R)
+            CALL build_green_pairs(bs_env, psi_values(:, :, :, ispin), chi_env, tau, ispin, &
+                                   .TRUE., fft_stencil_work%k_batch, G_grid_k)
+            IF (fft_profile_enabled) chi_seconds(1) = m_walltime() - stage_started
+            IF (fft_profile_enabled) stage_started = m_walltime()
+            CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, norm_squared=green_norms(:, 1))
+            IF (fft_profile_enabled) chi_seconds(2) = m_walltime() - stage_started
+            IF (fft_profile_enabled) stage_started = m_walltime()
+            CALL build_green_pairs(bs_env, psi_values(:, :, :, ispin), chi_env, tau, ispin, &
+                                   .FALSE., fft_stencil_work%k_batch, G_grid_k)
+            IF (fft_profile_enabled) chi_seconds(1) = chi_seconds(1) + m_walltime() - stage_started
+            IF (fft_profile_enabled) stage_started = m_walltime()
+            CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, norm_squared=green_norms(:, 2), &
+                                 product_scale=bs_env%spin_degeneracy)
+            IF (fft_profile_enabled) chi_seconds(2) = chi_seconds(2) + m_walltime() - stage_started
+            IF (fft_profile_enabled) stage_started = m_walltime()
+            ! Each original Green is filtered by its own full Frobenius norm.
+            ! Scalar cell masks commute with their product: (m_o G_o)(m_v G_v)=m_o m_v G_o G_v.
+            CPASSERT(bs_env%n_atom > 0)
+            CALL chi_env%sum(green_norms)
+            cell_active(:) = .NOT. (SQRT(green_norms(:, 1))/REAL(bs_env%n_atom, dp)**2 < bs_env%eps_filter) .AND. &
+                             .NOT. (SQRT(green_norms(:, 2))/REAL(bs_env%n_atom, dp)**2 < bs_env%eps_filter)
+            IF (fft_profile_enabled) chi_seconds(3) = m_walltime() - stage_started
+            IF (fft_profile_enabled) stage_started = m_walltime()
             DEALLOCATE (G_grid_k)
-            chi_grid_R(:, :, :) = bs_env%spin_degeneracy*G_occ_R*chi_grid_R
-            DEALLOCATE (G_occ_R)
-            ALLOCATE (chi_grid_q(n_pairs_local, 1, bs_env%nkp_scf_desymm))
-            CALL product_to_k_pair_centered(bs_env, full_cells, qpoints, chi_grid_R, &
-                                            chi_grid_q, first_pair, fft_work=fft_stencil_work)
-            DEALLOCATE (chi_grid_R)
+            ALLOCATE (chi_grid_q(n_pairs_local, 1, SIZE(needed_q)))
+            CALL execute_pair_fft(fft_stencil_work, chi_grid_q, cell_active, &
+                                  'GW chi (K2R extraction feeds R2K input)')
+            IF (fft_profile_enabled) chi_seconds(4) = m_walltime() - stage_started
 
-            ALLOCATE (chi_grid_local_q(n_grid, n_grid, n_needed_local))
-            CALL fft_pairs_to_q_matrices(chi_grid_q, chi_env, needed, chi_grid_local_q)
+            IF (fft_profile_enabled) stage_started = m_walltime()
+            CALL project_fft_pairs_to_chi(chi_grid_q, chi_env, needed, Z_time, n_groups > 1, &
+                                          chi_q, q_batch, chi_seconds(6))
             DEALLOCATE (chi_grid_q)
-            ! χ_PQ(q) = Σ_ll′ Z_lP(q)* χ_ll′(q) Z_l′Q(q).
-            ! Parallelize distinct q matrices; leave singleton GEMM threading to BLAS.
-            ! Z_group holds only the needed q, Z_lP_q all q of this rank.
-            !$OMP PARALLEL DEFAULT(NONE) IF(n_needed_local > 1) &
-            !$OMP SHARED(n_grid, n_aux, n_groups, n_needed_local, needed_local, chi_grid_local_q, Z_time, chi_q) &
-            !$OMP PRIVATE(work, i_needed, i_z)
-            ALLOCATE (work(n_grid, n_aux))
-            !$OMP DO SCHEDULE(STATIC)
-            DO i_needed = 1, n_needed_local
-               i_z = MERGE(i_needed, needed_local(i_needed), n_groups > 1)
-               CALL zgemm('N', 'N', n_grid, n_aux, n_grid, z_one, &
-                          chi_grid_local_q(:, :, i_needed), n_grid, &
-                          Z_time(:, :, i_z), n_grid, z_zero, work, n_grid)
-               CALL zgemm('C', 'N', n_aux, n_aux, n_grid, z_one, &
-                          Z_time(:, :, i_z), n_grid, work, n_grid, z_one, &
-                          chi_q(:, :, i_needed), n_aux)
-            END DO
-            !$OMP END DO
-            DEALLOCATE (work)
-            !$OMP END PARALLEL
-            DEALLOCATE (chi_grid_local_q)
+            IF (fft_profile_enabled) chi_seconds(5) = MAX(0.0_dp, m_walltime() - stage_started - chi_seconds(6))
+            IF (fft_profile_enabled) chi_seconds(7) = m_walltime() - chi_started
+            unit_nr = 0
+            IF (fft_profile_enabled) unit_nr = cp_logger_get_default_io_unit()
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T2,A)') 'GW_CHI_PROFILE| logger-rank wall seconds, no MPI reduction'
+               WRITE (unit_nr, '(T2,A,4I12)') 'GW_CHI_PROFILE| time/spin/pairs/cells: ', &
+                  i_t, ispin, n_pairs_local, n_cells
+               WRITE (unit_nr, '(T2,A,2I12)') 'GW_CHI_PROFILE| received q batch capacity / full local: ', &
+                  MIN(q_batch, n_needed_local), n_needed_local
+               ! product+R2K includes allocations, input release and nested FFT profile output.
+               WRITE (unit_nr, '(T2,A,7F12.6)') &
+                  'GW_CHI_PROFILE| build+alloc/K2R/filter/product+R2K/transfer/projection/total: ', chi_seconds
+            END IF
             CALL count_time_loop_k_points(bs_env, INT(COUNT(needed), int_8))
          END DO
+         ! The spin sum lives in the upper triangle. Complete each stored time slice once.
          DO i_needed = 1, n_needed_local
             iq_local = needed_local(i_needed)
-            chi_partial(iq_local)%values(:, :, i_time_local) = chi_q(:, :, i_needed)
+            DO i_aux = 1, n_aux
+               chi_partial(iq_local)%values(:i_aux, i_aux, i_time_local) = chi_q(:i_aux, i_aux, i_needed)
+               chi_partial(iq_local)%values(i_aux + 1:, i_aux, i_time_local) = CONJG(chi_q(i_aux, i_aux + 1:, i_needed))
+            END DO
          END DO
       END DO
+      CALL release_pair_fft(fft_stencil_work)
       bs_env%gwkp_env%k_points_total = 0
 
       IF (ALLOCATED(psi_time)) DEALLOCATE (psi_time)
@@ -835,7 +1076,7 @@ CONTAINS
       IF (ALLOCATED(Z_group)) DEALLOCATE (Z_group)
       CALL column_env%free()
       CALL mp_para_env_release(chi_env)
-      DEALLOCATE (chi_q, full_cells, needed, needed_local, q_partner, qpoints)
+      DEALLOCATE (chi_q, full_cells, needed, needed_local, needed_q, q_partner, qpoints, green_norms, cell_active)
 
       CALL timestop(handle)
 
@@ -1030,91 +1271,83 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Sigma_x_from_V'
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: G_grid_k(:, :, :), head_cell_factor(:), &
-                                                            q_matrices(:, :, :), ZK(:, :)
-      INTEGER                                            :: first_pair, handle, iq, iq_local, ispin, &
+                                                            panel(:, :), q_pairs(:, :), ZK(:, :)
+      INTEGER                                            :: first_pair, handle, iq_local, ispin, &
                                                             n_grid, n_pairs_local, n_q_local, n_RI
       INTEGER, ALLOCATABLE                               :: full_cells(:, :)
+      LOGICAL, ALLOCATABLE                               :: cell_active(:)
       REAL(KIND=dp)                                      :: head_metric_zero
-      REAL(KIND=dp), ALLOCATABLE                         :: qpoints(:, :), Sigma_grid_R(:, :, :), &
-                                                            V_grid_R(:, :, :)
+      REAL(KIND=dp), ALLOCATABLE                         :: Sigma_grid_R(:, :, :), V_grid_R(:, :, :)
+      TYPE(gw_pair_fft_work_type)                        :: fft_stencil_work
 
       CALL timeset(routineN, handle)
 
       ALLOCATE (gwkp_env%sigma_x_bands(bs_env%n_ao, bs_env%nkp_bs_and_DOS, bs_env%n_spin))
       n_grid = bs_env%ri_rs%n_grid_points
       ! Same grid-pair distribution as Σc with q owners MOD(q,P).
-      CALL block_range(n_grid**2, bs_env%para_env%mepos, bs_env%para_env%num_pe, first_pair, n_pairs_local)
+      CALL block_range(INT(INT(n_grid, int_8)*(n_grid + 1)/2), bs_env%para_env%mepos, &
+                       bs_env%para_env%num_pe, first_pair, n_pairs_local)
       n_q_local = SIZE(gwkp_env%Z_lP_q, 3)
       IF (SIZE(gwkp_env%Z_lP_zero, 2) /= bs_env%n_RI + 1 .OR. SIZE(gwkp_env%Z_lP_zero, 3) /= 1) THEN
          CPABORT("Periodic RI-RS GW requires the direct Gamma auxiliary fit")
       END IF
-      ALLOCATE (qpoints(3, bs_env%nkp_scf_desymm))
-      qpoints(:, :) = bs_env%kpoints_chi_eps_W%xkp(:, 1:bs_env%nkp_scf_desymm)
       CPASSERT(SIZE(gwkp_env%Z_lP_q, 2) == bs_env%n_RI)
       CPASSERT(ALLOCATED(gwkp_env%metric_coulomb_factor))
       n_RI = bs_env%n_RI
-      ALLOCATE (q_matrices(n_grid, n_grid, n_q_local))
+      ALLOCATE (q_pairs(INT(INT(n_grid, int_8)*(n_grid + 1)/2), n_q_local))
       ! V_ll'(q) = Z(q) K(q) K(q)† Z(q)† = (ZK)(ZK)† with the metric-Coulomb factor K.
-      !$OMP PARALLEL DEFAULT(NONE) SHARED(gwkp_env, q_matrices, n_q_local, n_grid, n_RI) &
-      !$OMP PRIVATE(iq_local, ZK)
-      ALLOCATE (ZK(n_grid, n_RI))
+      !$OMP PARALLEL DEFAULT(NONE) SHARED(gwkp_env, q_pairs, n_q_local, n_grid, n_RI) &
+      !$OMP PRIVATE(iq_local, panel, ZK)
+      ALLOCATE (ZK(n_grid, n_RI), panel(n_grid, MIN(n_grid, grid_pair_panel_cols)))
       !$OMP DO SCHEDULE(STATIC)
       DO iq_local = 1, n_q_local
          CALL zgemm('N', 'N', n_grid, n_RI, n_RI, z_one, gwkp_env%Z_lP_q(:, :, iq_local), n_grid, &
                     gwkp_env%metric_coulomb_factor(:, :, iq_local), n_RI, z_zero, ZK, n_grid)
-         CALL zgemm('N', 'C', n_grid, n_grid, n_RI, z_one, ZK, n_grid, ZK, n_grid, &
-                    z_zero, q_matrices(:, :, iq_local), n_grid)
+         CALL grid_pair_gemm(n_grid, n_RI, ZK, ZK, q_pairs(:, iq_local), panel)
       END DO
       !$OMP END DO
-      DEALLOCATE (ZK)
+      DEALLOCATE (ZK, panel)
       !$OMP END PARALLEL
       DEALLOCATE (gwkp_env%metric_coulomb_factor)
-      ALLOCATE (G_grid_k(n_pairs_local, 1, bs_env%nkp_scf_desymm))
-      CALL q_matrices_to_fft_pairs(q_matrices, bs_env%para_env, G_grid_k)
-      DEALLOCATE (q_matrices)
-      CALL q_mesh_and_gamma_shell_average(bs_env, values_q=G_grid_k)
       CALL build_full_cell_grid(bs_env, full_cells)
+      CALL prepare_pair_fft(bs_env, full_cells, first_pair, n_pairs_local, bs_env%para_env%num_pe, &
+                            fft_stencil_work, .FALSE.)
+      ALLOCATE (G_grid_k(n_pairs_local, 1, bs_env%nkp_scf_desymm))
+      CALL q_matrices_to_fft_pairs(q_pairs, n_grid, bs_env%para_env, fft_stencil_work%k_batch, G_grid_k)
+      DEALLOCATE (q_pairs)
+      CALL q_mesh_and_gamma_shell_average(bs_env, values_q=G_grid_k, q_order=fft_stencil_work%input_to_native)
       ALLOCATE (V_grid_R(n_pairs_local, 1, SIZE(full_cells, 2)))
-      CALL k_to_real_cell_transform(G_grid_k, qpoints, bs_env%kpoints_scf_desymm%nkp_grid, &
-                                    full_cells, V_grid_R, rskp_backend_fft, profile_fft=fft_profile_enabled)
+      CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, values_R=V_grid_R)
       CALL singular_head_cell_factors(bs_env, full_cells, head_cell_factor)
       head_metric_zero = ri_metric_head_zero(bs_env)
-      DO iq = 1, SIZE(full_cells, 2)
-         IF (ALL(bs_env%periodic == [1, 1, 0])) THEN
-            CALL add_gamma_corr_pair_cell(bs_env, full_cells, iq, &
-                                          twopi/head_metric_zero**2*head_cell_factor(iq), &
-                                          gwkp_env%Z_lP_zero(:, 1, 1), first_pair, V_grid_R)
-         ELSE
-            CALL add_gamma_corr_pair_cell(bs_env, full_cells, iq, &
-                                          fourpi/head_metric_zero**2*head_cell_factor(iq), &
-                                          gwkp_env%Z_lP_zero(:, 1, 1), first_pair, V_grid_R)
-         END IF
-      END DO
+      head_cell_factor = (MERGE(twopi, fourpi, ALL(bs_env%periodic == [1, 1, 0]))/head_metric_zero**2)*head_cell_factor
+      CALL add_gamma_corr_pairs(bs_env, full_cells, head_cell_factor, &
+                                gwkp_env%Z_lP_zero(:, 1, 1), first_pair, V_grid_R)
       DEALLOCATE (head_cell_factor)
 
       ALLOCATE (Sigma_grid_R, MOLD=V_grid_R)
+      ALLOCATE (cell_active(SIZE(full_cells, 2)), SOURCE=.TRUE.)
       DO ispin = 1, bs_env%n_spin
          CALL build_green_pairs(bs_env, gwkp_env%band_orbitals(:, :, :, ispin), bs_env%para_env, &
-                                0.0_dp, ispin, .TRUE., G_grid_k)
-         CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
-                                       bs_env%kpoints_scf_desymm%nkp_grid, full_cells, Sigma_grid_R, &
-                                       rskp_backend_fft, profile_fft=fft_profile_enabled)
-         Sigma_grid_R(:, :, :) = -Sigma_grid_R*V_grid_R
-         CALL self_energy_on_mesh(bs_env, full_cells, Sigma_grid_R, first_pair, G_grid_k)
+                                0.0_dp, ispin, .TRUE., fft_stencil_work%k_batch, G_grid_k)
+         CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, values_R=Sigma_grid_R, multiply_R=V_grid_R, product_scale=-1.0_dp)
+         CALL execute_pair_fft(fft_stencil_work, G_grid_k, cell_active, &
+                               'GW self-energy (K2R extraction feeds R2K input)', Sigma_grid_R)
 
          CALL self_energy_pairs_to_Bloch(bs_env, G_grid_k, Sigma_grid_R, first_pair, bs_env%para_env, &
                                          gwkp_env%band_orbitals(:, :, :, ispin), &
-                                         gwkp_env%sigma_x_bands(:, :, ispin))
+                                         gwkp_env%sigma_x_bands(:, :, ispin), .FALSE.)
       END DO
+      CALL release_pair_fft(fft_stencil_work)
 
-      DEALLOCATE (full_cells, G_grid_k, qpoints, Sigma_grid_R, V_grid_R)
+      DEALLOCATE (full_cells, G_grid_k, Sigma_grid_R, V_grid_R, cell_active)
 
       CALL timestop(handle)
 
    END SUBROUTINE compute_Sigma_x_from_V
 
 ! **************************************************************************************************
-!> \brief Form Σc with one owner per ordered (l,l') pair through both lattice FFTs.
+!> \brief Form Σc with one owner per unordered (l,l') pair through both lattice FFTs.
 !> \param bs_env Band-structure settings and physical results.
 !> \param gwkp_env Periodic GW work data.
 ! **************************************************************************************************
@@ -1125,12 +1358,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Sigma_c_from_W_PQ'
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: G_grid_k(:, :, :)
-      INTEGER                                            :: first_pair, handle, i_t, i_time_local, &
-                                                            ispin, n_grid, n_pairs_local, &
-                                                            n_time_local
+      INTEGER                                            :: first_pair, handle, i_component, i_t, &
+                                                            i_time_local, ispin, n_grid, &
+                                                            n_pairs_local, n_time_local
       INTEGER, ALLOCATABLE                               :: full_cells(:, :)
+      LOGICAL, ALLOCATABLE                               :: cell_active(:)
       REAL(KIND=dp)                                      :: tau
-      REAL(KIND=dp), ALLOCATABLE                         :: qpoints(:, :), sigma_band(:, :), &
+      REAL(KIND=dp), ALLOCATABLE                         :: green_norms(:), sigma_band(:, :), &
                                                             Sigma_grid_R(:, :, :), &
                                                             sigma_result_buffer(:), &
                                                             W_grid_R(:, :, :)
@@ -1142,13 +1376,15 @@ CONTAINS
       IF (ALLOCATED(gwkp_env%sigma_c_bands)) DEALLOCATE (gwkp_env%sigma_c_bands)
       CALL build_full_cell_grid(bs_env, full_cells)
       n_grid = bs_env%ri_rs%n_grid_points
-      CALL block_range(n_grid**2, gwkp_env%group_env%mepos, gwkp_env%group_env%num_pe, &
+      CALL block_range(INT(INT(n_grid, int_8)*(n_grid + 1)/2), gwkp_env%group_env%mepos, gwkp_env%group_env%num_pe, &
                        first_pair, n_pairs_local)
       ALLOCATE (G_grid_k(n_pairs_local, 1, bs_env%nkp_scf_desymm))
       ALLOCATE (W_grid_R(n_pairs_local, 1, SIZE(full_cells, 2)))
       ALLOCATE (Sigma_grid_R, MOLD=W_grid_R)
-      ALLOCATE (qpoints(3, bs_env%nkp_scf_desymm))
-      qpoints(:, :) = bs_env%kpoints_chi_eps_W%xkp(:, 1:bs_env%nkp_scf_desymm)
+      ALLOCATE (green_norms(SIZE(full_cells, 2)), cell_active(SIZE(full_cells, 2)))
+      CPASSERT(bs_env%n_atom > 0)
+      CALL prepare_pair_fft(bs_env, full_cells, first_pair, n_pairs_local, gwkp_env%group_env%num_pe, &
+                            fft_stencil_work, .TRUE.)
       ALLOCATE (sigma_band(bs_env%n_ao, bs_env%nkp_bs_and_DOS))
       ALLOCATE (gwkp_env%sigma_c_bands(bs_env%n_ao, bs_env%nkp_bs_and_DOS, &
                                        bs_env%num_time_freq_points, 2, bs_env%n_spin))
@@ -1162,43 +1398,30 @@ CONTAINS
          i_time_local = (i_t - gwkp_env%my_group - 1)/gwkp_env%ngroups + 1
          CALL project_auxiliary_time_q_to_fft_pairs(gwkp_env%Z_lP_q, &
                                                     gwkp_env%W_PQ_tau, i_time_local, &
-                                                    gwkp_env%group_env, G_grid_k)
-         CALL q_mesh_and_gamma_shell_average(bs_env, values_q=G_grid_k)
-         CALL k_to_real_cell_transform(G_grid_k, qpoints, &
-                                       bs_env%kpoints_scf_desymm%nkp_grid, full_cells, &
-                                       W_grid_R, rskp_backend_fft, profile_fft=fft_profile_enabled)
-         CALL add_gamma_corr_cell_correction(bs_env, full_cells, gwkp_env%gamma_correction, i_t, &
-                                             gwkp_env%Z_lP_zero(:, 1, 1), first_pair, W_grid_R)
-         CALL truncate_grid_W_by_pair_distance_pairs(bs_env, full_cells, first_pair, W_grid_R)
+                                                    gwkp_env%group_env, fft_stencil_work%k_batch, G_grid_k)
+         CALL q_mesh_and_gamma_shell_average(bs_env, values_q=G_grid_k, q_order=fft_stencil_work%input_to_native)
+         CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, values_R=W_grid_R)
+         CALL add_gamma_corr_pairs(bs_env, full_cells, gwkp_env%gamma_correction%head_cell_tau(:, i_t), &
+                                   gwkp_env%Z_lP_zero(:, 1, 1), first_pair, W_grid_R, gwkp_env%gamma_correction, i_t)
          tau = bs_env%time_frequency_grid%imaginary_time(i_t)
          DO ispin = 1, bs_env%n_spin
-            CALL build_green_pairs(bs_env, gwkp_env%band_orbitals(:, :, :, ispin), gwkp_env%group_env, &
-                                   tau, ispin, .TRUE., G_grid_k)
-            CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
-                                          bs_env%kpoints_scf_desymm%nkp_grid, full_cells, Sigma_grid_R, &
-                                          rskp_backend_fft, profile_fft=fft_profile_enabled)
-            CALL filter_full_green_cells(bs_env, gwkp_env%group_env, Sigma_grid_R)
-            Sigma_grid_R(:, :, :) = -Sigma_grid_R*W_grid_R
-            CALL self_energy_on_mesh(bs_env, full_cells, Sigma_grid_R, first_pair, G_grid_k, &
-                                     fft_work=fft_stencil_work)
-            CALL self_energy_pairs_to_Bloch(bs_env, G_grid_k, Sigma_grid_R, first_pair, gwkp_env%group_env, &
-                                            gwkp_env%band_orbitals(:, :, :, ispin), sigma_band)
-            IF (gwkp_env%group_env%mepos == 0) gwkp_env%sigma_c_bands(:, :, i_t, 2, ispin) = sigma_band
-
-            CALL build_green_pairs(bs_env, gwkp_env%band_orbitals(:, :, :, ispin), gwkp_env%group_env, &
-                                   tau, ispin, .FALSE., G_grid_k)
-            CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
-                                          bs_env%kpoints_scf_desymm%nkp_grid, full_cells, Sigma_grid_R, &
-                                          rskp_backend_fft, profile_fft=fft_profile_enabled)
-            CALL filter_full_green_cells(bs_env, gwkp_env%group_env, Sigma_grid_R)
-            Sigma_grid_R(:, :, :) = Sigma_grid_R*W_grid_R
-            CALL self_energy_on_mesh(bs_env, full_cells, Sigma_grid_R, first_pair, G_grid_k, &
-                                     fft_work=fft_stencil_work)
-            CALL self_energy_pairs_to_Bloch(bs_env, G_grid_k, Sigma_grid_R, first_pair, gwkp_env%group_env, &
-                                            gwkp_env%band_orbitals(:, :, :, ispin), sigma_band)
-            IF (gwkp_env%group_env%mepos == 0) gwkp_env%sigma_c_bands(:, :, i_t, 1, ispin) = sigma_band
+            ! Preserve the component order: occupied (2, -G W), then virtual (1, +G W).
+            DO i_component = 2, 1, -1
+               CALL build_green_pairs(bs_env, gwkp_env%band_orbitals(:, :, :, ispin), gwkp_env%group_env, &
+                                      tau, ispin, i_component == 2, fft_stencil_work%k_batch, G_grid_k)
+               CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, values_R=Sigma_grid_R, multiply_R=W_grid_R, &
+                                    product_scale=MERGE(-1.0_dp, 1.0_dp, i_component == 2), norm_squared=green_norms)
+               CALL gwkp_env%group_env%sum(green_norms)
+               cell_active(:) = .NOT. (SQRT(green_norms)/REAL(bs_env%n_atom, dp)**2 < bs_env%eps_filter)
+               CALL execute_pair_fft(fft_stencil_work, G_grid_k, cell_active, &
+                                     'GW self-energy (K2R extraction feeds R2K input)', Sigma_grid_R)
+               CALL self_energy_pairs_to_Bloch(bs_env, G_grid_k, Sigma_grid_R, first_pair, gwkp_env%group_env, &
+                                               gwkp_env%band_orbitals(:, :, :, ispin), sigma_band, .TRUE.)
+               IF (gwkp_env%group_env%mepos == 0) gwkp_env%sigma_c_bands(:, :, i_t, i_component, ispin) = sigma_band
+            END DO
          END DO
       END DO
+      CALL release_pair_fft(fft_stencil_work)
       gwkp_env%k_points_total = 0
 
       ALLOCATE (sigma_result_buffer(SIZE(gwkp_env%sigma_c_bands)))
@@ -1206,8 +1429,9 @@ CONTAINS
       CALL bs_env%para_env%sum(sigma_result_buffer)
       gwkp_env%sigma_c_bands(:, :, :, :, :) = RESHAPE(sigma_result_buffer, SHAPE(gwkp_env%sigma_c_bands))
 
-      DEALLOCATE (full_cells, G_grid_k, qpoints, &
-                  sigma_band, sigma_result_buffer, Sigma_grid_R, W_grid_R)
+      DEALLOCATE (full_cells, G_grid_k, &
+                  sigma_band, sigma_result_buffer, Sigma_grid_R, &
+                  W_grid_R, green_norms, cell_active)
 
       CALL timestop(handle)
 
@@ -1273,113 +1497,49 @@ CONTAINS
    END SUBROUTINE count_time_loop_k_points
 
 ! **************************************************************************************************
-!> \brief Drop an entire real-space Green matrix only when its full Frobenius norm,
-!>        divided by the number of atom pairs, is below EPS_FILTER.
-!> \param bs_env ...
-!> \param para_env ...
-!> \param G_R ...
-! **************************************************************************************************
-   SUBROUTINE filter_full_green_cells(bs_env, para_env, G_R)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      REAL(KIND=dp), INTENT(INOUT)                       :: G_R(:, :, :)
-
-      INTEGER                                            :: i_cell, n_cells
-      REAL(KIND=dp)                                      :: atom_block_count
-      REAL(KIND=dp), ALLOCATABLE                         :: norm_squared(:)
-
-      CPASSERT(bs_env%n_atom > 0)
-      n_cells = SIZE(G_R, 3)
-      atom_block_count = REAL(bs_env%n_atom, dp)**2
-      ALLOCATE (norm_squared(n_cells))
-      DO i_cell = 1, n_cells
-         norm_squared(i_cell) = SUM(G_R(:, :, i_cell)**2)
-      END DO
-      CALL para_env%sum(norm_squared)
-      DO i_cell = 1, n_cells
-         IF (SQRT(norm_squared(i_cell))/atom_block_count < bs_env%eps_filter) THEN
-            G_R(:, :, i_cell) = 0.0_dp
-         END IF
-      END DO
-      DEALLOCATE (norm_squared)
-   END SUBROUTINE filter_full_green_cells
-
-! **************************************************************************************************
-!> \brief Apply the same real-space cutoff to ordered pairs owned by this rank.
-!> \param bs_env ...
-!> \param cells ...
-!> \param first_pair First locally owned ordered grid pair.
-!> \param W_grid_R ...
-! **************************************************************************************************
-   SUBROUTINE truncate_grid_W_by_pair_distance_pairs(bs_env, cells, first_pair, W_grid_R)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: cells
-      INTEGER, INTENT(IN)                                :: first_pair
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: W_grid_R
-
-      INTEGER                                            :: i_l, i_local, i_lp, i_pair, i_R, n_grid
-      REAL(KIND=dp)                                      :: cell_index(3), cutoff_squared, &
-                                                            displacement(3), lattice_vector(3)
-
-      IF (bs_env%ri_rs%cutoff_radius_v_w <= 0.0_dp) RETURN
-      CPASSERT(ALLOCATED(bs_env%ri_rs%grid_points))
-      CPASSERT(SIZE(W_grid_R, 2) == 1)
-      CPASSERT(SIZE(cells, 2) == SIZE(W_grid_R, 3))
-      cutoff_squared = bs_env%ri_rs%cutoff_radius_v_w**2
-      n_grid = bs_env%ri_rs%n_grid_points
-      !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-      !$OMP SHARED(bs_env, cells, cutoff_squared, first_pair, n_grid, W_grid_R) &
-      !$OMP PRIVATE(cell_index, displacement, i_l, i_local, i_lp, i_pair, i_R, lattice_vector)
-      DO i_R = 1, SIZE(cells, 2)
-         cell_index(:) = REAL(cells(:, i_R), dp)
-         lattice_vector(:) = MATMUL(bs_env%hmat, cell_index)
-         DO i_local = 1, SIZE(W_grid_R, 1)
-            i_pair = first_pair + i_local - 1
-            i_l = MODULO(i_pair - 1, n_grid) + 1
-            i_lp = (i_pair - 1)/n_grid + 1
-            displacement = bs_env%ri_rs%grid_points(:, i_l) - &
-                           bs_env%ri_rs%grid_points(:, i_lp) - lattice_vector
-            IF (SUM(displacement**2) > cutoff_squared) W_grid_R(i_local, 1, i_R) = 0.0_dp
-         END DO
-      END DO
-      !$OMP END PARALLEL DO
-
-   END SUBROUTINE truncate_grid_W_by_pair_distance_pairs
-
-! **************************************************************************************************
-!> \brief Form G_ll′(k,τ) at the k owners and send each ordered grid pair to its owner.
-!> Pair i=l+(l′-1)*n_grid follows Fortran column order, so every rank's pair block is a
-!> contiguous section of the full matrix. In each round every rank forms one native k point.
+!> \brief Form the unordered pairs of G(k,τ)=U(k,τ) U(k,τ)^H and exchange bounded k batches.
+!> Each upper-triangle Gram tile writes directly to its destination's message. No full
+!> grid matrix, conjugate lower triangle, or separate send-packing pass is formed.
 !> \param bs_env ...
 !> \param orbitals Band Bloch orbitals of one spin at the k points owned in env, MOD(k-1,P).
 !> \param env Ranks that share the grid pairs and the band k points.
 !> \param tau ...
 !> \param ispin ...
 !> \param occupied ...
-!> \param G_pairs ...
+!> \param k_batch k points per source rank in one exchange
+!> \param G_pairs unordered pairs in source-rank-major k order within each exchange
 ! **************************************************************************************************
-   SUBROUTINE build_green_pairs(bs_env, orbitals, env, tau, ispin, occupied, G_pairs)
+   SUBROUTINE build_green_pairs(bs_env, orbitals, env, tau, ispin, occupied, k_batch, G_pairs)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       COMPLEX(KIND=dp), INTENT(IN)                       :: orbitals(:, :, :)
       TYPE(mp_para_env_type), POINTER                    :: env
       REAL(KIND=dp), INTENT(IN)                          :: tau
       INTEGER, INTENT(IN)                                :: ispin
       LOGICAL, INTENT(IN)                                :: occupied
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: G_pairs(:, :, :)
+      INTEGER, INTENT(IN)                                :: k_batch
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(OUT), TARGET  :: G_pairs(:, :, :)
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_green_pairs'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: green(:), received(:), scaled_coeff(:, :)
-      INTEGER                                            :: first_band, handle, i_band, i_col, &
-                                                            i_first, i_rank, ikp, n_bands, n_grid, &
-                                                            n_k, n_local, n_rank
-      INTEGER, ALLOCATABLE                               :: pair_counts(:), pair_displs(:), &
-                                                            recv_counts(:), recv_displs(:), &
-                                                            send_counts(:)
-      REAL(KIND=dp)                                      :: tau_E
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: gram(:, :), scaled_coeff(:, :), sent(:)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: received(:)
+      COMPLEX(KIND=dp), TARGET                           :: unused_receive(1)
+      INTEGER :: first_band, handle, i_band, i_batch, i_col, i_first, i_rank, ikp, j_col, &
+         n_active, n_bands, n_cols, n_grid, n_k, n_local, n_owned, n_pairs, n_rank, n_round, &
+         n_segments, n_workers, offset, pair_first, pair_last, rank_end, row_first, row_last, &
+         segment, unit_nr
+      INTEGER(KIND=int_8)                                :: active_bands, possible_bands
+      INTEGER, ALLOCATABLE :: column_segments(:), pair_counts(:), pair_displs(:), recv_counts(:), &
+         recv_displs(:), send_counts(:), send_displs(:)
+      REAL(KIND=dp)                                      :: seconds(4), started, tau_E, total_started
       TYPE(gwkp_type), POINTER                           :: gwkp_env
+      TYPE(pair_segment_type), ALLOCATABLE               :: segments(:)
 
       CALL timeset(routineN, handle)
+      IF (fft_profile_enabled) total_started = m_walltime()
+      seconds = 0.0_dp
+      active_bands = 0_int_8
+      possible_bands = 0_int_8
 
       gwkp_env => bs_env%gwkp_env
 
@@ -1400,51 +1560,130 @@ CONTAINS
          RETURN
       END IF
       CALL grid_pair_blocks(n_grid, n_rank, pair_counts, pair_displs)
-      ALLOCATE (green(n_grid**2), received(n_local*n_rank), scaled_coeff(n_grid, n_bands), &
-                recv_counts(0:n_rank - 1), recv_displs(0:n_rank - 1), send_counts(0:n_rank - 1))
-      recv_displs(:) = [(i_rank*n_local, i_rank=0, n_rank - 1)]
+      n_pairs = SUM(pair_counts)
+      CPASSERT(k_batch > 0 .AND. n_local == pair_counts(env%mepos))
+      ALLOCATE (sent(MAX(1, n_pairs*k_batch)), &
+                recv_counts(0:n_rank - 1), recv_displs(0:n_rank - 1), &
+                send_counts(0:n_rank - 1), send_displs(0:n_rank - 1))
+      ! Columns and destination blocks partition the same packed triangle. Only a column
+      ! or rank boundary can begin a new segment, so the map is linear in n_grid + n_rank.
+      ALLOCATE (column_segments(n_grid + 1), segments(n_grid + n_rank))
+      i_rank = 0
+      n_segments = 0
+      pair_first = 1
+      DO j_col = 1, n_grid
+         column_segments(j_col) = n_segments + 1
+         pair_last = pair_first + j_col - 1
+         DO WHILE (i_rank < n_rank)
+            rank_end = pair_displs(i_rank) + pair_counts(i_rank)
+            row_first = MAX(pair_first, pair_displs(i_rank) + 1) - pair_first + 1
+            row_last = MIN(pair_last, rank_end) - pair_first + 1
+            IF (row_first <= row_last) THEN
+               n_segments = n_segments + 1
+               segments(n_segments) = pair_segment_type(i_rank, row_first, row_last, &
+                                                        pair_first + (row_first - 1) - pair_displs(i_rank) - 1)
+            END IF
+            IF (rank_end > pair_last) EXIT
+            i_rank = i_rank + 1
+         END DO
+         IF (j_col < n_grid) pair_first = pair_last + 1
+      END DO
+      column_segments(n_grid + 1) = n_segments + 1
+      unused_receive = z_zero
+      IF (fft_profile_enabled) seconds(1) = m_walltime() - total_started
       ! G_ll′(k,τ) = Σ_n [ψ_ln(k) exp(-|τ(ε_nk-ε_F)|/2)]
       !                         [ψ_l′n(k) exp(-|τ(ε_nk-ε_F)|/2)]*.
-      DO i_first = 1, n_k, n_rank
-         ikp = i_first + env%mepos
-         send_counts(:) = 0
-         IF (ikp <= n_k) THEN
-            scaled_coeff(:, :) = orbitals(:, first_band:first_band + n_bands - 1, (ikp - 1)/n_rank + 1)
+      DO i_first = 1, n_k, n_rank*k_batch
+         n_round = MIN(n_rank*k_batch, n_k - i_first + 1)
+         n_owned = MAX(0, (n_round + n_rank - 1 - env%mepos)/n_rank)
+         send_counts(:) = pair_counts*n_owned
+         send_displs(:) = pair_displs*n_owned
+         n_workers = 1
+!$       n_workers = MIN(omp_get_max_threads(), MAX(1, n_owned))
+         IF (fft_profile_enabled) started = m_walltime()
+         !$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(n_workers) &
+         !$OMP SHARED(bs_env, env, first_band, gwkp_env, i_first, n_bands, n_grid, n_owned, n_rank) &
+         !$OMP SHARED(orbitals, pair_counts, send_displs, sent, tau, ispin, column_segments, segments) &
+         !$OMP PRIVATE(scaled_coeff, gram, i_band, i_batch, ikp, n_active, tau_E) &
+         !$OMP PRIVATE(i_col, n_cols, j_col, i_rank, row_first, row_last, offset, segment) &
+         !$OMP REDUCTION(+:active_bands, possible_bands)
+         ALLOCATE (scaled_coeff(n_grid, n_bands), gram(n_grid, column_block_cols))
+         !$OMP DO SCHEDULE(STATIC)
+         DO i_batch = 1, n_owned
+            ikp = i_first + env%mepos + (i_batch - 1)*n_rank
+            n_active = 0
             DO i_band = 1, n_bands
                tau_E = ABS(0.5_dp*tau*(gwkp_env%eigenvalues_G(first_band + i_band - 1, ikp, ispin) - &
                                        bs_env%e_fermi(ispin)))
                IF (tau_E < bs_env%stabilize_exp) THEN
-                  scaled_coeff(:, i_band) = scaled_coeff(:, i_band)*EXP(-tau_E)
-               ELSE
-                  scaled_coeff(:, i_band) = z_zero
+                  n_active = n_active + 1
+                  scaled_coeff(:, n_active) = &
+                     orbitals(:, first_band + i_band - 1, (ikp - 1)/n_rank + 1)*EXP(-tau_E)
                END IF
             END DO
-            !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-            !$OMP SHARED(green, n_bands, n_grid, scaled_coeff) PRIVATE(i_col)
+            IF (fft_profile_enabled) THEN
+               active_bands = active_bands + INT(n_active, int_8)
+               possible_bands = possible_bands + INT(n_bands, int_8)
+            END IF
             DO i_col = 1, n_grid, column_block_cols
-               CALL zgemm('N', 'C', n_grid, MIN(column_block_cols, n_grid - i_col + 1), n_bands, z_one, &
-                          scaled_coeff, n_grid, scaled_coeff(i_col, 1), n_grid, z_zero, &
-                          green(1 + (i_col - 1)*n_grid), n_grid)
+               n_cols = MIN(column_block_cols, n_grid - i_col + 1)
+               IF (n_active == 0) THEN
+                  gram = z_zero
+               ELSE
+                  CALL zherk('U', 'N', n_cols, n_active, 1.0_dp, scaled_coeff(i_col, 1), n_grid, &
+                             0.0_dp, gram(i_col, 1), n_grid)
+                  IF (i_col > 1) THEN
+                     CALL zgemm('N', 'C', i_col - 1, n_cols, n_active, z_one, scaled_coeff, n_grid, &
+                                scaled_coeff(i_col, 1), n_grid, z_zero, gram, n_grid)
+                  END IF
+               END IF
+               DO j_col = i_col, i_col + n_cols - 1
+                  DO segment = column_segments(j_col), column_segments(j_col + 1) - 1
+                     i_rank = segments(segment)%rank
+                     row_first = segments(segment)%first_row
+                     row_last = segments(segment)%last_row
+                     offset = send_displs(i_rank) + (i_batch - 1)*pair_counts(i_rank) + segments(segment)%displacement
+                     sent(offset + 1:offset + (row_last - row_first + 1)) = gram(row_first:row_last, j_col - i_col + 1)
+                  END DO
+               END DO
             END DO
-            !$OMP END PARALLEL DO
-            send_counts(:) = pair_counts
-         END IF
+         END DO
+         !$OMP END DO
+         DEALLOCATE (scaled_coeff, gram)
+         !$OMP END PARALLEL
+         ! Scaling and Gram construction overlap between k jobs; time their shared wall interval.
+         IF (fft_profile_enabled) seconds(2) = seconds(2) + m_walltime() - started
+         offset = 0
          DO i_rank = 0, n_rank - 1
-            recv_counts(i_rank) = MERGE(n_local, 0, i_first + i_rank <= n_k)
+            recv_counts(i_rank) = n_local*MAX(0, (n_round + n_rank - 1 - i_rank)/n_rank)
+            recv_displs(i_rank) = offset
+            offset = offset + recv_counts(i_rank)
          END DO
-         CALL env%alltoall(green, send_counts, pair_displs, received, recv_counts, recv_displs)
-         DO i_rank = 0, MIN(n_rank, n_k - i_first + 1) - 1
-            G_pairs(:, 1, i_first + i_rank) = received(i_rank*n_local + 1:(i_rank + 1)*n_local)
-         END DO
-         CALL count_time_loop_k_points(bs_env, INT(MIN(n_rank, n_k - i_first + 1), int_8))
+         CPASSERT(offset == n_local*n_round)
+         received => unused_receive
+         IF (n_local > 0) received(1:n_local*n_round) => G_pairs(:, :, i_first:i_first + n_round - 1)
+         IF (fft_profile_enabled) started = m_walltime()
+         CALL env%alltoall(sent, send_counts, send_displs, received, recv_counts, recv_displs)
+         IF (fft_profile_enabled) seconds(3) = seconds(3) + m_walltime() - started
+         CALL count_time_loop_k_points(bs_env, INT(n_round, int_8))
       END DO
+      IF (fft_profile_enabled) seconds(4) = m_walltime() - total_started
+      unit_nr = 0
+      IF (fft_profile_enabled) unit_nr = cp_logger_get_default_io_unit()
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A)') 'GW_GREEN_PROFILE| logger-rank wall seconds, no MPI reduction'
+         WRITE (unit_nr, '(T2,A,L2,2I12)') 'GW_GREEN_PROFILE| occupied / k points / local pairs: ', occupied, n_k, n_local
+         WRITE (unit_nr, '(T2,A,2I16)') 'GW_GREEN_PROFILE| active / possible local band columns: ', active_bands, possible_bands
+         WRITE (unit_nr, '(T2,A,I12)') 'GW_GREEN_PROFILE| k points per rank / exchange: ', k_batch
+         WRITE (unit_nr, '(T2,A,4F12.6)') 'GW_GREEN_PROFILE| setup/build/transfer/total: ', seconds
+      END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE build_green_pairs
 
 ! **************************************************************************************************
-!> \brief Ordered grid-pair blocks of all ranks, as assigned by block_range.
+!> \brief Packed unordered grid-pair blocks of all ranks, as assigned by block_range.
 !> Rank r owns the pairs displs(r)+1, ..., displs(r)+counts(r).
 !> \param n_grid ...
 !> \param n_rank ...
@@ -1459,7 +1698,7 @@ CONTAINS
 
       ALLOCATE (counts(0:n_rank - 1), displs(0:n_rank - 1))
       DO i_rank = 0, n_rank - 1
-         CALL block_range(n_grid**2, i_rank, n_rank, displs(i_rank), counts(i_rank))
+         CALL block_range(INT(INT(n_grid, int_8)*(n_grid + 1)/2), i_rank, n_rank, displs(i_rank), counts(i_rank))
       END DO
       displs(:) = displs - 1
 
@@ -1536,8 +1775,7 @@ CONTAINS
                                      bs_env%index_to_cell_3c(:, first:last), &
                                      bs_env%kpoints_scf_desymm%xkp(:, owned_k), &
                                      bs_env%kpoints_scf_desymm%nkp_grid, phi_lmu_k, &
-                                     bs_env%kpoints_scf_desymm%rskp_transform, accumulate=.TRUE., &
-                                     profile_fft=fft_profile_enabled)
+                                     bs_env%kpoints_scf_desymm%rskp_transform, accumulate=.TRUE., profile_fft=fft_profile_enabled)
          END DO
       END IF
 
@@ -1839,63 +2077,44 @@ CONTAINS
    END SUBROUTINE collect_band_mo_coefficients
 
 ! **************************************************************************************************
-!> \brief Σ_ll′(k) = Σ_R exp(2πik·R) Σ_ll′(R) on the native k mesh for the ordered grid pairs of
-!> this rank. FFT packs the original input without changing Σ(R).
-!> \param bs_env ...
-!> \param cells ...
-!> \param sigma_R ...
-!> \param first_pair First locally owned ordered grid pair.
-!> \param sigma_mesh ...
-!> \param fft_work ...
-! **************************************************************************************************
-   SUBROUTINE self_energy_on_mesh(bs_env, cells, sigma_R, first_pair, sigma_mesh, fft_work)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER, INTENT(IN)                                :: cells(:, :)
-      REAL(KIND=dp), INTENT(IN)                          :: sigma_R(:, :, :)
-      INTEGER, INTENT(IN)                                :: first_pair
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: sigma_mesh(:, :, :)
-      TYPE(gw_pair_fft_work_type), INTENT(INOUT), &
-         OPTIONAL, TARGET                                :: fft_work
-
-      CALL product_to_k_pair_centered(bs_env, cells, bs_env%kpoints_scf_desymm%xkp, sigma_R, sigma_mesh, &
-                                      first_pair, fft_work=fft_work)
-   END SUBROUTINE self_energy_on_mesh
-
-! **************************************************************************************************
 !> \brief Project Σ_ll′(k) onto the band Bloch orbitals, Σ_n(k) = Re[ψ_n(k)† Σ(k) ψ_n(k)].
 !>
 !> The pair owners evaluate Σ_ll′(k) = Σ_R exp(2πik·R) Σ_ll′(R) at the band k points. Every k
-!> owner, MOD(k-1,P), receives its complete matrices and contracts them with dense kernels. A
+!> owner, MOD(k-1,P), receives complete packed upper triangles for Hermitian contractions. A
 !> round covers m k points per rank, so that one pass over Σ(R) serves up to
 !> band_kpoints_per_pass k points.
 !> \param bs_env ...
-!> \param sigma_mesh Σ on the native k mesh for the ordered grid pairs of this rank.
+!> \param sigma_mesh Σ on the native k mesh for the unordered grid pairs of this rank.
 !> \param sigma_R Σ in the cells of the native mesh for the same pairs.
-!> \param first_pair First locally owned ordered grid pair.
+!> \param first_pair First locally owned unordered grid pair.
 !> \param env Ranks that share the grid pairs and the band k points.
 !> \param orbitals Band Bloch orbitals of one spin at the k points owned in env.
 !> \param sigma_band ...
+!> \param apply_cutoff use the W distance cutoff in off-mesh image sums
 ! **************************************************************************************************
-   SUBROUTINE self_energy_pairs_to_Bloch(bs_env, sigma_mesh, sigma_R, first_pair, env, orbitals, sigma_band)
+   SUBROUTINE self_energy_pairs_to_Bloch(bs_env, sigma_mesh, sigma_R, first_pair, env, orbitals, sigma_band, apply_cutoff)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      COMPLEX(KIND=dp), INTENT(IN)                       :: sigma_mesh(:, :, :)
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN), TARGET   :: sigma_mesh(:, :, :)
       REAL(KIND=dp), INTENT(IN)                          :: sigma_R(:, :, :)
       INTEGER, INTENT(IN)                                :: first_pair
       TYPE(mp_para_env_type), POINTER                    :: env
       COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN)           :: orbitals(:, :, :)
       REAL(KIND=dp), INTENT(OUT)                         :: sigma_band(:, :)
+      LOGICAL, INTENT(IN)                                :: apply_cutoff
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'self_energy_pairs_to_Bloch'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: sigma_k(:, :), work(:, :)
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :), sigma_k(:, :), work(:, :)
       COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: send_buffer(:)
-      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: sigma_columns(:, :)
-      INTEGER                                            :: handle, i_band, i_batch, i_first, i_kp, &
-                                                            i_rank, j, m, n_batch, n_grid, n_kp, &
-                                                            n_local, n_rank, n_round
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: sent(:), sigma_columns(:, :)
+      COMPLEX(KIND=dp), TARGET                           :: unused_send(1)
+      INTEGER                                            :: handle, i_band, i_batch, i_col, i_first, &
+                                                            i_kp, i_rank, j, m, n_batch, n_grid, &
+                                                            n_kp, n_local, n_rank, n_round, n_send
       INTEGER, ALLOCATABLE                               :: pair_counts(:), pair_displs(:), &
                                                             recv_counts(:), send_counts(:), &
                                                             send_displs(:)
+      LOGICAL                                            :: native_round
 
       CALL timeset(routineN, handle)
 
@@ -1906,45 +2125,69 @@ CONTAINS
       n_batch = MIN(16, bs_env%n_ao)
       m = projection_round_kpoints(n_grid, n_rank)
       CALL grid_pair_blocks(n_grid, n_rank, pair_counts, pair_displs)
-      ALLOCATE (send_buffer(n_local*n_rank*m), sigma_k(n_grid**2, m), recv_counts(0:n_rank - 1), &
+      ALLOCATE (sigma_k(INT(INT(n_grid, int_8)*(n_grid + 1)/2), m), recv_counts(0:n_rank - 1), &
                 send_counts(0:n_rank - 1), send_displs(0:n_rank - 1))
-      sigma_columns(1:n_local, 1:n_rank*m) => send_buffer
+      unused_send = z_zero
       send_displs(:) = [(i_rank*n_local, i_rank=0, n_rank - 1)]
       sigma_band = 0.0_dp
       ! Column i_col of a round holds the band k point i_first+i_col-1, owned by MOD(i_col-1,P).
       DO i_first = 1, n_kp, n_rank*m
          n_round = MIN(n_rank*m, n_kp - i_first + 1)
-         CALL band_self_energy(bs_env, sigma_mesh, sigma_R, first_pair, i_first, sigma_columns(:, 1:n_round))
+         native_round = i_first + n_round - 1 <= SIZE(sigma_mesh, 3)
+         IF (native_round) THEN
+            DO i_col = 1, n_round
+               IF (native_q_index(bs_env, i_first + i_col - 1) /= i_first + i_col - 1) THEN
+                  native_round = .FALSE.
+                  EXIT
+               END IF
+            END DO
+         END IF
+         IF (.NOT. native_round) THEN
+            IF (.NOT. ALLOCATED(send_buffer)) THEN
+               ALLOCATE (send_buffer(n_local*n_rank*m))
+               sigma_columns(1:n_local, 1:n_rank*m) => send_buffer
+            END IF
+            CALL band_self_energy(bs_env, sigma_mesh, sigma_R, first_pair, i_first, &
+                                  sigma_columns(:, 1:n_round), apply_cutoff)
+         END IF
          DO j = 1, m
             DO i_rank = 0, n_rank - 1
                send_counts(i_rank) = MERGE(n_local, 0, (j - 1)*n_rank + i_rank < n_round)
             END DO
             i_kp = i_first + (j - 1)*n_rank + env%mepos
             recv_counts(:) = MERGE(pair_counts, 0, i_kp <= n_kp)
-            CALL env%alltoall(send_buffer((j - 1)*n_rank*n_local + 1:j*n_rank*n_local), send_counts, &
-                              send_displs, sigma_k(:, j), recv_counts, pair_displs)
+            sent => unused_send
+            n_send = MIN(n_rank, MAX(0, n_round - (j - 1)*n_rank))
+            IF (n_local > 0 .AND. n_send > 0) THEN
+               IF (native_round) THEN
+                  sent(1:n_local*n_send) => sigma_mesh(:, :, &
+                                                       i_first + (j - 1)*n_rank:i_first + (j - 1)*n_rank + n_send - 1)
+               ELSE
+                  sent => send_buffer((j - 1)*n_rank*n_local + 1:((j - 1)*n_rank + n_send)*n_local)
+               END IF
+            END IF
+            CALL env%alltoall(sent, send_counts, send_displs, sigma_k(:, j), recv_counts, pair_displs)
          END DO
          !$OMP PARALLEL DEFAULT(NONE) &
          !$OMP SHARED(bs_env, env, i_first, m, n_batch, n_grid, n_kp, n_rank, orbitals, sigma_band, sigma_k) &
-         !$OMP PRIVATE(i_band, i_batch, i_kp, j, work)
-         ALLOCATE (work(n_grid, n_batch))
+         !$OMP PRIVATE(i_band, i_batch, i_kp, j, panel, work)
+         ALLOCATE (work(n_grid, n_batch), panel(n_grid, MIN(n_grid, grid_pair_panel_cols)))
          !$OMP DO COLLAPSE(2) SCHEDULE(DYNAMIC)
          DO j = 1, m
             DO i_batch = 1, bs_env%n_ao, n_batch
                i_kp = i_first + (j - 1)*n_rank + env%mepos
                IF (i_kp > n_kp) CYCLE
-               CALL zgemm('N', 'N', n_grid, MIN(n_batch, bs_env%n_ao - i_batch + 1), n_grid, z_one, &
-                          sigma_k(1, j), n_grid, &
-                          orbitals(:, i_batch:MIN(i_batch + n_batch - 1, bs_env%n_ao), (i_kp - 1)/n_rank + 1), n_grid, &
-                          z_zero, work, n_grid)
+               CALL grid_pair_upper_multiply(n_grid, MIN(n_batch, bs_env%n_ao - i_batch + 1), sigma_k(:, j), &
+                                             orbitals(:, i_batch:MIN(i_batch + n_batch - 1, bs_env%n_ao), (i_kp - 1)/n_rank + 1), &
+                                             work(:, 1:MIN(n_batch, bs_env%n_ao - i_batch + 1)), panel)
                DO i_band = i_batch, MIN(i_batch + n_batch - 1, bs_env%n_ao)
-                  sigma_band(i_band, i_kp) = REAL(SUM(CONJG(orbitals(:, i_band, (i_kp - 1)/n_rank + 1))* &
-                                                      work(:, i_band - i_batch + 1)), dp)
+                  sigma_band(i_band, i_kp) = 2.0_dp*REAL(SUM(CONJG(orbitals(:, i_band, (i_kp - 1)/n_rank + 1))* &
+                                                             work(:, i_band - i_batch + 1)), dp)
                END DO
             END DO
          END DO
          !$OMP END DO
-         DEALLOCATE (work)
+         DEALLOCATE (work, panel)
          !$OMP END PARALLEL
          CALL count_time_loop_k_points(bs_env, INT(n_round, int_8))
       END DO
@@ -1955,39 +2198,11 @@ CONTAINS
    END SUBROUTINE self_energy_pairs_to_Bloch
 
 ! **************************************************************************************************
-!> \brief Weight of the image offset c along one direction of an n_mesh-point k mesh: 1 inside
-!> the Born-von Karman supercell, the given boundary weight on its boundary 2|c| = n_mesh, 0
-!> outside. A pair on a half-cell tie averages the image sets centred at s and s+1.
-!> \param c ...
-!> \param n_mesh ...
-!> \param tie ...
-!> \param boundary Weight of each of the two boundary images.
-!> \return ...
-! **************************************************************************************************
-   PURE REAL(KIND=dp) FUNCTION image_weight(c, n_mesh, tie, boundary) RESULT(weight)
-      INTEGER, INTENT(IN)                                :: c, n_mesh
-      LOGICAL, INTENT(IN)                                :: tie
-      REAL(KIND=dp), INTENT(IN)                          :: boundary
-
-      INTEGER                                            :: i_center, n_centers
-
-      n_centers = MERGE(2, 1, tie)
-      weight = 0.0_dp
-      DO i_center = 0, n_centers - 1
-         IF (2*ABS(c - i_center) < n_mesh) THEN
-            weight = weight + 1.0_dp/REAL(n_centers, dp)
-         ELSE IF (2*ABS(c - i_center) == n_mesh) THEN
-            weight = weight + boundary/REAL(n_centers, dp)
-         END IF
-      END DO
-   END FUNCTION image_weight
-
-! **************************************************************************************************
 !> \brief Bound the band-projection and Green-function workspaces of one rank in bytes.
 !> The projection holds the Σ(k) columns of one round, the complete Σ(k) of the owned k points,
 !> the shared lattice phases, thread-private image, sum and output blocks, and the 64 MiB copy of
-!> the mesh transform. The Green function holds one complete G(k), its received pair blocks and
-!> the scaled orbitals.
+!> the mesh transform. The Green function holds bounded k-batch messages, received pair blocks,
+!> thread-private Gram panels and the scaled orbitals.
 !> \param n_grid ...
 !> \param n_rank ...
 !> \param n_images Bound of the image cells summed per pair.
@@ -2003,12 +2218,13 @@ CONTAINS
 
       m = REAL(projection_round_kpoints(n_grid, n_rank), dp)
       n_round = m*REAL(n_rank, dp)
-      bytes = 2.0_dp*complex_bytes*m*REAL(n_grid, dp)**2 + complex_bytes*n_round*REAL(n_images, dp) + &
+      bytes = complex_bytes*m*REAL(n_grid, dp)*REAL(n_grid + 1, dp) + complex_bytes*n_round*REAL(n_images, dp) + &
               projection_workspace + &
-              REAL(n_threads, dp)*(complex_bytes*REAL(n_grid, dp)*REAL(MIN(16, n_ao), dp) + &
+              REAL(n_threads, dp)*(complex_bytes*REAL(n_grid, dp)*REAL(MIN(16, n_ao) + MIN(n_grid, grid_pair_panel_cols), dp) + &
                                    real_bytes*REAL(pair_batch_size, dp)*REAL(n_images, dp) + &
                                    complex_bytes*REAL(pair_batch_size, dp)*n_round)
-      bytes = MAX(bytes, complex_bytes*REAL(n_grid, dp)*(2.0_dp*REAL(n_grid, dp) + REAL(n_ao, dp)))
+      bytes = MAX(bytes, projection_workspace + &
+                  complex_bytes*REAL(n_threads, dp)*REAL(n_grid, dp)*REAL(n_ao + 32, dp))
    END FUNCTION projection_workspace_bytes
 
 ! **************************************************************************************************
@@ -2021,7 +2237,8 @@ CONTAINS
    PURE INTEGER FUNCTION projection_round_kpoints(n_grid, n_rank) RESULT(m)
       INTEGER, INTENT(IN)                                :: n_grid, n_rank
 
-      m = MAX(1, MIN(band_kpoints_per_pass/n_rank, INT(projection_round_bytes/(2.0_dp*complex_bytes*REAL(n_grid, dp)**2))))
+      m = MAX(1, MIN(band_kpoints_per_pass/n_rank, &
+                     INT(projection_round_bytes/(complex_bytes*REAL(n_grid, dp)*REAL(n_grid + 1, dp)))))
    END FUNCTION projection_round_kpoints
 
 ! **************************************************************************************************
@@ -2050,20 +2267,24 @@ CONTAINS
 !> \param first_pair ...
 !> \param first_kp_eval Band k point of the first column of sigma_k.
 !> \param sigma_k ...
+!> \param apply_cutoff use the W distance cutoff on the same centered images as the native FFT
 ! **************************************************************************************************
-   SUBROUTINE band_self_energy(bs_env, sigma_mesh, sigma_R, first_pair, first_kp_eval, sigma_k)
+   SUBROUTINE band_self_energy(bs_env, sigma_mesh, sigma_R, first_pair, first_kp_eval, sigma_k, apply_cutoff)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       COMPLEX(KIND=dp), INTENT(IN)                       :: sigma_mesh(:, :, :)
       REAL(KIND=dp), INTENT(IN)                          :: sigma_R(:, :, :)
       INTEGER, INTENT(IN)                                :: first_pair, first_kp_eval
       COMPLEX(KIND=dp), INTENT(OUT)                      :: sigma_k(:, :)
+      LOGICAL, INTENT(IN)                                :: apply_cutoff
 
       COMPLEX(KIND=dp)                                   :: phase
-      INTEGER :: c1, c2, c3, first_c(3), i_c, i_col, i_first, i_local, i_off, i_pair, last_c(3), &
-         lower(3), n_c, n_grid, n_off, n_pairs, native_iq, nmesh(3), shift(3), wrapped(3)
+      INTEGER :: c1, c2, c3, first_c(3), i_c, i_col, i_first, i_local, i_off, i_pair, il, ilp, &
+         last_c(3), lower(3), n_c, n_grid, n_off, n_pairs, native_iq, nmesh(3), shift(3), &
+         wrapped(3)
       INTEGER, ALLOCATABLE                               :: offmesh_col(:), pair_shift(:, :)
       LOGICAL                                            :: any_tie(3), tie(3)
-      REAL(KIND=dp)                                      :: angle, boundary(3)
+      REAL(KIND=dp)                                      :: angle, boundary(3), cutoff_squared, &
+                                                            displacement(3), distance(3)
       REAL(KIND=dp), ALLOCATABLE :: cos_c(:, :), fractional_grid(:, :), images(:, :), sin_c(:, :), &
          sum_im(:, :), sum_re(:, :), weight_1(:), weight_2(:), weight_3(:), xk(:, :)
 
@@ -2090,10 +2311,15 @@ CONTAINS
       END DO
       any_tie = .FALSE.
       DO i_local = 1, SIZE(sigma_R, 1)
-         CALL product_pair_shift(first_pair + i_local - 1, n_grid, fractional_grid, shift, tie)
+         CALL grid_pair_indices(first_pair + i_local - 1, il, ilp)
+         CALL grid_pair_shift(il, ilp, fractional_grid, shift, tie)
          any_tie = any_tie .OR. tie
       END DO
       boundary = 0.25_dp*(1.0_dp + COS(twopi*bs_env%kpoints_scf_desymm%xkp(:, 1)*nmesh))
+      cutoff_squared = -1.0_dp
+      IF (apply_cutoff .AND. bs_env%ri_rs%cutoff_radius_v_w > 0.0_dp) THEN
+         cutoff_squared = bs_env%ri_rs%cutoff_radius_v_w**2
+      END IF
       first_c = lower
       last_c = nmesh/2 + MERGE(1, 0, any_tie)
       n_c = PRODUCT(last_c - first_c + 1)
@@ -2120,10 +2346,10 @@ CONTAINS
       !$OMP END PARALLEL DO
 
       !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP SHARED(boundary, cos_c, first_c, first_pair, fractional_grid, last_c, lower, n_c, n_grid, n_off, &
-      !$OMP        nmesh, offmesh_col, sigma_k, sigma_R, sin_c, xk) &
+      !$OMP SHARED(bs_env, cutoff_squared, boundary, cos_c, first_c, first_pair, fractional_grid, last_c, lower, n_c, n_grid) &
+      !$OMP SHARED(n_off, nmesh, offmesh_col, sigma_k, sigma_R, sin_c, xk) &
       !$OMP PRIVATE(angle, c1, c2, c3, i_c, i_first, i_off, i_pair, images, n_pairs, pair_shift, shift, &
-      !$OMP         sum_im, sum_re, tie, weight_1, weight_2, weight_3, wrapped)
+      !$OMP         sum_im, sum_re, tie, weight_1, weight_2, weight_3, wrapped, il, ilp, displacement, distance)
       ALLOCATE (images(n_c, pair_batch_size), pair_shift(3, pair_batch_size), &
                 sum_re(pair_batch_size, n_off), sum_im(pair_batch_size, n_off), &
                 weight_1(first_c(1):last_c(1)), weight_2(first_c(2):last_c(2)), weight_3(first_c(3):last_c(3)))
@@ -2131,7 +2357,9 @@ CONTAINS
       DO i_first = 1, SIZE(sigma_R, 1), pair_batch_size
          n_pairs = MIN(pair_batch_size, SIZE(sigma_R, 1) - i_first + 1)
          DO i_pair = 1, n_pairs
-            CALL product_pair_shift(first_pair + i_first + i_pair - 2, n_grid, fractional_grid, shift, tie)
+            CALL grid_pair_indices(first_pair + i_first + i_pair - 2, il, ilp)
+            CALL grid_pair_shift(il, ilp, fractional_grid, shift, tie)
+            displacement = bs_env%ri_rs%grid_points(:, il) - bs_env%ri_rs%grid_points(:, ilp)
             pair_shift(:, i_pair) = shift
             weight_1(:) = [(image_weight(c1, nmesh(1), tie(1), boundary(1)), c1=first_c(1), last_c(1))]
             weight_2(:) = [(image_weight(c2, nmesh(2), tie(2), boundary(2)), c2=first_c(2), last_c(2))]
@@ -2141,6 +2369,11 @@ CONTAINS
                DO c2 = first_c(2), last_c(2)
                   DO c1 = first_c(1), last_c(1)
                      i_c = i_c + 1
+                     images(i_c, i_pair) = 0.0_dp
+                     IF (cutoff_squared > 0.0_dp) THEN
+                        distance = displacement - MATMUL(bs_env%hmat, REAL(shift + [c1, c2, c3], dp))
+                        IF (SUM(distance**2) > cutoff_squared) CYCLE
+                     END IF
                      IF (weight_1(c1)*weight_2(c2)*weight_3(c3) == 0.0_dp) THEN
                         images(i_c, i_pair) = 0.0_dp
                      ELSE
@@ -2170,353 +2403,373 @@ CONTAINS
    END SUBROUTINE band_self_energy
 
 ! **************************************************************************************************
-!> \brief Transform a periodic lattice product in a cell centred on each physical grid pair.
-!> Products of two half-shifted lattice transforms are periodic. For s nearest to
-!> H^{-1}(r_l-r_l'), F_ll'(k)=exp(2πiks) Σ_R exp(2πikR) F_ll'(R+s).
-!> The even-mesh Nyquist endpoints and half-cell choices of s are averaged symmetrically.
-!> On integer/half-shifted band meshes these averages are real separable endpoint weights,
-!> allowing one FFT. Centering is folded into input packing, leaving values_R unchanged.
-!> FFT tiles fold the source permutation and output Bloch phase into separable input factors.
-!> The rank owns the flattened column-major pairs first_pair, first_pair+1, ...
+!> \brief Prepare the common unordered-pair geometry and persistent two-real R2K input panels.
+!> The first chi K2R stores its real fields in these panels; the last K2R replaces them with
+!> the weighted product. Cell filtering is applied after the global Green norms are known.
 !> \param bs_env ...
-!> \param cells ...
-!> \param xkp ...
-!> \param values_R ...
-!> \param values_k ...
-!> \param first_pair ...
-!> \param fft_work ...
+!> \param cells canonical physical cells
+!> \param first_pair first owned unordered pair
+!> \param n_pairs local unordered pairs
+!> \param n_rank ranks sharing the k points and grid pairs
+!> \param plan cached geometry, coefficients, and next-FFT input
+!> \param apply_cutoff apply the configured W distance cutoff to the centered product images
+!> \param q_indices requested output q points
 ! **************************************************************************************************
-   SUBROUTINE product_to_k_pair_centered(bs_env, cells, xkp, values_R, values_k, first_pair, fft_work)
+   SUBROUTINE prepare_pair_fft(bs_env, cells, first_pair, n_pairs, n_rank, plan, apply_cutoff, q_indices)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER, INTENT(IN)                                :: cells(:, :)
-      REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :), values_R(:, :, :)
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: values_k(:, :, :)
-      INTEGER, INTENT(IN)                                :: first_pair
-      TYPE(gw_pair_fft_work_type), INTENT(INOUT), &
-         OPTIONAL, TARGET                                :: fft_work
+      INTEGER, INTENT(IN)                                :: cells(:, :), first_pair, n_pairs, n_rank
+      TYPE(gw_pair_fft_work_type), INTENT(INOUT), TARGET :: plan
+      LOGICAL, INTENT(IN)                                :: apply_cutoff
+      INTEGER, INTENT(IN), OPTIONAL                      :: q_indices(:)
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'product_to_k_pair_centered'
-      INTEGER(KIND=int_8), PARAMETER :: fft_panel_bytes = 32_int_8*1024_int_8**2
-
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: origin_phase(:)
-      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: fft_in(:), fft_out(:), input(:, :), &
-                                                            output(:, :)
-      INTEGER :: class_x, class_y, class_z, combined_count, combined_id, coordinate, count, first, &
-         handle, i, ibatch, icell, idir, ik, ilocal, isource, lower(3), naxis, nfft(3), ngrid, &
-         nmesh(3), stat, unit_nr, width
-      INTEGER(KIND=int_8)                                :: axis_classes, cached_coefficients, &
-                                                            combined_classes, nfft_grid, &
-                                                            phase_evaluations
-      INTEGER, ALLOCATABLE :: cell_coordinate(:, :), cell_index(:), grid_index(:, :), &
-         grid_linear(:), keys(:, :), order(:), pair_shift(:, :)
-      LOGICAL                                            :: cache_hit, unpadded
-      LOGICAL, ALLOCATABLE                               :: pair_tie(:, :)
-      REAL(KIND=dp)                                      :: endpoint(3), k_offset(3), setup_seconds, &
-                                                            started, total_started, weight
+      INTEGER :: count, fft_count, first, half_shift(3), i, i_extract, i_first, i_rank, ibatch, &
+         icell, idir, ik, il, ilp, iq, isource, lower(3), n_extract, n_k, n_round, ngrid, &
+         nmesh(3), partner_output, reflected(3), shift(3), width
+      INTEGER(KIND=int_8)                                :: nfft_grid, spectrum_columns
+      INTEGER, ALLOCATABLE :: extract_partner(:), extract_q(:), grid_linear(:), &
+         input_to_native(:), native_to_input(:), partner_linear(:), q_position(:)
+      LOGICAL                                            :: tie(3)
+      REAL(KIND=dp)                                      :: cutoff_squared, displacement(3), &
+                                                            started, total_started
       REAL(KIND=dp), ALLOCATABLE                         :: fractional_grid(:, :)
-      TYPE(fft_pair_major_plan_type)                     :: full_fft_plan, tail_fft_plan
       TYPE(gw_pair_fft_batch_type), POINTER              :: batch
-      TYPE(gw_pair_fft_work_type), POINTER               :: plan
-      TYPE(gw_pair_fft_work_type), TARGET                :: local_fft_work
-      TYPE(lattice_fft_profile_type)                     :: profile
 
-      CALL timeset(routineN, handle)
-      total_started = m_walltime()
-      profile = lattice_fft_profile_type()
-
+      IF (fft_profile_enabled) total_started = m_walltime()
+      CPASSERT(.NOT. ALLOCATED(plan%batches))
       ngrid = bs_env%ri_rs%n_grid_points
       nmesh = bs_env%kpoints_scf_desymm%nkp_grid
       lower = -nmesh/2
-      endpoint = COS(twopi*xkp(1:3, 1)*REAL(nmesh, dp))
+      ! GW uses the same native reciprocal mesh for Green functions, chi and W.
+      IF (.NOT. ALL(bs_env%kpoints_chi_eps_W%xkp(:, 1:bs_env%nkp_scf_desymm) == bs_env%kpoints_scf_desymm%xkp)) THEN
+         CPABORT('GW lattice transforms require one native reciprocal mesh')
+      END IF
+      n_k = bs_env%nkp_scf_desymm
+      plan%k_batch = MAX(1, MIN((n_k + n_rank - 1)/n_rank, &
+                                INT(projection_workspace/(complex_bytes* &
+                                                          (REAL(ngrid, dp)*REAL(ngrid + 1, dp)/2.0_dp + REAL(n_rank, dp))))))
+      ALLOCATE (input_to_native(n_k), native_to_input(n_k))
+      i_extract = 0
+      ! Receive contiguous source-rank blocks; the inverse FFT owns the resulting k permutation.
+      DO i_first = 1, n_k, n_rank*plan%k_batch
+         n_round = MIN(n_rank*plan%k_batch, n_k - i_first + 1)
+         DO i_rank = 0, n_rank - 1
+            DO ik = i_first + i_rank, i_first + n_round - 1, n_rank
+               i_extract = i_extract + 1
+               input_to_native(i_extract) = ik
+               native_to_input(ik) = i_extract
+            END DO
+         END DO
+      END DO
+      CPASSERT(i_extract == n_k)
+      ALLOCATE (plan%product_phase(SIZE(cells, 2)))
+      CALL k_grid_to_cell_prepare(plan%inverse, bs_env%kpoints_scf_desymm%xkp(:, input_to_native), nmesh, cells, &
+                                  cell_phase_forward=plan%product_phase)
+      CPASSERT(ALL(plan%inverse%nfft == nmesh([3, 2, 1])))
+      CPASSERT(ALLOCATED(plan%inverse%k_partner))
+      ! The packed forward transform keeps its factor of 1/2 for the two-real unpacking.
+      plan%product_phase(:) = plan%product_phase/(2.0_dp*grid_pair_stencil_denominator)
+      half_shift = MODULO(NINT(2.0_dp*REAL(nmesh, dp)*bs_env%kpoints_scf_desymm%xkp(:, 1)), 2)
+      ! Forward FFT extraction keeps native q order, independently of the inverse input layout.
+      n_extract = n_k
+      IF (PRESENT(q_indices)) THEN
+         IF (ANY(q_indices < 1 .OR. q_indices > n_k)) THEN
+            CPABORT('Invalid GW FFT output q indices')
+         END IF
+         n_extract = SIZE(q_indices)
+      END IF
+      ! GNU Fortran can give nested vector subscripts a zero lower bound in ALLOCATE(SOURCE=...).
+      ALLOCATE (grid_linear(n_extract), partner_linear(n_extract))
+      DO iq = 1, n_extract
+         ik = iq
+         IF (PRESENT(q_indices)) ik = q_indices(iq)
+         isource = native_to_input(ik)
+         grid_linear(iq) = plan%inverse%k_slot(isource)
+         partner_linear(iq) = plan%inverse%k_slot(plan%inverse%k_partner(isource))
+      END DO
+      CPASSERT(SIZE(cells, 2, KIND=int_8) == PRODUCT(INT(nmesh, int_8)))
+      ALLOCATE (plan%mirror_cell(SIZE(cells, 2)), plan%diagonal(n_pairs))
+      DO icell = 1, SIZE(cells, 2)
+         isource = 1 + cells(3, icell) - lower(3) + &
+                   nmesh(3)*(cells(2, icell) - lower(2) + nmesh(2)*(cells(1, icell) - lower(1)))
+         IF (isource /= icell) CPABORT('GW product needs canonical cells')
+         reflected = MODULO(-cells(:, icell) - lower, nmesh) + lower
+         plan%mirror_cell(icell) = 1 + reflected(3) - lower(3) + &
+                                   nmesh(3)*(reflected(2) - lower(2) + nmesh(2)*(reflected(1) - lower(1)))
+      END DO
       ALLOCATE (fractional_grid(3, ngrid))
       fractional_grid(:, :) = MATMUL(bs_env%ri_rs%cell%h_inv, bs_env%ri_rs%grid_points)
       DO idir = 1, 3
          IF (bs_env%periodic(idir) == 0) fractional_grid(idir, :) = 0.0_dp
       END DO
-      CPASSERT(SIZE(values_R, 2) == 1)
-      ! GW's physical centering stays here; the common FFT executor sees only packed grids.
-      ALLOCATE (grid_index(3, SIZE(xkp, 2)), cell_coordinate(3, SIZE(cells, 2)), &
-                origin_phase(SIZE(xkp, 2)))
-      IF (.NOT. lattice_fft_prepare_geometry(xkp, nmesh, cells, grid_index, nfft, k_offset, &
-                                             cell_linear=cell_index, grid_linear=grid_linear, cell_origin=lower, &
-                                             origin_phase=origin_phase)) THEN
-         CPABORT('GW product needs a supported full FFT mesh')
-      END IF
-      CPASSERT(SIZE(cells, 2, KIND=int_8) == PRODUCT(INT(nmesh, int_8)))
-      CPASSERT(SIZE(values_R, 3) == SIZE(cells, 2))
-      IF (ANY(SHAPE(values_k) /= [SIZE(values_R, 1), 1, SIZE(xkp, 2)])) THEN
-         CPABORT('Inconsistent GW FFT output')
-      END IF
-      DO icell = 1, SIZE(cells, 2)
-         isource = 1 + cells(3, icell) - lower(3) + &
-                   nmesh(3)*(cells(2, icell) - lower(2) + nmesh(2)*(cells(1, icell) - lower(1)))
-         IF (isource /= icell) CPABORT('GW product needs canonical cells')
-         ! The shared geometry maps canonical cells directly into z-fastest FFT storage.
-         cell_coordinate(:, icell) = cells(:, icell) - lower + 1
-      END DO
-      unpadded = ALL(nfft == nmesh([3, 2, 1]))
-      profile%seconds(2) = m_walltime() - total_started
-      nfft_grid = PRODUCT(INT(nfft, int_8))
-      width = INT(MIN(MAX(1_int_8, SIZE(values_R, 1, KIND=int_8)), &
-                      MAX(1_int_8, fft_panel_bytes/(48_int_8*nfft_grid))))
+      nfft_grid = PRODUCT(INT(plan%inverse%nfft, int_8))
+      width = MAX(1, k_grid_to_cell_panel_width(plan%inverse, INT(n_pairs, int_8), fft_panel_bytes, real_output=.TRUE.))
       CPASSERT(nfft_grid*width <= HUGE(0))
-      plan => local_fft_work
-      IF (PRESENT(fft_work)) plan => fft_work
-      cache_hit = plan%initialized
-      IF (cache_hit) THEN
-         CPASSERT(plan%first_pair == first_pair)
-         CPASSERT(plan%n_pairs == SIZE(values_R, 1))
-         CPASSERT(plan%width == width)
-         CPASSERT(plan%ngrid == ngrid)
-         CPASSERT(ALL(plan%nmesh == nmesh))
-         CPASSERT(ALL(SHAPE(plan%xkp) == [3, SIZE(xkp, 2)]))
-         CPASSERT(ALL(SHAPE(plan%cells) == [3, SIZE(cells, 2)]))
-         CPASSERT(ALL(plan%xkp == xkp(1:3, :)))
-         CPASSERT(ALL(plan%cells == cells(1:3, :)))
-      ELSE
-         plan%first_pair = first_pair
-         plan%n_pairs = SIZE(values_R, 1)
-         plan%width = width
-         plan%ngrid = ngrid
-         plan%nmesh = nmesh
-         ALLOCATE (plan%xkp, SOURCE=xkp(1:3, :))
-         ALLOCATE (plan%cells, SOURCE=cells(1:3, :))
-         ALLOCATE (plan%batches((SIZE(values_R, 1) + width - 1)/width))
+      ALLOCATE (extract_q(n_extract), extract_partner(n_extract), SOURCE=0)
+      spectrum_columns = 0_int_8
+      ! When both q and -q are requested, one unpack produces both output columns.
+      ALLOCATE (q_position(INT(nfft_grid)), SOURCE=0)
+      DO ik = 1, SIZE(grid_linear)
+         CPASSERT(q_position(grid_linear(ik)) == 0)
+         q_position(grid_linear(ik)) = ik
+      END DO
+      n_extract = 0
+      DO ik = 1, SIZE(grid_linear)
+         partner_output = q_position(partner_linear(ik))
+         IF (partner_output > 0 .AND. partner_output < ik) CYCLE
+         n_extract = n_extract + 1
+         extract_q(n_extract) = ik
+         IF (partner_output /= ik) extract_partner(n_extract) = partner_output
+      END DO
+      DEALLOCATE (q_position)
+      IF (fft_profile_enabled) THEN
+         DO i_extract = 1, n_extract
+            ik = extract_q(i_extract)
+            spectrum_columns = spectrum_columns + MERGE(1_int_8, 2_int_8, grid_linear(ik) == partner_linear(ik))
+         END DO
       END IF
-      started = m_walltime()
-      CALL fft_alloc(fft_in, [INT(nfft_grid)*width])
-      CALL fft_alloc(fft_out, [INT(nfft_grid)*width])
-      IF (.NOT. cache_hit) THEN
-         ALLOCATE (pair_shift(3, width), pair_tie(3, width), keys(3, width), order(width))
+
+      plan%n_pairs = n_pairs
+      plan%width = width
+      plan%nmesh = nmesh
+      plan%nfft_grid = nfft_grid
+      plan%spectrum_columns = spectrum_columns
+      cutoff_squared = -1.0_dp
+      IF (apply_cutoff .AND. bs_env%ri_rs%cutoff_radius_v_w > 0.0_dp) THEN
+         cutoff_squared = bs_env%ri_rs%cutoff_radius_v_w**2
       END IF
-      profile%seconds(3) = m_walltime() - started
-      setup_seconds = 0.0_dp
-      phase_evaluations = 0_int_8
-      axis_classes = 0_int_8
-      combined_classes = 0_int_8
-      cached_coefficients = 0_int_8
-      DO first = 1, SIZE(values_R, 1), width
-         count = MIN(width, SIZE(values_R, 1) - first + 1)
+      ALLOCATE (plan%batches((n_pairs + width - 1)/width))
+      DO first = 1, n_pairs, width
+         count = MIN(width, n_pairs - first + 1)
+         fft_count = (count + 1)/2
          ibatch = (first - 1)/width + 1
          batch => plan%batches(ibatch)
-         profile%elements = profile%elements + INT(count, int_8)
-         profile%batches = profile%batches + 1_int_8
-         profile%tile_min = MIN(profile%tile_min, count)
-         profile%tile_max = MAX(profile%tile_max, count)
-         started = m_walltime()
-         IF (.NOT. cache_hit) THEN
-            ALLOCATE (batch%axis_class(3, count), batch%combined_class(count), &
-                      batch%axis_factor(MAXVAL(nmesh), count, 3))
-            batch%axis_count = 0
-            !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-            !$OMP SHARED(first, count, pair_shift, pair_tie, first_pair, ngrid, fractional_grid) &
-            !$OMP PRIVATE(i, ilocal)
-            DO i = 1, count
-               ilocal = first + i - 1
-               CALL product_pair_shift(first_pair + ilocal - 1, ngrid, fractional_grid, &
-                                       pair_shift(:, i), pair_tie(:, i))
-            END DO
-            !$OMP END PARALLEL DO
-            ! For source cell t, let R = wrap(t-s) and R+s = t+n*h. On k=m/n+offset,
-            ! exp(2*pi*i*k*(R+s)) = exp(2*pi*i*m*t/n)*exp(2*pi*i*offset*(R+s)).
-            ! Pack F(t) at its original cell with the latter phase and the original weight w(R).
-            ! Each axis shares this input factor by exact (shift,tie), including large shifts.
-            DO idir = 1, 3
-               keys(1, 1:count) = pair_shift(idir, 1:count)
-               keys(2, 1:count) = MERGE(1, 0, pair_tie(idir, 1:count))
-               CALL sort(keys, 1, count, 1, 2, order)
-               naxis = 0
-               DO i = 1, count
-                  IF (i > 1) THEN
-                     IF (ALL(keys(1:2, i) == keys(1:2, i - 1))) THEN
-                        batch%axis_class(idir, order(i)) = naxis
-                        CYCLE
-                     END IF
-                  END IF
-                  naxis = naxis + 1
-                  batch%axis_class(idir, order(i)) = naxis
-                  DO coordinate = 1, nmesh(idir)
-                     icell = lower(idir) + MODULO(coordinate - 1 - keys(1, i), nmesh(idir))
-                     weight = 1.0_dp
-                     IF (MODULO(nmesh(idir), 2) == 0) THEN
-                        IF (icell == lower(idir)) THEN
-                           IF (keys(2, i) == 1) THEN
-                              weight = weight*(1.0_dp + 3.0_dp*endpoint(idir))/4.0_dp
-                           ELSE
-                              weight = weight*(1.0_dp + endpoint(idir))/2.0_dp
-                           END IF
-                        ELSE IF (keys(2, i) == 1 .AND. icell == lower(idir) + 1) THEN
-                           batch%axis_count = batch%axis_count + naxis
-                           weight = weight*(3.0_dp + endpoint(idir))/4.0_dp
-                        END IF
-                     ELSE IF (keys(2, i) == 1 .AND. icell == lower(idir)) THEN
-                        weight = weight*(1.0_dp + endpoint(idir))/2.0_dp
-                     END IF
-                     batch%axis_factor(coordinate, naxis, idir) = weight* &
-                                                                  EXP(CMPLX(0.0_dp, twopi*k_offset(idir)* &
-                                                                            (REAL(icell, dp) + REAL(keys(1, i), dp)), dp))
-                  END DO
-               END DO
-               axis_classes = axis_classes + INT(naxis, int_8)
-               phase_evaluations = phase_evaluations + INT(naxis, int_8)*INT(nmesh(idir), int_8)
-            END DO
-            ! Group the complete (x,y,z) stencil triples, retaining original pair order.
-            keys(1:3, 1:count) = batch%axis_class(:, 1:count)
-            CALL sort(keys, 1, count, 1, 3, order)
-            combined_count = 0
-            DO i = 1, count
-               IF (i == 1) THEN
-                  combined_count = 1
-               ELSE IF (ANY(keys(:, i) /= keys(:, i - 1))) THEN
-                  combined_count = combined_count + 1
-               END IF
-               batch%combined_class(order(i)) = combined_count
-            END DO
-            combined_classes = combined_classes + INT(combined_count, int_8)
-
-            ! Bound cache memory to at most one quarter of the packed input.
-            batch%use_combined = combined_count <= count/4
-            IF (batch%use_combined) THEN
-               ALLOCATE (batch%combined_factor(combined_count, SIZE(cell_index)))
-               DO i = 1, count
-                  IF (i > 1) THEN
-                     IF (ALL(keys(:, i) == keys(:, i - 1))) CYCLE
-                  END IF
-                  combined_id = batch%combined_class(order(i))
-                  DO icell = 1, SIZE(cell_index)
-                     batch%combined_factor(combined_id, icell) = &
-                        batch%axis_factor(cell_coordinate(1, icell), keys(1, i), 1)* &
-                        batch%axis_factor(cell_coordinate(2, icell), keys(2, i), 2)* &
-                        batch%axis_factor(cell_coordinate(3, icell), keys(3, i), 3)
-                  END DO
-               END DO
-               cached_coefficients = cached_coefficients + &
-                                     SIZE(cell_index, KIND=int_8)*INT(combined_count, int_8)
-            END IF
-            batch%combined_count = combined_count
-            IF (batch%use_combined) THEN
-               batch%cached_count = INT(SIZE(cell_index), int_8)*INT(combined_count, int_8)
-               ! The combined path no longer needs its intermediate one-axis tables.
-               DEALLOCATE (batch%axis_class, batch%axis_factor)
-            END IF
-         ELSE
-            axis_classes = axis_classes + INT(batch%axis_count, int_8)
-            combined_classes = combined_classes + INT(batch%combined_count, int_8)
-            cached_coefficients = cached_coefficients + batch%cached_count
-         END IF
-         IF (.NOT. cache_hit) setup_seconds = setup_seconds + m_walltime() - started
-         input(1:count, 1:INT(nfft_grid)) => fft_in(1:INT(nfft_grid)*count)
-         started = m_walltime()
-         ! Canonical input cells occupy every unpadded slot exactly once.
-         IF (.NOT. unpadded) input = z_zero
+         IF (fft_profile_enabled) started = m_walltime()
+         CALL fft_alloc(batch%input, [INT(nfft_grid)*fft_count])
+         IF (fft_profile_enabled) plan%profile%seconds(3) = plan%profile%seconds(3) + m_walltime() - started
+         IF (fft_profile_enabled) started = m_walltime()
+         ALLOCATE (batch%weight(count, SIZE(cells, 2)))
          !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-         !$OMP SHARED(input, values_R, cell_index, cell_coordinate, first, count, batch) &
-         !$OMP PRIVATE(i, ilocal, icell, class_x, class_y, class_z)
-         DO icell = 1, SIZE(cell_index)
-            IF (batch%use_combined) THEN
-               !$OMP SIMD PRIVATE(ilocal)
-               DO i = 1, count
-                  ilocal = first + i - 1
-                  input(i, cell_index(icell)) = &
-                     batch%combined_factor(batch%combined_class(i), icell)*values_R(ilocal, 1, icell)
-               END DO
-            ELSE
-               !$OMP SIMD PRIVATE(ilocal, class_x, class_y, class_z)
-               DO i = 1, count
-                  ilocal = first + i - 1
-                  class_x = batch%axis_class(1, i)
-                  class_y = batch%axis_class(2, i)
-                  class_z = batch%axis_class(3, i)
-                  input(i, cell_index(icell)) = &
-                     batch%axis_factor(cell_coordinate(1, icell), class_x, 1)* &
-                     batch%axis_factor(cell_coordinate(2, icell), class_y, 2)* &
-                     batch%axis_factor(cell_coordinate(3, icell), class_z, 3)*values_R(ilocal, 1, icell)
-               END DO
-            END IF
+         !$OMP SHARED(first, count, first_pair, fractional_grid, batch, bs_env, cells, nmesh, half_shift, cutoff_squared, plan) &
+         !$OMP PRIVATE(i, il, ilp, shift, tie, displacement, icell)
+         DO i = 1, count
+            CALL grid_pair_indices(first_pair + first + i - 2, il, ilp)
+            plan%diagonal(first + i - 1) = il == ilp
+            CALL grid_pair_shift(il, ilp, fractional_grid, shift, tie)
+            displacement = bs_env%ri_rs%grid_points(:, il) - bs_env%ri_rs%grid_points(:, ilp)
+            DO icell = 1, SIZE(cells, 2)
+               batch%weight(i, icell) = INT(grid_pair_stencil_weight(cells(:, icell), shift, tie, nmesh, half_shift, &
+                                                                     displacement, bs_env%hmat, cutoff_squared), int_1)
+            END DO
          END DO
          !$OMP END PARALLEL DO
-         profile%seconds(4) = profile%seconds(4) + m_walltime() - started
-         profile%pair_major = .TRUE.
+         IF (fft_profile_enabled) plan%setup_seconds = plan%setup_seconds + m_walltime() - started
+      END DO
+      CALL MOVE_ALLOC(grid_linear, plan%grid_linear)
+      CALL MOVE_ALLOC(partner_linear, plan%partner_linear)
+      CALL MOVE_ALLOC(input_to_native, plan%input_to_native)
+      ALLOCATE (plan%extract_q, SOURCE=extract_q(:n_extract))
+      ALLOCATE (plan%extract_partner, SOURCE=extract_partner(:n_extract))
+      IF (fft_profile_enabled) plan%profile%seconds(2) = m_walltime() - total_started - plan%profile%seconds(3)
+   END SUBROUTINE prepare_pair_fft
+
+! **************************************************************************************************
+!> \brief Execute prepared pair-product panels after the global physical-cell filtering decision.
+!> No real-space gather or packing pass is needed; active input panels are already in FFT order.
+!> \param plan prepared geometry and product input
+!> \param values_k compact unordered-pair output
+!> \param cell_active full-cell mask from the global original-Green norms
+!> \param profile_label chi or self-energy
+!> \param values_R physical product retained for off-mesh self-energy projection
+! **************************************************************************************************
+   SUBROUTINE execute_pair_fft(plan, values_k, cell_active, profile_label, values_R)
+      TYPE(gw_pair_fft_work_type), INTENT(INOUT), TARGET :: plan
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(OUT)          :: values_k(:, :, :)
+      LOGICAL, INTENT(IN)                                :: cell_active(:)
+      CHARACTER(LEN=*), INTENT(IN)                       :: profile_label
+      REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: values_R(:, :, :)
+
+      COMPLEX(KIND=dp)                                   :: result_a, result_b, spectrum_a, &
+                                                            spectrum_b
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: fft_in(:), fft_out(:), input(:, :), &
+                                                            output(:, :), scratch(:)
+      INTEGER                                            :: count, fft_count, first, i, i_extract, &
+                                                            ibatch, icell, ik, n_extract, nfft(3), &
+                                                            nmesh(3), partner_output, stat, &
+                                                            unit_nr, width
+      INTEGER(KIND=int_8)                                :: extract_reads, fft_transforms, &
+                                                            nfft_grid, spectrum_columns
+      INTEGER, POINTER                                   :: extract_partner(:), extract_q(:), &
+                                                            grid_linear(:), partner_linear(:)
+      REAL(KIND=dp)                                      :: elapsed, other_seconds, &
+                                                            prepared_seconds, started, &
+                                                            total_started
+      TYPE(fft_pair_major_plan_type)                     :: full_fft_plan, tail_fft_plan
+      TYPE(lattice_fft_profile_type), ALLOCATABLE        :: profile
+
+      IF (fft_profile_enabled) total_started = m_walltime()
+      CPASSERT(ALLOCATED(plan%batches))
+      CPASSERT(SIZE(cell_active) == SIZE(plan%inverse%cell_slot))
+      CPASSERT(SIZE(values_k, 1) == plan%n_pairs)
+      CPASSERT(SIZE(values_k, 2) == 1)
+      CPASSERT(SIZE(values_k, 3) == SIZE(plan%grid_linear))
+      IF (fft_profile_enabled) THEN
+         ALLOCATE (profile, SOURCE=plan%profile)
+         prepared_seconds = SUM(profile%seconds(1:3))
+      END IF
+      nfft = plan%inverse%nfft
+      nmesh = plan%nmesh
+      nfft_grid = plan%nfft_grid
+      width = plan%width
+      n_extract = SIZE(plan%extract_q)
+      spectrum_columns = plan%spectrum_columns
+      grid_linear => plan%grid_linear
+      partner_linear => plan%partner_linear
+      extract_q => plan%extract_q
+      extract_partner => plan%extract_partner
+      fft_transforms = 0_int_8
+      extract_reads = 0_int_8
+      IF (fft_profile_enabled) started = m_walltime()
+      CALL fft_alloc(scratch, [INT(nfft_grid)*((width + 1)/2)])
+      IF (fft_profile_enabled) profile%seconds(3) = profile%seconds(3) + m_walltime() - started
+      DO first = 1, plan%n_pairs, width
+         count = MIN(width, plan%n_pairs - first + 1)
+         fft_count = (count + 1)/2
+         IF (fft_profile_enabled) fft_transforms = fft_transforms + INT(fft_count, int_8)
+         ibatch = (first - 1)/width + 1
+         IF (fft_profile_enabled) THEN
+            profile%elements = profile%elements + INT(count, int_8)
+            profile%batches = profile%batches + 1_int_8
+            profile%tile_min = MIN(profile%tile_min, count)
+            profile%tile_max = MAX(profile%tile_max, count)
+         END IF
+         fft_in => plan%batches(ibatch)%input
+         fft_out => scratch
+         input(1:fft_count, 1:INT(nfft_grid)) => fft_in
+         IF (fft_profile_enabled) started = m_walltime()
+         !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+         !$OMP SHARED(cell_active, input, plan, first, count, values_R) PRIVATE(icell)
+         DO icell = 1, SIZE(cell_active)
+            IF (cell_active(icell)) CYCLE
+            input(:, plan%inverse%cell_slot(icell)) = z_zero
+            IF (PRESENT(values_R)) values_R(first:first + count - 1, 1, icell) = 0.0_dp
+         END DO
+         !$OMP END PARALLEL DO
+         IF (fft_profile_enabled) THEN
+            profile%seconds(4) = profile%seconds(4) + m_walltime() - started
+            profile%pair_major = .TRUE.
+         END IF
          IF (count == width) THEN
-            CALL lattice_fft_execute_pair_major(BWFFT, nfft, count, fft_in, fft_out, stat, profile, full_fft_plan)
+            CALL lattice_fft_execute_pair_major(BWFFT, nfft, fft_count, fft_in, fft_out, stat, profile, full_fft_plan)
          ELSE
-            CALL lattice_fft_execute_pair_major(BWFFT, nfft, count, fft_in, fft_out, stat, profile, tail_fft_plan)
+            CALL lattice_fft_execute_pair_major(BWFFT, nfft, fft_count, fft_in, fft_out, stat, profile, tail_fft_plan)
          END IF
          IF (stat /= 0) CPABORT('GW product FFT failed')
-         output(1:count, 1:INT(nfft_grid)) => fft_in(1:INT(nfft_grid)*count)
-         started = m_walltime()
+         output(1:fft_count, 1:INT(nfft_grid)) => fft_in
+         IF (fft_profile_enabled) started = m_walltime()
          !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-         !$OMP SHARED(values_k, output, grid_linear, xkp, first, count, origin_phase) PRIVATE(ik, i)
-         DO ik = 1, SIZE(xkp, 2)
-            DO i = 1, count
-               values_k(first + i - 1, 1, ik) = origin_phase(ik)*output(i, grid_linear(ik))
-            END DO
+         !$OMP SHARED(values_k, output, grid_linear, partner_linear, first, count, fft_count) &
+         !$OMP SHARED(n_extract, extract_q, extract_partner) &
+         !$OMP PRIVATE(ik, partner_output, i, spectrum_a, spectrum_b, result_a, result_b)
+         DO i_extract = 1, n_extract
+            ik = extract_q(i_extract)
+            partner_output = extract_partner(i_extract)
+            ! The cached stencil packs Z=(F_a+i*F_b)/2. Extract with real
+            ! additions/subtractions only; partner_linear includes the MP shift.
+            IF (grid_linear(ik) == partner_linear(ik)) THEN
+               !$OMP SIMD PRIVATE(spectrum_a)
+               DO i = 1, count/2
+                  spectrum_a = output(i, grid_linear(ik))
+                  values_k(first + 2*i - 2, 1, ik) = CMPLX(2.0_dp*REAL(spectrum_a, dp), 0.0_dp, dp)
+                  values_k(first + 2*i - 1, 1, ik) = CMPLX(2.0_dp*AIMAG(spectrum_a), 0.0_dp, dp)
+               END DO
+            ELSE IF (partner_output > 0) THEN
+               !$OMP SIMD PRIVATE(spectrum_a, spectrum_b, result_a, result_b)
+               DO i = 1, count/2
+                  spectrum_a = output(i, grid_linear(ik))
+                  spectrum_b = output(i, partner_linear(ik))
+                  result_a = CMPLX(REAL(spectrum_a, dp) + REAL(spectrum_b, dp), &
+                                   AIMAG(spectrum_a) - AIMAG(spectrum_b), dp)
+                  result_b = CMPLX(AIMAG(spectrum_a) + AIMAG(spectrum_b), &
+                                   REAL(spectrum_b, dp) - REAL(spectrum_a, dp), dp)
+                  values_k(first + 2*i - 2, 1, ik) = result_a
+                  values_k(first + 2*i - 1, 1, ik) = result_b
+                  values_k(first + 2*i - 2, 1, partner_output) = CONJG(result_a)
+                  values_k(first + 2*i - 1, 1, partner_output) = CONJG(result_b)
+               END DO
+            ELSE
+               !$OMP SIMD PRIVATE(spectrum_a, spectrum_b)
+               DO i = 1, count/2
+                  spectrum_a = output(i, grid_linear(ik))
+                  spectrum_b = output(i, partner_linear(ik))
+                  values_k(first + 2*i - 2, 1, ik) = &
+                     CMPLX(REAL(spectrum_a, dp) + REAL(spectrum_b, dp), AIMAG(spectrum_a) - AIMAG(spectrum_b), dp)
+                  values_k(first + 2*i - 1, 1, ik) = &
+                     CMPLX(AIMAG(spectrum_a) + AIMAG(spectrum_b), REAL(spectrum_b, dp) - REAL(spectrum_a, dp), dp)
+               END DO
+            END IF
+            IF (MODULO(count, 2) /= 0) THEN
+               ! The lone transform is also half-scaled; preserve its complex roundoff.
+               values_k(first + count - 1, 1, ik) = 2.0_dp*output(fft_count, grid_linear(ik))
+               IF (partner_output > 0) THEN
+                  values_k(first + count - 1, 1, partner_output) = 2.0_dp*output(fft_count, partner_linear(ik))
+               END IF
+            END IF
          END DO
          !$OMP END PARALLEL DO
-         profile%seconds(8) = profile%seconds(8) + m_walltime() - started
+         IF (fft_profile_enabled) THEN
+            profile%seconds(8) = profile%seconds(8) + m_walltime() - started
+            extract_reads = extract_reads + INT(count/2, int_8)*spectrum_columns + &
+                            INT(MODULO(count, 2), int_8)*SIZE(grid_linear, KIND=int_8)
+         END IF
       END DO
-      started = m_walltime()
+
+      IF (fft_profile_enabled) started = m_walltime()
       CALL fft_pair_major_plan_destroy(full_fft_plan)
       CALL fft_pair_major_plan_destroy(tail_fft_plan)
-      CALL fft_dealloc(fft_in)
-      CALL fft_dealloc(fft_out)
-      IF (.NOT. cache_hit) DEALLOCATE (pair_shift, pair_tie, keys, order)
-      DEALLOCATE (cell_index, cell_coordinate, grid_index, grid_linear, origin_phase)
-      plan%initialized = .TRUE.
-      profile%seconds(2) = profile%seconds(2) + setup_seconds
-      profile%seconds(9) = m_walltime() - started
-      unit_nr = cp_logger_get_default_io_unit()
-      IF (fft_profile_enabled .AND. unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A)') 'R2K_FFT_PROFILE| GW pair-centered packing/extraction; logger-rank wall seconds'
-         WRITE (unit_nr, '(T2,A,3I10)') 'R2K_FFT_PROFILE| source shape: ', SHAPE(values_R)
+      CALL fft_dealloc(scratch)
+      unit_nr = 0
+      IF (fft_profile_enabled) THEN
+         profile%seconds(9) = m_walltime() - started
+         elapsed = m_walltime() - total_started + prepared_seconds
+         other_seconds = MAX(0.0_dp, elapsed - profile%seconds(4) - SUM(profile%seconds(5:8)))
+         unit_nr = cp_logger_get_default_io_unit()
+      END IF
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A)') 'R2K_FFT_PROFILE| GW unordered-pair panels; logger-rank wall seconds'
+         WRITE (unit_nr, '(T2,A,A)') 'R2K_FFT_PROFILE| operation: ', profile_label
+         WRITE (unit_nr, '(T2,A,L2)') 'R2K_FFT_PROFILE| input packed by K2R extraction: ', .TRUE.
+         WRITE (unit_nr, '(T2,A,2I10)') 'R2K_FFT_PROFILE| active / full input cells: ', &
+            SUM(MERGE(1, 0, cell_active)), SIZE(cell_active)
+         WRITE (unit_nr, '(T2,A,3I10)') 'R2K_FFT_PROFILE| source shape: ', plan%n_pairs, 1, SIZE(cell_active)
+         WRITE (unit_nr, '(T2,A,2I10)') 'R2K_FFT_PROFILE| extracted / full q points: ', &
+            SIZE(values_k, 3), SIZE(plan%inverse%k_slot)
+         WRITE (unit_nr, '(T2,A,2I10)') 'R2K_FFT_PROFILE| unpack q jobs / conjugate reuses: ', &
+            n_extract, SIZE(values_k, 3) - n_extract
+         WRITE (unit_nr, '(T2,A,2F14.6)') 'R2K_FFT_PROFILE| extract read/write [GB, logical]: ', &
+            complex_bytes*REAL(extract_reads, dp)/bytes_per_GB, &
+            complex_bytes*REAL(profile%elements, dp)*REAL(SIZE(values_k, 3), dp)/bytes_per_GB
          WRITE (unit_nr, '(T2,A)') 'R2K_FFT_PROFILE| pair-major FFT-X/plan includes the full 3D batched FFT'
          WRITE (unit_nr, '(T2,A,6I8)') 'R2K_FFT_PROFILE| grid / padded: ', nmesh, nfft
+         WRITE (unit_nr, '(T2,A,L2)') 'R2K_FFT_PROFILE| two real pairs per complex FFT: ', .TRUE.
+         WRITE (unit_nr, '(T2,A,2I16)') 'R2K_FFT_PROFILE| FFT transforms / real pairs: ', &
+            fft_transforms, profile%elements
+         WRITE (unit_nr, '(T2,A,2I16)') 'R2K_FFT_PROFILE| complex FFT elements / full: ', &
+            nfft_grid*fft_transforms, nfft_grid*profile%elements
          WRITE (unit_nr, '(T2,A,2I16,2I8)') 'R2K_FFT_PROFILE| elements/batches/tile min/max: ', &
             profile%elements, profile%batches, profile%tile_min, profile%tile_max
          WRITE (unit_nr, '(T2,A,9F12.6)') 'R2K_FFT_PROFILE| init/geometry/buffers/fill/X/Y/Z/extract/release: ', profile%seconds
-         WRITE (unit_nr, '(T2,A,F14.6)') 'R2K_FFT_PROFILE| class-setup (included in geometry): ', setup_seconds
-         WRITE (unit_nr, '(T2,A,2I16)') 'R2K_FFT_PROFILE| input-axis phase evaluations / stencil classes: ', &
-            phase_evaluations, axis_classes
-         WRITE (unit_nr, '(T2,A,2I16)') 'R2K_FFT_PROFILE| 3D stencil classes / cached coefficients: ', &
-            combined_classes, cached_coefficients
-         WRITE (unit_nr, '(T2,A,L2)') 'R2K_FFT_PROFILE| reused stencil cache: ', cache_hit
-         WRITE (unit_nr, '(T2,A,F14.6)') 'R2K_FFT_PROFILE| total         ', m_walltime() - total_started
+         WRITE (unit_nr, '(T2,A,F14.6)') 'R2K_FFT_PROFILE| stencil-setup (included in geometry): ', plan%setup_seconds
+         WRITE (unit_nr, '(T2,A,I16)') 'R2K_FFT_PROFILE| cached real stencil [bytes]: ', &
+            INT(int_1_size, int_8)*INT(plan%n_pairs, int_8)*SIZE(cell_active, KIND=int_8)
+         WRITE (unit_nr, '(T2,A,L2)') 'R2K_FFT_PROFILE| reused stencil cache: ', plan%cache_hit
+         WRITE (unit_nr, '(T2,A,5F12.6)') 'R2K_FFT_PROFILE| grid-fill/FFT+plan/extract/other/total: ', &
+            profile%seconds(4), SUM(profile%seconds(5:7)), profile%seconds(8), other_seconds, elapsed
+         WRITE (unit_nr, '(T2,A,F14.6)') 'R2K_FFT_PROFILE| total         ', elapsed
       END IF
-      CALL timestop(handle)
-
-   END SUBROUTINE product_to_k_pair_centered
-
-! **************************************************************************************************
-!> \brief Select the lattice image of a grid-point pair and identify half-cell ties.
-!> \param ipair flattened column-major pair index l+(l'-1)*ngrid
-!> \param ngrid ...
-!> \param fractional_grid ...
-!> \param pair_shift ...
-!> \param pair_tie ...
-! **************************************************************************************************
-   SUBROUTINE product_pair_shift(ipair, ngrid, fractional_grid, pair_shift, pair_tie)
-      INTEGER, INTENT(IN)                                :: ipair, ngrid
-      REAL(KIND=dp), INTENT(IN)                          :: fractional_grid(:, :)
-      INTEGER, INTENT(OUT)                               :: pair_shift(3)
-      LOGICAL, INTENT(OUT)                               :: pair_tie(3)
-
-      INTEGER                                            :: idir, il, ilp
-      REAL(KIND=dp)                                      :: delta(3), half_boundary, tolerance
-
-      il = MODULO(ipair - 1, ngrid) + 1
-      ilp = (ipair - 1)/ngrid + 1
-      delta = fractional_grid(:, il) - fractional_grid(:, ilp)
-      pair_shift = NINT(delta)
-      pair_tie = .FALSE.
-      DO idir = 1, 3
-         half_boundary = ANINT(delta(idir) - 0.5_dp) + 0.5_dp
-         tolerance = 64.0_dp*EPSILON(1.0_dp)*MAX(1.0_dp, ABS(delta(idir)))
-         IF (ABS(delta(idir) - half_boundary) <= tolerance) THEN
-            pair_shift(idir) = NINT(half_boundary - 0.5_dp)
-            pair_tie(idir) = .TRUE.
-         END IF
-      END DO
-   END SUBROUTINE product_pair_shift
+      plan%profile = lattice_fft_profile_type()
+      plan%setup_seconds = 0.0_dp
+      plan%cache_hit = .TRUE.
+   END SUBROUTINE execute_pair_fft
 
 ! **************************************************************************************************
 !> \brief Cosine transform of one q block between imaginary time and frequency,
@@ -2566,23 +2819,29 @@ CONTAINS
    END FUNCTION ri_q_storage_elements
 
 ! **************************************************************************************************
-!> \brief Transfer q-local full matrices to owners of ordered grid pairs.
-!> Ranks own q points cyclically, MOD(q,P), and ordered grid pairs as contiguous blocks. Round r
+!> \brief Transfer q-local unordered pairs directly to the FFT pair owners.
+!> Ranks own q points cyclically, MOD(q,P), and packed grid pairs as contiguous blocks. Round r
 !> moves q = (r-1)P+1, ..., rP, the r-th local q of every rank, with one alltoall.
-!> \param q_matrices ...
+!> Receive displacements place each column directly in the inverse FFT's rank-blocked k batch.
+!> \param q_pairs packed upper triangles
+!> \param n_grid ...
 !> \param para_env ...
-!> \param fft_pairs ...
+!> \param k_batch source-rank block width of the prepared inverse FFT input
+!> \param fft_pairs unordered pairs in the prepared inverse FFT input order
 ! **************************************************************************************************
-   SUBROUTINE q_matrices_to_fft_pairs(q_matrices, para_env, fft_pairs)
-      COMPLEX(KIND=dp), INTENT(IN)                       :: q_matrices(:, :, :)
+   SUBROUTINE q_matrices_to_fft_pairs(q_pairs, n_grid, para_env, k_batch, fft_pairs)
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN), TARGET   :: q_pairs(:, :)
+      INTEGER, INTENT(IN)                                :: n_grid
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: fft_pairs(:, :, :)
+      INTEGER, INTENT(IN)                                :: k_batch
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(OUT), TARGET  :: fft_pairs(:, :, :)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'q_matrices_to_fft_pairs'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: received(:), sent(:)
-      INTEGER                                            :: handle, i_first, i_rank, i_round, &
-                                                            n_grid, n_local, n_q, n_rank, n_round
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: received(:), sent(:)
+      COMPLEX(KIND=dp), TARGET                           :: unused_receive(1), unused_send(1)
+      INTEGER :: batch_first, batch_round, batch_size, handle, i_first, i_rank, i_round, i_source, &
+         n_local, n_owned, n_q, n_rank, n_round, offset
       INTEGER, ALLOCATABLE                               :: pair_counts(:), pair_displs(:), &
                                                             recv_counts(:), recv_displs(:), &
                                                             send_counts(:)
@@ -2590,27 +2849,41 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       n_rank = para_env%num_pe
-      n_grid = SIZE(q_matrices, 1)
       n_local = SIZE(fft_pairs, 1)
       n_q = SIZE(fft_pairs, 3)
-      CPASSERT(SIZE(fft_pairs, 2) == 1)
+      CPASSERT(SIZE(fft_pairs, 2) == 1 .AND. k_batch > 0)
       CALL grid_pair_blocks(n_grid, n_rank, pair_counts, pair_displs)
-      ALLOCATE (sent(n_grid**2), received(n_local*n_rank), recv_counts(0:n_rank - 1), &
+      CPASSERT(SIZE(q_pairs, 1) == SUM(pair_counts))
+      ALLOCATE (recv_counts(0:n_rank - 1), &
                 recv_displs(0:n_rank - 1), send_counts(0:n_rank - 1))
-      recv_displs(:) = [(MODULO(i_rank - 1, n_rank)*n_local, i_rank=0, n_rank - 1)]
+      unused_send = z_zero
+      unused_receive = z_zero
       DO i_round = 1, (n_q + n_rank - 1)/n_rank
          i_first = (i_round - 1)*n_rank
          n_round = MIN(n_rank, n_q - i_first)
+         batch_first = ((i_round - 1)/k_batch)*n_rank*k_batch
+         batch_round = MODULO(i_round - 1, k_batch)
+         batch_size = MIN(n_rank*k_batch, n_q - batch_first)
+         offset = 0
          DO i_rank = 0, n_rank - 1
-            recv_counts(i_rank) = MERGE(n_local, 0, MODULO(i_rank - 1, n_rank) < n_round)
+            ! q ownership is rotated by one rank relative to Green k ownership.
+            i_source = MODULO(i_rank + 1, n_rank)
+            n_owned = MAX(0, (batch_size + n_rank - 1 - i_rank)/n_rank)
+            recv_counts(i_source) = MERGE(n_local, 0, batch_round < n_owned)
+            recv_displs(i_source) = n_local*(offset + MIN(batch_round, n_owned))
+            offset = offset + n_owned
          END DO
          send_counts(:) = 0
+         sent => unused_send
          IF (MODULO(para_env%mepos - 1, n_rank) < n_round) THEN
-            sent(:) = RESHAPE(q_matrices(:, :, i_round), [n_grid**2])
+            sent => q_pairs(:, i_round)
             send_counts(:) = pair_counts
          END IF
+         received => unused_receive
+         IF (n_local > 0) THEN
+            received(1:n_local*batch_size) => fft_pairs(:, :, batch_first + 1:batch_first + batch_size)
+         END IF
          CALL para_env%alltoall(sent, send_counts, pair_displs, received, recv_counts, recv_displs)
-         fft_pairs(:, 1, i_first + 1:i_first + n_round) = RESHAPE(received(1:n_local*n_round), [n_local, n_round])
       END DO
 
       CALL timestop(handle)
@@ -2618,68 +2891,131 @@ CONTAINS
    END SUBROUTINE q_matrices_to_fft_pairs
 
 ! **************************************************************************************************
-!> \brief Transfer ordered grid pairs to the q owners as full matrices, the reverse of
-!>        q_matrices_to_fft_pairs.
-!> \param fft_pairs ...
+!> \brief Transfer unordered grid pairs into bounded q batches and consume the Hermitian
+!>        panels as Z(q)^H chi(q) Z(q), without expanding a full grid matrix.
+!> \param fft_pairs compact needed-q columns, ordered by ascending original q index
 !> \param para_env ...
 !> \param needed q points to transfer
-!> \param q_matrices needed q points of this rank, MOD(q,P), in ascending order
+!> \param Z_q interpolation matrices at the q points owned by this rank, MOD(q,P)
+!> \param compact_z whether Z_q contains only needed q points
+!> \param chi_q accumulate projected matrices in compact local q order
+!> \param batch_rounds common maximum number of communication rounds per projection batch
+!> \param projection_seconds logger-rank projection wall time, excluding transfers
 ! **************************************************************************************************
-   SUBROUTINE fft_pairs_to_q_matrices(fft_pairs, para_env, needed, q_matrices)
-      COMPLEX(KIND=dp), INTENT(IN)                       :: fft_pairs(:, :, :)
+   SUBROUTINE project_fft_pairs_to_chi(fft_pairs, para_env, needed, Z_q, compact_z, chi_q, batch_rounds, projection_seconds)
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN), TARGET   :: fft_pairs(:, :, :)
       TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: needed(:)
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: q_matrices(:, :, :)
+      COMPLEX(KIND=dp), INTENT(IN)                       :: Z_q(:, :, :)
+      LOGICAL, INTENT(IN)                                :: compact_z
+      COMPLEX(KIND=dp), INTENT(INOUT)                    :: chi_q(:, :, :)
+      INTEGER, INTENT(IN)                                :: batch_rounds
+      REAL(KIND=dp), INTENT(OUT)                         :: projection_seconds
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fft_pairs_to_q_matrices'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'project_fft_pairs_to_chi'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: received(:), sent(:)
-      INTEGER                                            :: handle, i_first, i_local, i_rank, &
-                                                            i_round, iq, n_grid, n_local, n_q, &
-                                                            n_rank, n_round
-      INTEGER, ALLOCATABLE                               :: pair_counts(:), pair_displs(:), &
-                                                            recv_counts(:), send_counts(:), &
-                                                            send_displs(:)
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :, :), work(:, :, :)
+      COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: q_pairs(:, :)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: received(:), sent(:)
+      COMPLEX(KIND=dp), TARGET                           :: unused_receive(1), unused_send(1)
+      INTEGER :: capacity, first_round, handle, i_buffer, i_column, i_first, i_local, i_needed, &
+         i_rank, i_round, i_thread, i_z, iq, n_aux, n_buffer, n_grid, n_local, n_needed_local, &
+         n_q, n_rank, n_round, n_selected, n_workers
+      INTEGER, ALLOCATABLE                               :: local_q(:), pair_counts(:), &
+                                                            pair_displs(:), recv_counts(:), &
+                                                            send_counts(:), send_displs(:)
       LOGICAL                                            :: receiving
+      REAL(KIND=dp)                                      :: started
 
       CALL timeset(routineN, handle)
 
       n_rank = para_env%num_pe
-      n_grid = SIZE(q_matrices, 1)
+      n_grid = SIZE(Z_q, 1)
+      n_aux = SIZE(Z_q, 2)
       n_local = SIZE(fft_pairs, 1)
-      n_q = SIZE(fft_pairs, 3)
-      CPASSERT(SIZE(fft_pairs, 2) == 1 .AND. SIZE(needed) == n_q)
+      n_q = SIZE(needed)
+      CPASSERT(SIZE(fft_pairs, 2) == 1)
+      CPASSERT(SIZE(fft_pairs, 3) == COUNT(needed))
+      CPASSERT(batch_rounds > 0)
+      n_needed_local = COUNT([(needed(iq) .AND. MODULO(iq, n_rank) == para_env%mepos, iq=1, n_q)])
+      CPASSERT(ALL(SHAPE(chi_q) == [n_aux, n_aux, n_needed_local]))
+      capacity = MIN(batch_rounds, n_needed_local)
+      n_workers = 1
+!$    n_workers = omp_get_max_threads()
+      n_workers = MAX(1, MIN(n_workers, capacity))
       CALL grid_pair_blocks(n_grid, n_rank, pair_counts, pair_displs)
-      ALLOCATE (sent(n_local*n_rank), received(n_grid**2), recv_counts(0:n_rank - 1), &
-                send_counts(0:n_rank - 1), send_displs(0:n_rank - 1))
-      send_displs(:) = [(MODULO(i_rank - 1, n_rank)*n_local, i_rank=0, n_rank - 1)]
+      ALLOCATE (recv_counts(0:n_rank - 1), &
+                send_counts(0:n_rank - 1), send_displs(0:n_rank - 1), local_q(capacity), &
+                q_pairs(INT(INT(n_grid, int_8)*(n_grid + 1)/2), capacity), work(n_grid, n_aux, n_workers), &
+                panel(n_grid, MIN(n_grid, grid_pair_panel_cols), n_workers))
+      unused_receive = z_zero
+      unused_send = z_zero
+      i_column = 0
       i_local = 0
-      DO i_round = 1, (n_q + n_rank - 1)/n_rank
-         i_first = (i_round - 1)*n_rank
-         n_round = MIN(n_rank, n_q - i_first)
-         send_counts(:) = 0
-         DO i_rank = 0, n_rank - 1
-            iq = i_first + MODULO(i_rank - 1, n_rank) + 1
-            IF (iq > n_q) CYCLE
-            IF (needed(iq)) send_counts(i_rank) = n_local
+      projection_seconds = 0.0_dp
+      DO first_round = 1, (n_q + n_rank - 1)/n_rank, batch_rounds
+         n_buffer = 0
+         DO i_round = first_round, MIN(first_round + batch_rounds - 1, (n_q + n_rank - 1)/n_rank)
+            i_first = (i_round - 1)*n_rank
+            n_round = MIN(n_rank, n_q - i_first)
+            send_counts(:) = 0
+            send_displs(:) = 0
+            n_selected = 0
+            DO iq = i_first + 1, i_first + n_round
+               IF (.NOT. needed(iq)) CYCLE
+               i_rank = MODULO(iq, n_rank)
+               send_counts(i_rank) = n_local
+               send_displs(i_rank) = n_selected*n_local
+               n_selected = n_selected + 1
+            END DO
+            IF (n_selected == 0) CYCLE
+            ! Compact q columns are contiguous even when their original q indices have gaps.
+            sent => unused_send
+            IF (n_local > 0) THEN
+               sent(1:n_local*n_selected) => fft_pairs(:, :, i_column + 1:i_column + n_selected)
+            END IF
+            i_column = i_column + n_selected
+            iq = i_first + MODULO(para_env%mepos - 1, n_rank) + 1
+            receiving = iq <= n_q
+            IF (receiving) receiving = needed(iq)
+            recv_counts(:) = 0
+            received => unused_receive
+            IF (receiving) THEN
+               recv_counts(:) = pair_counts
+               i_local = i_local + 1
+               n_buffer = n_buffer + 1
+               CPASSERT(n_buffer <= capacity)
+               local_q(n_buffer) = (iq - 1)/n_rank + 1
+               received => q_pairs(:, n_buffer)
+            END IF
+            CALL para_env%alltoall(sent, send_counts, send_displs, received, recv_counts, pair_displs)
          END DO
-         sent(1:n_local*n_round) = RESHAPE(fft_pairs(:, 1, i_first + 1:i_first + n_round), [n_local*n_round])
-         iq = i_first + MODULO(para_env%mepos - 1, n_rank) + 1
-         receiving = iq <= n_q
-         IF (receiving) receiving = needed(iq)
-         recv_counts(:) = 0
-         IF (receiving) recv_counts(:) = pair_counts
-         CALL para_env%alltoall(sent, send_counts, send_displs, received, recv_counts, pair_displs)
-         IF (receiving) THEN
-            i_local = i_local + 1
-            q_matrices(:, :, i_local) = RESHAPE(received, [n_grid, n_grid])
-         END IF
+         IF (n_buffer == 0) CYCLE
+         IF (fft_profile_enabled) started = m_walltime()
+         ! Distinct q matrices remain independent; each thread reuses its GEMM workspace.
+         !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) IF(n_buffer > 1) NUM_THREADS(n_workers) &
+         !$OMP SHARED(n_buffer, n_grid, n_aux, q_pairs, local_q, Z_q, chi_q, panel, work, i_local, compact_z) &
+         !$OMP PRIVATE(i_buffer, i_thread, i_needed, i_z)
+         DO i_buffer = 1, n_buffer
+            i_thread = 1
+!$          i_thread = omp_get_thread_num() + 1
+            i_needed = i_local - n_buffer + i_buffer
+            i_z = MERGE(i_needed, local_q(i_buffer), compact_z)
+            CALL grid_pair_upper_multiply(n_grid, n_aux, q_pairs(:, i_buffer), Z_q(:, :, i_z), &
+                                          work(:, :, i_thread), panel(:, :, i_thread))
+            ! Z^H H Z = Z^H (U Z) + (U Z)^H Z; accumulate only the Hermitian upper triangle.
+            CALL zher2k('U', 'C', n_aux, n_grid, z_one, Z_q(:, :, i_z), n_grid, &
+                        work(:, :, i_thread), n_grid, 1.0_dp, chi_q(:, :, i_needed), n_aux)
+         END DO
+         !$OMP END PARALLEL DO
+         IF (fft_profile_enabled) projection_seconds = projection_seconds + m_walltime() - started
       END DO
-      CPASSERT(i_local == SIZE(q_matrices, 3))
+      CPASSERT(i_column == SIZE(fft_pairs, 3))
+      CPASSERT(i_local == n_needed_local)
 
       CALL timestop(handle)
 
-   END SUBROUTINE fft_pairs_to_q_matrices
+   END SUBROUTINE project_fft_pairs_to_chi
 
 ! **************************************************************************************************
 !> \brief Form W_ll'(q,iτ) = Σ_PQ Z_lP(q) W_PQ(q,iτ) Z_l'Q(q)* and transfer FFT pairs.
@@ -2687,18 +3023,20 @@ CONTAINS
 !> \param interaction_q W_PQ(q,iτ) of the locally owned q
 !> \param itime ...
 !> \param para_env ...
+!> \param k_batch source-rank block width of the prepared inverse FFT input
 !> \param fft_pairs ...
 ! **************************************************************************************************
-   SUBROUTINE project_auxiliary_time_q_to_fft_pairs(Z_q, interaction_q, itime, para_env, fft_pairs)
+   SUBROUTINE project_auxiliary_time_q_to_fft_pairs(Z_q, interaction_q, itime, para_env, k_batch, fft_pairs)
       COMPLEX(KIND=dp), INTENT(IN)                       :: Z_q(:, :, :)
       TYPE(ri_q_matrix_block_type), INTENT(IN)           :: interaction_q(:)
       INTEGER, INTENT(IN)                                :: itime
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: fft_pairs(:, :, :)
+      INTEGER, INTENT(IN)                                :: k_batch
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(OUT), TARGET  :: fft_pairs(:, :, :)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'project_auxiliary_time_q_to_fft_pairs'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: q_matrices(:, :, :), ZW(:, :)
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :), q_pairs(:, :), ZW(:, :)
       INTEGER                                            :: handle, i_q_local, n_grid, n_q_local, &
                                                             n_RI
 
@@ -2708,21 +3046,20 @@ CONTAINS
       n_RI = SIZE(Z_q, 2)
       n_q_local = SIZE(Z_q, 3)
       CPASSERT(SIZE(interaction_q) == n_q_local)
-      ALLOCATE (q_matrices(n_grid, n_grid, n_q_local))
-      !$OMP PARALLEL DEFAULT(NONE) SHARED(Z_q, interaction_q, itime, q_matrices, n_q_local, n_grid, n_RI) &
-      !$OMP PRIVATE(i_q_local, ZW)
-      ALLOCATE (ZW(n_grid, n_RI))
+      ALLOCATE (q_pairs(INT(INT(n_grid, int_8)*(n_grid + 1)/2), n_q_local))
+      !$OMP PARALLEL DEFAULT(NONE) SHARED(Z_q, interaction_q, itime, q_pairs, n_q_local, n_grid, n_RI) &
+      !$OMP PRIVATE(i_q_local, panel, ZW)
+      ALLOCATE (ZW(n_grid, n_RI), panel(n_grid, MIN(n_grid, grid_pair_panel_cols)))
       !$OMP DO SCHEDULE(STATIC)
       DO i_q_local = 1, n_q_local
          CALL zgemm('N', 'N', n_grid, n_RI, n_RI, z_one, Z_q(:, :, i_q_local), n_grid, &
                     interaction_q(i_q_local)%values(:, :, itime), n_RI, z_zero, ZW, n_grid)
-         CALL zgemm('N', 'C', n_grid, n_grid, n_RI, z_one, ZW, n_grid, Z_q(:, :, i_q_local), n_grid, &
-                    z_zero, q_matrices(:, :, i_q_local), n_grid)
+         CALL grid_pair_gemm(n_grid, n_RI, ZW, Z_q(:, :, i_q_local), q_pairs(:, i_q_local), panel)
       END DO
       !$OMP END DO
-      DEALLOCATE (ZW)
+      DEALLOCATE (ZW, panel)
       !$OMP END PARALLEL
-      CALL q_matrices_to_fft_pairs(q_matrices, para_env, fft_pairs)
+      CALL q_matrices_to_fft_pairs(q_pairs, n_grid, para_env, k_batch, fft_pairs)
 
       CALL timestop(handle)
 

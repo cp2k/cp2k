@@ -29,10 +29,11 @@ MODULE kpoint_transform
                                               rskp_backend_gemm
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE kpoint_lattice_fft,              ONLY: &
-        cell_to_k_grid_fft, cell_to_k_grid_prepare, cell_to_k_grid_release, &
-        cell_to_k_grid_work_type, k_grid_to_cell_execute, k_grid_to_cell_prepare, &
-        k_grid_to_cell_release, k_grid_to_cell_work_type, lattice_fft_profile_type
+   USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
+                                              cell_to_k_grid_prepare,&
+                                              cell_to_k_grid_release,&
+                                              cell_to_k_grid_work_type,&
+                                              lattice_fft_profile_type
    USE local_gemm_api,                  ONLY: local_gemm_ctxt_type
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: twopi,&
@@ -72,7 +73,7 @@ MODULE kpoint_transform
    PUBLIC :: rskp_transform
    PUBLIC :: cell_to_k_sparse_fft, k_grid_to_cell_contract, rskp_phase_factors, rskp_work_matrix
    PUBLIC :: k_grid_to_cell_phase_prepare
-   PUBLIC :: cell_to_k_transform, k_to_real_cell_transform
+   PUBLIC :: cell_to_k_transform
 
    ! Unweighted one-dimensional phases for one symmetry group's local k domain.
    TYPE :: k_grid_to_cell_phase_type
@@ -310,87 +311,6 @@ CONTAINS
       END IF
       CALL timestop(handle)
    END SUBROUTINE cell_to_k_transform
-
-! **************************************************************************************************
-!> \brief Real part of the inverse lattice transform, normalized by the number of k points.
-!>        Local rectangular panels use shared FFT execution or real GEMM contractions with
-!>        cosine and sine weights. Matrix and cell tiles bound temporary storage.
-!>        Call outside OpenMP worker regions; this service owns its numerical workspace.
-!> \param values_k complex reciprocal-space matrices
-!> \param xkp reciprocal coordinates
-!> \param nkp_grid mesh dimensions for FFT
-!> \param cells requested lattice translations
-!> \param values_rs real part of the reconstructed matrices
-!> \param backend FFT backend (required)
-!> \param profile_fft print local FFT stage times on the logger rank, without MPI collectives
-! **************************************************************************************************
-   SUBROUTINE k_to_real_cell_transform(values_k, xkp, nkp_grid, cells, values_rs, backend, profile_fft)
-      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN), TARGET   :: values_k(:, :, :)
-      REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
-      INTEGER, INTENT(IN)                                :: nkp_grid(3), cells(:, :)
-      REAL(KIND=dp), CONTIGUOUS, INTENT(OUT), TARGET     :: values_rs(:, :, :)
-      INTEGER, INTENT(IN)                                :: backend
-      LOGICAL, INTENT(IN), OPTIONAL                      :: profile_fft
-
-      INTEGER                                            :: handle, i, ncell, nk, omp_limit, unit_nr
-      LOGICAL                                            :: measure_fft
-      REAL(KIND=dp)                                      :: profile_started, started
-      TYPE(k_grid_to_cell_work_type)                     :: fft_work
-      TYPE(lattice_fft_profile_type), ALLOCATABLE        :: fft_profile
-
-      CALL timeset('k_to_real_cell_transform', handle)
-      measure_fft = .FALSE.
-      IF (PRESENT(profile_fft)) measure_fft = profile_fft .AND. backend == rskp_backend_fft
-      IF (measure_fft) THEN
-         ALLOCATE (fft_profile)
-         profile_started = m_walltime()
-      END IF
-      nk = SIZE(xkp, 2)
-      ncell = SIZE(cells, 2)
-      CPASSERT(SIZE(cells, 1) == 3 .AND. SIZE(xkp, 1) == 3)
-      CPASSERT(nk > 0 .AND. SIZE(values_k, 3) == nk)
-      CPASSERT(SIZE(values_rs, 1) == SIZE(values_k, 1))
-      CPASSERT(SIZE(values_rs, 2) == SIZE(values_k, 2))
-      CPASSERT(SIZE(values_rs, 3) == ncell)
-      IF (SIZE(values_rs, KIND=int_8) == 0) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
-      CPASSERT(backend == rskp_backend_fft)
-      IF (measure_fft) started = m_walltime()
-      CALL k_grid_to_cell_prepare(fft_work, xkp, nkp_grid, cells)
-      IF (measure_fft) fft_profile%seconds(2) = m_walltime() - started
-      CALL k_grid_to_cell_execute(fft_work, values_k, values_real=values_rs, require_fft=.TRUE., profile=fft_profile)
-      IF (measure_fft) started = m_walltime()
-      CALL k_grid_to_cell_release(fft_work)
-      IF (measure_fft) fft_profile%seconds(9) = m_walltime() - started
-      IF (measure_fft) THEN
-         started = m_walltime() - profile_started
-         unit_nr = cp_logger_get_default_io_unit()
-         omp_limit = 1
-!$       omp_limit = omp_get_max_threads()
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A)') 'K2R_FFT_PROFILE| Local panels; logger-rank wall seconds, no MPI reduction'
-            WRITE (unit_nr, '(T2,A,3I10)') 'K2R_FFT_PROFILE| source shape: ', SHAPE(values_k)
-            WRITE (unit_nr, '(T2,A,6I8)') 'K2R_FFT_PROFILE| grid / padded: ', nkp_grid, fft_profile%nfft
-            WRITE (unit_nr, '(T2,A,2I16,2I8)') 'K2R_FFT_PROFILE| elements/batches/tile min/max: ', &
-               fft_profile%elements, fft_profile%batches, fft_profile%tile_min, fft_profile%tile_max
-            WRITE (unit_nr, '(T2,A,I8,2L3)') 'K2R_FFT_PROFILE| FFT OpenMP limit / input,output contiguous: ', &
-               omp_limit, IS_CONTIGUOUS(values_k), IS_CONTIGUOUS(values_rs)
-            WRITE (unit_nr, '(T2,A)') &
-               'K2R_FFT_PROFILE| grid-fill/extract use size-gated OpenMP; FFT axes include one-shot planning'
-            WRITE (unit_nr, '(T2,A,L2)') 'K2R_FFT_PROFILE| pair-major FFT input/output: ', &
-               fft_profile%pair_major
-            IF (fft_profile%pair_major) WRITE (unit_nr, '(T2,A)') &
-               'K2R_FFT_PROFILE| FFT-X/plan reports full 3D batched FFT (Y/Z entries zero)'
-            DO i = 1, SIZE(fft_profile_stages)
-               WRITE (unit_nr, '(T2,A,A14,F14.6)') 'K2R_FFT_PROFILE| ', fft_profile_stages(i), fft_profile%seconds(i)
-            END DO
-            WRITE (unit_nr, '(T2,A,F14.6)') 'K2R_FFT_PROFILE| total         ', started
-         END IF
-      END IF
-      CALL timestop(handle)
-   END SUBROUTINE k_to_real_cell_transform
 
 ! **************************************************************************************************
 !> \brief Transformation of real space matrices to a kpoint

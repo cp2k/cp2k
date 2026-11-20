@@ -41,14 +41,10 @@ MODULE gw_ri_rs_small_cell_full_kp_q0_corr
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE gw_auto_ri_types,                ONLY: auto_ri_type
-   USE gw_ri_rs_small_cell_full_kp_lattice,ONLY: assemble_AA_contraction,&
-                                              block_range,&
-                                              build_full_cell_grid,&
-                                              build_ri_2c_lattice,&
-                                              gamma_auxiliary_charges,&
-                                              owned_mo_coefficients,&
-                                              ri_2c_lattice_to_kp,&
-                                              ri_metric_head_zero
+   USE gw_ri_rs_small_cell_full_kp_lattice,ONLY: &
+        assemble_AA_contraction, block_range, build_full_cell_grid, build_ri_2c_lattice, &
+        complex_bytes, gamma_auxiliary_charges, grid_pair_indices, grid_pair_shift, &
+        owned_mo_coefficients, ri_2c_lattice_to_kp, ri_metric_head_zero
    USE gw_ri_rs_small_cell_full_kp_types,ONLY: gamma_atom_projection_type,&
                                               gamma_correction_type,&
                                               gwkp_type
@@ -88,8 +84,7 @@ MODULE gw_ri_rs_small_cell_full_kp_q0_corr
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_small_cell_full_kp_q0_corr'
 
-   PUBLIC :: add_gamma_corr_cell_correction, &
-             add_gamma_corr_pair_cell, &
+   PUBLIC :: add_gamma_corr_pairs, &
              gamma_point_correction, &
              prepare_ri_rs_gamma_correction, &
              q_mesh_and_gamma_shell_average, &
@@ -462,11 +457,13 @@ CONTAINS
 !> \param shell_weights weights w_q of the shells around Γ, 0 elsewhere and on shifted meshes
 !> \param values_q values on the χ/W mesh, last index q; the value at q = 0 is replaced by the
 !>        weighted shell average
+!> \param q_order native q index of each column of values_q, if stored in a different order
 ! **************************************************************************************************
-   SUBROUTINE q_mesh_and_gamma_shell_average(bs_env, q_mesh, shell_weights, values_q)
+   SUBROUTINE q_mesh_and_gamma_shell_average(bs_env, q_mesh, shell_weights, values_q, q_order)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(KIND=dp), ALLOCATABLE, INTENT(OUT), OPTIONAL  :: q_mesh(:, :), shell_weights(:)
       COMPLEX(KIND=dp), INTENT(INOUT), OPTIONAL          :: values_q(:, :, :)
+      INTEGER, INTENT(IN), OPTIONAL                      :: q_order(:)
 
       INTEGER                                            :: i, i_q0, iq, m1, m2, m3, m_max(3), &
                                                             n_dim, nk
@@ -551,7 +548,16 @@ CONTAINS
             IF (NORM2(MATMUL(shell_dyads, weights) - dyad_gamma) < 1.0E-8_dp .OR. &
                 ALL(in_shells .EQV. neighbour)) EXIT
          END DO
-         IF (PRESENT(values_q)) values_q(:, 1, i_q0) = MATMUL(values_q(:, 1, :), weights)
+         IF (PRESENT(values_q)) THEN
+            IF (PRESENT(q_order)) THEN
+               CPASSERT(SIZE(q_order) == nk)
+               i_q0 = FINDLOC(q_order, i_q0, DIM=1)
+               CPASSERT(i_q0 > 0)
+               values_q(:, 1, i_q0) = MATMUL(values_q(:, 1, :), weights(q_order))
+            ELSE
+               values_q(:, 1, i_q0) = MATMUL(values_q(:, 1, :), weights)
+            END IF
+         END IF
       END IF
       IF (PRESENT(q_mesh)) CALL MOVE_ALLOC(q, q_mesh)
       IF (PRESENT(shell_weights)) CALL MOVE_ALLOC(weights, shell_weights)
@@ -909,56 +915,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE gamma_corr_cell_integrals
-
-! **************************************************************************************************
-!> \brief Add the Gamma-correction head and wings of one time point to the local grid pairs.
-!> The wing of cell R is w_l(R,τ) = Σ_ω cos(τ,ω) Σ_c wing_cartesian_lc(ω) c_c(R,ω); one GEMM per cell
-!> forms it together with its conjugate-side partner.
-!> \param bs_env ...
-!> \param cells ...
-!> \param model ...
-!> \param i_t ...
-!> \param Z_head Grid coefficients Z_l0(0) of the Gamma head function
-!> \param first_pair ...
-!> \param W_grid_R ...
-! **************************************************************************************************
-   SUBROUTINE add_gamma_corr_cell_correction(bs_env, cells, model, i_t, Z_head, first_pair, W_grid_R)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER, INTENT(IN)                                :: cells(:, :)
-      TYPE(gamma_correction_type), INTENT(IN)            :: model
-      INTEGER, INTENT(IN)                                :: i_t
-      COMPLEX(KIND=dp), INTENT(IN)                       :: Z_head(:)
-      INTEGER, INTENT(IN)                                :: first_pair
-      REAL(KIND=dp), INTENT(INOUT)                       :: W_grid_R(:, :, :)
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'add_gamma_corr_cell_correction'
-
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: coefficient(:, :, :), wing(:, :)
-      INTEGER                                            :: handle, i_cell, j_w, n_frequency, n_grid
-
-      CALL timeset(routineN, handle)
-
-      n_grid = SIZE(model%wing_cartesian, 1)
-      n_frequency = SIZE(model%wing_cartesian, 3)
-      ALLOCATE (coefficient(3, n_frequency, 2), wing(n_grid, 2))
-      DO i_cell = 1, SIZE(cells, 2)
-         DO j_w = 1, n_frequency
-            coefficient(:, j_w, 1) = bs_env%time_frequency_grid%cosine_frequency_to_time(i_t, j_w)* &
-                                     model%wing_cell_frequency(:, j_w, i_cell)
-         END DO
-         ! conj(wing_cartesian) c = conj(wing_cartesian conj(c))
-         coefficient(:, :, 2) = CONJG(coefficient(:, :, 1))
-         CALL zgemm('N', 'N', n_grid, 2, 3*n_frequency, z_one, model%wing_cartesian, n_grid, &
-                    coefficient, 3*n_frequency, z_zero, wing, n_grid)
-         wing(:, 2) = CONJG(wing(:, 2))
-         CALL add_gamma_corr_pair_cell(bs_env, cells, i_cell, model%head_cell_tau(i_cell, i_t), Z_head, &
-                                       first_pair, W_grid_R, wing(:, 1), wing(:, 2))
-      END DO
-      DEALLOCATE (coefficient, wing)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE add_gamma_corr_cell_correction
 
 ! **************************************************************************************************
 !> \brief Transform cached response and solve (I+F^H Z^H B Z F) X = F^H Z^H E.
@@ -1831,7 +1787,7 @@ CONTAINS
    END SUBROUTINE gw_gamma_transition_moments
 
 ! **************************************************************************************************
-!> \brief Scatter one low-rank Gamma correction into the centred grid-pair images.
+!> \brief Scatter cell panels of the low-rank Gamma correction into centred grid-pair images.
 !> For s=nearest_integer[H^{-1}(r_l-r_l')], C_ll'(R)=C0_ll'(R-s).
 !> R-s is wrapped into the finite FFT cell with its transfer-mesh Bloch twist. Half-cell
 !> ties average adjacent integer images, retaining Hermiticity and cell-wrapping covariance.
@@ -1840,31 +1796,47 @@ CONTAINS
 !> beginning at first_pair.
 !> \param bs_env ...
 !> \param cells ...
-!> \param icell ...
-!> \param head_scalar ...
+!> \param head_scalar head amplitude at each source cell
 !> \param head_vector ...
 !> \param first_pair ...
 !> \param values_R ...
-!> \param wing_left ...
-!> \param wing_right ...
+!> \param model optional frequency-domain wings for the correlation correction
+!> \param i_t time point of the optional wing correction
 ! **************************************************************************************************
-   SUBROUTINE add_gamma_corr_pair_cell(bs_env, cells, icell, head_scalar, head_vector, &
-                                       first_pair, values_R, wing_left, wing_right)
+   SUBROUTINE add_gamma_corr_pairs(bs_env, cells, head_scalar, head_vector, first_pair, values_R, model, i_t)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER, INTENT(IN)                                :: cells(:, :), icell
-      COMPLEX(KIND=dp), INTENT(IN)                       :: head_scalar, head_vector(:)
+      INTEGER, INTENT(IN)                                :: cells(:, :)
+      COMPLEX(KIND=dp), INTENT(IN)                       :: head_scalar(:), head_vector(:)
       INTEGER, INTENT(IN)                                :: first_pair
       REAL(KIND=dp), INTENT(INOUT)                       :: values_R(:, :, :)
-      COMPLEX(KIND=dp), INTENT(IN), OPTIONAL             :: wing_left(:), wing_right(:)
+      TYPE(gamma_correction_type), INTENT(IN), OPTIONAL  :: model
+      INTEGER, INTENT(IN), OPTIONAL                      :: i_t
 
-      COMPLEX(KIND=dp)                                   :: amplitude(2), twist(27, 2)
-      INTEGER :: destination(27, 2), high(3), idir, iimage, il, ilocal, ilp, imirror, ipair, ix, &
-         iy, iz, jlocal, low(3), lower(3), ngrid, nmesh(3), shift(3), translated(3), wrapped(3)
-      REAL(KIND=dp)                                      :: delta(3), half_boundary, qoffset(3), &
-                                                            tolerance, weight
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'add_gamma_corr_pairs'
+
+      COMPLEX(KIND=dp)                                   :: amplitude(2), head_pair
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: coefficient(:, :, :, :), twist(:, :, :), &
+                                                            wing(:, :, :)
+      INTEGER :: cell_first, cell_width, handle, high(3), icell, idir, iimage, il, ilocal, ilp, &
+         imirror, ipair, ix, iy, iz, j_w, jcell, jlocal, low(3), lower(3), ncell, nfrequency, &
+         ngrid, nmesh(3), shift(3), translated(3), wrapped(3)
+      INTEGER, ALLOCATABLE                               :: destination(:, :, :)
+      LOGICAL                                            :: tie(3)
+      REAL(KIND=dp)                                      :: cell_bytes, qoffset(3), weight
       REAL(KIND=dp), ALLOCATABLE                         :: fractional_grid(:, :)
 
+      CALL timeset(routineN, handle)
+      CPASSERT(PRESENT(model) .EQV. PRESENT(i_t))
+      CPASSERT(SIZE(head_scalar) == SIZE(cells, 2))
       ngrid = bs_env%ri_rs%n_grid_points
+      nfrequency = 0
+      IF (PRESENT(model)) nfrequency = SIZE(model%wing_cartesian, 3)
+      ! Bound wing, coefficient and image-map storage to 64 MiB, or one source cell.
+      cell_bytes = complex_bytes*54.0_dp + REAL(54*STORAGE_SIZE(0)/8, dp)
+      IF (PRESENT(model)) cell_bytes = cell_bytes + complex_bytes*(2.0_dp*ngrid + 6.0_dp*nfrequency)
+      cell_width = MAX(1, MIN(SIZE(cells, 2), INT(64.0_dp*1024.0_dp**2/cell_bytes)))
+      ALLOCATE (destination(27, 2, cell_width), twist(27, 2, cell_width))
+      IF (PRESENT(model)) ALLOCATE (coefficient(3, nfrequency, 2, cell_width), wing(ngrid, 2, cell_width))
       nmesh = bs_env%kpoints_scf_desymm%nkp_grid
       lower = -nmesh/2
       qoffset = bs_env%kpoints_chi_eps_W%xkp(1:3, 1)
@@ -1873,69 +1845,83 @@ CONTAINS
       DO idir = 1, 3
          IF (bs_env%periodic(idir) == 0) fractional_grid(idir, :) = 0.0_dp
       END DO
-      DO iz = -1, 1
-         DO iy = -1, 1
-            DO ix = -1, 1
-               shift = [ix, iy, iz]
-               iimage = 1 + ix + 1 + 3*(iy + 1) + 9*(iz + 1)
-               DO imirror = 1, 2
-                  translated = (3 - 2*imirror)*cells(:, icell) + shift
-                  wrapped = MODULO(translated - lower, nmesh) + lower
-                  destination(iimage, imirror) = 1 + (wrapped(3) - lower(3)) + &
-                                                 nmesh(3)*(wrapped(2) - lower(2) + nmesh(2)*(wrapped(1) - lower(1)))
-                  twist(iimage, imirror) = EXP(CMPLX(0.0_dp, &
-                                                     twopi*DOT_PRODUCT(qoffset, REAL(translated - wrapped, dp)), dp))
+      DO cell_first = 1, SIZE(cells, 2), cell_width
+         ncell = MIN(cell_width, SIZE(cells, 2) - cell_first + 1)
+         DO jcell = 1, ncell
+            icell = cell_first + jcell - 1
+            IF (PRESENT(model)) THEN
+               DO j_w = 1, nfrequency
+                  coefficient(:, j_w, 1, jcell) = bs_env%time_frequency_grid%cosine_frequency_to_time(i_t, j_w)* &
+                                                  model%wing_cell_frequency(:, j_w, icell)
                END DO
-            END DO
-         END DO
-      END DO
-      ! Every local pair row receives its own images, so threads never share an element.
-      !$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SCHEDULE(STATIC) &
-      !$OMP SHARED(values_R, first_pair, ngrid, fractional_grid, head_scalar, head_vector, &
-      !$OMP        wing_left, wing_right, destination, twist) &
-      !$OMP PRIVATE(jlocal, ilocal, ipair, il, ilp, delta, low, high, idir, half_boundary, &
-      !$OMP         tolerance, weight, amplitude, iz, iy, ix, iimage, imirror)
-      DO jlocal = 1, SIZE(values_R, 2)
-         DO ilocal = 1, SIZE(values_R, 1)
-            ipair = first_pair + ilocal - 1
-            il = MODULO(ipair - 1, ngrid) + 1
-            ilp = (ipair - 1)/ngrid + 1
-            delta = fractional_grid(:, il) - fractional_grid(:, ilp)
-            low = NINT(delta)
-            high = low
-            DO idir = 1, 3
-               half_boundary = ANINT(delta(idir) - 0.5_dp) + 0.5_dp
-               tolerance = 64.0_dp*EPSILON(1.0_dp)*MAX(1.0_dp, ABS(delta(idir)))
-               IF (ABS(delta(idir) - half_boundary) <= tolerance) THEN
-                  low(idir) = NINT(half_boundary - 0.5_dp)
-                  high(idir) = low(idir) + 1
-               END IF
-            END DO
-            weight = 0.5_dp/REAL(PRODUCT(high - low + 1), dp)
-            amplitude(1) = head_scalar*head_vector(il)*CONJG(head_vector(ilp))
-            amplitude(2) = CONJG(head_scalar)*head_vector(il)*CONJG(head_vector(ilp))
-            IF (PRESENT(wing_left)) THEN
-               amplitude(1) = amplitude(1) + &
-                              head_vector(il)*wing_right(ilp) + wing_left(il)*CONJG(head_vector(ilp))
-               amplitude(2) = amplitude(2) + &
-                              CONJG(head_vector(ilp)*wing_right(il) + wing_left(ilp)*CONJG(head_vector(il)))
+               coefficient(:, :, 2, jcell) = CONJG(coefficient(:, :, 1, jcell))
             END IF
-            DO iz = low(3), high(3)
-               DO iy = low(2), high(2)
-                  DO ix = low(1), high(1)
+            DO iz = -1, 1
+               DO iy = -1, 1
+                  DO ix = -1, 1
+                     shift = [ix, iy, iz]
                      iimage = 1 + ix + 1 + 3*(iy + 1) + 9*(iz + 1)
                      DO imirror = 1, 2
-                        values_R(ilocal, jlocal, destination(iimage, imirror)) = &
-                           values_R(ilocal, jlocal, destination(iimage, imirror)) + &
-                           weight*REAL(twist(iimage, imirror)*amplitude(imirror), dp)
+                        translated = (3 - 2*imirror)*cells(:, icell) + shift
+                        wrapped = MODULO(translated - lower, nmesh) + lower
+                        destination(iimage, imirror, jcell) = 1 + (wrapped(3) - lower(3)) + &
+                                                              nmesh(3)*(wrapped(2) - lower(2) + nmesh(2)*(wrapped(1) - lower(1)))
+                        twist(iimage, imirror, jcell) = EXP(CMPLX(0.0_dp, &
+                                                                  twopi*DOT_PRODUCT(qoffset, REAL(translated - wrapped, dp)), dp))
                      END DO
                   END DO
                END DO
             END DO
          END DO
+         IF (PRESENT(model)) THEN
+            ! Each cell contributes two adjacent GEMM columns, including the conjugate-side wing.
+            CALL zgemm('N', 'N', ngrid, 2*ncell, 3*nfrequency, z_one, model%wing_cartesian, ngrid, &
+                       coefficient, 3*nfrequency, z_zero, wing, ngrid)
+            wing(:, 2, :ncell) = CONJG(wing(:, 2, :ncell))
+         END IF
+         ! Every local pair row receives its own images, so threads never share an element.
+         !$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SCHEDULE(STATIC) &
+         !$OMP SHARED(values_R, first_pair, ngrid, fractional_grid, head_scalar, head_vector, &
+         !$OMP        model, wing, destination, twist, cell_first, ncell) &
+         !$OMP PRIVATE(jlocal, ilocal, ipair, il, ilp, low, high, tie, weight, amplitude, iz, iy, ix, iimage, imirror) &
+         !$OMP PRIVATE(jcell, icell, head_pair)
+         DO jlocal = 1, SIZE(values_R, 2)
+            DO ilocal = 1, SIZE(values_R, 1)
+               ipair = first_pair + ilocal - 1
+               CALL grid_pair_indices(ipair, il, ilp)
+               CALL grid_pair_shift(il, ilp, fractional_grid, low, tie)
+               high = low + MERGE(1, 0, tie)
+               weight = 0.5_dp/REAL(PRODUCT(high - low + 1), dp)
+               head_pair = head_vector(il)*CONJG(head_vector(ilp))
+               DO jcell = 1, ncell
+                  icell = cell_first + jcell - 1
+                  amplitude(1) = head_scalar(icell)*head_pair
+                  amplitude(2) = CONJG(head_scalar(icell))*head_pair
+                  IF (PRESENT(model)) THEN
+                     amplitude(1) = amplitude(1) + &
+                                    head_vector(il)*wing(ilp, 2, jcell) + wing(il, 1, jcell)*CONJG(head_vector(ilp))
+                     amplitude(2) = amplitude(2) + &
+                                    CONJG(head_vector(ilp)*wing(il, 2, jcell) + wing(ilp, 1, jcell)*CONJG(head_vector(il)))
+                  END IF
+                  DO iz = low(3), high(3)
+                     DO iy = low(2), high(2)
+                        DO ix = low(1), high(1)
+                           iimage = 1 + ix + 1 + 3*(iy + 1) + 9*(iz + 1)
+                           DO imirror = 1, 2
+                              values_R(ilocal, jlocal, destination(iimage, imirror, jcell)) = &
+                                 values_R(ilocal, jlocal, destination(iimage, imirror, jcell)) + &
+                                 weight*REAL(twist(iimage, imirror, jcell)*amplitude(imirror), dp)
+                           END DO
+                        END DO
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+         !$OMP END PARALLEL DO
       END DO
-      !$OMP END PARALLEL DO
-   END SUBROUTINE add_gamma_corr_pair_cell
+      CALL timestop(handle)
+   END SUBROUTINE add_gamma_corr_pairs
 
 ! **************************************************************************************************
 !> \brief Gather the sparse Gamma-correction AO images as column slices of their dense form.
