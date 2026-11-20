@@ -273,11 +273,9 @@ CONTAINS
 !> \param work_forces ...
 !> \param buffer1 ...
 !> \param buffer2 ...
-!> \param primitives_tmp ...
 !> \param use_virial ...
 !> \param work_virial ...
 !> \param work2_virial ...
-!> \param primitives_tmp_virial ...
 !> \param primitives_virial ...
 !> \param cell ...
 !> \param tmp_max_all_virial ...
@@ -296,8 +294,8 @@ CONTAINS
                                  nl_a, nl_b, nl_c, nl_d, nsoa, nsob, nsoc, nsod, &
                                  angular_a, angular_b, angular_c, angular_d, &
                                  weight_a, weight_b, weight_c, weight_d, &
-                                 work, work2, work_forces, buffer1, buffer2, primitives_tmp, &
-                                 use_virial, work_virial, work2_virial, primitives_tmp_virial, &
+                                 work, work2, work_forces, buffer1, buffer2, &
+                                 use_virial, work_virial, work2_virial, &
                                  primitives_virial, cell, tmp_max_all_virial)
 
       TYPE(four_center_integral_context_type), &
@@ -320,13 +318,9 @@ CONTAINS
       REAL(dp) :: work(ncoa*ncob*ncoc*ncod, 12), work2(ncoa, ncob, ncoc, ncod, 12), &
          work_forces(ncoa*ncob*ncoc*ncod, 12)
       REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod)           :: buffer1, buffer2
-      REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b, nsoc*&
-         nl_c, nsod*nl_d)                                :: primitives_tmp
       LOGICAL, INTENT(IN)                                :: use_virial
       REAL(dp) :: work_virial(ncoa*ncob*ncoc*ncod, 12, 3), &
          work2_virial(ncoa, ncob, ncoc, ncod, 12, 3)
-      REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b, nsoc*&
-         nl_c, nsod*nl_d)                                :: primitives_tmp_virial
       REAL(dp), &
          DIMENSION(nsgfa, nsgfb, nsgfc, nsgfd, 12, 3)    :: primitives_virial
       TYPE(cell_type), POINTER                           :: cell
@@ -334,7 +328,6 @@ CONTAINS
 
       INTEGER                                            :: angular_momenta(4), i, j, k, m, mysize, &
                                                             permutation(4)
-      LOGICAL                                            :: direct_contract
       REAL(dp)                                           :: scoord(12)
 
       mysize = ncoa*ncob*ncoc*ncod
@@ -379,91 +372,30 @@ CONTAINS
          tmp_max_all_virial = MAX(tmp_max_all_virial, max_contraction*MAXVAL(ABS(work_virial)))
       END IF
 
-      direct_contract = (s_offset_a == 0 .AND. s_offset_b == 0 .AND. &
-                         s_offset_c == 0 .AND. s_offset_d == 0 .AND. &
-                         nsgfa == nsoa*nl_a .AND. nsgfb == nsob*nl_b .AND. &
-                         nsgfc == nsoc*nl_c .AND. nsgfd == nsod*nl_d)
-
       IF (tmp_max_all >= eps_schwarz) THEN
          CALL reorder_eri_block(work, work2, [ncoa, ncob, ncoc, ncod], permutation, 12, 1)
-         IF (direct_contract) THEN
-            DO i = 1, 12
-               CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
-                             n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2(1, 1, 1, 1, i), &
-                             angular_a, &
-                             angular_b, &
-                             angular_c, &
-                             angular_d, &
-                             weight_a, weight_b, weight_c, weight_d, &
-                             primitives(1, 1, 1, 1, i), &
-                             buffer1, buffer2)
-            END DO
-         ELSE
-            DO i = 1, 12
-               primitives_tmp(:, :, :, :) = 0.0_dp
-               CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
-                             n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2(1, 1, 1, 1, i), &
-                             angular_a, &
-                             angular_b, &
-                             angular_c, &
-                             angular_d, &
-                             weight_a, weight_b, weight_c, weight_d, &
-                             primitives_tmp(1, 1, 1, 1), &
-                             buffer1, buffer2)
-
-               primitives(s_offset_a + 1:s_offset_a + nsoa*nl_a, &
-                          s_offset_b + 1:s_offset_b + nsob*nl_b, &
-                          s_offset_c + 1:s_offset_c + nsoc*nl_c, &
-                          s_offset_d + 1:s_offset_d + nsod*nl_d, i) = &
-                  primitives(s_offset_a + 1:s_offset_a + nsoa*nl_a, &
-                             s_offset_b + 1:s_offset_b + nsob*nl_b, &
-                             s_offset_c + 1:s_offset_c + nsoc*nl_c, &
-                             s_offset_d + 1:s_offset_d + nsod*nl_d, i) + primitives_tmp(:, :, :, :)
-            END DO
-         END IF
+         DO i = 1, 12
+            CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
+                          n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2(1, 1, 1, 1, i), &
+                          angular_a, angular_b, angular_c, angular_d, &
+                          weight_a, weight_b, weight_c, weight_d, nsgfa, nsgfb, nsgfc, &
+                          primitives(s_offset_a + 1, s_offset_b + 1, s_offset_c + 1, s_offset_d + 1, i), &
+                          buffer1, buffer2)
+         END DO
       END IF
 
       IF (use_virial .AND. tmp_max_all_virial >= eps_schwarz) THEN
          CALL reorder_eri_block(work_virial, work2_virial, [ncoa, ncob, ncoc, ncod], permutation, 12, 3)
-         IF (direct_contract) THEN
-            DO i = 1, 12
-               DO m = 1, 3
-                  CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
-                                n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2_virial(1, 1, 1, 1, i, m), &
-                                angular_a, &
-                                angular_b, &
-                                angular_c, &
-                                angular_d, &
-                                weight_a, weight_b, weight_c, weight_d, &
-                                primitives_virial(1, 1, 1, 1, i, m), &
-                                buffer1, buffer2)
-               END DO
+         DO i = 1, 12
+            DO m = 1, 3
+               CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
+                             n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2_virial(1, 1, 1, 1, i, m), &
+                             angular_a, angular_b, angular_c, angular_d, &
+                             weight_a, weight_b, weight_c, weight_d, nsgfa, nsgfb, nsgfc, &
+                             primitives_virial(s_offset_a + 1, s_offset_b + 1, s_offset_c + 1, s_offset_d + 1, i, m), &
+                             buffer1, buffer2)
             END DO
-         ELSE
-            DO i = 1, 12
-               DO m = 1, 3
-                  primitives_tmp_virial(:, :, :, :) = 0.0_dp
-                  CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
-                                n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2_virial(1, 1, 1, 1, i, m), &
-                                angular_a, &
-                                angular_b, &
-                                angular_c, &
-                                angular_d, &
-                                weight_a, weight_b, weight_c, weight_d, &
-                                primitives_tmp_virial(1, 1, 1, 1), &
-                                buffer1, buffer2)
-
-                  primitives_virial(s_offset_a + 1:s_offset_a + nsoa*nl_a, &
-                                    s_offset_b + 1:s_offset_b + nsob*nl_b, &
-                                    s_offset_c + 1:s_offset_c + nsoc*nl_c, &
-                                    s_offset_d + 1:s_offset_d + nsod*nl_d, i, m) = &
-                     primitives_virial(s_offset_a + 1:s_offset_a + nsoa*nl_a, &
-                                       s_offset_b + 1:s_offset_b + nsob*nl_b, &
-                                       s_offset_c + 1:s_offset_c + nsoc*nl_c, &
-                                       s_offset_d + 1:s_offset_d + nsod*nl_d, i, m) + primitives_tmp_virial(:, :, :, :)
-               END DO
-            END DO
-         END IF
+         END DO
       END IF
 
    END SUBROUTINE evaluate_deriv_eri
@@ -601,7 +533,6 @@ CONTAINS
 !> \param work2 ...
 !> \param buffer1 ...
 !> \param buffer2 ...
-!> \param primitives_tmp ...
 !> \par History
 !>      11.2006 created [Manuel Guidon]
 !>      08.2007 refactured permutation part [Manuel Guidon]
@@ -616,8 +547,7 @@ CONTAINS
                            s_offset_a, s_offset_b, s_offset_c, s_offset_d, &
                            nl_a, nl_b, nl_c, nl_d, nsoa, nsob, nsoc, nsod, &
                            angular_a, angular_b, angular_c, angular_d, &
-                           weight_a, weight_b, weight_c, weight_d, work2, buffer1, buffer2, &
-                           primitives_tmp)
+                           weight_a, weight_b, weight_c, weight_d, work2, buffer1, buffer2)
 
       TYPE(four_center_integral_context_type), &
          INTENT(INOUT)                                   :: context
@@ -638,12 +568,9 @@ CONTAINS
       REAL(dp)                                           :: work2(ncoa, ncob, ncoc, ncod)
       REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod), TARGET   :: buffer1
       REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod)           :: buffer2
-      REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b, nsoc*&
-         nl_c, nsod*nl_d)                                :: primitives_tmp
 
       INTEGER                                            :: angular_momenta(4), i, m_max, mysize, &
                                                             permutation(4)
-      LOGICAL                                            :: direct_contract
       REAL(dp), POINTER                                  :: p_work(:)
 
       IF (context%nproducts == 0) RETURN
@@ -674,42 +601,12 @@ CONTAINS
       IF (tmp_max < eps_schwarz) RETURN
       IF (m_max /= 0) CALL reorder_eri_block(p_work, work2, [ncoa, ncob, ncoc, ncod], permutation, 1, 1)
 
-      direct_contract = (s_offset_a == 0 .AND. s_offset_b == 0 .AND. &
-                         s_offset_c == 0 .AND. s_offset_d == 0 .AND. &
-                         nsgfa == nsoa*nl_a .AND. nsgfb == nsob*nl_b .AND. &
-                         nsgfc == nsoc*nl_c .AND. nsgfd == nsod*nl_d)
-      IF (direct_contract) THEN
-         CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
-                       n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2, &
-                       angular_a, &
-                       angular_b, &
-                       angular_c, &
-                       angular_d, &
-                       weight_a, weight_b, weight_c, weight_d, &
-                       primitives, &
-                       buffer1, buffer2)
-      ELSE
-         primitives_tmp = 0.0_dp
-
-         CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
-                       n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2, &
-                       angular_a, &
-                       angular_b, &
-                       angular_c, &
-                       angular_d, &
-                       weight_a, weight_b, weight_c, weight_d, &
-                       primitives_tmp, &
-                       buffer1, buffer2)
-
-         primitives(s_offset_a + 1:s_offset_a + nsoa*nl_a, &
-                    s_offset_b + 1:s_offset_b + nsob*nl_b, &
-                    s_offset_c + 1:s_offset_c + nsoc*nl_c, &
-                    s_offset_d + 1:s_offset_d + nsod*nl_d) = &
-            primitives(s_offset_a + 1:s_offset_a + nsoa*nl_a, &
-                       s_offset_b + 1:s_offset_b + nsob*nl_b, &
-                       s_offset_c + 1:s_offset_c + nsoc*nl_c, &
-                       s_offset_d + 1:s_offset_d + nsod*nl_d) + primitives_tmp(:, :, :, :)
-      END IF
+      CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
+                    n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2, &
+                    angular_a, angular_b, angular_c, angular_d, &
+                    weight_a, weight_b, weight_c, weight_d, nsgfa, nsgfb, nsgfc, &
+                    primitives(s_offset_a + 1, s_offset_b + 1, s_offset_c + 1, s_offset_d + 1), &
+                    buffer1, buffer2)
 
    END SUBROUTINE evaluate_eri
 

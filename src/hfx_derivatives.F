@@ -162,8 +162,8 @@ CONTAINS
                   my_adiabatic_rescale_factor, pmax_atom, pmax_blocks, pmax_entry, pmax_tmp, ra(3), rab2, &
                   rb(3), rc(3), rcd2, rd(3), spherical_estimate, spherical_estimate_virial, symm_fac, &
                   tmp_virial(3, 3)
-      REAL(dp), ALLOCATABLE, DIMENSION(:) :: ede_buffer1, ede_buffer2, ede_primitives_tmp, &
-                                             ede_primitives_tmp_virial, ede_work, ede_work2, ede_work2_virial, ede_work_forces, &
+      REAL(dp), ALLOCATABLE, DIMENSION(:) :: ede_buffer1, ede_buffer2, &
+                                             ede_work, ede_work2, ede_work2_virial, ede_work_forces, &
                                              ede_work_virial, pac_buf, pac_buf_beta, pac_buf_resp, pac_buf_resp_beta, pad_buf, &
                                              pad_buf_beta, pad_buf_resp, pad_buf_resp_beta, pbc_buf, pbc_buf_beta, pbc_buf_resp, &
                                              pbc_buf_resp_beta, pbd_buf, pbd_buf_beta, pbd_buf_resp, pbd_buf_resp_beta
@@ -325,7 +325,6 @@ CONTAINS
 !$OMP  buffer_start,cache_size,cartesian_estimate,cartesian_estimate_virial,&
 !$OMP  coeffs_kind_max0,compression_factor,counter,current_counter,&
 !$OMP  distribution_forces,do_dynamic_load_balancing,do_it,do_periodic,ede_buffer1,ede_buffer2,&
-!$OMP  ede_primitives_tmp,ede_primitives_tmp_virial,&
 !$OMP  ede_work,ede_work2,ede_work2_virial,ede_work_forces,ede_work_virial,eps_schwarz,eps_storage,estimate_to_store_int,&
 !$OMP  fac,first_sgfb,forces_map,general_parameter,handle_bin,handle_getp,handle_load,&
 !$OMP  handle_main,hf_fraction,i_atom,iatom_end,iatom_start,ikind,integral_caches,integral_containers,&
@@ -630,14 +629,12 @@ CONTAINS
       ALLOCATE (ede_work_forces(ncos_max**4*12))
       ALLOCATE (ede_buffer1(ncos_max**4))
       ALLOCATE (ede_buffer2(ncos_max**4))
-      ALLOCATE (ede_primitives_tmp(nsgf_max**4))
 
       IF (use_virial) THEN
          ALLOCATE (primitive_forces_virial(12*nsgf_max**4*3))
          primitive_forces_virial = 0.0_dp
          ALLOCATE (ede_work_virial(ncos_max**4*12*3))
          ALLOCATE (ede_work2_virial(ncos_max**4*12*3))
-         ALLOCATE (ede_primitives_tmp_virial(nsgf_max**4))
          tmp_virial = 0.0_dp
       ELSE
          ! dummy allocation
@@ -645,7 +642,6 @@ CONTAINS
          primitive_forces_virial = 0.0_dp
          ALLOCATE (ede_work_virial(1))
          ALLOCATE (ede_work2_virial(1))
-         ALLOCATE (ede_primitives_tmp_virial(1))
       END IF
 
       !! Start caluclating integrals of the form (ab|cd) or (ij|kl)
@@ -1253,9 +1249,9 @@ CONTAINS
                                         basis_parameter(ikind)%contraction(:, iset), basis_parameter(jkind)%contraction(:, jset), &
                                         basis_parameter(kkind)%contraction(:, kset), basis_parameter(lkind)%contraction(:, lset), &
                                         ede_work, ede_work2, ede_work_forces, &
-                                        ede_buffer1, ede_buffer2, ede_primitives_tmp, &
+                                        ede_buffer1, ede_buffer2, &
                                         nimages, do_periodic, use_virial, ede_work_virial, ede_work2_virial, &
-                                        ede_primitives_tmp_virial, primitive_forces_virial, &
+                                        primitive_forces_virial, &
                                         cartesian_estimate_virial)
 
                            nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)*12
@@ -1670,9 +1666,9 @@ CONTAINS
 
       DEALLOCATE (primitive_forces_virial)
 
-      DEALLOCATE (ede_work, ede_work2, ede_work_forces, ede_buffer1, ede_buffer2, ede_primitives_tmp)
+      DEALLOCATE (ede_work, ede_work2, ede_work_forces, ede_buffer1, ede_buffer2)
 
-      DEALLOCATE (ede_work_virial, ede_work2_virial, ede_primitives_tmp_virial)
+      DEALLOCATE (ede_work_virial, ede_work2_virial)
 
       DEALLOCATE (nimages)
 

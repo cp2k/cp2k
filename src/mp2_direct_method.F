@@ -427,8 +427,8 @@ CONTAINS
          pmax_atom, pmax_entry, ra(3), rab2, rb(3), rc(3), rcd2, rd(3), screen_kind_ij, &
          screen_kind_kl
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cost_RS, cost_RS_temp, ee_buffer1, &
-                                                            ee_buffer2, ee_primitives_tmp, &
-                                                            ee_work2, primitive_integrals
+                                                            ee_buffer2, ee_work2, &
+                                                            primitive_integrals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_RS_mat_rec, C_beta_T, max_contraction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb, BIb_RS_mat_rec_big, zero_mat_big
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: BI1, MNRS
@@ -467,7 +467,7 @@ CONTAINS
       CALL prepare_integral_calc(cell, qs_env, mp2_env, para_env, mp2_potential_parameter, actual_x_data, &
                                  do_periodic, basis_parameter, max_set, particle_set, natom, kind_of, &
                                  nsgf_max, primitive_integrals, ee_work2, ee_buffer1, ee_buffer2, &
-                                 ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
+                                 nspins, max_contraction, max_pgf, pgf_list_ij, &
                                  pgf_list_kl, nimages, eps_schwarz, log10_eps_schwarz, &
                                  screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
                                  radii_pgf)
@@ -755,7 +755,7 @@ CONTAINS
                                    pgf_list_ij, pgf_list_kl, &
                                    basis_parameter(ikind)%contraction(:, iset), basis_parameter(jkind)%contraction(:, jset), &
                                    basis_parameter(kkind)%contraction(:, kset), basis_parameter(lkind)%contraction(:, lset), &
-                                   ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
+                                   ee_work2, ee_buffer1, ee_buffer2, &
                                    nimages, do_periodic)
 
                      nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
@@ -1053,7 +1053,7 @@ CONTAINS
 
       DEALLOCATE (max_contraction, kind_of)
 
-      DEALLOCATE (ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
+      DEALLOCATE (ee_work2, ee_buffer1, ee_buffer2)
 
       DEALLOCATE (nimages)
 

@@ -352,8 +352,7 @@ CONTAINS
       REAL(KIND=dp) :: cartesian_estimate, coeffs_kind_max0, eps_schwarz, ln_10, &
          log10_eps_schwarz, log10_pmax, max_contraction_val, pmax_atom, pmax_entry, ra(3), rb(3), &
          rc(3), rd(3)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ee_buffer1, ee_buffer2, &
-                                                            ee_primitives_tmp, ee_work2, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ee_buffer1, ee_buffer2, ee_work2, &
                                                             primitive_integrals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: L_block, L_full_matrix, max_contraction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI1, MNRS
@@ -392,7 +391,7 @@ CONTAINS
       CALL prepare_integral_calc(cell, qs_env, mp2_env, para_env, mp2_potential_parameter, actual_x_data, &
                                  do_periodic, basis_parameter, max_set, particle_set, natom, kind_of, &
                                  nsgf_max, primitive_integrals, ee_work2, ee_buffer1, ee_buffer2, &
-                                 ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
+                                 nspins, max_contraction, max_pgf, pgf_list_ij, &
                                  pgf_list_kl, nimages, eps_schwarz, log10_eps_schwarz, &
                                  screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
                                  radii_pgf, RI_basis_parameter, RI_basis_info)
@@ -506,7 +505,7 @@ CONTAINS
                                 pgf_list_ij, pgf_list_kl, &
                                 RI_basis_parameter(ikind)%contraction(:, iset), basis_S0(jkind)%contraction(:, jset), &
                                 RI_basis_parameter(kkind)%contraction(:, kset), basis_S0(lkind)%contraction(:, lset), &
-                                ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
+                                ee_work2, ee_buffer1, ee_buffer2, &
                                 nimages, do_periodic)
 
                   primitive_counter = 0
@@ -700,7 +699,7 @@ CONTAINS
                                 pgf_list_ij, pgf_list_kl, &
                                 RI_basis_parameter(ikind)%contraction(:, iset), basis_S0(jkind)%contraction(:, jset), &
                                 basis_parameter(kkind)%contraction(:, kset), basis_parameter(lkind)%contraction(:, lset), &
-                                ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
+                                ee_work2, ee_buffer1, ee_buffer2, &
                                 nimages, do_periodic)
 
                   nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
@@ -766,7 +765,7 @@ CONTAINS
 
       DEALLOCATE (max_contraction, kind_of)
 
-      DEALLOCATE (ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
+      DEALLOCATE (ee_work2, ee_buffer1, ee_buffer2)
 
       DEALLOCATE (nimages)
 
@@ -793,7 +792,6 @@ CONTAINS
 !> \param ee_work2 ...
 !> \param ee_buffer1 ...
 !> \param ee_buffer2 ...
-!> \param ee_primitives_tmp ...
 !> \param nspins ...
 !> \param max_contraction ...
 !> \param max_pgf ...
@@ -812,7 +810,7 @@ CONTAINS
    SUBROUTINE prepare_integral_calc(cell, qs_env, mp2_env, para_env, mp2_potential_parameter, actual_x_data, &
                                     do_periodic, basis_parameter, max_set, particle_set, natom, kind_of, &
                                     nsgf_max, primitive_integrals, ee_work2, ee_buffer1, ee_buffer2, &
-                                    ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
+                                    nspins, max_contraction, max_pgf, pgf_list_ij, &
                                     pgf_list_kl, nimages, eps_schwarz, log10_eps_schwarz, &
                                     screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
                                     radii_pgf, RI_basis_parameter, RI_basis_info)
@@ -832,8 +830,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: nsgf_max
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: primitive_integrals, ee_work2, &
-                                                            ee_buffer1, ee_buffer2, &
-                                                            ee_primitives_tmp
+                                                            ee_buffer1, ee_buffer2
       INTEGER, INTENT(OUT)                               :: nspins
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: max_contraction
@@ -938,7 +935,6 @@ CONTAINS
       ALLOCATE (ee_work2(ncos_max**4))
       ALLOCATE (ee_buffer1(ncos_max**4))
       ALLOCATE (ee_buffer2(ncos_max**4))
-      ALLOCATE (ee_primitives_tmp(nsgf_max**4))
 
       nspins = dft_control%nspins
 

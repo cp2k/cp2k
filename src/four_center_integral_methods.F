@@ -212,7 +212,6 @@ CONTAINS
 !> \param ee_work2 ...
 !> \param ee_buffer1 ...
 !> \param ee_buffer2 ...
-!> \param ee_primitives_tmp ...
 !> \param nimages ...
 !> \param do_periodic ...
 !> \par History
@@ -231,7 +230,7 @@ CONTAINS
                        log10_eps_schwarz, R1_pgf, R2_pgf, pgf1, pgf2, &
                        pgf_list_ij, pgf_list_kl, &
                        contraction_a, contraction_b, contraction_c, contraction_d, &
-                       ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
+                       ee_work2, ee_buffer1, ee_buffer2, &
                        nimages, do_periodic)
 
       TYPE(four_center_integral_context_type), &
@@ -259,8 +258,7 @@ CONTAINS
       TYPE(eri4_pgf_pair_type), DIMENSION(*)             :: pgf_list_ij, pgf_list_kl
       TYPE(eri4_contraction_type), INTENT(IN)            :: contraction_a(0:), contraction_b(0:), &
                                                             contraction_c(0:), contraction_d(0:)
-      REAL(dp), DIMENSION(*)                             :: ee_work2, ee_buffer1, ee_buffer2, &
-                                                            ee_primitives_tmp
+      REAL(dp), DIMENSION(*)                             :: ee_work2, ee_buffer1, ee_buffer2
       INTEGER, DIMENSION(*)                              :: nimages
       LOGICAL, INTENT(IN)                                :: do_periodic
 
@@ -337,7 +335,7 @@ CONTAINS
                                           contraction_c(lc)%angular, contraction_d(ld)%angular, &
                                           contraction_a(la)%weights(:, ipgf), contraction_b(lb)%weights(:, jpgf), &
                                           contraction_c(lc)%weights(:, kpgf), contraction_d(ld)%weights(:, lpgf), &
-                                          ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
+                                          ee_work2, ee_buffer1, ee_buffer2)
                         cart_estimate = MAX(tmp_max, cart_estimate)
                         s_offset_d = s_offset_d + nsod*nsgfld
                      END DO !ld
@@ -406,13 +404,11 @@ CONTAINS
 !> \param ede_work_forces ...
 !> \param ede_buffer1 ...
 !> \param ede_buffer2 ...
-!> \param ede_primitives_tmp ...
 !> \param nimages ...
 !> \param do_periodic ...
 !> \param use_virial ...
 !> \param ede_work_virial ...
 !> \param ede_work2_virial ...
-!> \param ede_primitives_tmp_virial ...
 !> \param primitive_integrals_virial ...
 !> \param cart_estimate_virial ...
 ! **************************************************************************************************
@@ -428,9 +424,9 @@ CONTAINS
                       pgf_list_ij, pgf_list_kl, &
                       contraction_a, contraction_b, contraction_c, contraction_d, &
                       ede_work, ede_work2, ede_work_forces, &
-                      ede_buffer1, ede_buffer2, ede_primitives_tmp, &
+                      ede_buffer1, ede_buffer2, &
                       nimages, do_periodic, use_virial, ede_work_virial, &
-                      ede_work2_virial, ede_primitives_tmp_virial, primitive_integrals_virial, &
+                      ede_work2_virial, primitive_integrals_virial, &
                       cart_estimate_virial)
 
       TYPE(four_center_integral_context_type), &
@@ -460,12 +456,10 @@ CONTAINS
       TYPE(eri4_contraction_type), INTENT(IN)            :: contraction_a(0:), contraction_b(0:), &
                                                             contraction_c(0:), contraction_d(0:)
       REAL(dp), DIMENSION(*)                             :: ede_work, ede_work2, ede_work_forces, &
-                                                            ede_buffer1, ede_buffer2, &
-                                                            ede_primitives_tmp
+                                                            ede_buffer1, ede_buffer2
       INTEGER, DIMENSION(*)                              :: nimages
       LOGICAL, INTENT(IN)                                :: do_periodic, use_virial
-      REAL(dp), DIMENSION(*)                             :: ede_work_virial, ede_work2_virial, &
-                                                            ede_primitives_tmp_virial
+      REAL(dp), DIMENSION(*)                             :: ede_work_virial, ede_work2_virial
       REAL(dp), &
          DIMENSION(nsgfa, nsgfb, nsgfc, nsgfd, 12, 3)    :: primitive_integrals_virial
       REAL(dp)                                           :: cart_estimate_virial
@@ -545,8 +539,8 @@ CONTAINS
                                                 contraction_a(la)%weights(:, ipgf), contraction_b(lb)%weights(:, jpgf), &
                                                 contraction_c(lc)%weights(:, kpgf), contraction_d(ld)%weights(:, lpgf), &
                                                 ede_work, ede_work2, ede_work_forces, &
-                                                ede_buffer1, ede_buffer2, ede_primitives_tmp, use_virial, &
-                                                ede_work_virial, ede_work2_virial, ede_primitives_tmp_virial, &
+                                                ede_buffer1, ede_buffer2, use_virial, &
+                                                ede_work_virial, ede_work2_virial, &
                                                 primitive_integrals_virial, cell, tmp_max_virial)
                         cart_estimate = MAX(tmp_max, cart_estimate)
                         IF (use_virial) cart_estimate_virial = MAX(tmp_max_virial, cart_estimate_virial)

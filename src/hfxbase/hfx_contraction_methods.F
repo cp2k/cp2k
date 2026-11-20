@@ -165,7 +165,7 @@ CONTAINS
       CALL contract_generic(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
                             work, nl_a, nl_b, nl_c, nl_d, &
                             angular_a, angular_b, angular_c, angular_d, &
-                            weight_a, weight_b, weight_c, weight_d, primitives, buffer1, buffer2)
+                            weight_a, weight_b, weight_c, weight_d, nsgfa, nsgfb, nsgfc, primitives, buffer1, buffer2)
    #:enddef
 
    #:def transform(angular, source, target, tmat)
@@ -214,7 +214,10 @@ CONTAINS
       #:for axis in 'abcd'
 !> \param weight_${axis}$ Radial weights for the current primitive
       #:endfor
-!> \param primitives Accumulated spherical integrals
+!> \param nsgfa Leading dimension along center A in the full shell set
+!> \param nsgfb Leading dimension along center B in the full shell set
+!> \param nsgfc Leading dimension along center C in the full shell set
+!> \param primitives Spherical integrals starting at the first element of the target block
 !> \param buffer1 Work buffer
 !> \param buffer2 Work buffer
 ! **************************************************************************************************
@@ -222,13 +225,15 @@ CONTAINS
          SUBROUTINE contract_generic(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
                                      work, nl_a, nl_b, nl_c, nl_d, &
                                      angular_a, angular_b, angular_c, angular_d, &
-                                     weight_a, weight_b, weight_c, weight_d, primitives, buffer1, buffer2)
+                                     weight_a, weight_b, weight_c, weight_d, nsgfa, nsgfb, nsgfc, &
+                                     primitives, buffer1, buffer2)
 
             INTEGER, INTENT(IN) :: ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod
             #:else
             SUBROUTINE contract_${name}$ (work, nl_a, nl_b, nl_c, nl_d, &
                                           angular_a, angular_b, angular_c, angular_d, &
-                                          weight_a, weight_b, weight_c, weight_d, primitives, buffer1, buffer2)
+                                          weight_a, weight_b, weight_c, weight_d, nsgfa, nsgfb, nsgfc, &
+                                          primitives, buffer1, buffer2)
 
                #:endif
                REAL(dp), DIMENSION(${ '*'.join(nc) }$), INTENT(IN) :: work
@@ -236,7 +241,8 @@ CONTAINS
                #:for axis, ncart, nsph in zip('abcd', nc, ns)
                   REAL(dp), DIMENSION(${ncart}$, ${nsph}$), INTENT(IN) :: angular_${axis}$
                #:endfor
-               REAL(dp), DIMENSION(${ns[0]}$*nl_a, ${ns[1]}$*nl_b, ${ns[2]}$*nl_c, ${ns[3]}$*nl_d) :: primitives
+               INTEGER, INTENT(IN) :: nsgfa, nsgfb, nsgfc
+               REAL(dp), INTENT(INOUT) :: primitives(nsgfa, nsgfb, nsgfc, *)
                REAL(dp), DIMENSION(${ '*'.join(nc) }$) :: buffer1, buffer2
                REAL(dp), INTENT(IN) :: weight_a(nl_a), weight_b(nl_b), weight_c(nl_c), weight_d(nl_d)
 
@@ -356,14 +362,17 @@ CONTAINS
 !> \param weight_b ...
 !> \param weight_c ...
 !> \param weight_d ...
-!> \param primitives ...
+!> \param nsgfa Leading dimension along center A in the full shell set
+!> \param nsgfb Leading dimension along center B in the full shell set
+!> \param nsgfc Leading dimension along center C in the full shell set
+!> \param primitives Spherical integrals starting at the first element of the target block
 !> \param buffer1 ...
 !> \param buffer2 ...
 ! **************************************************************************************************
             SUBROUTINE contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
                                 n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work, &
                                 angular_a, angular_b, angular_c, angular_d, weight_a, weight_b, weight_c, weight_d, &
-                                primitives, &
+                                nsgfa, nsgfb, nsgfc, primitives, &
                                 buffer1, buffer2)
 
                INTEGER, INTENT(IN)         :: ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
@@ -374,7 +383,8 @@ CONTAINS
                REAL(dp), DIMENSION(ncoc, nsoc), INTENT(IN)   :: angular_c
                REAL(dp), DIMENSION(ncod, nsod), INTENT(IN)   :: angular_d
 
-               REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b, nsoc*nl_c, nsod*nl_d) :: primitives
+               INTEGER, INTENT(IN) :: nsgfa, nsgfb, nsgfc
+               REAL(dp), INTENT(INOUT) :: primitives(nsgfa, nsgfb, nsgfc, *)
                REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod)  :: buffer1, buffer2
                REAL(dp), INTENT(IN) :: weight_a(nl_a), weight_b(nl_b), weight_c(nl_c), weight_d(nl_d)
 
@@ -404,7 +414,10 @@ CONTAINS
                MARK_USED(weight_c)
                MARK_USED(weight_d)
                MARK_USED(work)
-               MARK_USED(primitives)
+               MARK_USED(nsgfa)
+               MARK_USED(nsgfb)
+               MARK_USED(nsgfc)
+               MARK_USED(primitives(1, 1, 1, 1))
                MARK_USED(buffer1)
                MARK_USED(buffer2)
                CPABORT("libint not compiled in")
@@ -426,7 +439,8 @@ CONTAINS
                                        CALL contract_${''.join(shells[l] for l in (a, b, c, d))}$ (work, &
                                                                                                    nl_a, nl_b, nl_c, nl_d, &
                                                                                        angular_a, angular_b, angular_c, angular_d, &
-                                                               weight_a, weight_b, weight_c, weight_d, primitives, buffer1, buffer2)
+                                                                                           weight_a, weight_b, weight_c, weight_d, &
+                                                                                  nsgfa, nsgfb, nsgfc, primitives, buffer1, buffer2)
 #else
                                        $:call_generic()
 #endif

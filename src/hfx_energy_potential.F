@@ -201,7 +201,7 @@ CONTAINS
                   max_contraction_val, max_val1, max_val2, max_val2_set, pmax_atom, pmax_blocks, &
                   pmax_entry, ra(3), rab2, rb(3), rc(3), rcd2, rd(3), screen_kind_ij, screen_kind_kl, &
                   spherical_estimate, symm_fac
-      REAL(dp), ALLOCATABLE, DIMENSION(:) :: ee_buffer1, ee_buffer2, ee_primitives_tmp, ee_work2, &
+      REAL(dp), ALLOCATABLE, DIMENSION(:) :: ee_buffer1, ee_buffer2, ee_work2, &
                                          kac_buf, kad_buf, kbc_buf, kbd_buf, pac_buf, pad_buf, pbc_buf, pbd_buf, primitive_integrals
 
       REAL(dp), DIMENSION(:, :), POINTER :: full_density_alpha, full_density_beta, full_ks_alpha, &
@@ -387,7 +387,7 @@ CONTAINS
 !$OMP         compression_factor_disk,nprim_ints,neris_tmp,max_val_memory,max_am,do_p_screening,&
 !$OMP         max_set,particle_set,atomic_kind_set,natom,kind_of,ncos_max,nsgf_max,ikind,&
 !$OMP         nseta,npgfa,la_max,nsgfa,primitive_integrals,pbd_buf,pbc_buf,pad_buf,pac_buf,kbd_buf,kbc_buf,&
-!$OMP         kad_buf,kac_buf,ee_work2,ee_buffer1,ee_buffer2,ee_primitives_tmp,max_contraction,&
+!$OMP         kad_buf,kac_buf,ee_work2,ee_buffer1,ee_buffer2,max_contraction,&
 !$OMP         max_pgf,jkind,lb_max,nsetb,npgfb,first_sgfb,sphi_b,nsgfb,ncob,sgfb,nneighbors,pgf_list_ij,pgf_list_kl,&
 !$OMP         nimages,ks_fully_occ,subtr_size_mb,use_disk_storage,counter,do_disk_storage,&
 !$OMP         maxval_container_disk,maxval_cache_disk,integral_containers_disk,integral_caches_disk,eps_schwarz,&
@@ -535,7 +535,6 @@ CONTAINS
       ALLOCATE (ee_work2(ncos_max**4))
       ALLOCATE (ee_buffer1(ncos_max**4))
       ALLOCATE (ee_buffer2(ncos_max**4))
-      ALLOCATE (ee_primitives_tmp(nsgf_max**4))
 
       IF (my_nspins == 0) my_nspins = dft_control%nspins
 
@@ -1597,7 +1596,7 @@ CONTAINS
                                             basis_parameter(jkind)%contraction(:, jset), &
                                             basis_parameter(kkind)%contraction(:, kset), &
                                             basis_parameter(lkind)%contraction(:, lset), &
-                                            ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
+                                            ee_work2, ee_buffer1, ee_buffer2, &
                                             nimages, do_periodic)
 
                               nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
@@ -2266,7 +2265,7 @@ CONTAINS
 
       DEALLOCATE (max_contraction, kind_of)
 
-      DEALLOCATE (ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
+      DEALLOCATE (ee_work2, ee_buffer1, ee_buffer2)
 
       DEALLOCATE (nimages)
 
