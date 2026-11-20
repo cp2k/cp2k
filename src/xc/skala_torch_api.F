@@ -10,7 +10,8 @@
 ! **************************************************************************************************
 MODULE skala_torch_api
 #if defined (__HAS_IEEE_EXCEPTIONS)
-   USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
+   USE ieee_exceptions, ONLY: ieee_all, &
+                              ieee_get_halting_mode, &
                               ieee_set_halting_mode
 #endif
    USE kinds, ONLY: default_string_length, &

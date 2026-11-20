@@ -762,7 +762,7 @@ CONTAINS
                CALL xc_rho_set_get(smooth_rho_set, rhoa=smooth_rhoa, rhob=smooth_rhob, &
                                    drhoa=smooth_drhoa, drhob=smooth_drhob, &
                                    tau_a=smooth_tau_a, tau_b=smooth_tau_b)
-               CALL native_grid_alloc_fetch(smooth_rho_r(1)%pw_grid, 10)
+               CALL native_grid_alloc_fetch(10)
                CALL native_grid_extract_points(smooth_rho_r(1)%pw_grid, 1, 10, smooth_rhoa)
                CALL native_grid_extract_points(smooth_rho_r(1)%pw_grid, 2, 10, smooth_rhob)
                CALL native_grid_extract_points(smooth_rho_r(1)%pw_grid, 3, 10, smooth_tau_a)
@@ -776,7 +776,7 @@ CONTAINS
             ELSE
                CALL xc_rho_set_get(smooth_rho_set, rho=smooth_rho, drho=smooth_drho, &
                                    tau=smooth_tau)
-               CALL native_grid_alloc_fetch(smooth_rho_r(1)%pw_grid, 5)
+               CALL native_grid_alloc_fetch(5)
                CALL native_grid_extract_points(smooth_rho_r(1)%pw_grid, 1, 5, smooth_rho)
                CALL native_grid_extract_points(smooth_rho_r(1)%pw_grid, 2, 5, smooth_tau)
                DO idir = 1, 3
@@ -3278,11 +3278,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Allocate the compact gather buffers for the current field count.
-!> \param grid auxiliary real-space grid
 !> \param nfg number of gathered fields (5 RKS, 10 LSD)
 ! **************************************************************************************************
-   SUBROUTINE native_grid_alloc_fetch(grid, nfg)
-      TYPE(pw_grid_type), INTENT(IN)                     :: grid
+   SUBROUTINE native_grid_alloc_fetch(nfg)
       INTEGER, INTENT(IN)                                :: nfg
 
       INTEGER                                            :: ncol, nreply
