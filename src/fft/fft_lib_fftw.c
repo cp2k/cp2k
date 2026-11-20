@@ -384,10 +384,10 @@ static void register_threaded_3d_r2c_1d(const bool direction,
                                         const int fft_size[3],
                                         const bool in_place, double *grid_real,
                                         double complex *grid_complex) {
-  double complex *buffer =
-      in_place ? grid_complex
-               : fftw_alloc_complex(fft_size[0] * fft_size[1] *
-                                    (fft_size[2] / 2 + 1));
+  double complex *buffer = in_place
+                               ? grid_complex
+                               : fftw_alloc_complex(fft_size[0] * fft_size[1] *
+                                                    (fft_size[2] / 2 + 1));
   double complex *input_c = direction ? buffer : grid_complex;
   double complex *output_c = direction ? grid_complex : buffer;
   const int number_of_threads = fft_team_size();
@@ -399,8 +399,7 @@ static void register_threaded_3d_r2c_1d(const bool direction,
     const int extent = stage == 0   ? fft_size[1] * (fft_size[2] / 2 + 1)
                        : stage == 1 ? fft_size[0]
                                     : fft_size[0] * fft_size[1];
-    block_sizes[stage] =
-        (extent + number_of_threads - 1) / number_of_threads;
+    block_sizes[stage] = (extent + number_of_threads - 1) / number_of_threads;
     const bool needs_tail = block_sizes[stage] * number_of_threads != extent;
     const int tail = needs_tail ? extent % block_sizes[stage] : 0;
     if (stage == 0) {
@@ -451,8 +450,8 @@ static void register_threaded_3d_r2c_1d(const bool direction,
       get_key_guru_r2c(direction, 1, &dim, 1, &howmany, 1, in_place, key);
       plans[2] = lookup_plan_from_cache(key);
       if (plans[2] == NULL)
-        plans[2] = fft_fftw_create_guru_plan_r2c(
-            key, grid_real, (double *)grid_complex);
+        plans[2] = fft_fftw_create_guru_plan_r2c(key, grid_real,
+                                                 (double *)grid_complex);
       if (needs_tail) {
         howmany.n = tail;
         get_key_guru_r2c(direction, 1, &dim, 1, &howmany, 1, in_place, key);
@@ -492,8 +491,7 @@ static void execute_threaded_3d_r2c_1d(const bool direction,
     const int extent = stage == 0   ? fft_size[1] * half
                        : stage == 1 ? fft_size[0]
                                     : fft_size[0] * fft_size[1];
-    block_sizes[stage] =
-        (extent + number_of_threads - 1) / number_of_threads;
+    block_sizes[stage] = (extent + number_of_threads - 1) / number_of_threads;
     number_of_full_blocks[stage] = extent / block_sizes[stage];
     total_number_of_blocks[stage] =
         (extent + block_sizes[stage] - 1) / block_sizes[stage];
@@ -507,8 +505,7 @@ static void execute_threaded_3d_r2c_1d(const bool direction,
       get_key_guru(direction, 1, &dim, 1, &howmany, 1, in_place, key);
       plans[0] = lookup_plan_from_cache(key);
       if (plans[0] == NULL) {
-        double complex *tmp =
-            fftw_alloc_complex(get_buffer_size_from_key(key));
+        double complex *tmp = fftw_alloc_complex(get_buffer_size_from_key(key));
         plans[0] = fft_fftw_create_guru_plan(key, tmp, output_c);
         fftw_free(tmp);
       }
@@ -519,8 +516,7 @@ static void execute_threaded_3d_r2c_1d(const bool direction,
         if (plans_last_thread[0] == NULL) {
           double complex *tmp =
               fftw_alloc_complex(get_buffer_size_from_key(key));
-          plans_last_thread[0] =
-              fft_fftw_create_guru_plan(key, tmp, output_c);
+          plans_last_thread[0] = fft_fftw_create_guru_plan(key, tmp, output_c);
           fftw_free(tmp);
         }
       }
@@ -534,8 +530,7 @@ static void execute_threaded_3d_r2c_1d(const bool direction,
       get_key_guru(direction, 1, &dim, 2, howmany, 1, in_place, key);
       plans[1] = lookup_plan_from_cache(key);
       if (plans[1] == NULL) {
-        double complex *tmp =
-            fftw_alloc_complex(get_buffer_size_from_key(key));
+        double complex *tmp = fftw_alloc_complex(get_buffer_size_from_key(key));
         plans[1] = fft_fftw_create_guru_plan(key, tmp, output_c);
         fftw_free(tmp);
       }
@@ -546,8 +541,7 @@ static void execute_threaded_3d_r2c_1d(const bool direction,
         if (plans_last_thread[1] == NULL) {
           double complex *tmp =
               fftw_alloc_complex(get_buffer_size_from_key(key));
-          plans_last_thread[1] =
-              fft_fftw_create_guru_plan(key, tmp, output_c);
+          plans_last_thread[1] = fft_fftw_create_guru_plan(key, tmp, output_c);
           fftw_free(tmp);
         }
       }
@@ -612,24 +606,22 @@ static void execute_threaded_3d_r2c_1d(const bool direction,
     if (thread_id < number_of_full_blocks[2]) {
       const int start = block_sizes[2] * thread_id;
       if (direction) {
-        fftw_execute_dft_r2c(
-            *plans[2], grid_real + start * real_stride,
-            grid_complex + start * complex_stride);
+        fftw_execute_dft_r2c(*plans[2], grid_real + start * real_stride,
+                             grid_complex + start * complex_stride);
       } else {
-        fftw_execute_dft_c2r(
-            *plans[2], grid_complex + start * complex_stride,
-            grid_real + start * real_stride);
+        fftw_execute_dft_c2r(*plans[2], grid_complex + start * complex_stride,
+                             grid_real + start * real_stride);
       }
     } else if (thread_id == total_number_of_blocks[2] - 1) {
       const int start = block_sizes[2] * thread_id;
       if (direction) {
-        fftw_execute_dft_r2c(
-            *plans_last_thread[2], grid_real + start * real_stride,
-            grid_complex + start * complex_stride);
+        fftw_execute_dft_r2c(*plans_last_thread[2],
+                             grid_real + start * real_stride,
+                             grid_complex + start * complex_stride);
       } else {
-        fftw_execute_dft_c2r(
-            *plans_last_thread[2], grid_complex + start * complex_stride,
-            grid_real + start * real_stride);
+        fftw_execute_dft_c2r(*plans_last_thread[2],
+                             grid_complex + start * complex_stride,
+                             grid_real + start * real_stride);
       }
     }
   }
@@ -642,10 +634,9 @@ static void execute_threaded_3d_r2c_1d(const bool direction,
  ******************************************************************************/
 static void acquire_threaded_3d_c2c_1d(
     const bool direction, const int fft_size[3], const bool in_place,
-    const bool for_execution, double complex *grid_in,
-    double complex *grid_out, int block_sizes[3], fftw_plan *plans[3],
-    fftw_plan *plans_last_thread[3], int number_of_full_blocks[3],
-    int total_number_of_blocks[3]) {
+    const bool for_execution, double complex *grid_in, double complex *grid_out,
+    int block_sizes[3], fftw_plan *plans[3], fftw_plan *plans_last_thread[3],
+    int number_of_full_blocks[3], int total_number_of_blocks[3]) {
   const int number_of_threads = fft_team_size();
   for (int stage = 0; stage < 3; stage++) {
     plans[stage] = NULL;
@@ -653,8 +644,7 @@ static void acquire_threaded_3d_c2c_1d(
     const int extent = stage == 0   ? fft_size[1] * fft_size[2]
                        : stage == 1 ? fft_size[0]
                                     : fft_size[0] * fft_size[1];
-    block_sizes[stage] =
-        (extent + number_of_threads - 1) / number_of_threads;
+    block_sizes[stage] = (extent + number_of_threads - 1) / number_of_threads;
     number_of_full_blocks[stage] = extent / block_sizes[stage];
     total_number_of_blocks[stage] =
         (extent + block_sizes[stage] - 1) / block_sizes[stage];
@@ -690,9 +680,8 @@ static void acquire_threaded_3d_c2c_1d(
       if (for_execution) {
         double complex *buffer =
             fftw_alloc_complex(get_buffer_size_from_key(key));
-        plans[stage] =
-            fft_fftw_create_guru_plan(key, buffer,
-                                      in_place ? buffer : grid_out);
+        plans[stage] = fft_fftw_create_guru_plan(key, buffer,
+                                                 in_place ? buffer : grid_out);
         fftw_free(buffer);
       } else {
         plans[stage] = fft_fftw_create_guru_plan(key, grid_in, grid_out);
@@ -707,9 +696,8 @@ static void acquire_threaded_3d_c2c_1d(
         if (for_execution) {
           double complex *buffer =
               fftw_alloc_complex(get_buffer_size_from_key(key));
-          plans_last_thread[stage] =
-              fft_fftw_create_guru_plan(key, buffer,
-                                        in_place ? buffer : grid_out);
+          plans_last_thread[stage] = fft_fftw_create_guru_plan(
+              key, buffer, in_place ? buffer : grid_out);
           fftw_free(buffer);
         } else {
           plans_last_thread[stage] =
@@ -768,12 +756,10 @@ static void execute_threaded_3d_c2c_1d(const bool direction,
     }
 #pragma omp barrier
     if (thread_id < number_of_full_blocks[1]) {
-      const int offset =
-          block_sizes[1] * fft_size[1] * fft_size[2] * thread_id;
+      const int offset = block_sizes[1] * fft_size[1] * fft_size[2] * thread_id;
       fftw_execute_dft(*plans[1], grid_out + offset, grid_in + offset);
     } else if (thread_id == total_number_of_blocks[1] - 1) {
-      const int offset =
-          block_sizes[1] * fft_size[1] * fft_size[2] * thread_id;
+      const int offset = block_sizes[1] * fft_size[1] * fft_size[2] * thread_id;
       fftw_execute_dft(*plans_last_thread[1], grid_out + offset,
                        grid_in + offset);
     }
@@ -1319,7 +1305,7 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(const fft_key_t key, double *grid_in,
       cp_assert(inplace);
       for (int r = 0; r < rank; r++)
         cp_assert(dims[r].is == 2 * dims[r].os ||
-               (dims[r].is == 1 && dims[r].os == 1));
+                  (dims[r].is == 1 && dims[r].os == 1));
       for (int r = 0; r < howmany_rank; r++)
         cp_assert(howmany_dims[r].is == 2 * howmany_dims[r].os);
     } else {
@@ -1333,7 +1319,7 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(const fft_key_t key, double *grid_in,
       cp_assert(inplace);
       for (int r = 0; r < rank; r++)
         cp_assert(2 * dims[r].is == dims[r].os ||
-               (dims[r].is == 1 && dims[r].os == 1));
+                  (dims[r].is == 1 && dims[r].os == 1));
       for (int r = 0; r < howmany_rank; r++)
         cp_assert(2 * howmany_dims[r].is == howmany_dims[r].os);
     } else {
@@ -1833,7 +1819,8 @@ void fft_fftw_register_3d_local(const bool direction, const int fft_size[3],
                              grid_in, grid_out);
   } else if (number_of_ffts == 1 &&
              use_threaded_3d(fft_size, transpose_in, transpose_out, in_place)) {
-    register_threaded_3d_c2c_1d(direction, fft_size, in_place, grid_in, grid_out);
+    register_threaded_3d_c2c_1d(direction, fft_size, in_place, grid_in,
+                                grid_out);
   } else {
     fft_key_t key;
     get_key_3d(direction, fft_size, number_of_ffts, transpose_in, transpose_out,
@@ -2609,7 +2596,8 @@ void fft_fftw_3d_local(const bool direction, const int fft_size[3],
                             grid_in, grid_out);
   } else if (number_of_ffts == 1 &&
              use_threaded_3d(fft_size, transpose_in, transpose_out, in_place)) {
-    execute_threaded_3d_c2c_1d(direction, fft_size, in_place, grid_in, grid_out);
+    execute_threaded_3d_c2c_1d(direction, fft_size, in_place, grid_in,
+                               grid_out);
   } else {
     fft_key_t key;
     get_key_3d(direction, fft_size, number_of_ffts, transpose_in, transpose_out,

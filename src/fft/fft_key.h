@@ -107,7 +107,7 @@ get_key_1d(const bool direction, const int fft_size, const int number_of_ffts,
            const int leading_dimension_in, const int leading_dimension_out,
            const int number_of_threads, const bool inplace, int *key) {
   cp_assert((!inplace || (transpose_in == transpose_out)) &&
-         "Inplace plans need the same strides for input and output arrays!");
+            "Inplace plans need the same strides for input and output arrays!");
   const int fft_size_3d[3] = {fft_size, 0, 0};
   const int istride = transpose_in ? leading_dimension_in : 1;
   const int idist = transpose_in ? 1 : leading_dimension_in;
@@ -131,7 +131,7 @@ get_key_1d_r2c(const bool direction, const int fft_size,
                const int leading_dimension_out, const int number_of_threads,
                const bool inplace, int *key) {
   cp_assert((!inplace || (transpose_in == transpose_out)) &&
-         "Inplace plans need the same strides for input and output arrays!");
+            "Inplace plans need the same strides for input and output arrays!");
   const int fft_size_3d[3] = {fft_size, 0, 0};
   const int istride = transpose_in ? leading_dimension_in : 1;
   const int idist = transpose_in ? 1 : leading_dimension_in;
@@ -157,7 +157,7 @@ static inline void get_key_2d(const bool direction, const int fft_size[2],
                               const int number_of_threads, const bool inplace,
                               int *key) {
   cp_assert((!inplace || (transpose_in == transpose_out)) &&
-         "Inplace plans need the same strides for input and output arrays!");
+            "Inplace plans need the same strides for input and output arrays!");
   const int fft_size_3d[3] = {fft_size[0], fft_size[1], 0};
   const int istride = transpose_in ? leading_dimension_in : 1;
   const int idist = transpose_in ? 1 : leading_dimension_in;
@@ -181,7 +181,7 @@ get_key_2d_r2c(const bool direction, const int fft_size[2],
                const int leading_dimension_out, const int number_of_threads,
                const bool inplace, int *key) {
   cp_assert((!inplace || (transpose_in == transpose_out)) &&
-         "Inplace plans need the same strides for input and output arrays!");
+            "Inplace plans need the same strides for input and output arrays!");
   const int fft_size_3d[3] = {fft_size[0], fft_size[1], 0};
   const int istride = transpose_in ? leading_dimension_in : 1;
   const int idist = transpose_in ? 1 : leading_dimension_in;
@@ -205,7 +205,7 @@ static inline void get_key_3d(const bool direction, const int fft_size[3],
                               const int number_of_threads, const bool inplace,
                               int *key) {
   cp_assert((!inplace || (transpose_in == transpose_out)) &&
-         "Inplace plans need the same strides for input and output arrays!");
+            "Inplace plans need the same strides for input and output arrays!");
   const int volume = fft_size[0] * fft_size[1] * fft_size[2];
   const int istride = transpose_in ? number_of_ffts : 1;
   const int idist = transpose_in ? 1 : volume;
@@ -229,7 +229,7 @@ static inline void get_key_3d_r2c(const bool direction, const int fft_size[3],
                                   const int number_of_threads,
                                   const bool inplace, int *key) {
   cp_assert((!inplace || (transpose_in == transpose_out)) &&
-         "Inplace plans need the same strides for input and output arrays!");
+            "Inplace plans need the same strides for input and output arrays!");
   const int real_volume = fft_size[0] * fft_size[1] * fft_size[2];
   const int complex_volume = fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1);
   const int input_volume =
@@ -259,7 +259,7 @@ static inline void get_key_guru(const bool direction, int rank,
                                 int *key) {
   key[0] = rank + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
   cp_assert(rank + howmany_rank <= 4 &&
-         "Larger combined ranks than 4 are not implemented\n");
+            "Larger combined ranks than 4 are not implemented\n");
 
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
@@ -292,7 +292,7 @@ static inline void get_key_guru_r2c(const bool direction, int rank,
   key[0] = rank + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace +
            direction * FFT_KEY_FORWARD;
   cp_assert(rank + howmany_rank <= 4 &&
-         "Larger combined ranks than 4 are not implemented\n");
+            "Larger combined ranks than 4 are not implemented\n");
 
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
@@ -372,7 +372,7 @@ static inline void fetch_data_from_key_nd(
     int *number_of_threads, bool *direction, bool *inplace, int *inembed,
     int *onembed, int *idist, int *odist, int *istride, int *ostride) {
   cp_assert(key[1] == cp_mpi_comm_c2f(cp_mpi_get_comm_null()) &&
-         "Distributed FFTs are not supported in this function!");
+            "Distributed FFTs are not supported in this function!");
   *rank = key[0] % 4;
   *inplace = (key[0] & FFT_KEY_INPLACE) == FFT_KEY_INPLACE;
   *number_of_threads = key[2];
@@ -418,7 +418,7 @@ static inline void fetch_data_from_key_guru(const fft_key_t key,
                                             int *number_of_threads,
                                             bool *inplace) {
   cp_assert(key[1] == cp_mpi_comm_c2f(cp_mpi_get_comm_null()) &&
-         "Distributed FFTs are not supported in this function!");
+            "Distributed FFTs are not supported in this function!");
   *direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD;
   *inplace = (key[0] & FFT_KEY_INPLACE) == FFT_KEY_INPLACE;
   *rank = key[0] % 4;

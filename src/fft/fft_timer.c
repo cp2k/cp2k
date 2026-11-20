@@ -86,7 +86,8 @@ int get_routine_handle(const char *routine_name) {
                                                  sizeof(fft_timed_routine));
   }
   // Copy the data
-  timed_routines[number_of_timed_routines].routine_name = fft_strdup(routine_name);
+  timed_routines[number_of_timed_routines].routine_name =
+      fft_strdup(routine_name);
   timed_routines[number_of_timed_routines].handle = number_of_timed_routines;
   timed_routines[number_of_timed_routines].total_time = 0.0;
   timed_routines[number_of_timed_routines].self_time = 0.0;
@@ -128,7 +129,7 @@ void get_routine_infos(const char *routine_name, double *total_time,
 void update_routine(const int handle, const double total_time,
                     const double self_time) {
   cp_assert(handle >= 0 && handle < number_of_timed_routines &&
-         "Requested routine not found!");
+            "Requested routine not found!");
   cp_assert(timed_routines[handle].handle == handle);
   timed_routines[handle].total_time += total_time;
   timed_routines[handle].self_time += self_time;
@@ -277,7 +278,8 @@ void fft_print_timing_report_unit(const double threshold,
       rank == 0 ? calloc(number_of_routines, sizeof(fft_timing_statistics))
                 : NULL;
   for (int routine = 0; routine < number_of_routines; routine++) {
-    int length = rank == 0 ? (int)strlen(timed_routines[routine].routine_name) + 1 : 0;
+    int length =
+        rank == 0 ? (int)strlen(timed_routines[routine].routine_name) + 1 : 0;
     cp_mpi_bcast_int(&length, 1, 0, comm);
     char *routine_name = malloc((size_t)length);
     cp_assert(routine_name != NULL);
@@ -288,8 +290,7 @@ void fft_print_timing_report_unit(const double threshold,
 
     double total_time, self_time;
     int number_of_calls;
-    get_routine_infos(routine_name, &total_time, &self_time,
-                      &number_of_calls);
+    get_routine_infos(routine_name, &total_time, &self_time, &number_of_calls);
     double summed_info[2] = {total_time, self_time};
     cp_mpi_sum_root_double(summed_info, 2, 0, comm);
     double max_info[2] = {total_time, self_time};
@@ -297,8 +298,7 @@ void fft_print_timing_report_unit(const double threshold,
 
     if (rank == 0) {
       statistics[routine].routine_name = routine_name;
-      statistics[routine].avg_total_time =
-          summed_info[0] / number_of_ranks;
+      statistics[routine].avg_total_time = summed_info[0] / number_of_ranks;
       statistics[routine].avg_self_time = summed_info[1] / number_of_ranks;
       statistics[routine].max_total_time = max_info[0];
       statistics[routine].max_self_time = max_info[1];
@@ -311,22 +311,21 @@ void fft_print_timing_report_unit(const double threshold,
   if (rank == 0) {
     qsort(statistics, number_of_routines, sizeof(fft_timing_statistics),
           compare_fft_timing_statistics);
-    fft_report_printf(
-        print_func, output_unit,
-        " -------------------------------------------------------"
-        "------------------------\n"
-        " -                                                      "
-        "                       -\n"
-        " -                             FFT TIMING REPORT        "
-        "                       -\n"
-        " -                                                      "
-        "                       -\n"
-        " -------------------------------------------------------"
-        "------------------------\n"
-        " ROUTINE                          CALLS           "
-        "SELF TIME            MAX TIME\n"
-        "                                          "
-        "AVERAGE   MAXIMUM   AVERAGE   MAXIMUM\n");
+    fft_report_printf(print_func, output_unit,
+                      " -------------------------------------------------------"
+                      "------------------------\n"
+                      " -                                                      "
+                      "                       -\n"
+                      " -                             FFT TIMING REPORT        "
+                      "                       -\n"
+                      " -                                                      "
+                      "                       -\n"
+                      " -------------------------------------------------------"
+                      "------------------------\n"
+                      " ROUTINE                          CALLS           "
+                      "SELF TIME            MAX TIME\n"
+                      "                                          "
+                      "AVERAGE   MAXIMUM   AVERAGE   MAXIMUM\n");
     for (int routine = 0; routine < number_of_routines; routine++) {
       if (statistics[routine].max_total_time >=
               threshold * statistics[0].max_total_time &&
@@ -408,7 +407,8 @@ void fft_stop_timer(const int handle) {
       int stack_handle;
       double total_time, self_time;
       pop_from_stack(&stack_handle, &total_time, &self_time);
-      cp_assert(stack_handle == handle && "Incorrect order of timing regions!\n");
+      cp_assert(stack_handle == handle &&
+                "Incorrect order of timing regions!\n");
       // Merge with the list of routines
       update_routine(handle, total_time, self_time);
       if (stack == NULL) {
