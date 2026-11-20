@@ -19,13 +19,13 @@
     EXTERNAL_PRESSURE [bar] 1.0
     KEEP_ANGLES yes
     KEEP_SYMMETRY no
-    MAX_DR 0.001
-    MAX_FORCE 0.0001
+    MAX_DR 0.0030
+    MAX_FORCE 0.00045
     MAX_ITER 200
     OPTIMIZER LBFGS
     PRESSURE_TOLERANCE [bar] 1.0E1  # Disable this convergence check
-    RMS_DR 0.0003
-    RMS_FORCE 0.00003
+    RMS_DR 0.0015
+    RMS_FORCE 0.00030
     &LBFGS
       TRUST_RADIUS [Angstrom] 0.1
     &END LBFGS

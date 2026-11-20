@@ -6,7 +6,7 @@ box on NVIDIA hardware as well.
 - Use `-DCP2K_USE_ACCEL=HIP` to generally enable support for AMD GPUs
 - Use `-DCP2K_ENABLE_GRID_GPU=OFF` to disable the GPU backend of the grid library.
 - Use `-DCP2K_ENABLE_DBM_GPU=OFF` to disable the GPU backend of the sparse tensor library.
-- Use `-DCP2K_ENABLE_PW_GPU=OFF` to disable the GPU backend of FFTs and associated gather/scatter
+- Use `-DCP2K_ENABLE_FFT_GPU=OFF` to disable the GPU backend of FFTs and associated gather/scatter
   operations.
 - Use `-DCP2K_ENABLE_NNP_GPU=OFF` to disable the GPU backend of the neural network potential (NNP)
   force evaluation. This backend compiles for HIP but has so far only been tested on NVIDIA GPUs.
