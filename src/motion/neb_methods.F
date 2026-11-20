@@ -52,15 +52,9 @@ MODULE neb_methods
                                               use_qs_force
    USE global_types,                    ONLY: global_environment_type
    USE header,                          ONLY: band_header
-   USE input_constants,                 ONLY: band_diis_opt,&
-                                              band_fire2_opt,&
-                                              band_fire_opt,&
-                                              band_md_opt,&
-                                              do_ci_neb,&
-                                              do_it_neb,&
-                                              do_rep_blocked,&
-                                              do_sm,&
-                                              pot_neb_full
+   USE input_constants,                 ONLY: &
+        band_diis_opt, band_fire2_opt, band_fire_opt, band_md_opt, do_ci_neb, do_it_neb, &
+        do_rep_blocked, do_sm, pot_neb_full
    USE input_cp2k_fire,                 ONLY: read_fire_section
    USE input_section_types,             ONLY: section_type,&
                                               section_vals_get,&
