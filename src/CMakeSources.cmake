@@ -564,6 +564,8 @@ list(
   qs_apt_fdiff_methods.F
   qs_apt_fdiff_types.F
   qs_atomic_block.F
+  qs_bader_analysis.F
+  qs_bader_basins.F
   qs_band_structure.F
   qs_basis_gradient.F
   qs_basis_rotation_methods.F
@@ -1674,6 +1676,7 @@ set(CP2K_PROGS_F
     optbas_frontier_orbitals_utils_unittest.F
     low_rank_preconditioner_unittest.F
     ot_covariant_preconditioner_unittest.F
+    qs_bader_basins_unittest.F
     qs_charge_mixing_unittest.F
     qs_fod_unittest.F
     qs_ot_complex_ref_unittest.F

@@ -24,6 +24,46 @@ class Matcher(Protocol):
 
 
 # ======================================================================================
+class CubeValuesMatcher(Matcher):
+    """Check that a single-field cube contains exactly the specified voxel values."""
+
+    def run(self, output: str, **kwargs: Any) -> MatchResult:
+        lines = iter(output.splitlines())
+        expected = set(kwargs["values"])
+        try:
+            next(lines)  # two comment lines
+            next(lines)
+            origin = next(lines).split()
+            natoms = int(origin[0])
+            if natoms < 0 or (len(origin) > 4 and int(origin[4]) != 1):
+                raise ValueError("Expected a single-field cube")
+            size = 1
+            for _ in range(3):
+                points = abs(int(next(lines).split()[0]))
+                if not points:
+                    raise ValueError("Empty cube axis")
+                size *= points
+            for _ in range(natoms):
+                next(lines)
+            found = set()
+            count = 0
+            for line in lines:
+                for token in line.split():
+                    value = float(token.replace("D", "E"))
+                    if value not in expected:
+                        raise ValueError(f"Unexpected cube value: {value}")
+                    found.add(value)
+                    count += 1
+            if count != size:
+                raise ValueError(f"Read {count} voxels, expected {size}")
+            if found != expected:
+                raise ValueError(f"Missing cube values: {expected - found}")
+        except (IndexError, StopIteration, ValueError) as error:
+            return MatchResult("WRONG RESULT", f"Invalid cube: {error}\n", None)
+        return MatchResult("OK", None, float(count))
+
+
+# ======================================================================================
 class GenericMatcher(Matcher):
     def __init__(
         self,

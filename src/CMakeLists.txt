@@ -457,6 +457,7 @@ list(
   "low_rank_preconditioner_unittest"
   "ot_covariant_preconditioner_unittest"
   "qs_charge_mixing_unittest"
+  "qs_bader_basins_unittest"
   "qs_fod_unittest"
   "qs_ot_complex_ref_unittest"
   "wannier90_projections_unittest"
@@ -514,6 +515,7 @@ add_executable(low_rank_preconditioner_unittest
 add_executable(ot_covariant_preconditioner_unittest
                ot_covariant_preconditioner_unittest.F)
 add_executable(qs_charge_mixing_unittest qs_charge_mixing_unittest.F)
+add_executable(qs_bader_basins_unittest qs_bader_basins_unittest.F)
 add_executable(qs_fod_unittest qs_fod_unittest.F)
 add_executable(qs_ot_complex_ref_unittest qs_ot_complex_ref_unittest.F)
 add_executable(wannier90_projections_unittest wannier90_projections_unittest.F)

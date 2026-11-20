@@ -25,7 +25,7 @@ MODULE input_cp2k_print_dft
       Shigeta2001, Stewart1982, Stewart1989, Stewart2007, Thiel1992, VanVoorhis2015, &
       VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
       Yin2017, Pracht2019, Caldeweyher2019, Caldeweyher2020, Gresch2017, Soluyanov2011, &
-      Pizzi2020, Marzari1997, Souza2001, Mattiat2022
+      Pizzi2020, Marzari1997, Souza2001, Mattiat2022, YuTrinkle2011
    USE cp_output_handling, ONLY: add_last_numeric, &
                                  cp_print_key_section_create, &
                                  debug_print_level, &
@@ -931,6 +931,46 @@ CONTAINS
          "STRIDE 1 1 1", &
          debug_print_level + 1)
       CALL add_generic_openpmd_arguments(print_key)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "BADER", &
+                                       description="Weighted Bader integration of the GPW valence density or the "// &
+                                       "reconstructed GAPW electron density. Requires a Cartesian orthorhombic cell. "// &
+                                       "Ghost atoms and floating basis centres are excluded from basin assignment. "// &
+                                       "GAPW reconstruction does not support k-points. "// &
+                                       "The gathered grid is limited to eight million points. "// &
+                                       "Enable explicitly with BADER ON.", &
+                                       print_level=debug_print_level + 1, filename="__STD_OUT__", &
+                                       citations=[YuTrinkle2011])
+      CALL keyword_create(keyword, __LOCATION__, name="VACUUM_DENSITY", &
+                          description="Assign points at or below this electron density (e/bohr^3) to vacuum. "// &
+                          "Check basin volumes for sensitivity to the grid and this threshold, especially for GAPW.", &
+                          default_r_val=1.0E-8_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ASSIGN_NEAREST_ATOM", &
+                          description="Group density maxima by their nearest atom. When false, leave basins without "// &
+                          "a unique nuclear seed unassigned. This can leave much of a pseudodensity unassigned.", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      NULLIFY (sub_print_key)
+      CALL cp_print_key_section_create(sub_print_key, __LOCATION__, "BASIN_CUBE", &
+                                       description="Write a Gaussian cube of basin labels, using the strongest uphill "// &
+                                       "path to assign one discrete label per point. Positive values are the one-based "// &
+                                       "atom indices, zero denotes vacuum, and -1 denotes basins without a unique atom. "// &
+                                       "For visualization only: the table uses weighted flux, not these labels. "// &
+                                       "Enable explicitly inside BADER with BASIN_CUBE ON.", &
+                                       print_level=debug_print_level + 1, filename="bader-basins")
+      CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
+                          description="Cube sampling stride. Supply one value for all directions or three values. "// &
+                          "This does not affect the integration grid.", &
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=[1, 1, 1], type_of_var=integer_t)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(print_key, sub_print_key)
+      CALL section_release(sub_print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

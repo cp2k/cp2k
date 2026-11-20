@@ -662,6 +662,9 @@ CONTAINS
       END IF
 
       ! Write cube file with electron density
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, "DFT%PRINT%BADER"), cp_p_file)) THEN
+         CPABORT("BADER requires GPW or GAPW.")
+      END IF
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%E_DENSITY_CUBE"), cp_p_file)) THEN
          CPWARN("E_DENSITY_CUBE not implemented for Semi-Empirical calculations!")
