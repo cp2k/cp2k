@@ -674,6 +674,7 @@ CONTAINS
       MARK_USED(lb_exec_space)
       MARK_USED(mpi_comm)
       MARK_USED(force_new_runtime)
+      MARK_USED(int_exec_space)
       MARK_USED(molecule)
       MARK_USED(pruning_scheme)
       MARK_USED(radial_quadrature)

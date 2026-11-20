@@ -16,6 +16,8 @@ MODULE gopt_param_types
    USE input_constants,                 ONLY: default_bfgs_method_id,&
                                               default_cell_method_id,&
                                               default_cg_method_id,&
+                                              default_fire2_method_id,&
+                                              default_fire_method_id,&
                                               default_lbfgs_method_id,&
                                               default_ts_method_id,&
                                               none_ts_method_id
@@ -111,7 +113,7 @@ CONTAINS
          ELSE
             CALL section_vals_val_get(gopt_section, "LBFGS%PRINT_LEVEL", i_val=gopt_param%print_control)
          END IF
-      CASE (default_bfgs_method_id)
+      CASE (default_bfgs_method_id, default_fire_method_id, default_fire2_method_id)
          ! Do nothing
       CASE (default_cg_method_id)
          CALL section_vals_val_get(gopt_section, "CG%FLETCHER_REEVES", l_val=gopt_param%Fletcher_Reeves)

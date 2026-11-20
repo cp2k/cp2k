@@ -104,7 +104,7 @@ MODULE bibliography
                             Wong2026, Loring2015, EsteveParedes2023, Cerjan2023, Bairnsfather2026, Davidson1975, &
                             Olsen1988, Stratmann1998, Vecharynski2017, Stathopoulos1998, Bai2012, &
                             Fukaya2014, Schreder2024_3, Pizzi2020, Marzari1997, Souza2001, &
-                            Hummel2017, Cheng2015, Fei2021
+                            Hummel2017, Cheng2015, Fei2021, Bitzek2006, Guenole2020
 
 CONTAINS
 
@@ -613,6 +613,19 @@ CONTAINS
                          title="A Limited Memory Algorithm for Bound Constrained Optimization", &
                          source="SIAM J. Sci. Comput.", volume="16", pages="1190-1208", &
                          year=1995, doi="10.1137/0916069")
+
+      CALL add_reference(key=Bitzek2006, &
+                         authors=s2a("E. Bitzek", "P. Koskinen", "F. Gahler", "M. Moseler", "P. Gumbsch"), &
+                         title="Structural relaxation made simple", source="Phys. Rev. Lett.", &
+                         volume="97", pages="170201", year=2006, doi="10.1103/PhysRevLett.97.170201")
+
+      CALL add_reference(key=Guenole2020, &
+                         authors=s2a("J. Guenole", "W. G. Nohring", "A. Vaid", "F. Houlle", &
+                                     "Z. Xie", "A. Prakash", "E. Bitzek"), &
+                         title="Assessment and optimization of the fast inertial relaxation engine (FIRE) "// &
+                         "for energy minimization in atomistic simulations and its implementation in LAMMPS", &
+                         source="Comput. Mater. Sci.", volume="175", pages="109584", &
+                         year=2020, doi="10.1016/j.commatsci.2020.109584")
 
       CALL add_reference(key=VandeVondele2007, &
                          authors=s2a("J. VandeVondele", "J. Hutter"), &

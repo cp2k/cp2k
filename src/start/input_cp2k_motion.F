@@ -30,7 +30,8 @@ MODULE input_cp2k_motion
    USE cp_units, ONLY: cp_unit_to_cp2k
    USE input_constants, ONLY: &
       bfgs_direct, bfgs_inverse, debug_lbfgs, default_bfgs_method_id, default_cg_method_id, default_dimer_method_id, &
-      default_lbfgs_method_id, default_minimization_method_id, default_ts_method_id, &
+      default_fire2_method_id, default_fire_method_id, default_lbfgs_method_id, default_minimization_method_id, &
+      default_ts_method_id, &
       dimer_init_molden, dimer_init_random, &
       do_mc_gemc_npt, do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fmt_id_pdb, fmt_id_xyz, &
       gaussian, helium_cell_shape_cube, &
@@ -43,6 +44,7 @@ MODULE input_cp2k_motion
       perm_plain, propagator_pimd, propagator_rpmd, propagator_cmd, propagator_bcmd, silent_lbfgs, &
       transformation_normal, transformation_stage
    USE input_cp2k_constraints, ONLY: create_constraint_section
+   USE input_cp2k_fire, ONLY: create_fire_section
    USE input_cp2k_free_energy, ONLY: create_fe_section
    USE input_cp2k_md, ONLY: create_md_section
    USE input_cp2k_motion_print, ONLY: add_format_keyword, &
@@ -101,7 +103,7 @@ CONTAINS
       CALL create_geoopt_section(subsection, __LOCATION__, label="GEO_OPT", &
                                  description="This section sets the environment of the geometry optimizer.", &
                                  just_optimizers=.FALSE., &
-                                 use_model_hessian=.TRUE.)
+                                 use_model_hessian=.TRUE., fire_optimizer=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -779,15 +781,30 @@ CONTAINS
 !> \param description ...
 !> \param just_optimizers ...
 !> \param use_model_hessian ...
+!> \param fire_optimizer expose FIRE and FIRE2 in this section
 !> \par History
 !>      01.2020 keywords related to Space Group Symmetry added [pcazade]
 !> \author teo
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE create_geoopt_section(section, location, label, description, just_optimizers, use_model_hessian)
+   RECURSIVE SUBROUTINE create_geoopt_section(section, location, label, description, just_optimizers, &
+                                              use_model_hessian, fire_optimizer)
       TYPE(section_type), POINTER                        :: section
       CHARACTER(LEN=*), INTENT(IN)                       :: location, label, description
-      LOGICAL, INTENT(IN)                                :: just_optimizers, use_model_hessian
+      LOGICAL, INTENT(IN)                                :: just_optimizers, use_model_hessian, fire_optimizer
 
+      CHARACTER(LEN=5), PARAMETER                         :: optimizers(5) = &
+                                                             [CHARACTER(LEN=5) :: "BFGS", "LBFGS", "CG", "FIRE", "FIRE2"]
+      CHARACTER(LEN=128), PARAMETER                       :: optimizer_desc(5) = [CHARACTER(LEN=128) :: &
+                "Most efficient minimizer, but only for small systems, as it relies on diagonalization of a full Hessian matrix.", &
+                                                                               "Limited-memory BFGS, suitable for large systems.", &
+                                                         "Conjugate gradients with line search, also suitable for large systems.", &
+                                                                             "Fast inertial relaxation engine using only forces.", &
+                                                              "FIRE 2.0 with a half-step correction when the motion points uphill."]
+      INTEGER, PARAMETER                                 :: optimizer_ids(5) = &
+                                                           [default_bfgs_method_id, default_lbfgs_method_id, default_cg_method_id, &
+                                                             default_fire_method_id, default_fire2_method_id]
+      CHARACTER(LEN=64)                                  :: optimizer_usage
+      INTEGER                                            :: nopt
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
@@ -809,26 +826,27 @@ CONTAINS
          CALL keyword_release(keyword)
       END IF
 
+      nopt = 3
+      optimizer_usage = "OPTIMIZER {BFGS|LBFGS|CG}"
+      IF (fire_optimizer) THEN
+         nopt = SIZE(optimizers)
+         optimizer_usage = "OPTIMIZER {BFGS|LBFGS|CG|FIRE|FIRE2}"
+      END IF
       CALL keyword_create( &
          keyword, __LOCATION__, name="OPTIMIZER", &
          variants=["MINIMIZER"], &
          citations=[Byrd1995], &
          description="Specify which method to use to perform a geometry optimization.", &
-         usage="OPTIMIZER {BFGS|LBFGS|CG}", &
-         enum_c_vals=s2a("BFGS", "LBFGS", "CG"), &
-         enum_desc=s2a("Most efficient minimizer, but only for 'small' systems, "// &
-                       "as it relies on diagonalization of a full Hessian matrix", &
-                       "Limited-memory variant of BFGS suitable for large systems. "// &
-                       "Not as well fine-tuned but can be more robust.", &
-                       "conjugate gradients, robust minimizer (depending on the line search) also OK for large systems"), &
-         enum_i_vals=[default_bfgs_method_id, default_lbfgs_method_id, default_cg_method_id], &
+         usage=TRIM(optimizer_usage), &
+         enum_c_vals=optimizers(:nopt), enum_desc=optimizer_desc(:nopt), &
+         enum_i_vals=optimizer_ids(:nopt), &
          default_i_val=default_bfgs_method_id)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           description="Specifies the maximum number of geometry optimization steps. "// &
-                          "One step might imply several force evaluations for the CG and LBFGS optimizers.", &
+                          "One step can require several force evaluations for CG, LBFGS and FIRE2.", &
                           usage="MAX_ITER {integer}", &
                           default_i_val=200)
       CALL section_add_keyword(section, keyword)
@@ -945,6 +963,12 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      IF (fire_optimizer) THEN
+         CALL create_fire_section(subsection, band_opt=.FALSE., cell_opt=(label == "CELL_OPT"))
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
+      END IF
+
       IF (.NOT. just_optimizers) THEN
          ! Transition states section
          CALL create_ts_section(subsection)
@@ -986,7 +1010,7 @@ CONTAINS
          " The optimization procedure is activated when at least one of the shell-core"// &
          " pairs becomes too elongated, i.e. when the assumption of point dipole is not longer valid.", &
          just_optimizers=.TRUE., &
-         use_model_hessian=.FALSE.)
+         use_model_hessian=.FALSE., fire_optimizer=.FALSE.)
 
       NULLIFY (print_key, subsection)
 
@@ -1027,7 +1051,7 @@ CONTAINS
                                  "upper triangular components during a cell optimization; please "// &
                                  "prepare input accordingly with these three components precisely 0 "// &
                                  "even for cases like the primitive rhombohedral cell of the FCC lattice.", &
-                                 just_optimizers=.TRUE., use_model_hessian=.FALSE.)
+                                 just_optimizers=.TRUE., use_model_hessian=.FALSE., fire_optimizer=.TRUE.)
 
       NULLIFY (keyword, print_key, subsection)
       CALL keyword_create( &
@@ -1253,7 +1277,7 @@ CONTAINS
          subsection2, __LOCATION__, label="ROT_OPT", &
          description="This section sets the environment for the optimization of the rotation of the Dimer.", &
          just_optimizers=.TRUE., &
-         use_model_hessian=.FALSE.)
+         use_model_hessian=.FALSE., fire_optimizer=.FALSE.)
       NULLIFY (subsection3)
       CALL section_create(subsection3, __LOCATION__, name="PRINT", &
                           description="Controls the printing properties during the dimer rotation optimization run", &

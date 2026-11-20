@@ -22,6 +22,7 @@ MODULE geo_opt
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
+   USE fire_optimizer,                  ONLY: geoopt_fire
    USE force_env_types,                 ONLY: force_env_type
    USE global_types,                    ONLY: global_environment_type
    USE gopt_f_methods,                  ONLY: gopt_f_create_x0,&
@@ -34,7 +35,10 @@ MODULE geo_opt
    USE hfx_ace_methods,                 ONLY: hfx_ace_set_dynamic_mode
    USE input_constants,                 ONLY: default_bfgs_method_id,&
                                               default_cg_method_id,&
-                                              default_lbfgs_method_id
+                                              default_fire2_method_id,&
+                                              default_fire_method_id,&
+                                              default_lbfgs_method_id,&
+                                              default_ts_method_id
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get,&
@@ -156,7 +160,7 @@ CONTAINS
    END SUBROUTINE cp_rot_opt
 
 ! **************************************************************************************************
-!> \brief dispatch to the selected optimizer (BFGS, L-BFGS or CG)
+!> \brief Dispatch to the selected optimizer.
 !> \param force_env ...
 !> \param globenv ...
 !> \param gopt_param ...
@@ -193,6 +197,11 @@ CONTAINS
       CASE (default_cg_method_id)
          CALL geoopt_cg(force_env, gopt_param, globenv, &
                         geo_section, gopt_env, x0)
+      CASE (default_fire_method_id, default_fire2_method_id)
+         IF (gopt_env%type_id == default_ts_method_id) THEN
+            CPABORT("FIRE and FIRE2 do not support DIMER optimization.")
+         END IF
+         CALL geoopt_fire(force_env, gopt_param, globenv, geo_section, gopt_env, x0)
       CASE DEFAULT
          CPABORT("Invalid or not yet implemented method for optimization")
       END SELECT

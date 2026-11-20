@@ -1,0 +1,49 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT argon_fire2
+  RUN_TYPE BAND
+&END GLOBAL
+
+&MOTION
+  &BAND
+    ALIGN_FRAMES F
+    BAND_TYPE CI-NEB
+    K_SPRING 0.05
+    NPROC_REP 1
+    NUMBER_OF_REPLICA 3
+    ROTATE_FRAMES F
+    &CONVERGENCE_CONTROL
+      MAX_FORCE 1.0E-6
+      RMS_FORCE 1.0E-6
+    &END CONVERGENCE_CONTROL
+    &OPTIMIZE_BAND
+      OPT_TYPE FIRE2
+      &FIRE
+        MAX_STEPS 180
+      &END FIRE
+    &END OPTIMIZE_BAND
+    &REPLICA
+      &COORD
+        0.0 0.0 0.0
+        3.816370964 0.0 0.0
+      &END COORD
+    &END REPLICA
+    &REPLICA
+      &COORD
+        0.0 0.0 0.0
+        2.3 2.3 0.0
+      &END COORD
+    &END REPLICA
+    &REPLICA
+      &COORD
+        0.0 0.0 0.0
+        0.0 3.816370964 0.0
+      &END COORD
+    &END REPLICA
+  &END BAND
+&END MOTION
+
+@SET CELL_A 18.0
+@SET PERIODIC NONE
+@SET R 3.816370964
+@INCLUDE '../../Fist/regtest-opt/fire_argon.inc'
