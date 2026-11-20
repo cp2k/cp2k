@@ -1151,12 +1151,12 @@ CONTAINS
             rho_b => rho_h
             drho_b => drho_h
             tau_b => tau_h
-            skala_state%atom_ws%weight_b = weight_h
+            skala_state%atom_ws%weight_b(:, :) = weight_h
          ELSE
             rho_b => rho_s
             drho_b => drho_s
             tau_b => tau_s
-            skala_state%atom_ws%weight_b = weight_s
+            skala_state%atom_ws%weight_b(:, :) = weight_s
          END IF
          skala_state%atom_ws%coarse_0_atomic_coords(:, iblock) = atom_coord
          skala_state%atom_ws%atomic_grid_sizes(iblock) = INT(nflat, KIND=int_8)
@@ -1808,7 +1808,7 @@ CONTAINS
       IF (.NOT. ALLOCATED(skala_state%chunk_layout%grid_sizes)) THEN
          ALLOCATE (skala_state%chunk_layout%grid_sizes(SIZE(atomic_grid_sizes)))
       END IF
-      skala_state%chunk_layout%grid_sizes = atomic_grid_sizes
+      skala_state%chunk_layout%grid_sizes(:) = atomic_grid_sizes
       skala_state%chunk_layout%max_rows = max_rows
 
    END SUBROUTINE ensure_atom_chunk_layout

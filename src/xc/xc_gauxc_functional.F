@@ -585,10 +585,10 @@ CONTAINS
       ALLOCATE (layout%row_blk_size(nblkrows), layout%col_blk_size(nblkcols), &
                 layout%row_dist(nblkrows), layout%col_dist(nblkcols), &
                 layout%r_offset(nblkrows), layout%c_offset(nblkcols))
-      layout%row_blk_size = row_blk_size
-      layout%col_blk_size = col_blk_size
-      layout%row_dist = row_dist
-      layout%col_dist = col_dist
+      layout%row_blk_size(:) = row_blk_size
+      layout%col_blk_size(:) = col_blk_size
+      layout%row_dist(:) = row_dist
+      layout%col_dist(:) = col_dist
       layout%r_offset(1) = 1
       DO row = 2, nblkrows
          layout%r_offset(row) = layout%r_offset(row - 1) + row_blk_size(row - 1)
@@ -828,7 +828,7 @@ CONTAINS
 
       IF (para_env%num_pe <= 1) RETURN
       ALLOCATE (reference(SIZE(exc_grad)))
-      reference = exc_grad
+      reference(:) = exc_grad
       CALL para_env%bcast(reference, 0)
       max_diff = MAXVAL(ABS(exc_grad - reference))
       scale = MAX(1.0_dp, MAXVAL(ABS(exc_grad)), MAXVAL(ABS(reference)))
