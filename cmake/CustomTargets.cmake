@@ -27,7 +27,7 @@ if(NOT TARGET cov-info)
     COMMENT "Generate coverage.info using lcov")
 endif()
 
-if(NOT TARGET cpv-genhtml)
+if(NOT TARGET cov-genhtml)
   add_custom_target(
     cov-genhtml
     COMMAND "${GENHTML_EXE}" coverage.info --output-directory cov-html
