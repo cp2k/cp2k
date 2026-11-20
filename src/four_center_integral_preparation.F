@@ -9,7 +9,9 @@
 !> \brief Gaussian-product geometry and radial seeds shared by four-center evaluation and screening.
 ! **************************************************************************************************
 MODULE four_center_integral_preparation
-   USE four_center_integral_types,      ONLY: eri4_pgf_image_type,&
+   USE basis_set_types,                 ONLY: gto_basis_set_type
+   USE four_center_integral_types,      ONLY: eri4_contraction_type,&
+                                              eri4_pgf_image_type,&
                                               eri4_pgf_pair_type
    USE input_constants,                 ONLY: do_potential_id
    USE integral_library_types,          ONLY: coulomb_operator_type
@@ -17,14 +19,73 @@ MODULE four_center_integral_preparation
    USE libint_wrapper,                  ONLY: eri_primitive_data_type,&
                                               prim_data_f_size
    USE mathconstants,                   ONLY: pi
+   USE orbital_pointers,                ONLY: nco,&
+                                              nso
+   USE orbital_transformation_matrices, ONLY: orbtramat
    USE r12_fundamentals,                ONLY: compute_r12_fundamentals
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: min_image_gap_sq, prepare_eri4_pair, prepare_eri4_product, prepare_eri4_primitive
+   PUBLIC :: min_image_gap_sq, prepare_eri4_contraction, prepare_eri4_pair, prepare_eri4_product, prepare_eri4_primitive
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Split the initialized basis coefficients into angular and radial factors.
+!> \param basis basis used by the four-center driver
+!> \param contraction factors indexed by angular momentum and shell set
+! **************************************************************************************************
+   SUBROUTINE prepare_eri4_contraction(basis, contraction)
+      TYPE(gto_basis_set_type), INTENT(IN)               :: basis
+      TYPE(eri4_contraction_type), ALLOCATABLE, &
+         INTENT(OUT)                                     :: contraction(:, :)
+
+      REAL(dp), PARAMETER :: norm_rtol = 64.0_dp*EPSILON(0.0_dp)
+
+      INTEGER                                            :: first, ic, iset, ishell, l, m, nc, nl, &
+                                                            np, ref
+      REAL(dp)                                           :: norm_error, normalization
+      REAL(dp), ALLOCATABLE                              :: angular_norm(:)
+
+      ALLOCATE (contraction(0:MAXVAL(basis%lmax(1:basis%nset)), basis%nset))
+      DO iset = 1, basis%nset
+         np = basis%npgf(iset)
+         DO l = basis%lmin(iset), basis%lmax(iset)
+            nc = nco(l)
+            nl = COUNT(basis%l(1:basis%nshell(iset), iset) == l)
+            ASSOCIATE (shell => contraction(l, iset))
+               ALLOCATE (shell%angular(nc, nso(l)), source=0.0_dp)
+               ALLOCATE (shell%weights(nl, np))
+               IF (nl == 0) CYCLE
+               ALLOCATE (angular_norm(nc))
+               ishell = FINDLOC(basis%l(1:basis%nshell(iset), iset), l, DIM=1)
+               first = basis%first_cgf(ishell, iset)
+               ! At fixed l the Cartesian norms of the supported bases differ
+               ! between contractions by a common scalar.
+               angular_norm(:) = basis%norm_cgf(first:first + nc - 1)
+               ref = MAXLOC(ABS(angular_norm), DIM=1)
+               CPASSERT(ABS(angular_norm(ref)) > 0.0_dp)
+               angular_norm(:) = angular_norm/angular_norm(ref)
+               shell%angular(:, :) = TRANSPOSE(orbtramat(l)%c2s)
+               DO m = 1, nso(l)
+                  shell%angular(:, m) = shell%angular(:, m)*angular_norm
+               END DO
+               ic = 0
+               DO ishell = 1, basis%nshell(iset)
+                  IF (basis%l(ishell, iset) /= l) CYCLE
+                  first = basis%first_cgf(ishell, iset)
+                  normalization = basis%norm_cgf(first + ref - 1)
+                  norm_error = MAXVAL(ABS(basis%norm_cgf(first:first + nc - 1) - normalization*angular_norm))
+                  CPASSERT(norm_error <= norm_rtol*ABS(normalization))
+                  ic = ic + 1
+                  shell%weights(ic, :) = basis%gcc(1:np, ishell, iset)*normalization
+               END DO
+               DEALLOCATE (angular_norm)
+            END ASSOCIATE
+         END DO
+      END DO
+   END SUBROUTINE prepare_eri4_contraction
 
 ! **************************************************************************************************
 !> \brief Prepare one Gaussian pair, retaining the caller's image topology and screening metadata.

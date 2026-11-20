@@ -260,10 +260,14 @@ CONTAINS
 !> \param nsob ...
 !> \param nsoc ...
 !> \param nsod ...
-!> \param sphi_a ...
-!> \param sphi_b ...
-!> \param sphi_c ...
-!> \param sphi_d ...
+!> \param angular_a ...
+!> \param angular_b ...
+!> \param angular_c ...
+!> \param angular_d ...
+!> \param weight_a radial weights of the selected primitive on A
+!> \param weight_b radial weights of the selected primitive on B
+!> \param weight_c radial weights of the selected primitive on C
+!> \param weight_d radial weights of the selected primitive on D
 !> \param work ...
 !> \param work2 ...
 !> \param work_forces ...
@@ -290,7 +294,8 @@ CONTAINS
                                  eps_schwarz, neris, &
                                  s_offset_a, s_offset_b, s_offset_c, s_offset_d, &
                                  nl_a, nl_b, nl_c, nl_d, nsoa, nsob, nsoc, nsod, &
-                                 sphi_a, sphi_b, sphi_c, sphi_d, &
+                                 angular_a, angular_b, angular_c, angular_d, &
+                                 weight_a, weight_b, weight_c, weight_d, &
                                  work, work2, work_forces, buffer1, buffer2, primitives_tmp, &
                                  use_virial, work_virial, work2_virial, primitives_tmp_virial, &
                                  primitives_virial, cell, tmp_max_all_virial)
@@ -306,10 +311,12 @@ CONTAINS
       INTEGER                                            :: s_offset_a, s_offset_b, s_offset_c, &
                                                             s_offset_d, nl_a, nl_b, nl_c, nl_d, &
                                                             nsoa, nsob, nsoc, nsod
-      REAL(dp), DIMENSION(ncoa, nsoa*nl_a)               :: sphi_a
-      REAL(dp), DIMENSION(ncob, nsob*nl_b)               :: sphi_b
-      REAL(dp), DIMENSION(ncoc, nsoc*nl_c)               :: sphi_c
-      REAL(dp), DIMENSION(ncod, nsod*nl_d)               :: sphi_d
+      REAL(dp), DIMENSION(ncoa, nsoa), INTENT(IN)        :: angular_a
+      REAL(dp), DIMENSION(ncob, nsob), INTENT(IN)        :: angular_b
+      REAL(dp), DIMENSION(ncoc, nsoc), INTENT(IN)        :: angular_c
+      REAL(dp), DIMENSION(ncod, nsod), INTENT(IN)        :: angular_d
+      REAL(dp), INTENT(IN)                               :: weight_a(nl_a), weight_b(nl_b), &
+                                                            weight_c(nl_c), weight_d(nl_d)
       REAL(dp) :: work(ncoa*ncob*ncoc*ncod, 12), work2(ncoa, ncob, ncoc, ncod, 12), &
          work_forces(ncoa*ncob*ncoc*ncod, 12)
       REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod)           :: buffer1, buffer2
@@ -383,10 +390,11 @@ CONTAINS
             DO i = 1, 12
                CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
                              n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2(1, 1, 1, 1, i), &
-                             sphi_a, &
-                             sphi_b, &
-                             sphi_c, &
-                             sphi_d, &
+                             angular_a, &
+                             angular_b, &
+                             angular_c, &
+                             angular_d, &
+                             weight_a, weight_b, weight_c, weight_d, &
                              primitives(1, 1, 1, 1, i), &
                              buffer1, buffer2)
             END DO
@@ -395,10 +403,11 @@ CONTAINS
                primitives_tmp(:, :, :, :) = 0.0_dp
                CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
                              n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2(1, 1, 1, 1, i), &
-                             sphi_a, &
-                             sphi_b, &
-                             sphi_c, &
-                             sphi_d, &
+                             angular_a, &
+                             angular_b, &
+                             angular_c, &
+                             angular_d, &
+                             weight_a, weight_b, weight_c, weight_d, &
                              primitives_tmp(1, 1, 1, 1), &
                              buffer1, buffer2)
 
@@ -421,10 +430,11 @@ CONTAINS
                DO m = 1, 3
                   CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
                                 n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2_virial(1, 1, 1, 1, i, m), &
-                                sphi_a, &
-                                sphi_b, &
-                                sphi_c, &
-                                sphi_d, &
+                                angular_a, &
+                                angular_b, &
+                                angular_c, &
+                                angular_d, &
+                                weight_a, weight_b, weight_c, weight_d, &
                                 primitives_virial(1, 1, 1, 1, i, m), &
                                 buffer1, buffer2)
                END DO
@@ -435,10 +445,11 @@ CONTAINS
                   primitives_tmp_virial(:, :, :, :) = 0.0_dp
                   CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
                                 n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2_virial(1, 1, 1, 1, i, m), &
-                                sphi_a, &
-                                sphi_b, &
-                                sphi_c, &
-                                sphi_d, &
+                                angular_a, &
+                                angular_b, &
+                                angular_c, &
+                                angular_d, &
+                                weight_a, weight_b, weight_c, weight_d, &
                                 primitives_tmp_virial(1, 1, 1, 1), &
                                 buffer1, buffer2)
 
@@ -579,10 +590,14 @@ CONTAINS
 !> \param nsob ...
 !> \param nsoc ...
 !> \param nsod ...
-!> \param sphi_a ...
-!> \param sphi_b ...
-!> \param sphi_c ...
-!> \param sphi_d ...
+!> \param angular_a ...
+!> \param angular_b ...
+!> \param angular_c ...
+!> \param angular_d ...
+!> \param weight_a radial weights of the selected primitive on A
+!> \param weight_b radial weights of the selected primitive on B
+!> \param weight_c radial weights of the selected primitive on C
+!> \param weight_d radial weights of the selected primitive on D
 !> \param work2 ...
 !> \param buffer1 ...
 !> \param buffer2 ...
@@ -600,7 +615,8 @@ CONTAINS
                            eps_schwarz, neris, &
                            s_offset_a, s_offset_b, s_offset_c, s_offset_d, &
                            nl_a, nl_b, nl_c, nl_d, nsoa, nsob, nsoc, nsod, &
-                           sphi_a, sphi_b, sphi_c, sphi_d, work2, buffer1, buffer2, &
+                           angular_a, angular_b, angular_c, angular_d, &
+                           weight_a, weight_b, weight_c, weight_d, work2, buffer1, buffer2, &
                            primitives_tmp)
 
       TYPE(four_center_integral_context_type), &
@@ -613,10 +629,12 @@ CONTAINS
       INTEGER                                            :: s_offset_a, s_offset_b, s_offset_c, &
                                                             s_offset_d, nl_a, nl_b, nl_c, nl_d, &
                                                             nsoa, nsob, nsoc, nsod
-      REAL(dp), DIMENSION(ncoa, nsoa*nl_a), INTENT(IN)   :: sphi_a
-      REAL(dp), DIMENSION(ncob, nsob*nl_b), INTENT(IN)   :: sphi_b
-      REAL(dp), DIMENSION(ncoc, nsoc*nl_c), INTENT(IN)   :: sphi_c
-      REAL(dp), DIMENSION(ncod, nsod*nl_d), INTENT(IN)   :: sphi_d
+      REAL(dp), DIMENSION(ncoa, nsoa), INTENT(IN)        :: angular_a
+      REAL(dp), DIMENSION(ncob, nsob), INTENT(IN)        :: angular_b
+      REAL(dp), DIMENSION(ncoc, nsoc), INTENT(IN)        :: angular_c
+      REAL(dp), DIMENSION(ncod, nsod), INTENT(IN)        :: angular_d
+      REAL(dp), INTENT(IN)                               :: weight_a(nl_a), weight_b(nl_b), &
+                                                            weight_c(nl_c), weight_d(nl_d)
       REAL(dp)                                           :: work2(ncoa, ncob, ncoc, ncod)
       REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod), TARGET   :: buffer1
       REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod)           :: buffer2
@@ -663,10 +681,11 @@ CONTAINS
       IF (direct_contract) THEN
          CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
                        n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2, &
-                       sphi_a, &
-                       sphi_b, &
-                       sphi_c, &
-                       sphi_d, &
+                       angular_a, &
+                       angular_b, &
+                       angular_c, &
+                       angular_d, &
+                       weight_a, weight_b, weight_c, weight_d, &
                        primitives, &
                        buffer1, buffer2)
       ELSE
@@ -674,10 +693,11 @@ CONTAINS
 
          CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
                        n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2, &
-                       sphi_a, &
-                       sphi_b, &
-                       sphi_c, &
-                       sphi_d, &
+                       angular_a, &
+                       angular_b, &
+                       angular_c, &
+                       angular_d, &
+                       weight_a, weight_b, weight_c, weight_d, &
                        primitives_tmp, &
                        buffer1, buffer2)
 

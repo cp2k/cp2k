@@ -134,9 +134,8 @@ CONTAINS
       INTEGER :: kind_kind_idx, kkind, kset, l_atom, l_max, latom, latom_block, latom_end, &
                  latom_start, lkind, lset, max_am, max_pgf, max_set, my_bin_id, my_bin_size, my_thread_id, &
                  n_threads, natom, nbits, ncob, ncos_max, nints, nkimages, nkind, nneighbors, nseta, nsetb, &
-                 nsgf_max, my_nspins, sgfb, shm_task_counter, shm_total_bins, sphi_a_u1, sphi_a_u2, &
-                 sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, &
-                 sphi_d_u2, sphi_d_u3, swap_id, tmp_i4
+                 nsgf_max, my_nspins, sgfb, shm_task_counter, shm_total_bins, &
+                 swap_id, tmp_i4
       INTEGER(int_8) :: atom_block, counter, estimate_to_store_int, max_val_memory, &
                         mem_compression_counter, mem_eris, mem_max_val, my_current_counter, my_istart, &
                         n_processes, nblocks, ncpu, neris_incore, neris_onthefly, neris_tmp, neris_total, &
@@ -148,7 +147,7 @@ CONTAINS
                                                             nimages, tmp_index
       INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, lc_min, ld_max, &
                                         ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, nsgfc, nsgfd, shm_block_offset
-      INTEGER, DIMENSION(:, :), POINTER :: first_sgfb, nsgfl_a, nsgfl_b, nsgfl_c, nsgfl_d, &
+      INTEGER, DIMENSION(:, :), POINTER :: first_sgfb, &
                                            offset_ac_set, offset_ad_set, offset_bc_set, offset_bd_set, shm_atomic_block_offset
       INTEGER, DIMENSION(:, :), POINTER, SAVE            :: shm_is_assoc_atomic_block
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: shm_set_offset
@@ -174,10 +173,6 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER :: full_density_alpha, full_density_beta, &
                                             max_contraction, ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, shm_pmax_atom, shm_pmax_block, &
                                             sphi_b, zeta, zetb, zetc, zetd
-      REAL(dp), DIMENSION(:, :, :), POINTER              :: sphi_a_ext_set, sphi_b_ext_set, &
-                                                            sphi_c_ext_set, sphi_d_ext_set
-      REAL(dp), DIMENSION(:, :, :, :), POINTER           :: sphi_a_ext, sphi_b_ext, sphi_c_ext, &
-                                                            sphi_d_ext
       REAL(KIND=dp)                                      :: coeffs_kind_max0
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -345,16 +340,15 @@ CONTAINS
 !$OMP  nbits,nblocks,ncob,ncos_max,ncpu,neris_incore,neris_onthefly,neris_tmp,&
 !$OMP  neris_total,nimages,nints,nneighbors,npgfa,npgfb,npgfc,npgfd,&
 !$OMP  nprim_ints,n_processes,nseta,nsetb,nsgfa,nsgfb,nsgfc,nsgfd,&
-!$OMP  nsgfl_a,nsgfl_b,nsgfl_c,nsgfl_d,nsgf_max,offset_ac_set,offset_ad_set,&
+!$OMP  nsgf_max,offset_ac_set,offset_ad_set,&
 !$OMP  offset_bc_set,offset_bd_set,pac_buf,pac_buf_beta,pac_buf_resp,pac_buf_resp_beta,pad_buf,pad_buf_beta,pad_buf_resp,&
 !$OMP  pad_buf_resp_beta,particle_set,pbc_buf,pbc_buf_beta,pbc_buf_resp,pbc_buf_resp_beta,pbd_buf,pbd_buf_beta, &
 !$OMP  pbd_buf_resp, pbd_buf_resp_beta, pgf_list_ij,&
 !$OMP  pgf_list_kl,pmax_atom,pmax_blocks,pmax_entry,pmax_tmp,potential_parameter,primitive_forces,&
 !$OMP  primitive_forces_virial,ptr_p_1,ptr_p_2,ptr_p_3,ptr_p_4,ra,rab2,&
 !$OMP  rb,rc,rcd2,rd,screening_parameter,screen_pmat_forces,set_list_ij,set_list_kl,&
-!$OMP  sgfb,spherical_estimate,spherical_estimate_virial,sphi_a_ext,sphi_a_ext_set,sphi_a_u1,sphi_a_u2,sphi_a_u3,&
-!$OMP  sphi_b,sphi_b_ext,sphi_b_ext_set,sphi_b_u1,sphi_b_u2,sphi_b_u3,sphi_c_ext,sphi_c_ext_set,&
-!$OMP  sphi_c_u1,sphi_c_u2,sphi_c_u3,sphi_d_ext,sphi_d_ext_set,sphi_d_u1,sphi_d_u2,sphi_d_u3,&
+!$OMP  sgfb,spherical_estimate,spherical_estimate_virial,&
+!$OMP  sphi_b,&
 !$OMP  storage_counter_integrals,stor_count_max_val,swap_id,symm_fac,t2,tmp_block,tmp_i8, tmp_i4,&
 !$OMP  tmp_index,tmp_r_1,tmp_r_2,tmp_screen_pgf1,tmp_screen_pgf2,tmp_task_list,tmp_task_list_cost,tmp_virial,&
 !$OMP  treat_forces_in_core,use_disk_storage,zeta,zetb,zetc,zetd)
@@ -947,11 +941,6 @@ CONTAINS
                nseta = basis_parameter(ikind)%nset
                zeta => basis_parameter(ikind)%zet
                nsgfa => basis_parameter(ikind)%nsgf
-               sphi_a_ext => basis_parameter(ikind)%sphi_ext(:, :, :, :)
-               nsgfl_a => basis_parameter(ikind)%nsgfl
-               sphi_a_u1 = UBOUND(sphi_a_ext, 1)
-               sphi_a_u2 = UBOUND(sphi_a_ext, 2)
-               sphi_a_u3 = UBOUND(sphi_a_ext, 3)
 
                lb_max => basis_parameter(jkind)%lmax
                lb_min => basis_parameter(jkind)%lmin
@@ -959,11 +948,6 @@ CONTAINS
                nsetb = basis_parameter(jkind)%nset
                zetb => basis_parameter(jkind)%zet
                nsgfb => basis_parameter(jkind)%nsgf
-               sphi_b_ext => basis_parameter(jkind)%sphi_ext(:, :, :, :)
-               nsgfl_b => basis_parameter(jkind)%nsgfl
-               sphi_b_u1 = UBOUND(sphi_b_ext, 1)
-               sphi_b_u2 = UBOUND(sphi_b_ext, 2)
-               sphi_b_u3 = UBOUND(sphi_b_ext, 3)
 
                i_atom = atom_of_kind(iatom)
                forces_map(1, 1) = ikind
@@ -1037,22 +1021,12 @@ CONTAINS
                   npgfc => basis_parameter(kkind)%npgf
                   zetc => basis_parameter(kkind)%zet
                   nsgfc => basis_parameter(kkind)%nsgf
-                  sphi_c_ext => basis_parameter(kkind)%sphi_ext(:, :, :, :)
-                  nsgfl_c => basis_parameter(kkind)%nsgfl
-                  sphi_c_u1 = UBOUND(sphi_c_ext, 1)
-                  sphi_c_u2 = UBOUND(sphi_c_ext, 2)
-                  sphi_c_u3 = UBOUND(sphi_c_ext, 3)
 
                   ld_max => basis_parameter(lkind)%lmax
                   ld_min => basis_parameter(lkind)%lmin
                   npgfd => basis_parameter(lkind)%npgf
                   zetd => basis_parameter(lkind)%zet
                   nsgfd => basis_parameter(lkind)%nsgf
-                  sphi_d_ext => basis_parameter(lkind)%sphi_ext(:, :, :, :)
-                  nsgfl_d => basis_parameter(lkind)%nsgfl
-                  sphi_d_u1 = UBOUND(sphi_d_ext, 1)
-                  sphi_d_u2 = UBOUND(sphi_d_ext, 2)
-                  sphi_d_u3 = UBOUND(sphi_d_ext, 3)
 
                   atomic_offset_bd = shm_atomic_block_offset(jatom, latom)
                   atomic_offset_bc = shm_atomic_block_offset(jatom, katom)
@@ -1250,10 +1224,6 @@ CONTAINS
                         END IF
                         !! Calculate integrals if we run out of buffer or the geometry did change
                         IF (actual_x_data%memory_parameter%recalc_forces .OR. buffer_overflow) THEN
-                           sphi_a_ext_set => sphi_a_ext(:, :, :, iset)
-                           sphi_b_ext_set => sphi_b_ext(:, :, :, jset)
-                           sphi_c_ext_set => sphi_c_ext(:, :, :, kset)
-                           sphi_d_ext_set => sphi_d_ext(:, :, :, lset)
                            max_contraction_val = max_contraction(iset, iatom)* &
                                                  max_contraction(jset, jatom)* &
                                                  max_contraction(kset, katom)* &
@@ -1269,10 +1239,6 @@ CONTAINS
                                         la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                         lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset), &
                                         nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                        sphi_a_u1, sphi_a_u2, sphi_a_u3, &
-                                        sphi_b_u1, sphi_b_u2, sphi_b_u3, &
-                                        sphi_c_u1, sphi_c_u2, sphi_c_u3, &
-                                        sphi_d_u1, sphi_d_u2, sphi_d_u3, &
                                         zeta(1:npgfa(iset), iset), zetb(1:npgfb(jset), jset), &
                                         zetc(1:npgfc(kset), kset), zetd(1:npgfd(lset), lset), &
                                         primitive_forces, &
@@ -1283,9 +1249,9 @@ CONTAINS
                                         max_contraction_val, cartesian_estimate, cell, neris_tmp, &
                                         log10_pmax, log10_eps_schwarz, &
                                         tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2, &
-                                        pgf_list_ij, pgf_list_kl, nsgfl_a(:, iset), nsgfl_b(:, jset), &
-                                        nsgfl_c(:, kset), nsgfl_d(:, lset), &
-                                        sphi_a_ext_set, sphi_b_ext_set, sphi_c_ext_set, sphi_d_ext_set, &
+                                        pgf_list_ij, pgf_list_kl, &
+                                        basis_parameter(ikind)%contraction(:, iset), basis_parameter(jkind)%contraction(:, jset), &
+                                        basis_parameter(kkind)%contraction(:, kset), basis_parameter(lkind)%contraction(:, lset), &
                                         ede_work, ede_work2, ede_work_forces, &
                                         ede_buffer1, ede_buffer2, ede_primitives_tmp, &
                                         nimages, do_periodic, use_virial, ede_work_virial, ede_work2_virial, &

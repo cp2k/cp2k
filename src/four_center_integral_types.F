@@ -14,8 +14,15 @@ MODULE four_center_integral_types
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: eri4_cell_type, eri4_screen_coeff_type, eri4_pgf_image_type, &
+   PUBLIC :: eri4_cell_type, eri4_contraction_type, eri4_screen_coeff_type, eri4_pgf_image_type, &
              eri4_pgf_pair_type
+
+! **************************************************************************************************
+!> \brief Contraction data for one angular momentum in a basis set.
+   TYPE eri4_contraction_type
+      REAL(dp), ALLOCATABLE :: angular(:, :) ! Cartesian by spherical component
+      REAL(dp), ALLOCATABLE :: weights(:, :) ! contraction by primitive
+   END TYPE eri4_contraction_type
 
 ! **************************************************************************************************
    TYPE eri4_cell_type
