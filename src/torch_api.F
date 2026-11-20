@@ -442,6 +442,7 @@ CONTAINS
 
 #if defined(__LIBTORCH)
       INTEGER(KIND=C_INT32_T), ALLOCATABLE               :: rows_c(:)
+      INTEGER                                            :: i
       INTERFACE
          SUBROUTINE torch_c_tensor_gather_rows(tensor, nrows, rows, result) &
             BIND(C, name="torch_c_tensor_gather_rows")
@@ -457,7 +458,9 @@ CONTAINS
       CPASSERT(.NOT. C_ASSOCIATED(result%c_ptr))
       ALLOCATE (rows_c(SIZE(rows)))
       CPASSERT(MINVAL(rows) >= 1)
-      rows_c = INT(rows, C_INT32_T) - 1
+      DO i = 1, SIZE(rows)
+         rows_c(i) = INT(rows(i), C_INT32_T) - 1
+      END DO
       CALL torch_c_tensor_gather_rows(tensor%c_ptr, INT(SIZE(rows), C_INT), &
                                       rows_c, result%c_ptr)
       DEALLOCATE (rows_c)

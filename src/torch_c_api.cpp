@@ -843,6 +843,7 @@ bool torch_c_tensor_upload_pinned(torch_c_tensor_t **tensor,
  ******************************************************************************/
 void torch_c_stream_synchronize() {
   TORCH_C_TRY
+#if defined(__LIBTORCH_CUDA)
   if (torch::cuda::is_available()) {
     c10::OptionalDeviceGuard guard;
     const auto active = get_device_with_guard(guard);
@@ -858,6 +859,7 @@ void torch_c_stream_synchronize() {
       c10::cuda::getCurrentCUDAStream().synchronize();
     }
   }
+#endif
   TORCH_C_CATCH("torch_c_stream_synchronize")
 }
 
@@ -1141,9 +1143,13 @@ static void grad_batch_impl(const torch_c_tensor_t *const *tensors,
       hosts[i].copy_(sources[i], true);
     }
     if (synchronize) {
+#if defined(__LIBTORCH_CUDA)
       c10::cuda::getCurrentCUDAStream(
           static_cast<c10::DeviceIndex>(source_device))
           .synchronize();
+#else
+      (void)source_device;
+#endif
     } else {
       record_pending_device(source_device);
     }
