@@ -20,7 +20,10 @@
         EXTERNAL_PRESSURE [bar] 20
         SOLID_STATE
         &DIMER_VECTOR
-          -1.0 0.0 0.0 1.0 0.0 0.0
+          # Atomic directions in coordinate order (x, y, z)
+          -1.0 0.0 0.0
+          1.0 0.0 0.0
+          # Cell deformation: AX BY CZ (stretches), BX CX CY (shears)
           0.15 0.0 0.0 0.0 0.0 0.0
         &END DIMER_VECTOR
         &ROT_OPT

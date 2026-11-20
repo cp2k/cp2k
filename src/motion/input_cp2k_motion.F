@@ -1159,14 +1159,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL section_create(subsection, __LOCATION__, name="DIMER", &
-                          description="Specifies parameters for Dimer Method", &
+                          description="Parameters for a dimer saddle search. Both GEO_OPT and ROT_OPT require OPTIMIZER CG.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="SOLID_STATE", &
                           description="Search for a saddle of E+pV in joint atomic and six cell coordinates. "// &
-                          "Requires full periodicity, analytical stress and CG for translation and rotation. "// &
-                          "In solid-state mode DIMER_VECTOR contains 3*N reference-frame atom components "// &
-                          "followed by six scaled cell components ordered XX, YY, ZZ, XY, XZ, YZ.", &
+                          "Requires full periodicity and analytical stress. See DIMER_VECTOR for the component order.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -1313,13 +1311,17 @@ CONTAINS
       CALL section_release(subsection2)
 
       CALL section_create(subsection2, __LOCATION__, name="DIMER_VECTOR", &
-                          description="Specifies the initial dimer vector. This "// &
-                          "section overrides INITIALIZATION_METHOD, and will be "// &
-                          "updated on each step for producing the restart files.", &
+                          description="Initial dimer direction, overriding INITIALIZATION_METHOD. For a molecular dimer "// &
+                          "supply 3*N components: one Cartesian x, y, z triplet per atom in coordinate order. "// &
+                          "With SOLID_STATE supply 3*N+6 components: the N atomic triplets in the reference frame, "// &
+                          "then six scaled components of the relative cell deformation. These are the logarithmic "// &
+                          "stretches AX, BY, CZ followed by the shears BX, CX, CY in that frame. "// &
+                          "Restart files contain the updated direction.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-                          description="Specify on each line the components of the dimer vector.", repeats=.TRUE., &
-                          usage="{Real} {Real} {Real}", type_of_var=real_t, n_var=-1)
+                          description="Give one atomic triplet per line. For SOLID_STATE put the six cell components "// &
+                          "on a final line.", repeats=.TRUE., &
+                          usage="{Real} ...", type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection2, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(subsection, subsection2)
