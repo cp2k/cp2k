@@ -52,7 +52,8 @@ CONTAINS
 
       INTEGER :: block_offset, block_size, col, col_size, handle, handle2, i_block, igroup, imep, &
          imep_sub, msg_offset, ngroup, offset, row, row_size
-      INTEGER, ALLOCATABLE                               :: counts_rec(:, :), counts_send(:, :)
+      INTEGER, ALLOCATABLE                               :: counts_priv(:, :), counts_rec(:, :), &
+                                                            counts_send(:, :)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_counter, entry_counter
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
@@ -63,13 +64,17 @@ CONTAINS
 
       CALL timeset(routineN//"_count", handle2)
 
-      NULLIFY (data_block)
-
       ALLOCATE (counts_send(2, 0:para_env%num_pe - 1), counts_rec(2, 0:para_env%num_pe - 1))
       counts_send = 0
 
       ngroup = para_env%num_pe/num_pe_sub
 
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(mat_global, mat_local, para_env, ngroup, num_pe_sub, block_row_ranges, counts_send) &
+!$OMP PRIVATE(iter, row, col, data_block, row_size, col_size, imep_sub, igroup, imep, counts_priv)
+      NULLIFY (data_block)
+      ALLOCATE (counts_priv(2, 0:para_env%num_pe - 1))
+      counts_priv = 0
       CALL dbcsr_iterator_start(iter, mat_global)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
@@ -85,14 +90,19 @@ CONTAINS
             END IF
             imep = imep_sub + igroup*num_pe_sub
 
-            counts_send(1, imep) = counts_send(1, imep) + row_size*col_size
-            counts_send(2, imep) = counts_send(2, imep) + 1
+            counts_priv(1, imep) = counts_priv(1, imep) + row_size*col_size
+            counts_priv(2, imep) = counts_priv(2, imep) + 1
 
          END DO
 
       END DO
 
       CALL dbcsr_iterator_stop(iter)
+!$OMP CRITICAL(dbcsr_to_subgroups_count_crit)
+      counts_send(:, :) = counts_send(:, :) + counts_priv(:, :)
+!$OMP END CRITICAL(dbcsr_to_subgroups_count_crit)
+      DEALLOCATE (counts_priv)
+!$OMP END PARALLEL
 
       CALL timestop(handle2)
 
@@ -117,6 +127,12 @@ CONTAINS
       ALLOCATE (blk_counter(0:para_env%num_pe - 1))
       blk_counter(:) = buffer_send%indx_offset(:para_env%num_pe - 1)
 
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(mat_global, mat_local, ngroup, num_pe_sub, block_row_ranges, entry_counter, &
+!$OMP        blk_counter, buffer_send) &
+!$OMP PRIVATE(iter, row, col, data_block, row_size, col_size, imep_sub, igroup, imep, &
+!$OMP         msg_offset, block_size, block_offset)
+      NULLIFY (data_block)
       CALL dbcsr_iterator_start(iter, mat_global)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
@@ -132,19 +148,20 @@ CONTAINS
             END IF
 
             imep = imep_sub + igroup*num_pe_sub
-
-            msg_offset = entry_counter(imep)
-
             block_size = row_size*col_size
+
+!$OMP ATOMIC CAPTURE
+            msg_offset = entry_counter(imep)
+            entry_counter(imep) = entry_counter(imep) + block_size
+!$OMP END ATOMIC
+
+!$OMP ATOMIC CAPTURE
+            blk_counter(imep) = blk_counter(imep) + 1
+            block_offset = blk_counter(imep)
+!$OMP END ATOMIC
 
             buffer_send%msg(msg_offset + 1:msg_offset + block_size) = &
                RESHAPE(data_block(1:row_size, 1:col_size), [block_size])
-
-            entry_counter(imep) = entry_counter(imep) + block_size
-
-            blk_counter(imep) = blk_counter(imep) + 1
-
-            block_offset = blk_counter(imep)
 
             ! The payload offset in each record is relative to its peer's segment.
             buffer_send%indx(:, block_offset) = [row, col, msg_offset - buffer_send%msg_offset(imep)]
@@ -154,6 +171,7 @@ CONTAINS
       END DO
 
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle2)
 
@@ -214,7 +232,8 @@ CONTAINS
       INTEGER                                            :: block_size, col, col_size, handle, &
                                                             handle2, i_block, imep, mapped_row, &
                                                             offset, row, row_size
-      INTEGER, ALLOCATABLE                               :: counts_rec(:, :), counts_send(:, :)
+      INTEGER, ALLOCATABLE                               :: counts_priv(:, :), counts_rec(:, :), &
+                                                            counts_send(:, :)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: block_counter, entry_counter
       LOGICAL                                            :: found, my_copy_only
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
@@ -235,6 +254,12 @@ CONTAINS
       ALLOCATE (counts_send(2, 0:para_env%num_pe - 1), counts_rec(2, 0:para_env%num_pe - 1))
       counts_send = 0
 
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(mat_local, mat_global, para_env, row_mapping, counts_send) &
+!$OMP PRIVATE(iter, row, col, data_block, row_size, col_size, mapped_row, imep, counts_priv)
+      NULLIFY (data_block)
+      ALLOCATE (counts_priv(2, 0:para_env%num_pe - 1))
+      counts_priv = 0
       CALL dbcsr_iterator_readonly_start(iter, mat_local)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
@@ -245,12 +270,17 @@ CONTAINS
          IF (PRESENT(row_mapping)) mapped_row = row_mapping(row)
          CALL dbcsr_get_stored_coordinates(mat_global, mapped_row, col, imep)
 
-         counts_send(1, imep) = counts_send(1, imep) + row_size*col_size
-         counts_send(2, imep) = counts_send(2, imep) + 1
+         counts_priv(1, imep) = counts_priv(1, imep) + row_size*col_size
+         counts_priv(2, imep) = counts_priv(2, imep) + 1
 
       END DO
 
       CALL dbcsr_iterator_stop(iter)
+!$OMP CRITICAL(dbcsr_from_subgroups_count_crit)
+      counts_send(:, :) = counts_send(:, :) + counts_priv(:, :)
+!$OMP END CRITICAL(dbcsr_from_subgroups_count_crit)
+      DEALLOCATE (counts_priv)
+!$OMP END PARALLEL
 
       CALL timestop(handle2)
 
@@ -276,6 +306,11 @@ CONTAINS
       entry_counter(:) = buffer_send%msg_offset(:para_env%num_pe - 1)
 
       ! fill buffer_send
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(mat_local, mat_global, row_mapping, entry_counter, block_counter, buffer_send) &
+!$OMP PRIVATE(iter, row, col, data_block, row_size, col_size, mapped_row, imep, block_size, &
+!$OMP         offset, i_block)
+      NULLIFY (data_block)
       CALL dbcsr_iterator_readonly_start(iter, mat_local)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
@@ -288,23 +323,26 @@ CONTAINS
 
          block_size = row_size*col_size
 
+!$OMP ATOMIC CAPTURE
          offset = entry_counter(imep)
+         entry_counter(imep) = entry_counter(imep) + block_size
+!$OMP END ATOMIC
+
+!$OMP ATOMIC CAPTURE
+         block_counter(imep) = block_counter(imep) + 1
+         i_block = block_counter(imep)
+!$OMP END ATOMIC
 
          buffer_send%msg(offset + 1:offset + block_size) = &
             RESHAPE(data_block(1:row_size, 1:col_size), [block_size])
 
-         i_block = block_counter(imep) + 1
-
          ! The receiver adds its own segment start to this peer-relative offset.
          buffer_send%indx(:, i_block) = [mapped_row, col, offset - buffer_send%msg_offset(imep)]
-
-         entry_counter(imep) = entry_counter(imep) + block_size
-
-         block_counter(imep) = block_counter(imep) + 1
 
       END DO
 
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle2)
 

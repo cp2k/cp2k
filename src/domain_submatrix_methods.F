@@ -1287,12 +1287,14 @@ CONTAINS
       END IF
 
       ! remove all blocks from the dbcsr matrix
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix) PRIVATE(iter, row, col, block_p)
       CALL dbcsr_iterator_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, block_p)
          block_p(:, :) = 0.0_dp
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
       CALL dbcsr_filter(matrix, 0.1_dp)
 
       CALL dbcsr_work_create(matrix, work_mutable=.TRUE.)
