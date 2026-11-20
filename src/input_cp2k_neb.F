@@ -142,14 +142,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="IDPP", &
-                          description="Compatibility switch. True selects INTERPOLATION_METHOD LI_IDPP "// &
-                          "and false selects LI_BISECT. If both keywords are set, they must agree.", &
-                          citations=[Smidstrup2014], &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="USE_COLVARS", &
                           description="Uses a version of the band scheme projected in a subspace of colvars.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)

@@ -54,7 +54,6 @@ MODULE neb_utils
         pot_neb_fe, pot_neb_full, pot_neb_me
    USE input_cp2k_check,                ONLY: remove_restart_info
    USE input_cp2k_neb,                  ONLY: neb_li_bisect,&
-                                              neb_li_idpp,&
                                               neb_s_idpp
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -159,12 +158,10 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER :: handle, i_rep, iatom, ic, input_nr_replica, interp_method, is, ivar, j, jtarg, k, &
-         legacy_method, n_rep, natom, neb_nr_replica, nr_replica_to_interpolate, nval, nvar, &
-         shell_index
+         n_rep, natom, neb_nr_replica, nr_replica_to_interpolate, nval, nvar, shell_index
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rep_map
       LOGICAL                                            :: align_interpolated, check, explicit, &
-                                                            idpp, idpp_explicit, method_explicit, &
-                                                            sequential, skip_vel_section
+                                                            idpp, sequential, skip_vel_section
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distance
       REAL(KIND=dp), DIMENSION(3)                        :: r
       REAL(KIND=dp), DIMENSION(:), POINTER               :: initial_colvars, rptr
@@ -183,15 +180,7 @@ CONTAINS
       END IF
       ! Calculation is aborted if input replicas are more then the requested ones for the BAND..
       CPASSERT(input_nr_replica <= neb_nr_replica)
-      CALL section_vals_val_get(neb_section, "INTERPOLATION_METHOD", i_val=interp_method, explicit=method_explicit)
-      CALL section_vals_val_get(neb_section, "IDPP", l_val=idpp, explicit=idpp_explicit)
-      IF (idpp_explicit) THEN
-         legacy_method = MERGE(neb_li_idpp, neb_li_bisect, idpp)
-         IF (method_explicit .AND. interp_method /= legacy_method) THEN
-            CPABORT("BAND IDPP and INTERPOLATION_METHOD disagree. Set only one interpolation option.")
-         END IF
-         interp_method = legacy_method
-      END IF
+      CALL section_vals_val_get(neb_section, "INTERPOLATION_METHOD", i_val=interp_method)
       IF (neb_env%solid_state .AND. interp_method /= neb_li_bisect) THEN
          CPABORT("BAND IDPP is not supported with SOLID_STATE.")
       END IF
@@ -405,7 +394,8 @@ CONTAINS
             k = k + 1
             rep_map(jtarg + 2:input_nr_replica) = rep_map(jtarg + 1:input_nr_replica - 1)
             IF (jtarg + 1 <= neb_nr_replica .AND. jtarg + 1 >= 1) rep_map(jtarg + 1) = -k
-            ! Interpolation is a simple bisection in XYZ
+            ! Insert a Cartesian midpoint. S-IDPP uses this provisional image only
+            ! to distribute missing replicas before growing the band from its anchors.
             coords%xyz(:, jtarg + 2:input_nr_replica) = coords%xyz(:, jtarg + 1:input_nr_replica - 1)
             coords%xyz(:, jtarg + 1) = (coords%xyz(:, jtarg) + coords%xyz(:, jtarg + 2))/2.0_dp
             IF (neb_env%solid_state) THEN
@@ -415,10 +405,8 @@ CONTAINS
                                        coords%cells(:, :, jtarg + 1), coords%xyz(:, jtarg + 1))
             END IF
             IF (neb_env%use_colvar) THEN
-               ! Interpolation is a simple bisection also in internal coordinates
-               ! in this case the XYZ coordinates need only as a starting point for computing
-               ! the potential energy function. The reference are the internal coordinates
-               ! interpolated here after..
+               ! In a collective-variable band the internal midpoint is the target;
+               ! the Cartesian midpoint is only the starting geometry.
                coords%int(:, jtarg + 2:input_nr_replica) = coords%int(:, jtarg + 1:input_nr_replica - 1)
                coords%int(:, jtarg + 1) = (coords%int(:, jtarg) + coords%int(:, jtarg + 2))/2.0_dp
             END IF

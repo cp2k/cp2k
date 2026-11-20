@@ -49,6 +49,7 @@ CONTAINS
          IF (.NOT. anchor(last)) CYCLE
          IF (last - first > 1) THEN
             ALLOCATE (path(SIZE(coords, 1), last - first + 1))
+            ! Both IDPP methods use angstrom internally, including the reported pair distances.
             path(:, :) = coords(:, first:last)/bohr
             CALL relax_segment(path, cell, iw, sequential)
             coords(:, first + 1:last - 1) = path(:, 2:last - first)*bohr
