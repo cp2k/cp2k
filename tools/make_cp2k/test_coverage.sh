@@ -112,7 +112,7 @@ if ((${#CONFIG_FILES[@]} > 0)); then
   [[ -n "${BUILD_DIR}" ]] || BUILD_DIR="${CMAKE_BUILD_PATH}/src"
   [[ -n "${SPACK_BUILD_PATH:-}" ]] && EXCLUDES+=("${SPACK_BUILD_PATH}/*")
 elif [[ -z "${BUILD_DIR}" ]]; then
-  echo "ERROR: Either configuration files or the flag --build_dir have to be specified"
+  echo "ERROR: No configuration file and no build folder (flag --build_dir) specified"
   print_usage
   exit 1
 fi
@@ -133,13 +133,13 @@ if [[ -z "${TITLE}" ]]; then
 fi
 
 if [[ ! -d "${BUILD_DIR}" ]]; then
-  echo "ERROR: The build folder ${BUILD_DIR} was not found"
+  echo "ERROR: The build folder ${BUILD_DIR} (flag --build_dir or CMAKE_BUILD_PATH/src) was not found"
   exit 1
 fi
 BUILD_DIR="$(realpath "${BUILD_DIR}")"
 for tool in gcov lcov genhtml; do
   if ! command -v "${tool}" &> /dev/null; then
-    echo "ERROR: The command ${tool} is mandatory for the coverage analysis, but it was not found"
+    echo "ERROR: The command ${tool} required for the coverage analysis was not found"
     exit 1
   fi
 done
@@ -149,17 +149,27 @@ if [[ -n "${REGTEST_ARGS}" ]]; then
   # Disable core dumps as they can take a very long time to write
   ulimit -c 0
   # Check available shared memory needed for MPI inter-process communication
-  SHM_AVAIL=$(df --output=avail -m /dev/shm | tail -1)
-  if ((SHM_AVAIL < 1024)); then
-    echo "ERROR: Not enough shared memory. If you're running docker use --shm-size=1g"
+  SHM_AVAIL=$(df --output=avail -m /dev/shm 2> /dev/null | tail -1 | tr -dc '0-9')
+  if ((${SHM_AVAIL:-0} < 1024)); then
+    echo "ERROR: Only ${SHM_AVAIL:-0} MB of shared memory available in /dev/shm, but at least 1024 MB are needed"
+    echo "       (use --shm-size=1g with docker or podman)"
     exit 1
   fi
   echo -e "\n========== Running Regtests =========="
   read -ra REGTEST_ARGV <<< "${REGTEST_ARGS}"
   # A failure of the regression tests does not prevent the coverage analysis
-  if ! (cd "${CP2K_ROOT_DIR}" && ./tests/do_regtest.py "${REGTEST_ARGV[@]}"); then
-    echo "WARNING: The regression tests failed, but the coverage analysis is continued"
+  (cd "${CP2K_ROOT_DIR}" && ./tests/do_regtest.py "${REGTEST_ARGV[@]}")
+  EXIT_CODE=$?
+  if ((EXIT_CODE != 0)); then
+    echo "WARNING: The regression tests failed (exit code ${EXIT_CODE}), the coverage analysis is continued anyway"
   fi
+fi
+
+# Check for coverage data
+if [[ -z "$(find "${BUILD_DIR}" -name "*.gcda" -print -quit)" ]]; then
+  echo "ERROR: No coverage data (.gcda files) found in ${BUILD_DIR}."
+  echo "       Was CP2K built with coverage instrumentation and were the tests run?"
+  exit 1
 fi
 
 echo -e "\n========== Analysing Coverage =========="
@@ -182,6 +192,7 @@ fi
 # Analyse the code coverage of the regression test run and generate a coverage report
 mkdir -p "${OUTPUT_DIR}"
 COVERAGE_OUTPUT_FILE="${OUTPUT_DIR}/coverage.info"
+rm -f "${COVERAGE_OUTPUT_FILE}"
 LCOV_EXCLUDE_FLAGS=()
 for pattern in "${EXCLUDES[@]}"; do
   LCOV_EXCLUDE_FLAGS+=(--exclude "${pattern}")
@@ -191,10 +202,26 @@ lcov --directory "${BUILD_DIR}" \
   --capture \
   --keep-going \
   --output-file "${COVERAGE_OUTPUT_FILE}" &> "${OUTPUT_DIR}"/lcov.log
+# lcov may also return a non-zero exit code for minor issues like unused exclude patterns
+EXIT_CODE=$?
+if ! grep -q "^SF:" "${COVERAGE_OUTPUT_FILE}" 2> /dev/null; then
+  echo "ERROR: The coverage data capture with lcov failed (see ${OUTPUT_DIR}/lcov.log)"
+  exit 1
+elif ((EXIT_CODE != 0)); then
+  echo "WARNING: lcov reported errors (exit code ${EXIT_CODE}, see ${OUTPUT_DIR}/lcov.log)"
+fi
 # Print coverage summary
 lcov --summary "${COVERAGE_OUTPUT_FILE}"
+rm -f "${OUTPUT_DIR}"/index.html
 genhtml --output-directory "${OUTPUT_DIR}" --keep-going --title "${TITLE}" \
   "${COVERAGE_OUTPUT_FILE}" &> "${OUTPUT_DIR}"/genhtml.log
+EXIT_CODE=$?
+if [[ ! -s "${OUTPUT_DIR}"/index.html ]]; then
+  echo "ERROR: The generation of the HTML coverage report with genhtml failed (see ${OUTPUT_DIR}/genhtml.log)"
+  exit 1
+elif ((EXIT_CODE != 0)); then
+  echo "WARNING: genhtml reported errors (exit code ${EXIT_CODE}, see ${OUTPUT_DIR}/genhtml.log)"
+fi
 # Create plot data
 LINE_COV=$(lcov --summary "${COVERAGE_OUTPUT_FILE}" | grep lines | awk '{print substr($2, 1, length($2)-1)}')
 FUNC_COV=$(lcov --summary "${COVERAGE_OUTPUT_FILE}" | grep funct | awk '{print substr($2, 1, length($2)-1)}')
