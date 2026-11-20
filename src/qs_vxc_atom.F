@@ -2962,7 +2962,7 @@ CONTAINS
       INTEGER                                            :: p
 
       p = 1
-      DO WHILE (p < n .AND. p < 1073741824)
+      DO WHILE (p < n .AND. p < HUGE(1)/2)
          p = 2*p
       END DO
    END FUNCTION native_need_next_pow2

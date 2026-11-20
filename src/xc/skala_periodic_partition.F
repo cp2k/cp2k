@@ -48,7 +48,7 @@ CONTAINS
 
       INTEGER                                            :: a, b, base(3), extent(3), i, j, k, n, &
                                                             shift(3)
-      REAL(dp)                                           :: distance
+      REAL(dp)                                           :: distance, delta(3)
 
       CPASSERT(ASSOCIATED(cell))
       layout%natom = SIZE(atom_coords, 2)
@@ -71,7 +71,8 @@ CONTAINS
       DO a = 1, layout%natom
          n = 0
          DO b = 1, layout%natom
-            base = NINT(MATMUL(layout%inverse, atom_coords(:, a) - atom_coords(:, b)))*layout%periodicity
+            delta(:) = atom_coords(:, a) - atom_coords(:, b)
+            base = NINT(MATMUL(layout%inverse, delta))*layout%periodicity
             DO k = -extent(3), extent(3)
                DO j = -extent(2), extent(2)
                   DO i = -extent(1), extent(1)

@@ -1144,12 +1144,12 @@ CONTAINS
                local_atom_counts(local_owner(feature_local)) = &
                   local_atom_counts(local_owner(feature_local)) + 1
             END DO
-            atom_total = local_atom_counts
+            atom_total(:) = local_atom_counts
             CALL pw_grid%para%group%sum(atom_total)
             local_scan(:, 1) = local_atom_counts
             CALL pw_grid%para%group%sum_partial(local_scan, inclusive_scan)
-            atom_inclusive = inclusive_scan(:, 1)
-            atom_before = atom_inclusive - local_atom_counts
+            atom_inclusive(:) = inclusive_scan(:, 1)
+            atom_before(:) = atom_inclusive - local_atom_counts
             DO iatom = 1, natom
                skala_state%layout%atomic_grid_sizes(iatom) = INT(atom_total(iatom), KIND=int_8)
             END DO
@@ -1272,7 +1272,7 @@ CONTAINS
                    dist_recv_buffer(MAX(1, 6*SUM(dist_recv_counts))))
          dist_send_buffer = 0.0_dp
          dist_recv_buffer = 0.0_dp
-         dist_cursor = dist_displs + 1
+         dist_cursor(:) = dist_displs + 1
          DO feature_local = 1, nfeature_local
             dest = atom_chunk_owner(local_owner(feature_local))
             dist_pos = dist_cursor(dest)
@@ -2358,7 +2358,7 @@ CONTAINS
       CPASSERT(SIZE(row_count) == SIZE(padded_rows))
 
       ALLOCATE (keys(SIZE(padded_rows)))
-      keys = padded_rows
+      keys(:) = padded_rows
       DO chunk = 2, SIZE(keys)
          key = keys(chunk)
          atom_begin_tmp = atom_begin(chunk)

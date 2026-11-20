@@ -291,7 +291,7 @@ CONTAINS
       IF (ALLOCATED(cache%kind_basis_names)) DEALLOCATE (cache%kind_basis_names)
       IF (ALLOCATED(params%kind_basis_names)) THEN
          ALLOCATE (cache%kind_basis_names(SIZE(params%kind_basis_names)))
-         cache%kind_basis_names = params%kind_basis_names
+         cache%kind_basis_names(:) = params%kind_basis_names
       END IF
       IF (ALLOCATED(cache%last_positions)) THEN
          DEALLOCATE (cache%last_positions)
