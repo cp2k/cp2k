@@ -81,7 +81,6 @@ MODULE kpoint_lattice_fft
       REAL(KIND=dp), ALLOCATABLE, PRIVATE :: xkp(:, :), weight(:)
       COMPLEX(KIND=dp), ALLOCATABLE, PRIVATE :: cell_phase(:)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER, PRIVATE :: fft_in(:) => NULL(), fft_out(:) => NULL()
-      TYPE(fft_pair_major_plan_type), PRIVATE :: fft_plan(2)
    END TYPE k_grid_to_cell_work_type
 
    ! A real-output consumer may finish extraction directly in its next operator's layout.
@@ -772,7 +771,7 @@ CONTAINS
          OPTIONAL                                        :: real_sink
 
       INTEGER                                            :: fft_count, fft_width, handle, nbatch, n_output, &
-                                                            output_shape(3), stat, width
+                                                            output_shape(3), width
       INTEGER(KIND=int_8)                                :: budget, first, ngrid, nvalues
       LOGICAL                                            :: pack_real, real_output
       REAL(KIND=dp)                                      :: started
@@ -822,8 +821,6 @@ CONTAINS
          IF (ASSOCIATED(work%fft_in)) THEN
             IF (SIZE(work%fft_in, KIND=int_8) < ngrid*fft_width .OR. &
                 32_int_8*SIZE(work%fft_in, KIND=int_8) + 16_int_8*ngrid*fft_width > budget) THEN
-               CALL fft_pair_major_plan_destroy(work%fft_plan(1))
-               CALL fft_pair_major_plan_destroy(work%fft_plan(2))
                CALL fft_deallocate(work%fft_in)
                CALL fft_deallocate(work%fft_out)
             END IF
@@ -846,9 +843,8 @@ CONTAINS
                profile%tile_max = MAX(profile%tile_max, nbatch)
                started = m_walltime()
             END IF
-            CALL k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, stat, values_rs, values_real, &
-                                                 profile, nbatch == width, pack_real, real_sink)
-            IF (stat /= 0) EXIT
+            CALL k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, values_rs, values_real, &
+                                                 profile, pack_real, real_sink)
          END DO
       END IF
       IF (.NOT. work%regular) THEN
@@ -886,12 +882,11 @@ CONTAINS
 !> \param values_rs ...
 !> \param values_real ...
 !> \param profile ...
-!> \param full_batch whether this panel has the full configured width
 !> \param pack_real pack two independently symmetrized real-output transforms
 !> \param real_sink real-output consumer
 ! **************************************************************************************************
-   SUBROUTINE k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, stat, values_rs, values_real, profile, &
-                                              full_batch, pack_real, real_sink)
+   SUBROUTINE k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, values_rs, values_real, profile, &
+                                              pack_real, real_sink)
       TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
       COMPLEX(KIND=dp), INTENT(IN)                       :: values_k(:, :, :)
       INTEGER(KIND=int_8), INTENT(IN)                    :: first
@@ -900,7 +895,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: values_real(:, :, :)
       TYPE(lattice_fft_profile_type), INTENT(INOUT), &
          OPTIONAL                                        :: profile
-      LOGICAL, INTENT(IN)                                :: full_batch, pack_real
+      LOGICAL, INTENT(IN)                                :: pack_real
 
       CLASS(lattice_fft_real_sink_type), INTENT(INOUT), &
          OPTIONAL                                        :: real_sink
@@ -1006,9 +1001,7 @@ CONTAINS
       END DO
 !$OMP END PARALLEL DO
       IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
-      CALL lattice_fft_execute_pair_major(FWFFT, work%nfft, fft_count, work%fft_in, work%fft_out, stat, &
-                                          profile, work%fft_plan(MERGE(1, 2, full_batch)))
-      IF (stat /= 0) RETURN
+      CALL lattice_fft_execute_pair_major(FWFFT, work%nfft, fft_count, work%fft_in, work%fft_out, profile)
       output(1:fft_count, 1:INT(ngrid)) => work%fft_in(1:fft_count*INT(ngrid))
       IF (PRESENT(profile)) started = m_walltime()
       IF (PRESENT(real_sink)) THEN
@@ -1078,8 +1071,6 @@ CONTAINS
 
       TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
 
-      CALL fft_pair_major_plan_destroy(work%fft_plan(1))
-      CALL fft_pair_major_plan_destroy(work%fft_plan(2))
       IF (ASSOCIATED(work%fft_in)) CALL fft_deallocate(work%fft_in)
       IF (ASSOCIATED(work%fft_out)) CALL fft_deallocate(work%fft_out)
       IF (ALLOCATED(work%xkp)) DEALLOCATE (work%xkp, work%cells, work%weight)

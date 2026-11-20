@@ -2592,8 +2592,8 @@ CONTAINS
                                                             output(:, :), scratch(:)
       INTEGER                                            :: count, fft_count, first, i, i_extract, &
                                                             ibatch, icell, ik, n_extract, nfft(3), &
-                                                            nmesh(3), partner_output, stat, &
-                                                            unit_nr, width
+                                                            nmesh(3), partner_output, unit_nr, &
+                                                            width
       INTEGER(KIND=int_8)                                :: extract_reads, fft_transforms, &
                                                             nfft_grid, spectrum_columns
       INTEGER, POINTER                                   :: extract_partner(:), extract_q(:), &
@@ -2601,7 +2601,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: elapsed, other_seconds, &
                                                             prepared_seconds, started, &
                                                             total_started
-      TYPE(fft_pair_major_plan_type)                     :: full_fft_plan, tail_fft_plan
       TYPE(lattice_fft_profile_type), ALLOCATABLE        :: profile
 
       IF (fft_profile_enabled) total_started = m_walltime()
@@ -2656,12 +2655,7 @@ CONTAINS
             profile%seconds(4) = profile%seconds(4) + m_walltime() - started
             profile%pair_major = .TRUE.
          END IF
-         IF (count == width) THEN
-            CALL lattice_fft_execute_pair_major(BWFFT, nfft, fft_count, fft_in, fft_out, stat, profile, full_fft_plan)
-         ELSE
-            CALL lattice_fft_execute_pair_major(BWFFT, nfft, fft_count, fft_in, fft_out, stat, profile, tail_fft_plan)
-         END IF
-         IF (stat /= 0) CPABORT('GW product FFT failed')
+         CALL lattice_fft_execute_pair_major(BWFFT, nfft, fft_count, fft_in, fft_out, profile)
          output(1:fft_count, 1:INT(nfft_grid)) => fft_in
          IF (fft_profile_enabled) started = m_walltime()
          !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
@@ -2722,8 +2716,6 @@ CONTAINS
       END DO
 
       IF (fft_profile_enabled) started = m_walltime()
-      CALL fft_pair_major_plan_destroy(full_fft_plan)
-      CALL fft_pair_major_plan_destroy(tail_fft_plan)
       CALL fft_deallocate(scratch)
       unit_nr = 0
       IF (fft_profile_enabled) THEN
