@@ -3,6 +3,7 @@ import traceback
 from typing import Any, Dict
 
 from matcher_classes import (
+    CubeValuesMatcher,
     GenericMatcher,
     Matcher,
     MatchResult,
@@ -187,30 +188,7 @@ registry["Ssneb_final_middle_volume"] = GenericMatcher(
     r"SS-NEB\| Volume \[bohr\^3\] 2\s+(\S+)", col=1, regex=True
 )
 registry["M011"] = GenericMatcher(r"ENERGY| Total FORCE_EVAL", col=9)
-
-
-class BaderCubeLabelsMatcher(Matcher):
-    """Check the dimensions and labels of the emitted Gaussian cube."""
-
-    def run(self, output: str, **kwargs: Any) -> MatchResult:
-        lines = output.splitlines()
-        natoms = int(lines[2].split()[0])
-        shape = [int(line.split()[0]) for line in lines[3:6]]
-        labels = [
-            float(value) for line in lines[6 + natoms :] for value in line.split()
-        ]
-        if len(labels) != math.prod(shape):
-            return MatchResult("WRONG RESULT", "Incomplete Bader basin cube.\n", None)
-        found = set(labels)
-        expected = set(kwargs["labels"])
-        if found != expected:
-            return MatchResult(
-                "WRONG RESULT", f"Basin labels {found} do not match {expected}.\n", None
-            )
-        return MatchResult("OK", None, float(len(found)))
-
-
-registry["Bader_cube_labels"] = BaderCubeLabelsMatcher()
+registry["Cube_values"] = CubeValuesMatcher()
 registry["Bader_atom_1_electrons"] = GenericMatcher(
     r"^\s*BADER\|\s+1\s+(\S+)", col=1, regex=True
 )
