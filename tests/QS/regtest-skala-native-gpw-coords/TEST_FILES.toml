@@ -35,4 +35,3 @@
   {matcher = "SKALA_GPW_feature_spin_moment", tol = 1e-8, ref = 1.00000001315},
   {matcher = "SKALA_GPW_feature_weight_sum", tol = 1e-8, ref = 1457.64026995}
 ]
-"H2_MIXED_PERIODICITY_CACHE.inp"              = [{matcher = "M011", tol = 1e-5, ref = -2.337435718585624}]
