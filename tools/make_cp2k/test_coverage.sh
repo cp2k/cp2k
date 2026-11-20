@@ -4,14 +4,19 @@
 #
 # Usage: test_coverage.sh [OPTIONS] [CONFIG_FILE...]
 #
-# This script is used by make_cp2k.sh (step 4) and by the toolchain-based coverage
-# test (tools/docker/scripts/test_coverage.sh):
+# This script is used for the coverage tests of both the Spack-based and the
+# toolchain-based CP2K builds:
 #
 #  - With configuration files (options.conf, deps.conf, and build.conf written by
 #    make_cp2k.sh and build_deps.sh), the defaults are taken from these files and
-#    the Spack environment with the CP2K dependencies is activated
-#  - Without configuration files, the environment has to be set up by the caller
-#    and at least the flag --build_dir is required
+#    the Spack environment with the CP2K dependencies is activated (step 4 of
+#    make_cp2k.sh, which runs the regression tests separately)
+#  - Without configuration files, at least the flag --build_dir is required and
+#    the environment can be set up with the flag --setup, e.g. for a toolchain build:
+#
+#      test_coverage.sh --setup /opt/cp2k-toolchain/install/setup \
+#                       --regtest "--ompthreads=1 --keepalive /opt/cp2k/build/bin psmp" \
+#                       --build_dir /opt/cp2k/build/src --exclude "/opt/cp2k-toolchain/*"
 #
 # The flags override the defaults from the configuration files.
 
@@ -19,8 +24,10 @@
 
 set -uo pipefail
 
+CP2K_ROOT_DIR="$(realpath "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../..")"
+
 # shellcheck source=/dev/null
-source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/common.sh"
+source "${CP2K_ROOT_DIR}/tools/make_cp2k/common.sh"
 
 print_usage() {
   echo "Usage: $(basename "${0}") [OPTIONS] [CONFIG_FILE...]"
@@ -29,12 +36,15 @@ print_usage() {
   echo " -b, --build_dir DIR    : Build folder with the coverage data (.gcda files)"
   echo "                          (default: \${CMAKE_BUILD_PATH}/src)"
   echo " -o, --output_dir DIR   : Folder for the coverage report"
-  echo "                          (default: /workspace/artifacts/coverage within a container,"
-  echo "                          otherwise \${INSTALL_PREFIX}/coverage)"
+  echo "                          (default: /workspace/artifacts/coverage if \${IN_CONTAINER} is yes,"
+  echo "                          otherwise \${INSTALL_PREFIX}/coverage or ./coverage)"
   echo " -x, --exclude PATTERN  : Exclude the files matching PATTERN from the coverage analysis"
   echo "                          (can be repeated, /usr/* and \${SPACK_BUILD_PATH}/* are always excluded)"
   echo " -t, --title TITLE      : Title of the HTML coverage report"
-  echo "                          (default: CP2K Regtests (\${CP2K_REVISION}))"
+  echo "                          (default: CP2K Regtests (<CP2K revision>))"
+  echo " -s, --setup FILE       : Source FILE to set up the environment, e.g. the toolchain setup file"
+  echo " -r, --regtest ARGS     : Run the regression tests with tests/do_regtest.py ARGS before"
+  echo "                          the coverage analysis"
   echo " -gt, --gcov_timeout T  : Remove the coverage data files for which gcov takes longer than T"
   echo "                          (e.g. 10s) to bypass gcov hanging on some files (default: no check)"
   echo " -h, --help             : Print this help information"
@@ -44,13 +54,16 @@ print_usage() {
 BUILD_DIR=""
 OUTPUT_DIR=""
 TITLE=""
+SETUP_FILE=""
+REGTEST_ARGS=""
 GCOV_TIMEOUT=""
 EXCLUDES=("/usr/*")
 CONFIG_FILES=()
 while (($# > 0)); do
   case "${1}" in
-    -b | --build_dir | -o | --output_dir | -x | --exclude | -t | --title | -gt | --gcov_timeout)
-      if (($# < 2)) || [[ -z "${2}" ]] || [[ "${2}" == -* ]]; then
+    -b | --build_dir | -o | --output_dir | -x | --exclude | -t | --title | -s | --setup | \
+      -r | --regtest | -gt | --gcov_timeout)
+      if (($# < 2)) || [[ -z "${2}" ]]; then
         echo "ERROR: No argument found for flag \"${1}\""
         exit 1
       fi
@@ -59,6 +72,8 @@ while (($# > 0)); do
         -o | --output_dir) OUTPUT_DIR="${2}" ;;
         -x | --exclude) EXCLUDES+=("${2}") ;;
         -t | --title) TITLE="${2}" ;;
+        -s | --setup) SETUP_FILE="${2}" ;;
+        -r | --regtest) REGTEST_ARGS="${2}" ;;
         -gt | --gcov_timeout) GCOV_TIMEOUT="${2}" ;;
       esac
       shift 2
@@ -79,27 +94,43 @@ while (($# > 0)); do
   esac
 done
 
-# Take the defaults from the configuration files if provided
+# Set up the environment and take the defaults from the configuration files if provided
+if [[ -n "${SETUP_FILE}" ]]; then
+  if [[ ! -f "${SETUP_FILE}" ]]; then
+    echo "ERROR: The setup file ${SETUP_FILE} was not found"
+    exit 1
+  fi
+  # The setup file is not necessarily safe for unset variables
+  set +u
+  # shellcheck source=/dev/null
+  source "${SETUP_FILE}"
+  set -u
+fi
 if ((${#CONFIG_FILES[@]} > 0)); then
   load_config "${CONFIG_FILES[@]}"
   activate_spack_env
   [[ -n "${BUILD_DIR}" ]] || BUILD_DIR="${CMAKE_BUILD_PATH}/src"
-  if [[ -z "${OUTPUT_DIR}" ]]; then
-    if [[ "${IN_CONTAINER}" == "yes" ]]; then
-      OUTPUT_DIR="/workspace/artifacts/coverage"
-    else
-      OUTPUT_DIR="${INSTALL_PREFIX}/coverage"
-    fi
-  fi
   [[ -n "${SPACK_BUILD_PATH:-}" ]] && EXCLUDES+=("${SPACK_BUILD_PATH}/*")
-  [[ -n "${TITLE}" ]] || TITLE="CP2K Regtests (${CP2K_REVISION})"
 elif [[ -z "${BUILD_DIR}" ]]; then
   echo "ERROR: Either configuration files or the flag --build_dir have to be specified"
   print_usage
   exit 1
 fi
-[[ -n "${OUTPUT_DIR}" ]] || OUTPUT_DIR="${PWD}/coverage"
-[[ -n "${TITLE}" ]] || TITLE="CP2K Regtests"
+if [[ -z "${OUTPUT_DIR}" ]]; then
+  if [[ "${IN_CONTAINER:-}" == "yes" ]]; then
+    OUTPUT_DIR="/workspace/artifacts/coverage"
+  elif [[ -n "${INSTALL_PREFIX:-}" ]]; then
+    OUTPUT_DIR="${INSTALL_PREFIX}/coverage"
+  else
+    OUTPUT_DIR="${PWD}/coverage"
+  fi
+fi
+if [[ -z "${TITLE}" ]]; then
+  if [[ -z "${CP2K_REVISION:-}" ]]; then
+    CP2K_REVISION="$("${CP2K_ROOT_DIR}"/tools/build_utils/get_revision_number "${CP2K_ROOT_DIR}"/src)"
+  fi
+  TITLE="CP2K Regtests (${CP2K_REVISION})"
+fi
 
 if [[ ! -d "${BUILD_DIR}" ]]; then
   echo "ERROR: The build folder ${BUILD_DIR} was not found"
@@ -112,6 +143,26 @@ for tool in gcov lcov genhtml; do
     exit 1
   fi
 done
+
+# Run the regression tests if requested
+if [[ -n "${REGTEST_ARGS}" ]]; then
+  # Disable core dumps as they can take a very long time to write
+  ulimit -c 0
+  # Check available shared memory needed for MPI inter-process communication
+  SHM_AVAIL=$(df --output=avail -m /dev/shm | tail -1)
+  if ((SHM_AVAIL < 1024)); then
+    echo "ERROR: Not enough shared memory. If you're running docker use --shm-size=1g"
+    exit 1
+  fi
+  echo -e "\n========== Running Regtests =========="
+  read -ra REGTEST_ARGV <<< "${REGTEST_ARGS}"
+  # A failure of the regression tests does not prevent the coverage analysis
+  if ! (cd "${CP2K_ROOT_DIR}" && ./tests/do_regtest.py "${REGTEST_ARGV[@]}"); then
+    echo "WARNING: The regression tests failed, but the coverage analysis is continued"
+  fi
+fi
+
+echo -e "\n========== Analysing Coverage =========="
 
 # Remove the coverage data files for which gcov takes too long, since gcov gets
 # stuck on some files (maybe related to https://bugs.launchpad.net/gcc-arm-embedded/+bug/1694644)

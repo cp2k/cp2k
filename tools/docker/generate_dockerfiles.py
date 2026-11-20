@@ -445,8 +445,14 @@ RUN apt-get update -qq && \
 # Run coverage test.
 COPY ./tests ./tests
 COPY ./tools/make_cp2k/common.sh ./tools/make_cp2k/test_coverage.sh ./tools/make_cp2k/
-COPY ./tools/docker/scripts/test_coverage.sh .
-RUN ./test_coverage.sh 2>&1 | tee report.log
+RUN ./tools/make_cp2k/test_coverage.sh \
+    --setup /opt/cp2k-toolchain/install/setup \
+    --regtest "--ompthreads=1 --keepalive /opt/cp2k/build/bin psmp" \
+    --build_dir /opt/cp2k/build/src \
+    --output_dir /workspace/artifacts/coverage \
+    --exclude "/opt/cp2k-toolchain/*" \
+    --gcov_timeout 10s \
+    2>&1 | tee report.log
 """
         + print_cached_report()
     )
