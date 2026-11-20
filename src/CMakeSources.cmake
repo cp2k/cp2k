@@ -1430,6 +1430,7 @@ list(
   tb/xtb_eeq.F
   tb/xtb_ehess.F
   tb/xtb_ehess_force.F
+  tb/xtb_ewald.F
   tb/xtb_hab_force.F
   tb/xtb_hcore.F
   tb/xtb_ks_matrix.F

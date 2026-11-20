@@ -1,14 +1,14 @@
 # runs are executed in the same order as in this file
 "si_kp_kpsym.inp"                           = [
-  {matcher = "E_total", tol = 1.0E-11, ref = -14.74208554601398},
+  {matcher = "E_total", tol = 1.0E-11, ref = -14.70393170427548},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 "si_kp_spglib_backend.inp"                  = [
-  {matcher = "E_total", tol = 1.0E-11, ref = -14.74208554601398},
+  {matcher = "E_total", tol = 1.0E-11, ref = -14.70393170427547},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 "si_kp_tblite_mixer_spglib.inp"             = [
-  {matcher = "E_total", tol = 6.0E-7, ref = -14.73197234788739},
+  {matcher = "E_total", tol = 6.0E-7, ref = -14.68519122317691},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1}
 ]
 "bn_gfn1_kp_spglib_phase.inp"               = [

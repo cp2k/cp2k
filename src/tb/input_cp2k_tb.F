@@ -561,14 +561,16 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="COULOMB_SR_CUT", &
-                          description="Maximum range of short range part of Coulomb interaction.", &
+                          description="Maximum range of the tapered short-range Coulomb interaction. "// &
+                          "Not used by the full Ewald kernel for 3D-periodic native GFN1 (KG=2).", &
                           usage="COULOMB_SR_CUT 20.0 ", repeats=.FALSE., &
                           n_var=1, default_r_val=20.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="COULOMB_SR_EPS", &
-                          description="Cutoff for short range part of Coulomb interaction.", &
+                          description="Cutoff tolerance of the tapered short-range Coulomb interaction. "// &
+                          "Not used by the full Ewald kernel for 3D-periodic native GFN1 (KG=2).", &
                           usage="COULOMB_SR_EPS 1.E-3 ", repeats=.FALSE., &
                           n_var=1, default_r_val=1.0E-03_dp)
       CALL section_add_keyword(section, keyword)
