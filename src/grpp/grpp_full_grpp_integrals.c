@@ -14,7 +14,7 @@
 
 #include "libgrpp.h"
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,7 +36,7 @@ void libgrpp_full_grpp_integrals(libgrpp_shell_t *shell_A,
                                  double *grpp_origin, double *arep_matrix,
                                  double *so_x_matrix, double *so_y_matrix,
                                  double *so_z_matrix) {
-  assert(libgrpp_is_initialized());
+  cp_assert(libgrpp_is_initialized());
 
   size_t size = shell_A->cart_size * shell_B->cart_size;
   double *buf_arep = (double *)calloc(size, sizeof(double));

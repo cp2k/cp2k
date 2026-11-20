@@ -8,7 +8,7 @@
 #include "../mpiwrap/cp_mpi.h"
 #include "../offload/offload_mempool.h"
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <limits.h>
 #include <omp.h>
 #include <stdlib.h>
@@ -68,9 +68,9 @@ static int lcm(const int a, const int b) { return (a * b) / gcd(a, b); }
 static int checked_byte_count(const int nelements, const size_t element_size) {
   // MPI displacements/counts are int; unchecked multiplication could overflow
   // silently and corrupt the alltoallv layout.
-  assert(0 <= nelements);
-  assert(element_size <= INT_MAX);
-  assert(nelements <= INT_MAX / (int)element_size);
+  cp_assert(0 <= nelements);
+  cp_assert(element_size <= INT_MAX);
+  cp_assert(nelements <= INT_MAX / (int)element_size);
   return nelements * (int)element_size;
 }
 
@@ -120,8 +120,8 @@ static void compute_data_recv_count(const int nranks,
           &blks_recv[blks_recv_displ[irank] + i];
       const int block_size =
           free_index_sizes[blk->free_index] * sum_index_sizes[blk->sum_index];
-      assert(block_size >= 0);
-      assert(data_recv_count[irank] <= INT_MAX - block_size);
+      cp_assert(block_size >= 0);
+      cp_assert(data_recv_count[irank] <= INT_MAX - block_size);
       data_recv_count[irank] += block_size;
     }
   }
@@ -191,7 +191,7 @@ static void create_pack_plans(const bool trans_matrix, const bool trans_dist,
     for (int ipack = 0; ipack < npacks; ipack++) {
       const int nblks = nblks_per_pack[ipack];
       plans_per_pack[ipack] = malloc(nblks * sizeof(plan_t));
-      assert(plans_per_pack[ipack] != NULL || nblks == 0);
+      cp_assert(plans_per_pack[ipack] != NULL || nblks == 0);
     }
 
     // 2nd pass: Plan where to send each block.
@@ -304,8 +304,8 @@ static void fill_send_buffers(
       icumsum(nranks, blks_send_count, blks_send_displ);
       icumsum(nranks, data_send_count, data_send_displ);
       const int m = nranks - 1;
-      assert(nblks_send == blks_send_displ[m] + blks_send_count[m]);
-      assert(ndata_send == data_send_displ[m] + data_send_count[m]);
+      cp_assert(nblks_send == blks_send_displ[m] + blks_send_count[m]);
+      cp_assert(ndata_send == data_send_displ[m] + data_send_count[m]);
     }
 
     // 4th pass: Fill blks_send and data_send arrays.
@@ -359,7 +359,7 @@ static dbm_pack_t pack_local_matrix(const bool trans_matrix,
   const int nthreads = omp_get_max_threads();
   const size_t count = (size_t)nthreads * nshards;
   int *const workspace = malloc(2 * count * sizeof(int));
-  assert(workspace != NULL);
+  cp_assert(workspace != NULL);
   int *const block_offsets = workspace;
   int *const data_offsets = workspace + count;
   int shard_start[nshards + 1];
@@ -474,7 +474,7 @@ static void postprocess_received_blocks(
   memset(nblocks_per_shard, 0, nshards * sizeof(int));
   dbm_pack_block_t *blocks_tmp =
       malloc(nblocks_recv * sizeof(dbm_pack_block_t));
-  assert(blocks_tmp != NULL || nblocks_recv == 0);
+  cp_assert(blocks_tmp != NULL || nblocks_recv == 0);
 
 #pragma omp parallel
   {
@@ -530,7 +530,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
                                        const dbm_distribution_t *restrict dist,
                                        const int nticks,
                                        dbm_comm_iterator_t *iter) {
-  assert(cp_mpi_comms_are_similar(matrix->dist->comm, dist->comm));
+  cp_assert(cp_mpi_comms_are_similar(matrix->dist->comm, dist->comm));
 
   // The row/col indicies are distributed along one cart dimension and the
   // ticks are distributed along the other cart dimension.
@@ -543,16 +543,16 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
 
   // Allocate packed matrix.
   const int nsend_packs = nticks / dist_ticks->nranks;
-  assert(nsend_packs * dist_ticks->nranks == nticks);
+  cp_assert(nsend_packs * dist_ticks->nranks == nticks);
   dbm_packed_matrix_t packed;
   packed.dist_indices = dist_indices;
   packed.dist_ticks = dist_ticks;
   packed.nsend_packs = nsend_packs;
   packed.send_packs = malloc(nsend_packs * sizeof(dbm_pack_t));
-  assert(packed.send_packs != NULL || nsend_packs == 0);
+  cp_assert(packed.send_packs != NULL || nsend_packs == 0);
 
   if (dist->nranks == 1) {
-    assert(nsend_packs == 1);
+    cp_assert(nsend_packs == 1);
     packed.send_packs[0] = pack_local_matrix(
         trans_matrix, matrix, dist_indices->nshards, &iter->seconds_sort);
     packed.recv_pack = (dbm_pack_t){0};
@@ -685,7 +685,7 @@ static dbm_pack_t *sendrecv_pack(const int itick, const int nticks,
   const int send_rank = (my_rank + nticks - itick_of_rank0) % nranks;
   const int send_itick = (itick_of_rank0 + send_rank) % nticks;
   const int send_ipack = send_itick / nranks;
-  assert(send_itick % nranks == my_rank);
+  cp_assert(send_itick % nranks == my_rank);
 
   // Compute receive rank and pack.
   const int recv_rank = itick % nranks;
@@ -693,7 +693,7 @@ static dbm_pack_t *sendrecv_pack(const int itick, const int nticks,
 
   dbm_pack_t *send_pack = &packed->send_packs[send_ipack];
   if (send_rank == my_rank) {
-    assert(send_rank == recv_rank && send_ipack == recv_ipack);
+    cp_assert(send_rank == recv_rank && send_ipack == recv_ipack);
     return send_pack; // Local pack, no mpi needed.
   } else {
     *bytes += (int64_t)send_pack->nblocks * sizeof(dbm_pack_block_t) +
@@ -712,7 +712,7 @@ static dbm_pack_t *sendrecv_pack(const int itick, const int nticks,
         /*recvtag=*/recv_ipack,
         /*comm=*/packed->dist_ticks->comm);
 
-    assert(nblocks_in_bytes % sizeof(dbm_pack_block_t) == 0);
+    cp_assert(nblocks_in_bytes % sizeof(dbm_pack_block_t) == 0);
     packed->recv_pack.nblocks = nblocks_in_bytes / sizeof(dbm_pack_block_t);
 
     // Exchange data.
@@ -755,7 +755,7 @@ dbm_comm_iterator_t *dbm_comm_iterator_start(const bool transa,
                                              const dbm_matrix_t *matrix_b,
                                              const dbm_matrix_t *matrix_c) {
   dbm_comm_iterator_t *iter = malloc(sizeof(dbm_comm_iterator_t));
-  assert(iter != NULL);
+  cp_assert(iter != NULL);
   iter->dist = matrix_c->dist;
 
   // During each communication tick we'll fetch a pack_a and pack_b.

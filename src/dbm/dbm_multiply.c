@@ -15,7 +15,7 @@
 #include "dbm_multiply_gpu.h"
 #include "dbm_multiply_gpu_kernel.h"
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <limits.h>
 #include <math.h>
 #include <omp.h>
@@ -32,7 +32,7 @@ static float *compute_rows_max_eps(const bool trans, const dbm_matrix_t *matrix,
   const int nrows = (trans) ? matrix->ncols : matrix->nrows;
   int *nblocks_per_row = calloc(nrows, sizeof(int));
   float *row_max_eps = malloc(nrows * sizeof(float));
-  assert((nblocks_per_row != NULL && row_max_eps != NULL) || nrows == 0);
+  cp_assert((nblocks_per_row != NULL && row_max_eps != NULL) || nrows == 0);
 
 #pragma omp parallel
   {
@@ -121,7 +121,7 @@ static void backend_order_batch(dbm_batch_t *batch) {
     dbm_task_t *const copy =
         offload_mempool_host_malloc(sizeof(dbm_task_t) * ntasks);
     int *const order = malloc(sizeof(int) * ntasks);
-    assert(NULL != copy && NULL != order);
+    cp_assert(NULL != copy && NULL != order);
     memcpy(copy, batch->tasks, sizeof(dbm_task_t) * ntasks);
     dbm_multiply_cpu_task_order(ntasks, copy, order);
     for (int itask = 0; itask < ntasks; ++itask) {
@@ -225,7 +225,7 @@ static void multiply_packs(const bool transa, const bool transb,
   const int nshard_cols = matrix_c->dist->cols.nshards;
   int *shard_row_start = calloc(nshard_rows, sizeof(int));
   int *shard_col_start = calloc(nshard_cols, sizeof(int));
-  assert(NULL != shard_row_start && NULL != shard_col_start);
+  cp_assert(NULL != shard_row_start && NULL != shard_col_start);
 
   const int *sum_index_sizes_a =
       (transa) ? matrix_a->row_sizes : matrix_a->col_sizes;
@@ -270,7 +270,7 @@ static void multiply_packs(const bool transa, const bool transb,
       for (int shard_col = 0; shard_col < nshard_cols; shard_col++) {
         const int ishard = shard_row * nshard_cols + shard_col;
         dbm_shard_t *const shard_c = &matrix_c->shards[ishard];
-        assert(0 == batch.ntasks); // left empty by the previous shard
+        cp_assert(0 == batch.ntasks); // left empty by the previous shard
 
         // Determine contiguous block ranges for this shard in A and B.
         // Use a merge-join to find pairs of blocks with matching sum indices.
@@ -358,9 +358,9 @@ static void multiply_packs(const bool transa, const bool transb,
             const int m = free_index_sizes_a[blk_a->free_index];
             const int n = free_index_sizes_b[blk_b->free_index];
             const int k = sum_index_sizes_a[sum_a];
-            assert(m == matrix_c->row_sizes[blk_a->free_index]);
-            assert(n == matrix_c->col_sizes[blk_b->free_index]);
-            assert(k == sum_index_sizes_b[blk_b->sum_index]);
+            cp_assert(m == matrix_c->row_sizes[blk_a->free_index]);
+            cp_assert(n == matrix_c->col_sizes[blk_b->free_index]);
+            cp_assert(k == sum_index_sizes_b[blk_b->sum_index]);
 
             if (m == 0 || n == 0 || k == 0) {
               continue;
@@ -373,9 +373,9 @@ static void multiply_packs(const bool transa, const bool transb,
               if (retain_sparsity) {
                 continue;
               }
-              assert(dbm_get_shard_index(matrix_c, row, col) == ishard);
-              assert(dbm_get_stored_coordinates(matrix_c, row, col) ==
-                     matrix_c->dist->my_rank);
+              cp_assert(dbm_get_shard_index(matrix_c, row, col) == ishard);
+              cp_assert(dbm_get_stored_coordinates(matrix_c, row, col) ==
+                        matrix_c->dist->my_rank);
               blk_c = dbm_shard_promise_new_block(shard_c, row, col, m * n);
             }
 
@@ -436,8 +436,8 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
                   const double beta, dbm_matrix_t *matrix_c,
                   const bool retain_sparsity, const double filter_eps,
                   int64_t *flop) {
-  assert(omp_get_num_threads() == 1);
-  assert(matrix_a != NULL && matrix_b != NULL && matrix_c != NULL);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(matrix_a != NULL && matrix_b != NULL && matrix_c != NULL);
   double phase[DBM_NUM_PHASES] = {0}, tick = omp_get_wtime();
   int64_t phase_bytes[DBM_NUM_PHASES] = {0};
 
@@ -449,9 +449,9 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
   const int num_free_index_b = (transb) ? matrix_b->nrows : matrix_b->ncols;
 
   // Sanity check matrix dimensions.
-  assert(num_sum_index_a == num_sum_index_b);
-  assert(num_free_index_a == matrix_c->nrows);
-  assert(num_free_index_b == matrix_c->ncols);
+  cp_assert(num_sum_index_a == num_sum_index_b);
+  cp_assert(num_free_index_a == matrix_c->nrows);
+  cp_assert(num_free_index_b == matrix_c->ncols);
 
   // Prepare matrix_c (host).
   dbm_scale(matrix_c, beta);

@@ -14,7 +14,7 @@
 
 #include "grpp_factorial.h"
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <stdint.h>
 
 static uint64_t pretabulated_factorials[] = {1,
@@ -105,7 +105,7 @@ static uint64_t pretabulated_double_factorials[] = {
 };
 
 double libgrpp_double_factorial(int n) {
-  assert(n >= -1 && n <= 30);
+  cp_assert(n >= -1 && n <= 30);
   if (n == -1) {
     return 1;
   } else if (n <= 30) {

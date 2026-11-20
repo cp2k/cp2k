@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#include <assert.h>
+#include "../../base/cp_assert.h"
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -398,8 +398,8 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
       const int offset =
           modulo(cubecenter[i] + lb_cube[i] - shift_local[i], npts_global[i]) -
           lb_cube[i];
-      assert(offset + ub_cube[i] < npts_local[i]);
-      assert(offset + lb_cube[i] >= 0);
+      cp_assert(offset + ub_cube[i] < npts_local[i]);
+      cp_assert(offset + lb_cube[i] >= 0);
     }
   }
 

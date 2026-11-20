@@ -1,7 +1,8 @@
 PROJHOME := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 CP2KHOME := $(abspath $(PROJHOME)/../..)
 OMP_TRACE := $(wildcard $(PROJHOME)/../base/openmp_trace.c)
-ALL_HEADERS := $(shell find . -name "*.h") $(shell find ../offload/ -name "*.h")
+ALL_HEADERS := $(shell find . -name "*.h") $(shell find ../offload/ -name "*.h") \
+        ../base/cp_assert.h
 ALL_OBJECTS :=  $(OMP_TRACE:.c=.o) \
         ../offload/offload_library.o \
         ../offload/offload_mempool.o \

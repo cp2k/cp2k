@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#include <assert.h>
+#include "../../base/cp_assert.h"
 #include <limits.h>
 #include <math.h>
 #include <stdbool.h>
@@ -1056,9 +1056,9 @@ void grid_dgemm_integrate_task_list(
 
   grid_context *const ctx = (grid_context *)ptr;
 
-  assert(ctx->checksum == ctx_checksum);
-  assert(ctx->nlevels == nlevels);
-  assert(ctx->natoms == natoms);
+  cp_assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx->nlevels == nlevels);
+  cp_assert(ctx->natoms == natoms);
 
   // Zero result arrays.
   memset(hab_blocks->host_buffer, 0, hab_blocks->size);
@@ -1067,7 +1067,7 @@ void grid_dgemm_integrate_task_list(
 
   if (ctx->scratch == NULL)
     ctx->scratch = malloc(hab_blocks->size * max_threads);
-  assert(ctx->scratch != NULL);
+  cp_assert(ctx->scratch != NULL);
 
   // #pragma omp parallel for
   for (int level = 0; level < ctx->nlevels; level++) {

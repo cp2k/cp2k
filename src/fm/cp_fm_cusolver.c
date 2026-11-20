@@ -7,8 +7,8 @@
 
 #if defined(__CUSOLVERMP)
 
+#include "../base/cp_assert.h"
 #include "../offload/offload_library.h"
-#include <assert.h>
 #include <cuComplex.h>
 #include <cuda_runtime.h>
 #include <cusolverMp.h>
@@ -270,13 +270,14 @@ static cp_fm_cusolver_context *get_context(void **context,
   if (ctx) {
     int comparison;
     MPI_Comm_compare(comm, ctx->comm, &comparison);
-    assert(comparison == MPI_IDENT || comparison == MPI_CONGRUENT);
-    assert(ctx->device == device && ctx->nprow == nprow && ctx->npcol == npcol);
+    cp_assert(comparison == MPI_IDENT || comparison == MPI_CONGRUENT);
+    cp_assert(ctx->device == device && ctx->nprow == nprow &&
+              ctx->npcol == npcol);
     return ctx;
   }
 
   ctx = calloc(1, sizeof(*ctx));
-  assert(ctx);
+  cp_assert(ctx);
   MPI_Comm_dup(comm, &ctx->comm);
   ctx->device = device;
   ctx->nprow = nprow;
@@ -367,12 +368,12 @@ void cp_fm_diag_cusolver(void **context, const int fortran_comm,
   const int rsrc = matrix_desc[6];
   const int csrc = matrix_desc[7];
   const int ldA = matrix_desc[8];
-  assert(rsrc == csrc);
-  assert(ldA >= 1);
+  cp_assert(rsrc == csrc);
+  cp_assert(ldA >= 1);
 
   const int np = cusolverMpNUMROC(n, mb, myprow, rsrc, nprow);
   const int nq = cusolverMpNUMROC(n, nb, mypcol, csrc, npcol);
-  assert(np == ldA);
+  cp_assert(np == ldA);
 
   const cublasFillMode_t fill_mode = CUBLAS_FILL_MODE_UPPER;
   const cudaDataType_t data_type = CUDA_R_64F; // double
@@ -428,7 +429,7 @@ void cp_fm_diag_cusolver(void **context, const int fortran_comm,
   // Check info.
   int info = -1;
   CUDA_CHECK(cudaMemcpy(&info, info_dev, sizeof(int), cudaMemcpyDeviceToHost));
-  assert(info == 0);
+  cp_assert(info == 0);
 
   // Download results.
   CUDA_CHECK(cudaMemcpyAsync(eigenvectors, eigenvectors_dev, matrix_local_size,
@@ -466,7 +467,7 @@ void cp_fm_diag_cusolver_sygvd(void **context, const int fortran_comm,
                                const double *aMatrix, const double *bMatrix,
                                double *eigenvectors, double *eigenvalues) {
 
-  assert(nmo >= 0 && nmo <= n);
+  cp_assert(nmo >= 0 && nmo <= n);
   cp_fm_cusolver_context *ctx =
       get_context(context, fortran_comm, nprow, npcol);
   const MPI_Comm comm = ctx->comm;
@@ -488,9 +489,9 @@ void cp_fm_diag_cusolver_sygvd(void **context, const int fortran_comm,
   const int ldB = b_matrix_desc[8];
 
   // Ensure consistency in block sizes, sources, and leading dimensions
-  assert(mb_a == mb_b && nb_a == nb_b);
-  assert(rsrc_a == rsrc_b && csrc_a == csrc_b);
-  assert(ldA == ldB);
+  cp_assert(mb_a == mb_b && nb_a == nb_b);
+  cp_assert(rsrc_a == rsrc_b && csrc_a == csrc_b);
+  cp_assert(ldA == ldB);
 
   const int np_a = cusolverMpNUMROC(n, mb_a, myprow, rsrc_a, nprow);
   const int nq_a = cusolverMpNUMROC(n, nb_a, mypcol, csrc_a, npcol);
@@ -622,7 +623,7 @@ void cp_cfm_diag_cusolver_hegvd(
     const cuDoubleComplex *aMatrix, const cuDoubleComplex *bMatrix,
     cuDoubleComplex *eigenvectors, double *eigenvalues) {
 
-  assert(nmo >= 0 && nmo <= n);
+  cp_assert(nmo >= 0 && nmo <= n);
   cp_fm_cusolver_context *ctx =
       get_context(context, fortran_comm, nprow, npcol);
   const MPI_Comm comm = ctx->comm;
@@ -642,13 +643,13 @@ void cp_cfm_diag_cusolver_hegvd(
   const int csrc_b = b_matrix_desc[7];
   const int ldB = b_matrix_desc[8];
 
-  assert(mb_a == mb_b && nb_a == nb_b);
-  assert(rsrc_a == rsrc_b && csrc_a == csrc_b);
-  assert(ldA == ldB);
+  cp_assert(mb_a == mb_b && nb_a == nb_b);
+  cp_assert(rsrc_a == rsrc_b && csrc_a == csrc_b);
+  cp_assert(ldA == ldB);
 
   const int np_a = cusolverMpNUMROC(n, mb_a, myprow, rsrc_a, nprow);
   const int nq_a = cusolverMpNUMROC(n, nb_a, mypcol, csrc_a, npcol);
-  assert(np_a == ldA);
+  cp_assert(np_a == ldA);
 
   const cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
   const cusolverEigType_t itype = CUSOLVER_EIG_TYPE_1;

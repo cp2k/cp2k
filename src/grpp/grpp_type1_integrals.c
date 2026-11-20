@@ -12,7 +12,7 @@
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,7 +52,7 @@ static double evaluate_pseudopotential(double r, void *params);
 void libgrpp_type1_integrals(libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B,
                              double *rpp_origin, libgrpp_potential_t *potential,
                              double *matrix) {
-  assert(libgrpp_is_initialized());
+  cp_assert(libgrpp_is_initialized());
 
   int size_A = libgrpp_get_shell_size(shell_A);
   int size_B = libgrpp_get_shell_size(shell_B);
@@ -140,8 +140,8 @@ void libgrpp_evaluate_radially_local_potential_integral_primitive_gaussians(
     int n_cart_B, int *cart_list_B, double alpha_B, double *C,
     double (*potential)(double r, void *params), void *potential_params,
     double *matrix) {
-  assert(n_cart_A > 0);
-  assert(n_cart_B > 0);
+  cp_assert(n_cart_A > 0);
+  cp_assert(n_cart_B > 0);
 
   memset(matrix, 0, n_cart_A * n_cart_B * sizeof(double));
 

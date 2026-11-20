@@ -13,7 +13,6 @@
 */
 
 #include <algorithm>
-#include <assert.h>
 #include <climits>
 #include <cmath>
 #include <cstdio>

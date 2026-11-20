@@ -172,13 +172,6 @@ CONTAINS
                     "and is therefore no longer supported.")
 #endif
 
-#if defined(NDEBUG)
-      CALL cp_abort(__LOCATION__, &
-                    "Please do not build CP2K with NDEBUG. There is no "// &
-                    "performance advantage and asserts will save your neck. "// &
-                    "See also <https://github.com/cp2k/cp2k/pull/3172>.")
-#endif
-
       ! create a timer_env
 
       CALL add_timer_env()

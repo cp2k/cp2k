@@ -30,7 +30,7 @@
  * distribution is integrated numerically on a radial grid.
  */
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -83,7 +83,7 @@ void libgrpp_nuclear_attraction_integrals(libgrpp_shell_t *shell_A,
                                           int nuclear_model,
                                           double *model_params,
                                           double *coulomb_matrix) {
-  assert(libgrpp_is_initialized());
+  cp_assert(libgrpp_is_initialized());
 
   int size_A = libgrpp_get_shell_size(shell_A);
   int size_B = libgrpp_get_shell_size(shell_B);

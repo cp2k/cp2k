@@ -6,18 +6,18 @@
 /*----------------------------------------------------------------------------*/
 
 #include "grid_dgemm_coefficients.h"
+#include "../../base/cp_assert.h"
 #include "../common/grid_common.h"
 #include "grid_dgemm_private_header.h"
 #include "grid_dgemm_tensor_local.h"
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 void transform_xyz_to_triangular(const tensor *const coef,
                                  double *const coef_xyz) {
-  assert(coef != NULL);
-  assert(coef_xyz != NULL);
+  cp_assert(coef != NULL);
+  cp_assert(coef_xyz != NULL);
 
   int lxyz = 0;
   const int lp = (coef->size[0] - 1);
@@ -32,8 +32,8 @@ void transform_xyz_to_triangular(const tensor *const coef,
 
 void transform_yxz_to_triangular(const tensor *const coef,
                                  double *const coef_xyz) {
-  assert(coef != NULL);
-  assert(coef_xyz != NULL);
+  cp_assert(coef != NULL);
+  cp_assert(coef_xyz != NULL);
   int lxyz = 0;
   const int lp = (coef->size[0] - 1);
   for (int lzp = 0; lzp <= lp; lzp++) {
@@ -47,8 +47,8 @@ void transform_yxz_to_triangular(const tensor *const coef,
 
 void transform_triangular_to_xyz(const double *const coef_xyz,
                                  tensor *const coef) {
-  assert(coef != NULL);
-  assert(coef_xyz != NULL);
+  cp_assert(coef != NULL);
+  cp_assert(coef_xyz != NULL);
   int lxyz = 0;
   const int lp = coef->size[0] - 1;
   for (int lzp = 0; lzp <= lp; lzp++) {
@@ -75,9 +75,9 @@ void grid_compute_coefficients_dgemm(
   /* can be done with dgemms as well, since it is a change of basis from (x -
    * x1) (x - x2) to (x - x12)^alpha */
 
-  assert(alpha != NULL);
-  assert(coef_xyz != NULL);
-  assert(coef_xyz->data != NULL);
+  cp_assert(alpha != NULL);
+  cp_assert(coef_xyz != NULL);
+  cp_assert(coef_xyz->data != NULL);
   memset(coef_xyz->data, 0, coef_xyz->alloc_size_ * sizeof(double));
   // we need a proper fix for that. We can use the tensor structure for this
 
@@ -123,9 +123,9 @@ void grid_compute_vab(
   /* can be done with dgemms as well, since it is a change of basis from (x -
    * x1) (x - x2) to (x - x12)^alpha */
 
-  assert(alpha != NULL);
-  assert(coef_xyz != NULL);
-  assert(coef_xyz->data != NULL);
+  cp_assert(alpha != NULL);
+  cp_assert(coef_xyz != NULL);
+  cp_assert(coef_xyz->data != NULL);
 
   memset(vab->data, 0, sizeof(double) * vab->alloc_size_);
   // we need a proper fix for that. We can use the tensor structure for this
@@ -170,7 +170,7 @@ void grid_compute_vab(
 void grid_prepare_alpha_dgemm(const double ra[3], const double rb[3],
                               const double rp[3], const int *lmax,
                               tensor *alpha) {
-  assert(alpha != NULL);
+  cp_assert(alpha != NULL);
   // Initialize with zeros.
   memset(alpha->data, 0, alpha->alloc_size_ * sizeof(double));
 
@@ -209,7 +209,7 @@ void grid_prepare_alpha_dgemm(const double ra[3], const double rb[3],
 
 void grid_transform_coef_xzy_to_ikj(const double dh[3][3],
                                     const tensor *coef_xyz) {
-  assert(coef_xyz != NULL);
+  cp_assert(coef_xyz != NULL);
   const int lp = coef_xyz->size[0] - 1;
   tensor coef_ijk;
 
@@ -301,7 +301,7 @@ void grid_transform_coef_xzy_to_ikj(const double dh[3][3],
  * coefficients are stored */
 void grid_transform_coef_jik_to_yxz(const double dh[3][3],
                                     const tensor *coef_xyz) {
-  assert(coef_xyz);
+  cp_assert(coef_xyz);
   const int lp = coef_xyz->size[0] - 1;
   tensor coef_ijk;
 

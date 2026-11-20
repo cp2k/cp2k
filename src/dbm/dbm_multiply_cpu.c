@@ -7,7 +7,7 @@
 #include "dbm_multiply_cpu.h"
 #include "dbm_hyperparams.h"
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <stddef.h>
 
 #if defined(__LIBXSMM)
@@ -77,7 +77,7 @@ void dbm_multiply_cpu_task_order(const int ntasks,
   for (int i = 1; i < DBM_BATCH_NUM_BUCKETS; ++i) {
     buckets[i] += buckets[i - 1];
   }
-  assert(0 >= ntasks || buckets[DBM_BATCH_NUM_BUCKETS - 1] == ntasks);
+  cp_assert(0 >= ntasks || buckets[DBM_BATCH_NUM_BUCKETS - 1] == ntasks);
   for (int itask = 0; itask < ntasks; ++itask) {
     const int i = task_bucket(batch[itask]);
     --buckets[i];

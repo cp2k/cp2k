@@ -11,7 +11,7 @@
 #include "../../offload/offload_library.h"
 #include "pw_gpu_kernels.h"
 
-#include <assert.h>
+#include "../../base/cp_assert.h"
 #include <omp.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -42,7 +42,7 @@ static bool is_initialized = false;
  * \author Ole Schuett
  ******************************************************************************/
 void pw_gpu_init(void) {
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
   if (is_initialized) {
     // fprintf(stderr, "Error: pw_gpu was already initialized.\n");
     // TODO abort();
@@ -67,7 +67,7 @@ void pw_gpu_init(void) {
  * \author Ole Schuett
  ******************************************************************************/
 void pw_gpu_finalize(void) {
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
   if (!is_initialized) {
     // fprintf(stderr, "Error: pw_gpu is not initialized.\n");
     // TODO abort();
@@ -92,7 +92,7 @@ void pw_gpu_finalize(void) {
  ******************************************************************************/
 static void ensure_memory_sizes(const size_t requested_buffer_size,
                                 const size_t requested_map_size) {
-  assert(is_initialized);
+  cp_assert(is_initialized);
   if (requested_buffer_size > allocated_buffer_size) {
     offloadFree(buffer_dev_1);
     offloadFree(buffer_dev_2);
@@ -112,7 +112,7 @@ static void ensure_memory_sizes(const size_t requested_buffer_size,
  * \author Ole Schuett
  ******************************************************************************/
 static offload_fftHandle *lookup_plan_from_cache(const int key[4]) {
-  assert(is_initialized);
+  cp_assert(is_initialized);
   for (int i = 0; i < PW_GPU_CACHE_SIZE; i++) {
     const int *x = cache[i].key;
     if (x[0] == key[0] && x[1] == key[1] && x[2] == key[2] && x[3] == key[3]) {
@@ -206,9 +206,9 @@ static void fft_3d(const int direction, const int nx, const int ny,
 void pw_gpu_cfffg(const double *din, double *zout, const int *ghatmap,
                   const int *npts, const int ngpts, const double scale) {
   // Check inputs.
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
   const int nrpts = npts[0] * npts[1] * npts[2];
-  assert(ngpts <= nrpts);
+  cp_assert(ngpts <= nrpts);
   if (nrpts == 0 || ngpts == 0) {
     return; // Nothing to do.
   }
@@ -246,9 +246,9 @@ void pw_gpu_sfffc(const double *zin, double *dout, const int *ghatmap,
                   const int *npts, const int ngpts, const int nmaps,
                   const double scale) {
   // Check inputs.
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
   const int nrpts = npts[0] * npts[1] * npts[2];
-  assert(ngpts <= nrpts);
+  cp_assert(ngpts <= nrpts);
   if (nrpts == 0 || ngpts == 0) {
     return; // Nothing to do.
   }
@@ -284,7 +284,7 @@ void pw_gpu_sfffc(const double *zin, double *dout, const int *ghatmap,
  ******************************************************************************/
 void pw_gpu_cff(const double *din, double *zout, const int *npts) {
   // Check inputs.
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
   const int nrpts = npts[0] * npts[1] * npts[2];
   if (nrpts == 0) {
     return; // Nothing to do.
@@ -318,7 +318,7 @@ void pw_gpu_cff(const double *din, double *zout, const int *npts) {
  ******************************************************************************/
 void pw_gpu_ffc(const double *zin, double *dout, const int *npts) {
   // Check inputs.
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
   const int nrpts = npts[0] * npts[1] * npts[2];
   if (nrpts == 0) {
     return; // Nothing to do.
@@ -352,7 +352,7 @@ void pw_gpu_ffc(const double *zin, double *dout, const int *npts) {
  ******************************************************************************/
 void pw_gpu_cf(const double *din, double *zout, const int *npts) {
   // Check inputs.
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
   const int nrpts = npts[0] * npts[1] * npts[2];
   if (nrpts == 0) {
     return; // Nothing to do.
@@ -383,7 +383,7 @@ void pw_gpu_cf(const double *din, double *zout, const int *npts) {
  ******************************************************************************/
 void pw_gpu_fc(const double *zin, double *dout, const int *npts) {
   // Check inputs.
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
   const int nrpts = npts[0] * npts[1] * npts[2];
   if (nrpts == 0) {
     return; // Nothing to do.
@@ -414,7 +414,7 @@ void pw_gpu_fc(const double *zin, double *dout, const int *npts) {
 void pw_gpu_f(const double *zin, double *zout, const int dir, const int n,
               const int m) {
   // Check inputs.
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
   const int nrpts = n * m;
   if (nrpts == 0) {
     return; // Nothing to do.
@@ -449,9 +449,9 @@ void pw_gpu_fg(const double *zin, double *zout, const int *ghatmap,
                const int *npts, const int mmax, const int ngpts,
                const double scale) {
   // Check inputs.
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
   const int nrpts = npts[0] * mmax;
-  assert(ngpts <= nrpts);
+  cp_assert(ngpts <= nrpts);
   if (nrpts == 0 || ngpts == 0) {
     return; // Nothing to do.
   }
@@ -488,9 +488,9 @@ void pw_gpu_sf(const double *zin, double *zout, const int *ghatmap,
                const int *npts, const int mmax, const int ngpts,
                const int nmaps, const double scale) {
   // Check inputs.
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
   const int nrpts = npts[0] * mmax;
-  assert(ngpts <= nrpts);
+  cp_assert(ngpts <= nrpts);
   if (nrpts == 0 || ngpts == 0) {
     return; // Nothing to do.
   }

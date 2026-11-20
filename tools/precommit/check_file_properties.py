@@ -103,6 +103,14 @@ STR_END_NOSPACE_RE = re.compile(r'[^ ]"\s*//\s*&')
 STR_BEGIN_NOSPACE_RE = re.compile(r'^\s*"[^ ]')
 STR_END_SPACE_RE = re.compile(r' "\s*//\s*&')
 STR_BEGIN_SPACE_RE = re.compile(r'^\s*" ')
+C_COMMENTS_AND_LITERALS_RE = re.compile(
+    r'R"(?P<delimiter>[^\s()\\]{0,16})\(.*?\)(?P=delimiter)"'
+    r'|"(?:\\.|[^"\\])*"'
+    r"|(?<!\w)(?:u8|[LuU])?'(?:\\.|[^'\\\n])+'"
+    r"|//(?:\\\n|[^\n])*|/\*.*?\*/",
+    re.DOTALL,
+)
+C_ASSERT_RE = re.compile(r"\bassert(?:\s|\\\n)*\(")
 
 
 BANNER_F = """\
@@ -137,6 +145,7 @@ C_EXTENSIONS = (".c", ".cu", ".cpp", ".cc", ".h", ".hpp")
 
 # Non-GPL licenses (directory, file, basename, or generally "startswith")
 BSD_PATHS = (
+    "src/base/cp_assert.h",
     "src/base/openmp_trace.c",
     "src/mpiwrap/cp_mpi.",
     "src/offload/",
@@ -225,6 +234,16 @@ def check_file(path: pathlib.Path) -> List[str]:
 
     if fn_ext == ".cu" and "#if defined(_OMP_H)\n#error" not in content:
         warnings += [f"{path}: misses check against OpenMP usage"]
+
+    if fn_ext in C_EXTENSIONS and "assert" in content:
+        code = C_COMMENTS_AND_LITERALS_RE.sub(
+            lambda match: " " + "\n" * match[0].count("\n"), content
+        )
+        for match in C_ASSERT_RE.finditer(code):
+            line_number = code.count("\n", 0, match.start()) + 1
+            warnings.append(
+                f"{path}:{line_number}: Please use cp_assert() for runtime assertions"
+            )
 
     # Check spaces in Fortran multi-line strings.
     if fn_ext == ".F":

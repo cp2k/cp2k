@@ -13,8 +13,8 @@
  - Ole Schuett
 */
 
+#include "../../base/cp_assert.h"
 #include <algorithm>
-#include <assert.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -966,7 +966,7 @@ select_integrate_separable(const int lp_max, const bool distributed,
 void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
   if (number_of_tasks_per_level_[level] == 0)
     return;
-  assert(!calculate_virial || calculate_forces);
+  cp_assert(!calculate_virial || calculate_forces);
 
   // Compute max angular momentum.
   const ldiffs_value ldiffs =
@@ -1024,7 +1024,7 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
 
 void context_info::compute_hab_coefficients() {
 
-  assert(!calculate_virial || calculate_forces);
+  cp_assert(!calculate_virial || calculate_forces);
 
   // Compute max angular momentum.
   const ldiffs_value ldiffs =

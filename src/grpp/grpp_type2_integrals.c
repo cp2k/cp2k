@@ -12,7 +12,7 @@
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <math.h>
 #include <string.h>
 #ifndef M_PI
@@ -39,7 +39,7 @@ static double type2_angular_sum(int L, int lambda_1, int a, int b, int c,
 void libgrpp_type2_integrals(libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B,
                              double *rpp_origin, libgrpp_potential_t *potential,
                              double *matrix) {
-  assert(libgrpp_is_initialized());
+  cp_assert(libgrpp_is_initialized());
 
   int size_A = libgrpp_get_shell_size(shell_A);
   int size_B = libgrpp_get_shell_size(shell_B);

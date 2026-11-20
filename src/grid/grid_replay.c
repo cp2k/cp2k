@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <fenv.h>
 #include <limits.h>
 #include <math.h>
@@ -46,7 +46,7 @@ static int parse_int(const char key[], FILE *fp) {
   read_next_line(line, sizeof(line), fp);
   snprintf(format, sizeof(format), "%s %%i", key);
   if (sscanf(line, format, &value) != 1) {
-    assert(!"parse_int failed");
+    cp_assert(!"parse_int failed");
   }
   return value;
 }
@@ -60,7 +60,7 @@ static void parse_int3(const char key[], FILE *fp, int vec[3]) {
   read_next_line(line, sizeof(line), fp);
   snprintf(format, sizeof(format), "%s %%i %%i %%i", key);
   if (sscanf(line, format, &vec[0], &vec[1], &vec[2]) != 3) {
-    assert(!"parse_int3 failed");
+    cp_assert(!"parse_int3 failed");
   }
 }
 
@@ -74,7 +74,7 @@ static double parse_double(const char key[], FILE *fp) {
   read_next_line(line, sizeof(line), fp);
   snprintf(format, sizeof(format), "%s %%lf", key);
   if (sscanf(line, format, &value) != 1) {
-    assert(!"parse_double failed");
+    cp_assert(!"parse_double failed");
   }
   return value;
 }
@@ -88,7 +88,7 @@ static void parse_double3(const char key[], FILE *fp, double vec[3]) {
   read_next_line(line, sizeof(line), fp);
   snprintf(format, sizeof(format), "%s %%lf %%lf %%lf", key);
   if (sscanf(line, format, &vec[0], &vec[1], &vec[2]) != 3) {
-    assert(!"parse_double3 failed");
+    cp_assert(!"parse_double3 failed");
   }
 }
 
@@ -102,7 +102,7 @@ static void parse_double3x3(const char key[], FILE *fp, double mat[3][3]) {
     read_next_line(line, sizeof(line), fp);
     snprintf(format, sizeof(format), "%s %i %%lf %%lf %%lf", key, i);
     if (sscanf(line, format, &mat[i][0], &mat[i][1], &mat[i][2]) != 3) {
-      assert(!"parse_double3x3 failed");
+      cp_assert(!"parse_double3x3 failed");
     }
   }
 }
@@ -124,7 +124,7 @@ static void create_dummy_basis_set(const int size, const int lmin,
   const double (*sphi)[size] = (const double (*)[size])sphi_mutable;
 
   const int npgf = size / ncoset(lmax);
-  assert(size == npgf * ncoset(lmax));
+  cp_assert(size == npgf * ncoset(lmax));
 
   const int first_sgf[1] = {1};
 
@@ -180,8 +180,8 @@ static void create_dummy_task_list(
   const grid_basis_set *basis_sets[2] = {basis_set_a, basis_set_b};
   const int ipgf = o1 / ncoset(la_max) + 1;
   const int jpgf = o2 / ncoset(lb_max) + 1;
-  assert(o1 == (ipgf - 1) * ncoset(la_max));
-  assert(o2 == (jpgf - 1) * ncoset(lb_max));
+  cp_assert(o1 == (ipgf - 1) * ncoset(la_max));
+  cp_assert(o2 == (jpgf - 1) * ncoset(lb_max));
 
   int level_list[ntasks], iatom_list[ntasks], jatom_list[ntasks];
   int iset_list[ntasks], jset_list[ntasks], ipgf_list[ntasks],
@@ -291,7 +291,7 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
       read_next_line(line, sizeof(line), fp);
       snprintf(format, sizeof(format), "pab %i %i %%lf", i, j);
       if (sscanf(line, format, &pab[i][j]) != 1) {
-        assert(!"parse_pab failed");
+        cp_assert(!"parse_pab failed");
       }
     }
   }
@@ -307,7 +307,7 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
     double value;
     read_next_line(line, sizeof(line), fp);
     if (sscanf(line, "grid %i %i %i %le", &i, &j, &k, &value) != 4) {
-      assert(!"parse_grid failed");
+      cp_assert(!"parse_grid failed");
     }
     grid_ref->host_buffer[k * npts_local[1] * npts_local[0] +
                           j * npts_local[0] + i] = value;
@@ -324,7 +324,7 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
       read_next_line(line, sizeof(line), fp);
       snprintf(format, sizeof(format), "hab %i %i %%lf", i, j);
       if (sscanf(line, format, &hab_ref[i][j]) != 1) {
-        assert(!"parse_hab failed");
+        cp_assert(!"parse_hab failed");
       }
     }
   }

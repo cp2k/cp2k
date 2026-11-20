@@ -38,7 +38,7 @@
  * geometric derivatives. Int. J. Quantum Chem. 111(4), 858 (2011).
  *     doi: 10.1002/qua.22886
  */
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -101,7 +101,7 @@ static void setup_G_array(struct mmd_data *data, int L_A, int L_B);
 void libgrpp_type1_integrals_mcmurchie_davidson_1978(
     libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B, double *origin_C,
     double alpha_C, int ecp_power, double *rpp_matrix) {
-  assert((ecp_power == 0) || (ecp_power == 1) || (ecp_power == 2));
+  cp_assert((ecp_power == 0) || (ecp_power == 1) || (ecp_power == 2));
 
   int size_A = libgrpp_get_shell_size(shell_A);
   int size_B = libgrpp_get_shell_size(shell_B);

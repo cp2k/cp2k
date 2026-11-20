@@ -7,7 +7,6 @@
 #include "offload_library.h"
 #include "offload_runtime.h"
 
-#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

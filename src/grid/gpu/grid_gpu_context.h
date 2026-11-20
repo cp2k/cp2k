@@ -28,6 +28,7 @@ extern "C" {
 #include "../common/grid_constants.h"
 }
 
+#include "../../base/cp_assert.h"
 #include "../../offload/offload_library.h"
 #include "../../offload/offload_runtime.h"
 
@@ -91,7 +92,7 @@ public:
 #else
     hipMallocManaged((void **)&device_ptr_, sizeof(T) * allocated_size_);
 #endif
-    assert(device_ptr_ != nullptr);
+    cp_assert(device_ptr_ != nullptr);
   }
 
   gpu_vector(const size_t size__, void *ptr__) {
@@ -105,21 +106,21 @@ public:
   inline size_t size() const { return current_size_; }
 
   inline void copy_to_gpu(const T *data__) {
-    assert(device_ptr_ != nullptr);
-    assert(data__ != nullptr);
+    cp_assert(device_ptr_ != nullptr);
+    cp_assert(data__ != nullptr);
     offloadMemcpyHtoD(device_ptr_, data__, sizeof(T) * current_size_);
   }
 
   inline void copy_to_gpu(const T *data__, offloadStream_t &stream__) {
-    assert(device_ptr_ != nullptr);
-    assert(data__ != nullptr);
+    cp_assert(device_ptr_ != nullptr);
+    cp_assert(data__ != nullptr);
     offloadMemcpyAsyncHtoD(device_ptr_, data__, sizeof(T) * current_size_,
                            stream__);
   }
 
   inline void copy_associated_host_to_gpu(offloadStream_t &stream__) {
-    assert(device_ptr_ != nullptr);
-    assert(host_ptr_ != nullptr);
+    cp_assert(device_ptr_ != nullptr);
+    cp_assert(host_ptr_ != nullptr);
     // If the second assert fails it means that the object was created without
     // host buffer. It should not happen in the current scenario
 
@@ -128,15 +129,15 @@ public:
   }
 
   inline void copy_from_gpu(T *data__, offloadStream_t &stream__) {
-    assert(device_ptr_ != nullptr);
-    assert(data__ != nullptr);
+    cp_assert(device_ptr_ != nullptr);
+    cp_assert(data__ != nullptr);
     offloadMemcpyAsyncDtoH(data__, device_ptr_, sizeof(T) * current_size_,
                            stream__);
   }
 
   inline void copy_gpu_to_associated_host(offloadStream_t &stream__) {
-    assert(device_ptr_ != nullptr);
-    assert(host_ptr_ != nullptr);
+    cp_assert(device_ptr_ != nullptr);
+    cp_assert(host_ptr_ != nullptr);
     // If the second assert fails it means that the object was created without
     // host buffer. It should not happen in the current scenario
 
@@ -145,15 +146,15 @@ public:
   }
 
   inline void zero(offloadStream_t &stream__) {
-    assert(device_ptr_ != nullptr);
+    cp_assert(device_ptr_ != nullptr);
     // zero device grid buffers
     offloadMemsetAsync(device_ptr_, 0, sizeof(T) * current_size_, stream__);
   }
 
   inline void associate(void *host_ptr__, void *device_ptr__,
                         const size_t size__) {
-    assert(host_ptr__ != nullptr);
-    assert(device_ptr__ != nullptr);
+    cp_assert(host_ptr__ != nullptr);
+    cp_assert(device_ptr__ != nullptr);
     reset();
     internal_allocation_ = false;
     allocated_size_ = size__;
@@ -168,12 +169,12 @@ public:
   }
 
   inline void copy_to_gpu(const std::vector<T> &data__) {
-    assert(data__.size() == current_size_);
+    cp_assert(data__.size() == current_size_);
     // if it fails it means that the vector on the gpu does not have the right
     // size. two option then
     // - resize the gpu vector
     // - or the cpu vector and gpu vector are not representing the quantity.
-    assert(device_ptr_ != nullptr);
+    cp_assert(device_ptr_ != nullptr);
     offloadMemcpyHtoD(device_ptr_, data__.data(), sizeof(T) * data__.size());
   }
   inline void allocate_on_host() {
@@ -181,7 +182,7 @@ public:
       return; // resize keeps it in sync
     host_allocated_ = true;
     host_ptr_ = (T *)malloc(sizeof(T) * allocated_size_);
-    assert(host_ptr_ != nullptr);
+    cp_assert(host_ptr_ != nullptr);
   }
 
   inline void resize(const size_t new_size__) {
@@ -192,7 +193,7 @@ public:
       host_allocated_ = false;
     }
 
-    assert(new_size__ != 0);
+    cp_assert(new_size__ != 0);
     if (allocated_size_ < new_size__) {
       if (internal_allocation_ && device_ptr_ != nullptr) {
         offloadFree(device_ptr_);
@@ -212,7 +213,7 @@ public:
         allocate_on_host();
       }
     }
-    assert(device_ptr_ != nullptr);
+    cp_assert(device_ptr_ != nullptr);
     current_size_ = new_size__;
   }
 
@@ -285,7 +286,7 @@ public:
   ~grid_info() = default;
 
   inline void copy_to_gpu(const T *data, offloadStream_t &stream) {
-    assert(data != nullptr);
+    cp_assert(data != nullptr);
     grid_.copy_to_gpu(data, stream);
   }
 
@@ -348,7 +349,7 @@ public:
   }
 
   inline void copy_to_host(T *data__, offloadStream_t &stream) {
-    assert(data__ != nullptr);
+    cp_assert(data__ != nullptr);
     grid_.copy_from_gpu(data__, stream);
   }
 
@@ -358,8 +359,8 @@ public:
 
   inline void associate(void *host_ptr__, void *device_ptr__,
                         const size_t size__) {
-    assert(host_ptr__ != nullptr);
-    assert(device_ptr__ != nullptr);
+    cp_assert(host_ptr__ != nullptr);
+    cp_assert(device_ptr__ != nullptr);
     grid_.associate(host_ptr__, device_ptr__, size__);
   }
   inline bool is_distributed() { return is_distributed_; }

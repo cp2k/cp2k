@@ -12,8 +12,8 @@
  - Ole Schuett
 */
 
+#include "../../base/cp_assert.h"
 #include <algorithm>
-#include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -437,13 +437,13 @@ extern "C" void grid_gpu_create_task_list(
       num_tasks = sorted_blocks_offset[i + 1] - sorted_blocks_offset[i];
 
     // invariants tests since they should be equal.
-    assert(num_tasks == num_tasks_per_block[i]);
+    cp_assert(num_tasks == num_tasks_per_block[i]);
 
     for (int tk = 0; tk < num_tasks; tk++) {
       const auto &task =
           tasks_host[sorted_blocks[tk + sorted_blocks_offset[i]]];
       // check that all tasks point to the same block
-      assert(task.block_num == i);
+      cp_assert(task.block_num == i);
       ctx->block_la_max_[i] = std::max(ctx->block_la_max_[i], task.la_max);
       ctx->block_lb_max_[i] = std::max(ctx->block_lb_max_[i], task.lb_max);
     }
@@ -535,7 +535,7 @@ extern "C" void grid_gpu_collocate_task_list(const grid_gpu_task_list *ptr,
     return;
   }
 
-  assert(ctx->nlevels == nlevels);
+  cp_assert(ctx->nlevels == nlevels);
   ctx->set_device();
 
   ctx->pab_block_.associate(pab_blocks->host_buffer, pab_blocks->device_buffer,
@@ -611,7 +611,7 @@ extern "C" void grid_gpu_integrate_task_list(
 
   if (ptr == nullptr)
     return;
-  assert(ctx->nlevels == nlevels);
+  cp_assert(ctx->nlevels == nlevels);
 
   ctx->verify_checksum();
   // Select GPU device.

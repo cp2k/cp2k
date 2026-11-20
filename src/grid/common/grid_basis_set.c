@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#include <assert.h>
+#include "../../base/cp_assert.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -25,7 +25,7 @@ void grid_create_basis_set(const int nset, const int nsgf, const int maxco,
                            grid_basis_set **basis_set_out) {
 
   grid_basis_set *basis_set = malloc(sizeof(grid_basis_set));
-  assert(basis_set != NULL);
+  cp_assert(basis_set != NULL);
 
   basis_set->nset = nset;
   basis_set->nsgf = nsgf;
@@ -34,15 +34,15 @@ void grid_create_basis_set(const int nset, const int nsgf, const int maxco,
 
   size_t size = nset * sizeof(int);
   basis_set->lmin = malloc(size);
-  assert(basis_set->lmin != NULL || size == 0);
+  cp_assert(basis_set->lmin != NULL || size == 0);
   basis_set->lmax = malloc(size);
-  assert(basis_set->lmax != NULL || size == 0);
+  cp_assert(basis_set->lmax != NULL || size == 0);
   basis_set->npgf = malloc(size);
-  assert(basis_set->npgf != NULL || size == 0);
+  cp_assert(basis_set->npgf != NULL || size == 0);
   basis_set->nsgf_set = malloc(size);
-  assert(basis_set->nsgf_set != NULL || size == 0);
+  cp_assert(basis_set->nsgf_set != NULL || size == 0);
   basis_set->first_sgf = malloc(size);
-  assert(basis_set->first_sgf != NULL || size == 0);
+  cp_assert(basis_set->first_sgf != NULL || size == 0);
   if (size != 0) {
     memcpy(basis_set->lmin, lmin, size);
     memcpy(basis_set->lmax, lmax, size);
@@ -53,14 +53,14 @@ void grid_create_basis_set(const int nset, const int nsgf, const int maxco,
 
   size = nsgf * maxco * sizeof(double);
   basis_set->sphi = malloc(size);
-  assert(basis_set->sphi != NULL || size == 0);
+  cp_assert(basis_set->sphi != NULL || size == 0);
   if (size != 0) {
     memcpy(basis_set->sphi, sphi, size);
   }
 
   size = nset * maxpgf * sizeof(double);
   basis_set->zet = malloc(size);
-  assert(basis_set->zet != NULL || size == 0);
+  cp_assert(basis_set->zet != NULL || size == 0);
   if (size != 0) {
     memcpy(basis_set->zet, zet, size);
   }
