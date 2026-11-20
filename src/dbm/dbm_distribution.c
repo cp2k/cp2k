@@ -8,7 +8,7 @@
 #include "dbm_hyperparams.h"
 #include "dbm_internal.h"
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <math.h>
 #include <omp.h>
 #include <stdbool.h>
@@ -29,7 +29,7 @@ static void dbm_dist_1d_new(dbm_dist_1d_t *dist, const int length,
   dist->nranks = cp_mpi_comm_size(comm);
   dist->length = length;
   dist->index2coord = malloc(length * sizeof(int));
-  assert(dist->index2coord != NULL || length == 0);
+  cp_assert(dist->index2coord != NULL || length == 0);
   if (length != 0) {
     memcpy(dist->index2coord, coords, length * sizeof(int));
   }
@@ -37,12 +37,12 @@ static void dbm_dist_1d_new(dbm_dist_1d_t *dist, const int length,
   // Check that cart coordinates and ranks are equivalent.
   int cart_dims[1], cart_periods[1], cart_coords[1];
   cp_mpi_cart_get(comm, 1, cart_dims, cart_periods, cart_coords);
-  assert(dist->nranks == cart_dims[0]);
-  assert(dist->my_rank == cart_coords[0]);
+  cp_assert(dist->nranks == cart_dims[0]);
+  cp_assert(dist->my_rank == cart_coords[0]);
 
   // Count local rows/columns.
   for (int i = 0; i < length; i++) {
-    assert(0 <= coords[i] && coords[i] < dist->nranks);
+    cp_assert(0 <= coords[i] && coords[i] < dist->nranks);
     if (coords[i] == dist->my_rank) {
       dist->nlocals++;
     }
@@ -50,14 +50,14 @@ static void dbm_dist_1d_new(dbm_dist_1d_t *dist, const int length,
 
   // Store local rows/columns.
   dist->local_indicies = malloc(dist->nlocals * sizeof(int));
-  assert(dist->local_indicies != NULL || dist->nlocals == 0);
+  cp_assert(dist->local_indicies != NULL || dist->nlocals == 0);
   int j = 0;
   for (int i = 0; i < length; i++) {
     if (coords[i] == dist->my_rank) {
       dist->local_indicies[j++] = i;
     }
   }
-  assert(j == dist->nlocals);
+  cp_assert(j == dist->nlocals);
 }
 
 /*******************************************************************************
@@ -103,7 +103,7 @@ void dbm_distribution_new(dbm_distribution_t **dist_out, const int fortran_comm,
                           const int nrows, const int ncols,
                           const int row_dist[nrows],
                           const int col_dist[ncols]) {
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
   dbm_distribution_t *dist = calloc(1, sizeof(dbm_distribution_t));
   dist->ref_count = 1;
 
@@ -124,7 +124,7 @@ void dbm_distribution_new(dbm_distribution_t **dist_out, const int fortran_comm,
   dbm_dist_1d_new(&dist->rows, nrows, row_dist, row_comm, nrow_shards);
   dbm_dist_1d_new(&dist->cols, ncols, col_dist, col_comm, ncol_shards);
 
-  assert(*dist_out == NULL);
+  cp_assert(*dist_out == NULL);
   *dist_out = dist;
 }
 
@@ -133,7 +133,7 @@ void dbm_distribution_new(dbm_distribution_t **dist_out, const int fortran_comm,
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_distribution_hold(dbm_distribution_t *dist) {
-  assert(dist->ref_count > 0);
+  cp_assert(dist->ref_count > 0);
   dist->ref_count++;
 }
 
@@ -142,7 +142,7 @@ void dbm_distribution_hold(dbm_distribution_t *dist) {
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_distribution_release(dbm_distribution_t *dist) {
-  assert(dist->ref_count > 0);
+  cp_assert(dist->ref_count > 0);
   dist->ref_count--;
   if (dist->ref_count == 0) {
     dbm_dist_1d_free(&dist->rows);
@@ -157,7 +157,7 @@ void dbm_distribution_release(dbm_distribution_t *dist) {
  ******************************************************************************/
 void dbm_distribution_row_dist(const dbm_distribution_t *dist, int *nrows,
                                const int **row_dist) {
-  assert(dist->ref_count > 0);
+  cp_assert(dist->ref_count > 0);
   *nrows = dist->rows.length;
   *row_dist = dist->rows.index2coord;
 }
@@ -168,7 +168,7 @@ void dbm_distribution_row_dist(const dbm_distribution_t *dist, int *nrows,
  ******************************************************************************/
 void dbm_distribution_col_dist(const dbm_distribution_t *dist, int *ncols,
                                const int **col_dist) {
-  assert(dist->ref_count > 0);
+  cp_assert(dist->ref_count > 0);
   *ncols = dist->cols.length;
   *col_dist = dist->cols.index2coord;
 }
@@ -179,9 +179,9 @@ void dbm_distribution_col_dist(const dbm_distribution_t *dist, int *ncols,
  ******************************************************************************/
 int dbm_distribution_stored_coords(const dbm_distribution_t *dist,
                                    const int row, const int col) {
-  assert(dist->ref_count > 0);
-  assert(0 <= row && row < dist->rows.length);
-  assert(0 <= col && col < dist->cols.length);
+  cp_assert(dist->ref_count > 0);
+  cp_assert(0 <= row && row < dist->rows.length);
+  cp_assert(0 <= col && col < dist->cols.length);
   int coords[2] = {dist->rows.index2coord[row], dist->cols.index2coord[col]};
   return cp_mpi_cart_rank(dist->comm, coords);
 }

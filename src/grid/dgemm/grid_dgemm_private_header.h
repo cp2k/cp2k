@@ -8,8 +8,8 @@
 #ifndef GRID_DGEMM_PRIVATE_HEADER_H
 #define GRID_DGEMM_PRIVATE_HEADER_H
 
+#include "../../base/cp_assert.h"
 #include "grid_dgemm_tensor_local.h"
-#include <assert.h>
 #include <stdbool.h>
 /* everything here is specific to the dgemm and gpu backends*/
 #include "../../offload/offload_buffer.h"
@@ -94,7 +94,7 @@ static inline void update_loop_index(const int global_grid_size, int x1,
 }
 
 static inline Interval create_interval(const int xmin, const int xmax) {
-  assert(xmax >= xmin);
+  cp_assert(xmax >= xmin);
 
   Interval t = {.xmin = xmin, .xmax = xmax};
   return t;

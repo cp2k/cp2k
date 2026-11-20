@@ -9,7 +9,7 @@
 #include "offload_mempool.h"
 #include "offload_runtime.h"
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -22,7 +22,7 @@
  * \author Hans Pabst
  ******************************************************************************/
 static void offload_free_buffer_internal(offload_buffer *buffer) {
-  assert(NULL != buffer);
+  cp_assert(NULL != buffer);
 #if defined(OFFLOAD_BUFFER_MEMPOOL)
   if (NULL != buffer->host_buffer &&
       buffer->host_buffer != buffer->device_buffer) {
@@ -41,7 +41,7 @@ static void offload_free_buffer_internal(offload_buffer *buffer) {
   }
 #else
   free(buffer->host_buffer);
-  assert(NULL == buffer->device_buffer);
+  cp_assert(NULL == buffer->device_buffer);
 #endif
 }
 
@@ -66,7 +66,7 @@ void offload_create_buffer(const int length, offload_buffer **buffer) {
     }
   } else {
     (*buffer) = malloc(sizeof(offload_buffer));
-    assert(NULL != *buffer);
+    cp_assert(NULL != *buffer);
   }
 
   (*buffer)->size = requested_size;
@@ -111,7 +111,7 @@ void offload_free_buffer(offload_buffer *buffer) {
  * \author Ole Schuett
  ******************************************************************************/
 double *offload_get_buffer_host_pointer(offload_buffer *buffer) {
-  assert(NULL != buffer);
+  cp_assert(NULL != buffer);
   return buffer->host_buffer;
 }
 
@@ -120,7 +120,7 @@ double *offload_get_buffer_host_pointer(offload_buffer *buffer) {
  * \author Samal Bibek
  ******************************************************************************/
 double *offload_get_buffer_device_pointer(offload_buffer *buffer) {
-  assert(NULL != buffer);
+  cp_assert(NULL != buffer);
   return buffer->device_buffer;
 }
 
@@ -129,7 +129,7 @@ double *offload_get_buffer_device_pointer(offload_buffer *buffer) {
  * \author Samal Bibek
  ******************************************************************************/
 void offload_buffer_h2d(offload_buffer *buffer, const int length) {
-  assert(NULL != buffer);
+  cp_assert(NULL != buffer);
 #if defined(__OFFLOAD)
   if (buffer->host_buffer != NULL && buffer->device_buffer != NULL) {
     const size_t bytes = sizeof(double) * length;
@@ -146,7 +146,7 @@ void offload_buffer_h2d(offload_buffer *buffer, const int length) {
  * \author Samal Bibek
  ******************************************************************************/
 void offload_buffer_d2h(offload_buffer *buffer, const int length) {
-  assert(NULL != buffer);
+  cp_assert(NULL != buffer);
 #if defined(__OFFLOAD)
   if (buffer->host_buffer != NULL && buffer->device_buffer != NULL) {
     const size_t bytes = sizeof(double) * length;

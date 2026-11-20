@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#include <assert.h>
+#include "../../base/cp_assert.h"
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -55,7 +55,7 @@ void grid_ref_integrate_pgf_product(
 
   const bool calculate_forces = (forces != NULL || hdab != NULL);
   const bool calculate_virial = (virials != NULL || a_hdab != NULL);
-  assert(!calculate_virial || calculate_forces);
+  cp_assert(!calculate_virial || calculate_forces);
   const process_ldiffs ldiffs =
       process_get_ldiffs(calculate_forces, calculate_virial, compute_tau);
   int la_max_local = la_max + ldiffs.la_max_diff;
@@ -121,21 +121,21 @@ void grid_ref_integrate_pgf_product(
 
               // Update hdab, hadb, and a_hdab (not used in batch mode).
               if (hdab != NULL) {
-                assert(!compute_tau);
+                cp_assert(!compute_tau);
                 for (int i = 0; i < 3; i++) {
                   hdab[o2 + idx(b)][o1 + idx(a)][i] +=
                       get_force_a(a, b, i, zeta, zetb, &cab_obj, false);
                 }
               }
               if (hadb != NULL) {
-                assert(!compute_tau);
+                cp_assert(!compute_tau);
                 for (int i = 0; i < 3; i++) {
                   hadb[o2 + idx(b)][o1 + idx(a)][i] +=
                       get_force_b(a, b, i, zeta, zetb, rab, &cab_obj, false);
                 }
               }
               if (a_hdab != NULL) {
-                assert(!compute_tau);
+                cp_assert(!compute_tau);
                 for (int i = 0; i < 3; i++) {
                   for (int j = 0; j < 3; j++) {
                     a_hdab[o2 + idx(b)][o1 + idx(a)][i][j] +=

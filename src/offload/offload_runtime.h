@@ -24,6 +24,8 @@
 
 #if defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP) ||                       \
     defined(__OFFLOAD_OPENCL)
+#include "../base/cp_assert.h"
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -326,7 +328,7 @@ static inline void offloadMallocHost(void **ptr, size_t size) {
 #elif defined(__OFFLOAD_HIP)
   OFFLOAD_CHECK(hipHostMalloc(ptr, size, hipHostMallocDefault)); // inconsistent
 #else
-  assert(NULL != ptr);
+  cp_assert(NULL != ptr);
   *ptr = malloc(size);
 #endif
 }
@@ -340,7 +342,7 @@ static inline void offloadMalloc(void **ptr, size_t size) {
 #elif defined(__OFFLOAD_HIP)
   OFFLOAD_CHECK(hipMalloc(ptr, size));
 #else
-  assert(NULL != ptr);
+  cp_assert(NULL != ptr);
   *ptr = NULL;
 #endif
 }
@@ -354,7 +356,7 @@ static inline void offloadFree(void *ptr) {
 #elif defined(__OFFLOAD_HIP)
   OFFLOAD_CHECK(hipFree(ptr));
 #else
-  assert(NULL == ptr);
+  cp_assert(NULL == ptr);
 #endif
 }
 

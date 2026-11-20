@@ -67,25 +67,6 @@ if(NOT DEFINED CMAKE_HIP_STANDARD)
   set(CMAKE_HIP_STANDARD_REQUIRED ON)
 endif()
 
-# remove NDEBUG flag
-string(REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
-string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE
-               "${CMAKE_CXX_FLAGS_RELEASE}")
-string(REPLACE "-DNDEBUG" "" CMAKE_Fortran_FLAGS_RELEASE
-               "${CMAKE_Fortran_FLAGS_RELEASE}")
-string(REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO
-               "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO
-               "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-string(REPLACE "-DNDEBUG" "" CMAKE_Fortran_FLAGS_RELWITHDEBINFO
-               "${CMAKE_Fortran_FLAGS_RELWITHDEBINFO}")
-string(REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_MINSIZEREL
-               "${CMAKE_C_FLAGS_MINSIZEREL}")
-string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_MINSIZEREL
-               "${CMAKE_CXX_FLAGS_MINSIZEREL}")
-string(REPLACE "-DNDEBUG" "" CMAKE_Fortran_FLAGS_MINSIZEREL
-               "${CMAKE_Fortran_FLAGS_MINSIZEREL}")
-
 find_package(PkgConfig)
 
 # ##############################################################################

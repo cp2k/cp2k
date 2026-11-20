@@ -9,7 +9,7 @@
 #include "../offload/offload_library.h"
 #include "../offload/offload_mempool.h"
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <inttypes.h>
 #include <omp.h>
 #include <stdio.h>
@@ -34,7 +34,7 @@ static int max_threads = 0;
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_library_init(void) {
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
 
   if (library_initialized) {
     fprintf(stderr, "DBM library was already initialized.\n");
@@ -47,7 +47,7 @@ void dbm_library_init(void) {
   memset(phase_seconds, 0, sizeof(phase_seconds));
   memset(phase_bytes, 0, sizeof(phase_bytes));
   per_thread_counters = malloc(max_threads * sizeof(int64_t *));
-  assert(per_thread_counters != NULL);
+  cp_assert(per_thread_counters != NULL);
 
   // Using parallel regions to ensure memory is allocated near a thread's core.
 #pragma omp parallel default(none) shared(per_thread_counters)                 \
@@ -56,7 +56,7 @@ void dbm_library_init(void) {
     const int ithread = omp_get_thread_num();
     const size_t counters_size = DBM_NUM_COUNTERS * sizeof(int64_t);
     per_thread_counters[ithread] = malloc(counters_size);
-    assert(per_thread_counters[ithread] != NULL);
+    cp_assert(per_thread_counters[ithread] != NULL);
     memset(per_thread_counters[ithread], 0, counters_size);
   }
 
@@ -68,7 +68,7 @@ void dbm_library_init(void) {
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_library_finalize(void) {
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
 
   if (!library_initialized) {
     fprintf(stderr, "Error: DBM library is not initialized.\n");
@@ -92,7 +92,7 @@ void dbm_library_finalize(void) {
  ******************************************************************************/
 void dbm_library_counters_add(const int64_t counters[DBM_NUM_COUNTERS]) {
   const int ithread = omp_get_thread_num();
-  assert(ithread < max_threads);
+  cp_assert(ithread < max_threads);
   for (int i = 0; i < DBM_NUM_COUNTERS; i++) {
     per_thread_counters[ithread][i] += counters[i];
   }
@@ -105,7 +105,7 @@ void dbm_library_counters_add(const int64_t counters[DBM_NUM_COUNTERS]) {
  ******************************************************************************/
 void dbm_library_phases_add(const double seconds[DBM_NUM_PHASES],
                             const int64_t bytes[DBM_NUM_PHASES]) {
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
   for (int i = 0; i < DBM_NUM_PHASES; i++) {
     phase_seconds[i] += seconds[i];
     phase_bytes[i] += bytes[i];
@@ -129,7 +129,7 @@ static int compare_counters(const void *a, const void *b) {
 void dbm_library_print_stats(const int fortran_comm,
                              void (*print_func)(const char *, int, int),
                              const int output_unit) {
-  assert(omp_get_num_threads() == 1);
+  cp_assert(omp_get_num_threads() == 1);
 
   if (!library_initialized) {
     fprintf(stderr, "Error: DBM library is not initialized.\n");

@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#include <assert.h>
+#include "../../base/cp_assert.h"
 #include <math.h>
 #include <omp.h>
 #include <stdint.h>
@@ -62,7 +62,7 @@ void grid_ref_create_task_list(
 
   grid_ref_task_list_internal *task_list =
       malloc(sizeof(grid_ref_task_list_internal));
-  assert(task_list != NULL);
+  cp_assert(task_list != NULL);
 
   task_list->orthorhombic = orthorhombic;
   task_list->ntasks = ntasks;
@@ -73,35 +73,35 @@ void grid_ref_create_task_list(
 
   size_t size = nblocks * sizeof(int);
   task_list->block_offsets = malloc(size);
-  assert(task_list->block_offsets != NULL || size == 0);
+  cp_assert(task_list->block_offsets != NULL || size == 0);
   if (size != 0) {
     memcpy(task_list->block_offsets, block_offsets, size);
   }
 
   size = 3 * natoms * sizeof(double);
   task_list->atom_positions = malloc(size);
-  assert(task_list->atom_positions != NULL || size == 0);
+  cp_assert(task_list->atom_positions != NULL || size == 0);
   if (size != 0) {
     memcpy(task_list->atom_positions, atom_positions, size);
   }
 
   size = natoms * sizeof(int);
   task_list->atom_kinds = malloc(size);
-  assert(task_list->atom_kinds != NULL || size == 0);
+  cp_assert(task_list->atom_kinds != NULL || size == 0);
   if (size != 0) {
     memcpy(task_list->atom_kinds, atom_kinds, size);
   }
 
   size = nkinds * sizeof(grid_basis_set *);
   task_list->basis_sets = malloc(size);
-  assert(task_list->basis_sets != NULL || size == 0);
+  cp_assert(task_list->basis_sets != NULL || size == 0);
   if (size != 0) {
     memcpy(task_list->basis_sets, basis_sets, size);
   }
 
   size = ntasks * sizeof(grid_ref_task);
   task_list->tasks = malloc(size);
-  assert(task_list->tasks != NULL || size == 0);
+  cp_assert(task_list->tasks != NULL || size == 0);
 #pragma omp parallel for schedule(static) if (ntasks > GRID_OMP_MIN_ITERATIONS)
   for (int i = 0; i < ntasks; i++) {
     task_list->tasks[i].level = level_list[i];
@@ -122,7 +122,7 @@ void grid_ref_create_task_list(
   // Store grid layouts.
   size = nlevels * sizeof(grid_ref_layout);
   task_list->layouts = malloc(size);
-  assert(task_list->layouts != NULL || size == 0);
+  cp_assert(task_list->layouts != NULL || size == 0);
   for (int level = 0; level < nlevels; level++) {
     for (int i = 0; i < 3; i++) {
       task_list->layouts[level].npts_global[i] = npts_global[level][i];
@@ -142,9 +142,9 @@ void grid_ref_create_task_list(
   // Find first and last task for each level and block.
   size = nlevels * nblocks * sizeof(int);
   task_list->first_level_block_task = malloc(size);
-  assert(task_list->first_level_block_task != NULL || size == 0);
+  cp_assert(task_list->first_level_block_task != NULL || size == 0);
   task_list->last_level_block_task = malloc(size);
-  assert(task_list->last_level_block_task != NULL || size == 0);
+  cp_assert(task_list->last_level_block_task != NULL || size == 0);
   const int nlevel_blocks = nlevels * nblocks;
 #pragma omp parallel for schedule(static) if (nlevel_blocks >                  \
                                                   GRID_OMP_MIN_ITERATIONS)
@@ -171,11 +171,11 @@ void grid_ref_create_task_list(
   // Initialize thread-local storage.
   size = omp_get_max_threads() * sizeof(double *);
   task_list->threadlocals = malloc(size);
-  assert(task_list->threadlocals != NULL);
+  cp_assert(task_list->threadlocals != NULL);
   memset(task_list->threadlocals, 0, size);
   size = omp_get_max_threads() * sizeof(size_t);
   task_list->threadlocal_sizes = malloc(size);
-  assert(task_list->threadlocal_sizes != NULL);
+  cp_assert(task_list->threadlocal_sizes != NULL);
   memset(task_list->threadlocal_sizes, 0, size);
 
   *task_list_out = task_list;
@@ -307,7 +307,7 @@ static void collocate_one_grid_level(
         free(task_list->threadlocals[ithread]);
       }
       task_list->threadlocals[ithread] = malloc(grid_size);
-      assert(task_list->threadlocals[ithread] != NULL);
+      cp_assert(task_list->threadlocals[ithread] != NULL);
       task_list->threadlocal_sizes[ithread] = grid_size;
     }
 
@@ -442,7 +442,7 @@ void grid_ref_collocate_task_list(const grid_ref_task_list *ptr,
 
   grid_ref_task_list_internal *task_list = (grid_ref_task_list_internal *)ptr;
 
-  assert(task_list->nlevels == nlevels);
+  cp_assert(task_list->nlevels == nlevels);
 
   for (int level = 0; level < task_list->nlevels; level++) {
     const int idx = level * task_list->nblocks;
@@ -546,8 +546,8 @@ static void integrate_one_grid_level(
       for (int itask = first_task; itask <= last_task; itask++) {
         // Define some convenient aliases.
         const grid_ref_task *task = &task_list->tasks[itask];
-        assert(task->block_num - 1 == block_num);
-        assert(task->iatom - 1 == iatom && task->jatom - 1 == jatom);
+        cp_assert(task->block_num - 1 == block_num);
+        cp_assert(task->iatom - 1 == iatom && task->jatom - 1 == jatom);
         const int ikind = task_list->atom_kinds[iatom] - 1;
         const int jkind = task_list->atom_kinds[jatom] - 1;
         grid_basis_set *ibasis = task_list->basis_sets[ikind];
@@ -666,8 +666,8 @@ void grid_ref_integrate_task_list(
     return;
 
   grid_ref_task_list_internal *task_list = (grid_ref_task_list_internal *)ptr;
-  assert(task_list->nlevels == nlevels);
-  assert(task_list->natoms == natoms);
+  cp_assert(task_list->nlevels == nlevels);
+  cp_assert(task_list->natoms == natoms);
 
   // Zero result arrays.
   memset(hab_blocks->host_buffer, 0, hab_blocks->size);

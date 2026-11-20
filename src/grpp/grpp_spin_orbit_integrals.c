@@ -12,7 +12,7 @@
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,7 +52,7 @@ void libgrpp_spin_orbit_integrals(libgrpp_shell_t *shell_A,
                                   libgrpp_potential_t *potential,
                                   double *so_x_matrix, double *so_y_matrix,
                                   double *so_z_matrix) {
-  assert(libgrpp_is_initialized());
+  cp_assert(libgrpp_is_initialized());
 
   int size_A = libgrpp_get_shell_size(shell_A);
   int size_B = libgrpp_get_shell_size(shell_B);

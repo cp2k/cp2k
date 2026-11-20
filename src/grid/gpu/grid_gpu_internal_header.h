@@ -15,7 +15,6 @@
 #define GRID_GPU_INTERNAL_HEADER_H
 
 #include <algorithm>
-#include <assert.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>

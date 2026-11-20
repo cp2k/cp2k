@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../../base/cp_assert.h"
 #include "../common/grid_library.h"
 #include "grid_dgemm_collocate.h"
 #include "grid_dgemm_collocation_integration.h"
@@ -23,7 +24,7 @@
 void return_dh(void *const ptr, const int level, double *const dh) {
   grid_context *const ctx = (grid_context *)ptr;
 
-  assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx->checksum == ctx_checksum);
   dh[0] = ctx->grid[level].dh[0][0];
   dh[1] = ctx->grid[level].dh[0][1];
   dh[2] = ctx->grid[level].dh[0][2];
@@ -38,7 +39,7 @@ void return_dh(void *const ptr, const int level, double *const dh) {
 void return_dh_inv(void *const ptr, const int level, double *const dh_inv) {
   grid_context *const ctx = (grid_context *)ptr;
 
-  assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx->checksum == ctx_checksum);
   dh_inv[0] = ctx->grid[level].dh_inv[0][0];
   dh_inv[1] = ctx->grid[level].dh_inv[0][1];
   dh_inv[2] = ctx->grid[level].dh_inv[0][2];
@@ -52,34 +53,34 @@ void return_dh_inv(void *const ptr, const int level, double *const dh_inv) {
 
 int return_num_devs(void *const ptr) {
   grid_context *const ctx = (grid_context *)ptr;
-  assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx->checksum == ctx_checksum);
 
   return ctx->number_of_devices;
 }
 
 int return_device_id(void *const ptr, const int device) {
   grid_context *const ctx = (grid_context *)ptr;
-  assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx->checksum == ctx_checksum);
 
   return ctx->device_id[device];
 }
 
 int is_grid_orthorhombic(void *const ptr) {
   grid_context *const ctx = (grid_context *)ptr;
-  assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx->checksum == ctx_checksum);
   return ctx->orthorhombic;
 }
 
 void update_queue_length(void *const ptr, const int queue_length) {
   grid_context *const ctx = (grid_context *)ptr;
-  assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx->checksum == ctx_checksum);
   ctx->queue_length = queue_length;
 }
 
 void update_atoms_position(const int natoms,
                            const double atoms_positions[natoms][3],
                            grid_context *data) {
-  assert(data != NULL);
+  cp_assert(data != NULL);
 
   if (natoms == 0)
     return;
@@ -92,7 +93,7 @@ void update_atoms_position(const int natoms,
           realloc(data->atom_positions, 3 * natoms * sizeof(double));
     }
   }
-  assert(data->atom_positions != NULL);
+  cp_assert(data->atom_positions != NULL);
 
   data->natoms = natoms;
 
@@ -107,7 +108,7 @@ void update_atoms_position(const int natoms,
 
 void update_atoms_kinds(const int natoms, const int *atoms_kinds,
                         grid_context *data) {
-  assert(data != NULL);
+  cp_assert(data != NULL);
 
   // data->atom_kinds is a table that give the type of a given atom.
   if (natoms == 0)
@@ -120,7 +121,7 @@ void update_atoms_kinds(const int natoms, const int *atoms_kinds,
       data->atom_kinds = realloc(data->atom_kinds, natoms * sizeof(int));
     }
   }
-  assert(data->atom_kinds != NULL);
+  cp_assert(data->atom_kinds != NULL);
   // data->natoms is initialized before calling this function
   if (data->natoms)
     memcpy(data->atom_kinds, atoms_kinds, sizeof(int) * natoms);
@@ -132,7 +133,7 @@ void update_atoms_kinds(const int natoms, const int *atoms_kinds,
 
 void update_block_offsets(const int nblocks, const int *const block_offsets,
                           grid_context *data) {
-  assert(data != NULL);
+  cp_assert(data != NULL);
 
   if (nblocks == 0)
     return;
@@ -144,7 +145,7 @@ void update_block_offsets(const int nblocks, const int *const block_offsets,
       data->block_offsets = realloc(data->block_offsets, sizeof(int) * nblocks);
     }
   }
-  assert(data->block_offsets != NULL);
+  cp_assert(data->block_offsets != NULL);
 
   data->nblocks = nblocks;
   data->nblocks_total = imax(data->nblocks_total, nblocks);
@@ -162,7 +163,7 @@ void update_basis_set(const int nkinds, const grid_basis_set **const basis_sets,
           realloc(data->basis_sets, nkinds * sizeof(grid_basis_set *));
     }
   }
-  assert(data->basis_sets != NULL);
+  cp_assert(data->basis_sets != NULL);
   data->nkinds = nkinds;
   data->nkinds_total = imax(data->nkinds_total, nkinds);
   memcpy(data->basis_sets, basis_sets, nkinds * sizeof(grid_basis_set *));
@@ -178,7 +179,7 @@ void update_task_lists(const int nlevels, const int ntasks,
                        const double *const radius_list,
                        const double rab_list[ntasks][3], grid_context *ctx) {
 
-  assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx->checksum == ctx_checksum);
 
   if (nlevels == 0)
     return;
@@ -197,11 +198,11 @@ void update_task_lists(const int nlevels, const int ntasks,
     if (ctx->nlevels_total < nlevels) {
       /* save the address of the full task list. NULL when completly empty */
       ctx->tasks = realloc(ctx->tasks, nlevels * sizeof(_task *));
-      assert(ctx->tasks != NULL);
+      cp_assert(ctx->tasks != NULL);
     }
     if (ctx->ntasks_total < ntasks) {
       ctx->tasks[0] = realloc(ctx->tasks[0], ntasks * sizeof(_task));
-      assert(ctx->tasks[0] != NULL);
+      cp_assert(ctx->tasks[0] != NULL);
     }
   }
 
@@ -213,7 +214,8 @@ void update_task_lists(const int nlevels, const int ntasks,
 
   for (int i = 0; i < ntasks; i++) {
     ctx->tasks_per_level[level_list[i] - 1]++;
-    assert(i == 0 || level_list[i] >= level_list[i - 1]); // expect ordered list
+    cp_assert(i == 0 ||
+              level_list[i] >= level_list[i - 1]); // expect ordered list
   }
 
   for (int i = 1; i < ctx->nlevels; i++) {
@@ -297,8 +299,8 @@ void update_layouts(const int nlevels, const int npts_global[nlevels][3],
                     const double dh[nlevels][3][3],
                     const double dh_inv[nlevels][3][3], grid_context *ctx) {
 
-  assert(ctx != NULL);
-  assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx != NULL);
+  cp_assert(ctx->checksum == ctx_checksum);
 
   if (ctx->layouts != NULL) {
     free(ctx->layouts);
@@ -321,8 +323,8 @@ void update_layouts(const int nlevels, const int npts_global[nlevels][3],
 }
 
 void update_grid(const int nlevels, grid_context *ctx) {
-  assert(ctx != NULL);
-  assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx != NULL);
+  cp_assert(ctx->checksum == ctx_checksum);
 
   if (nlevels == 0)
     return;
@@ -334,7 +336,7 @@ void update_grid(const int nlevels, grid_context *ctx) {
       ctx->grid = realloc(ctx->grid, sizeof(tensor) * nlevels);
     }
   }
-  assert(ctx->grid != NULL);
+  cp_assert(ctx->grid != NULL);
 
   ctx->nlevels_total = imax(ctx->nlevels_total, nlevels);
   ctx->nlevels = nlevels;
@@ -402,9 +404,9 @@ void update_grid_context_dgemm(
     const int border_width[nlevels][3], const double dh[nlevels][3][3],
     const double dh_inv[nlevels][3][3], void *ptr) {
 
-  assert(ptr != NULL);
+  cp_assert(ptr != NULL);
   grid_context *ctx = (grid_context *)ptr;
-  assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx->checksum == ctx_checksum);
 
   ctx->orthorhombic = orthorhombic;
   update_block_offsets(nblocks, block_offsets, ctx);
@@ -428,9 +430,9 @@ void update_grid_context_dgemm(
 
 void initialize_grid_context_on_gpu(void *ptr, const int number_of_devices,
                                     const int *device_id) {
-  assert(ptr != NULL);
+  cp_assert(ptr != NULL);
   grid_context *ctx = (grid_context *)ptr;
-  assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx->checksum == ctx_checksum);
   ctx->work_on_gpu = false;
   if (number_of_devices <= 0) {
     return;
@@ -443,15 +445,15 @@ void initialize_grid_context_on_gpu(void *ptr, const int number_of_devices,
   } else {
     ctx->device_id = realloc(ctx->device_id, sizeof(int) * number_of_devices);
   }
-  assert(ctx->device_id != NULL);
+  cp_assert(ctx->device_id != NULL);
 
   memcpy(ctx->device_id, device_id, sizeof(int) * number_of_devices);
 }
 
 void destroy_grid_context_dgemm(void *ptr) {
-  assert(ptr);
+  cp_assert(ptr);
   grid_context *ctx = (grid_context *)ptr;
-  assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx->checksum == ctx_checksum);
   free(ctx->block_offsets);
   free(ctx->atom_positions);
   free(ctx->atom_kinds);
@@ -475,9 +477,9 @@ void destroy_grid_context_dgemm(void *ptr) {
 }
 
 void apply_cutoff(void *ptr) {
-  assert(ptr);
+  cp_assert(ptr);
   grid_context *ctx = (grid_context *)ptr;
-  assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx->checksum == ctx_checksum);
   ctx->apply_cutoff = true;
 }
 

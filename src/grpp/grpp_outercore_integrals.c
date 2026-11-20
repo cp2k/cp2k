@@ -17,7 +17,7 @@
  * These integrals are reduced to the type 1 integrals and overlap integrals.
  */
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -84,7 +84,7 @@ void libgrpp_outercore_potential_integrals(
     int num_oc_shells, libgrpp_potential_t **oc_potentials,
     libgrpp_shell_t **oc_shells, double *arep, double *esop_x, double *esop_y,
     double *esop_z) {
-  assert(libgrpp_is_initialized());
+  cp_assert(libgrpp_is_initialized());
 
   // clear output matrices
   int size_A = libgrpp_get_shell_size(shell_A);

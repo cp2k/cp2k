@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#include <assert.h>
+#include "../../base/cp_assert.h"
 #include <limits.h>
 #include <math.h>
 #include <omp.h>
@@ -1234,11 +1234,11 @@ void grid_dgemm_collocate_task_list(grid_dgemm_task_list *const ptr,
 
   grid_context *const ctx = (grid_context *)ptr;
 
-  assert(ctx->checksum == ctx_checksum);
+  cp_assert(ctx->checksum == ctx_checksum);
 
   const int max_threads = omp_get_max_threads();
 
-  assert(ctx->nlevels == nlevels);
+  cp_assert(ctx->nlevels == nlevels);
 
   // #pragma omp parallel for
   for (int level = 0; level < ctx->nlevels; level++) {

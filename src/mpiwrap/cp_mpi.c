@@ -6,7 +6,7 @@
 /*----------------------------------------------------------------------------*/
 #include "cp_mpi.h"
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -572,7 +572,7 @@ void cp_mpi_alltoall_int(const int *sendbuf, const int sendcount, int *recvbuf,
                      comm));
 #else
   (void)comm; // mark used
-  assert(sendcount == recvcount);
+  cp_assert(sendcount == recvcount);
   memcpy(recvbuf, sendbuf, sendcount * sizeof(int));
 #endif
 }
@@ -590,8 +590,8 @@ void cp_mpi_alltoallv_byte(const void *sendbuf, const int *sendcounts,
                       recvcounts, rdispls, MPI_BYTE, comm));
 #else
   (void)comm; // mark used
-  assert(sendcounts[0] == recvcounts[0]);
-  assert(sdispls[0] == 0 && rdispls[0] == 0);
+  cp_assert(sendcounts[0] == recvcounts[0]);
+  cp_assert(sdispls[0] == 0 && rdispls[0] == 0);
   memcpy(recvbuf, sendbuf, sendcounts[0]);
 #endif
 }
@@ -609,8 +609,8 @@ void cp_mpi_alltoallv_double(const double *sendbuf, const int *sendcounts,
                       recvcounts, rdispls, MPI_DOUBLE, comm));
 #else
   (void)comm; // mark used
-  assert(sendcounts[0] == recvcounts[0]);
-  assert(sdispls[0] == 0 && rdispls[0] == 0);
+  cp_assert(sendcounts[0] == recvcounts[0]);
+  cp_assert(sdispls[0] == 0 && rdispls[0] == 0);
   memcpy(recvbuf, sendbuf, sendcounts[0] * sizeof(double));
 #endif
 }

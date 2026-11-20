@@ -11,7 +11,7 @@
  *
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
-#include <assert.h>
+#include "../base/cp_assert.h"
 
 #include "grpp_parameters.h"
 
@@ -64,8 +64,8 @@ void libgrpp_set_modified_bessel_tolerance(double tolerance) {
 void libgrpp_set_cartesian_order(int order) {
   // #pragma omp critical
   {
-    assert(order == LIBGRPP_CART_ORDER_DIRAC ||
-           order == LIBGRPP_CART_ORDER_TURBOMOLE);
+    cp_assert(order == LIBGRPP_CART_ORDER_DIRAC ||
+              order == LIBGRPP_CART_ORDER_TURBOMOLE);
 
     if (order == LIBGRPP_CART_ORDER_DIRAC) {
       libgrpp_set_cartesian_generator(cartesian_generator_dirac);

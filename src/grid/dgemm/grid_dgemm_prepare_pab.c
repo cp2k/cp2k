@@ -7,7 +7,7 @@
 
 #include "grid_dgemm_prepare_pab.h"
 
-#include <assert.h>
+#include "../../base/cp_assert.h"
 #include <stdbool.h>
 
 #include "../common/grid_common.h"
@@ -227,8 +227,8 @@ grid_prepare_pab_ARDBmDARB(struct pab_computation_struct_ *const tp) {
   //                        2*tp->zeta[1]*pgf_{b+1x+1ir}) -
   //                       (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x}) pgf_{b+1ir}
 
-  assert(1 <= tp->dir1 && tp->dir1 <= 3);
-  assert(1 <= tp->dir2 && tp->dir2 <= 3);
+  cp_assert(1 <= tp->dir1 && tp->dir1 <= 3);
+  cp_assert(1 <= tp->dir2 && tp->dir2 <= 3);
 
   for (int lxa = 0; lxa <= tp->lmax[0]; lxa++) {
     for (int lxb = 0; lxb <= tp->lmax[1]; lxb++) {

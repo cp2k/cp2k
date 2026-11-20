@@ -14,7 +14,7 @@
 #include "dbm_multiply_gpu.h"
 #include "dbm_multiply_gpu_kernel.h"
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <stdio.h>
 
 /*******************************************************************************
@@ -38,7 +38,7 @@ void dbm_multiply_gpu_start(const int max_batch_size, const int nshards,
 
   // Allocate and upload shards of result matrix C.
   ctx->shards_c_dev = malloc(nshards * sizeof(dbm_shard_gpu_t));
-  assert(ctx->shards_c_dev != NULL || nshards == 0);
+  cp_assert(ctx->shards_c_dev != NULL || nshards == 0);
   for (int i = 0; i < nshards; i++) {
     const dbm_shard_t *const shard_c_host = &shards_c_host[i];
     dbm_shard_gpu_t *const shard_g = &ctx->shards_c_dev[i];
@@ -126,7 +126,7 @@ void dbm_multiply_gpu_process_batch(const dbm_batch_t *batch,
   double *old_data_dev = NULL;
 
   if (0 < ntasks) {
-    assert(NULL != shard_c && NULL != shard_g);
+    cp_assert(NULL != shard_c && NULL != shard_g);
 
     // Upload new batch.
     dbm_task_t *batch_dev = &ctx->batches_dev[kshard * ctx->max_batch_size];
@@ -136,7 +136,7 @@ void dbm_multiply_gpu_process_batch(const dbm_batch_t *batch,
     // Reallocate shard_g->data if necessary.
     if (shard_c->data_promised > shard_g->data_allocated) {
       shard_g->data_allocated = DBM_ALLOCATION_FACTOR * shard_c->data_promised;
-      assert(shard_c->data_promised <= shard_g->data_allocated);
+      cp_assert(shard_c->data_promised <= shard_g->data_allocated);
       old_data_dev = shard_g->data;
       shard_g->data = offload_mempool_device_malloc(shard_g->data_allocated *
                                                     sizeof(double));
@@ -156,7 +156,7 @@ void dbm_multiply_gpu_process_batch(const dbm_batch_t *batch,
     }
 
     OFFLOAD_CHECK(offloadGetLastError());
-    assert(0 != shard_g->data_size);
+    cp_assert(0 != shard_g->data_size);
 
     // Launch kernel.
     dbm_multiply_gpu_launch_kernel(shard_g->stream, alpha, batch, batch_dev,
@@ -169,7 +169,7 @@ void dbm_multiply_gpu_process_batch(const dbm_batch_t *batch,
     // Grow host buffer if necessary.
     dbm_shard_allocate_promised_blocks(shard_c);
     // Download results from device.
-    assert(shard_c->data_size == shard_g->data_size);
+    cp_assert(shard_c->data_size == shard_g->data_size);
     offloadMemcpyAsyncDtoH(shard_c->data, shard_g->data,
                            shard_g->data_size * sizeof(double),
                            shard_g->stream);

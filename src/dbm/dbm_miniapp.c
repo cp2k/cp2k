@@ -11,7 +11,7 @@
 #include "../offload/offload_library.h"
 #include "../offload/offload_mempool.h"
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <limits.h>
 #include <omp.h>
 #include <stdint.h>
@@ -46,10 +46,10 @@ static dbm_distribution_t *create_dist(const int nrows, const int ncols,
   cp_mpi_cart_get(comm, 2, cart_dims, cart_periods, cart_coords);
 
   // Create distribution.
-  assert(0 < nrows && 0 < ncols);
+  cp_assert(0 < nrows && 0 < ncols);
   int *row_dist = malloc(nrows * sizeof(int));
   int *col_dist = malloc(ncols * sizeof(int));
-  assert(row_dist != NULL && col_dist != NULL);
+  cp_assert(row_dist != NULL && col_dist != NULL);
   for (int i = 0; i < nrows; i++) {
     row_dist[i] = i % cart_dims[0];
   }
@@ -70,7 +70,7 @@ static dbm_distribution_t *create_dist(const int nrows, const int ncols,
  ******************************************************************************/
 static void set_some_sizes(const int nsizes, const int size_min,
                            const int size_max, int sizes[nsizes]) {
-  assert(0 < size_min && size_min <= size_max);
+  cp_assert(0 < size_min && size_min <= size_max);
   const int range = size_max - size_min + 1;
   for (int i = 0; i < nsizes; i++) {
     sizes[i] = (1 < range ? size_min + rand() % range : size_max);
@@ -89,10 +89,10 @@ create_some_matrix(const int nrows, const int ncols, const int nrows_min,
   dbm_distribution_t *dist = create_dist(nrows, ncols, comm);
 
   // Create matrix.
-  assert(0 < nrows && 0 < ncols);
+  cp_assert(0 < nrows && 0 < ncols);
   int *row_sizes = malloc(nrows * sizeof(int));
   int *col_sizes = malloc(ncols * sizeof(int));
-  assert(row_sizes != NULL && col_sizes != NULL);
+  cp_assert(row_sizes != NULL && col_sizes != NULL);
   set_some_sizes(nrows, nrows_min, nrows_max, row_sizes);
   set_some_sizes(ncols, ncols_min, ncols_max, col_sizes);
   dbm_matrix_t *matrix = NULL;
@@ -129,7 +129,7 @@ static void reserve_all_blocks(dbm_matrix_t *matrix) {
     if (0 < nblocks) {
       reserve_row = malloc(nblocks * sizeof(int));
       reserve_col = malloc(nblocks * sizeof(int));
-      assert(reserve_row != NULL && reserve_col != NULL);
+      cp_assert(reserve_row != NULL && reserve_col != NULL);
     }
     int iblock = 0;
 #pragma omp for collapse(2)
@@ -143,7 +143,7 @@ static void reserve_all_blocks(dbm_matrix_t *matrix) {
         }
       }
     }
-    assert(iblock == nblocks);
+    cp_assert(iblock == nblocks);
     dbm_reserve_blocks(matrix, nblocks, reserve_row, reserve_col);
     free(reserve_row);
     free(reserve_col);

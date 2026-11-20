@@ -6,9 +6,9 @@
 /*----------------------------------------------------------------------------*/
 
 #include "grid_sphere_cache.h"
+#include "../../base/cp_assert.h"
 #include "grid_common.h"
 #include "grid_library.h"
-#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,7 +71,7 @@ static void rebuild_cache_entry(const int max_imr, const double drmin,
 
   // Compute required storage size.
   entry->offsets = malloc(max_imr * sizeof(int));
-  assert(entry->offsets != NULL || max_imr == 0);
+  cp_assert(entry->offsets != NULL || max_imr == 0);
   int nbounds_total = 0;
   for (int imr = 1; imr <= max_imr; imr++) {
     const double radius = imr * drmin;
@@ -82,7 +82,7 @@ static void rebuild_cache_entry(const int max_imr, const double drmin,
 
   // Allocate and fill storage.
   entry->storage = malloc(nbounds_total * sizeof(int));
-  assert(entry->storage != NULL || nbounds_total == 0);
+  cp_assert(entry->storage != NULL || nbounds_total == 0);
   for (int imr = 1; imr <= max_imr; imr++) {
     const double radius = imr * drmin;
     const int offset = entry->offsets[imr - 1];
@@ -133,7 +133,7 @@ void grid_sphere_cache_lookup(const double radius, const double dh[3][3],
     grid_sphere_cache_entry *old_entries = cache->entries;
     const size_t entry_size = sizeof(grid_sphere_cache_entry);
     cache->entries = malloc(cache->size * entry_size);
-    assert(cache->entries != NULL);
+    cp_assert(cache->entries != NULL);
     if (old_entries != NULL) {
       memcpy(cache->entries, old_entries, (cache->size - 1) * entry_size);
       free(old_entries);

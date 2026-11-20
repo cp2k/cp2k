@@ -12,7 +12,7 @@
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -47,7 +47,7 @@ static const double specfunc_fermi_sk_table[2001][10];
  * allowed values of k: 2, 3, 4, 5, 6, 7
  */
 double libgrpp_specfunc_fermi_sk(int k, double x) {
-  assert(k >= 2 && k <= 7);
+  cp_assert(k >= 2 && k <= 7);
 
   if (x <= -30) {
     // asymptotic tail: 1 exponential term
