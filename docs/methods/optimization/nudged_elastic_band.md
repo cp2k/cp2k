@@ -8,8 +8,11 @@ improved-tangent NEB (`IT-NEB`) or climbing-image NEB (`CI-NEB`). In the latter,
 interior image climbs towards the saddle after [NSTEPS_IT](#CP2K_INPUT.MOTION.BAND.CI_NEB.NSTEPS_IT)
 initial improved-tangent steps.
 
-For fixed-cell examples, see the tutorials below. The following section describes variable-cell
-solid-state NEB.
+For fixed-cell Cartesian bands, [INTERPOLATION_METHOD](#CP2K_INPUT.MOTION.BAND.INTERPOLATION_METHOD)
+selects how missing images are initialized. The default, `LI_BISECT`, bisects the longest interval.
+Use `LI_IDPP` to relax the interpolated images on the image-dependent pair potential, or `S_IDPP` to
+grow the band inward from the supplied images. Neither IDPP method requires physical forces during
+initialization. For fixed-cell examples, see the tutorials below.
 
 ## Solid-state NEB
 
@@ -171,7 +174,7 @@ steps.
 The initial implementation requires full periodicity, analytical stress, DIIS, IT-NEB or CI-NEB,
 fixed endpoints, and an unconstrained atom-only system. It does not support shell particles,
 colvar-projected bands, numerical or diagonal-only stress, nonhydrostatic external stress, or
-automatic matching of atoms and inequivalent supercells. Fixed-cell `IDPP` initialization cannot be
+automatic matching of atoms and inequivalent supercells. Neither `LI_IDPP` nor `S_IDPP` can be
 combined with `SOLID_STATE`.
 
 Atomic `ALIGN_FRAMES` and `ROTATE_FRAMES` are disabled in solid-state mode. The common cell frame

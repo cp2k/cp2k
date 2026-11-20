@@ -180,6 +180,9 @@ registry["IDPP_min_distance_before"] = GenericMatcher(
 registry["IDPP_min_distance_after"] = GenericMatcher(
     r"NEB| IDPP minimum pair distance [angstrom]:", col=9
 )
+registry["SIDPP_min_distance"] = GenericMatcher(
+    r"NEB\| S-IDPP \d+ images; minimum pair distance \[angstrom\]:", col=9, regex=True
+)
 registry["Ssneb_initial_shear_force"] = GenericMatcher(
     "SS-NEB| Cell force 2 ", col=8, first=True
 )
