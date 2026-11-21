@@ -123,7 +123,6 @@ case "${with_cosma}" in
         fi
 
         if [ "${ENABLE_HIP}" = "__TRUE__" ]; then
-          mkdir build-hip && cd build-hip
           cmake -B build-hip \
             -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-hip" \
             -DCMAKE_INSTALL_LIBDIR=lib \
