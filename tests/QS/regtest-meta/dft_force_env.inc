@@ -1,9 +1,9 @@
 &FORCE_EVAL
   &DFT
     CHARGE ${CHARGE}
-@IF ( ${LSD} == 1 )
+    @IF ( ${LSD} == 1 )
     LSD
-@ENDIF
+    @ENDIF
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
@@ -12,21 +12,21 @@
     &QS
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
       EPS_SCF 1.0E-5
       MAX_SCF 20
+      SCF_GUESS ATOMIC
       &OT
-        PRECONDITIONER FULL_SINGLE_INVERSE
         MINIMIZER CG
-      &END
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
       &OUTER_SCF
         EPS_SCF 1.0E-5
         MAX_SCF 5
-      &END OUTER_SCF 
+      &END OUTER_SCF
       &PRINT
-         &RESTART OFF
-         &END
-      &END
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade

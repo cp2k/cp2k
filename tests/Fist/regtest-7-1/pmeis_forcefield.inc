@@ -1,57 +1,57 @@
-    &FORCEFIELD
-      ZBL_SCATTERING
-      &CHARGE
-        ATOM U
-        CHARGE 4.0
-      &END
-      &CHARGE
-        ATOM O
-        CHARGE -2.0
-      &END
-      &SHELL U
-        CORE_CHARGE   -2.840000
-        SHELL_CHARGE 6.840000
-        MASS_FRACTION  0.01
-        SPRING  [eV*angstrom^-2] 171.556
-        MAX_DISTANCE [angstrom] 0.1
-      &END SHELL
-      &SHELL O
-        CORE_CHARGE 1.186267
-        SHELL_CHARGE -3.186267
-        MASS_FRACTION 0.1
-        SPRING [eV*angstrom^-2] 70.824
-        MAX_DISTANCE [angstrom] 0.05
-      &END SHELL
-      &NONBONDED
-        &WILLIAMS
-          atoms U  O
-          A [eV] 844.41
-          B [angstrom^-1] 2.35159661652
-          C [eV*angstrom^6] 0.0
-          RCUT 10.4
-        &END WILLIAMS
-        &BUCK4RANGES
-          atoms O O
-          A [eV] 20908.03
-          B [angstrom^-1] 7.71604938272
-          C [eV*angstrom^6] 229.04
-          R1 1.17
-          R2 1.62
-          R3 2.84
-          POLY1 [eV] 4204.472427467161  -7959.112702279119   6021.074988330987  -2270.766871550818 426.319753380798 -31.850801875744
-          POLY2 [eV] 6.734634669569  -6.692698089020 1.656245757939  -0.122636741736
-          RCUT 10.4
-        &END BUCK4RANGES
-        &WILLIAMS
-          atoms U U
-          A [eV] 0.0
-          B [angstrom^-1] 0.0
-          C [eV*angstrom^6] 0.0
-          RCUT 10.4
-        &END WILLIAMS
-      &END NONBONDED
-      &SPLINE
-        R0_NB   0.05
-        EMAX_SPLINE 100
-      &END
-    &END FORCEFIELD
+&FORCEFIELD
+  ZBL_SCATTERING
+  &CHARGE
+    ATOM U
+    CHARGE 4.0
+  &END CHARGE
+  &CHARGE
+    ATOM O
+    CHARGE -2.0
+  &END CHARGE
+  &NONBONDED
+    &BUCK4RANGES
+      A [eV] 20908.03
+      ATOMS O O
+      B [angstrom^-1] 7.71604938272
+      C [eV*angstrom^6] 229.04
+      POLY1 [eV] 4204.472427467161 -7959.112702279119 6021.074988330987 -2270.766871550818 426.319753380798 -31.850801875744
+      POLY2 [eV] 6.734634669569 -6.692698089020 1.656245757939 -0.122636741736
+      R1 1.17
+      R2 1.62
+      R3 2.84
+      RCUT 10.4
+    &END BUCK4RANGES
+    &WILLIAMS
+      A [eV] 844.41
+      ATOMS U O
+      B [angstrom^-1] 2.35159661652
+      C [eV*angstrom^6] 0.0
+      RCUT 10.4
+    &END WILLIAMS
+    &WILLIAMS
+      A [eV] 0.0
+      ATOMS U U
+      B [angstrom^-1] 0.0
+      C [eV*angstrom^6] 0.0
+      RCUT 10.4
+    &END WILLIAMS
+  &END NONBONDED
+  &SHELL U
+    CORE_CHARGE -2.840000
+    MASS_FRACTION 0.01
+    MAX_DISTANCE [angstrom] 0.1
+    SHELL_CHARGE 6.840000
+    SPRING [eV*angstrom^-2] 171.556
+  &END SHELL
+  &SHELL O
+    CORE_CHARGE 1.186267
+    MASS_FRACTION 0.1
+    MAX_DISTANCE [angstrom] 0.05
+    SHELL_CHARGE -3.186267
+    SPRING [eV*angstrom^-2] 70.824
+  &END SHELL
+  &SPLINE
+    EMAX_SPLINE 100
+    R0_NB 0.05
+  &END SPLINE
+&END FORCEFIELD

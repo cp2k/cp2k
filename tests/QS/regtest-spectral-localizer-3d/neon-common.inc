@@ -3,6 +3,7 @@
   PROJECT localizer-3d
   RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD QUICKSTEP
   &DFT
@@ -17,9 +18,9 @@
       POISSON_SOLVER MT
     &END POISSON
     &QS
-      METHOD ${AO_METHOD}
       EPS_DEFAULT 1.0E-12
       EPS_PPNL 1.0E-14
+      METHOD ${AO_METHOD}
     &END QS
     &SCF
       EPS_SCF 1.0E-12
@@ -38,14 +39,14 @@
   &PROPERTIES
     &SPECTRAL_LOCALIZER ON
       DIMENSION 3
-      INVARIANT Z2
-      SOC T
-      TIME_REVERSAL T
       ENERGY [hartree] -0.1
-      POSITION [angstrom] 3.0 2.9 3.2
-      KAPPA [hartree*bohr^-1] 0.1
-      SPECTRAL_FLATTENING ${FLATTEN}
       EPS_GAP [hartree] ${GAP_THRESHOLD}
+      INVARIANT Z2
+      KAPPA [hartree*bohr^-1] 0.1
+      POSITION [angstrom] 3.0 2.9 3.2
+      SOC T
+      SPECTRAL_FLATTENING ${FLATTEN}
+      TIME_REVERSAL T
     &END SPECTRAL_LOCALIZER
   &END PROPERTIES
   &SUBSYS

@@ -302,11 +302,11 @@ def process_file(fn: str, allow_modifications: bool) -> str:
         filetype = "MarkDown"
         run_remote_tool("mdformat", fn)
 
-    if basename == "TEST_FILES.toml":
+    if re.match(r".*\.toml$", fn):
         filetype = "TOML"
         run_remote_tool("tombi", fn)
 
-    if re.match(r"(.*/CMakeLists.txt)|(.*\.cmake)$", fn):
+    if re.match(r"(.*/CMakeLists\.txt)|(.*\.cmake)$", fn):
         filetype = "CMake"
         run_remote_tool("cmakeformat", fn)
         run_remote_tool("cmakelint", fn)
@@ -319,7 +319,7 @@ def process_file(fn: str, allow_modifications: bool) -> str:
         filetype = "Makefile"
         run_local_tool("./tools/precommit/format_makefile.py", fn)
 
-    if re.match(r".*\.inp$", fn):
+    if re.match(r"(.*\.inp$)|(.*\.inc)$", fn):
         filetype = "CP2K-input"
         run_local_tool("./tools/precommit/format_input_file.py", fn)
 
