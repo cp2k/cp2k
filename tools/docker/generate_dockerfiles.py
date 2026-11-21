@@ -437,10 +437,22 @@ def coverage() -> str:
     return (
         install_cp2k(profile="toolchain_coverage", version="psmp", revision=True)
         + rf"""
+# Install lcov for the coverage analysis.
+RUN apt-get update -qq && \
+    apt-get install -qq --no-install-recommends lcov libjson-xs-perl && \
+    rm -rf /var/lib/apt/lists/*
+
 # Run coverage test.
 COPY ./tests ./tests
-COPY ./tools/docker/scripts/test_coverage.sh .
-RUN ./test_coverage.sh 2>&1 | tee report.log
+COPY ./tools/make_cp2k/common.sh ./tools/make_cp2k/test_coverage.sh ./tools/make_cp2k/
+RUN ./tools/make_cp2k/test_coverage.sh \
+    --setup /opt/cp2k-toolchain/install/setup \
+    --regtest "--ompthreads=1 --keepalive /opt/cp2k/build/bin psmp" \
+    --build_dir /opt/cp2k/build/src \
+    --output_dir /workspace/artifacts/coverage \
+    --exclude "/opt/cp2k-toolchain/*" \
+    --gcov_timeout 10s \
+    2>&1 | tee report.log
 """
         + print_cached_report()
     )
