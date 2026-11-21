@@ -72,7 +72,8 @@ MODULE scf_control_types
 
    ! Public subroutines
 
-   PUBLIC :: scf_c_create, &
+   PUBLIC :: has_fixed_ot_virtuals, &
+             scf_c_create, &
              scf_c_read_parameters, &
              scf_c_release, &
              scf_c_write_parameters
@@ -168,6 +169,20 @@ MODULE scf_control_types
    END TYPE gce_type
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Whether the SCF optimizes added orbitals at fixed occupation.
+!> \param scf_control SCF settings with resolved ADDED_MOS counts
+!> \param dft_smear smearing flag from the DFT control
+!> \return ...
+! **************************************************************************************************
+   PURE LOGICAL FUNCTION has_fixed_ot_virtuals(scf_control, dft_smear)
+      TYPE(scf_control_type), INTENT(IN)                 :: scf_control
+      LOGICAL, INTENT(IN)                                :: dft_smear
+
+      has_fixed_ot_virtuals = scf_control%use_ot .AND. ANY(scf_control%added_mos > 0) .AND. &
+                              .NOT. (dft_smear .OR. scf_control%smear%do_smear)
+   END FUNCTION has_fixed_ot_virtuals
 
 ! **************************************************************************************************
 !> \brief allocates and initializes an scf control object with the default values

@@ -20,14 +20,10 @@ MODULE preconditioner_makes
                                               get_selected_ritz_vector,&
                                               set_arnoldi_initial_vector,&
                                               setup_arnoldi_env
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
-                                              cp_cfm_gemm,&
-                                              cp_cfm_get_diag,&
-                                              cp_cfm_norm,&
-                                              cp_cfm_scale_and_add,&
-                                              cp_cfm_triangular_multiply,&
-                                              cp_cfm_uplo_to_full,&
-                                              cp_cfm_vectorsnorm
+   USE cp_cfm_basic_linalg,             ONLY: &
+        cp_cfm_column_scale, cp_cfm_gemm, cp_cfm_get_diag, cp_cfm_norm, cp_cfm_scale_and_add, &
+        cp_cfm_triangular_invert, cp_cfm_triangular_multiply, cp_cfm_uplo_to_full, &
+        cp_cfm_vectorsnorm
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
@@ -47,13 +43,15 @@ MODULE preconditioner_makes
                                               cp_dbcsr_sm_fm_multiply,&
                                               cp_fm_to_dbcsr_row_template
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_norm,&
                                               cp_fm_triangular_invert,&
                                               cp_fm_triangular_multiply,&
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                              direct_generalized_diagonalization
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -118,14 +116,18 @@ CONTAINS
       CALL timeset(routineN, handle)
       CALL prepare_complex_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, &
                                     matrix_tmp, matrix_s_copy, c0_evals, energy_gap)
-      CALL cp_cfm_create(matrix_diag_work, matrix_h%matrix_struct, &
-                         name='complex FULL_ALL diagonalization work')
-      CALL cp_cfm_geeig(matrix_tmp, matrix_s_copy, preconditioner_env%complex_fm, &
-                        preconditioner_env%full_evals, matrix_diag_work)
+      IF (direct_generalized_diagonalization) THEN
+         CALL cp_cfm_create(matrix_diag_work, matrix_h%matrix_struct)
+         CALL cp_cfm_geeig(matrix_tmp, matrix_s_copy, preconditioner_env%complex_fm, &
+                           preconditioner_env%full_evals, matrix_diag_work)
+         CALL cp_cfm_release(matrix_diag_work)
+      ELSE
+         CALL cp_cfm_heevd(matrix_tmp, preconditioner_env%complex_fm, preconditioner_env%full_evals)
+         CALL cp_cfm_triangular_multiply(matrix_s_copy, preconditioner_env%complex_fm)
+      END IF
       k = SIZE(preconditioner_env%occ_evals)
       preconditioner_env%full_evals(1:k) = preconditioner_env%occ_evals(:)
       CALL cp_cfm_to_cfm(matrix_c0, preconditioner_env%complex_fm, k)
-      CALL cp_cfm_release(matrix_diag_work)
       CALL cp_cfm_release(matrix_s_copy)
       CALL cp_cfm_release(matrix_tmp)
       CALL timestop(handle)
@@ -138,7 +140,7 @@ CONTAINS
 !> \param matrix_h Hamiltonian
 !> \param matrix_s overlap
 !> \param matrix_tmp projected and shifted Hamiltonian; caller releases it after diagonalization
-!> \param matrix_s_copy overlap scratch; caller releases it after diagonalization
+!> \param matrix_s_copy inverse Cholesky factor, or overlap for a direct generalized solve
 !> \param c0_evals optional reference energies
 !> \param energy_gap denominator floor
 ! **************************************************************************************************
@@ -147,20 +149,21 @@ CONTAINS
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_c0, matrix_h, matrix_s
-      TYPE(cp_cfm_type), INTENT(OUT)                     :: matrix_tmp, matrix_s_copy
+      TYPE(cp_cfm_type), INTENT(OUT), TARGET             :: matrix_tmp
+      TYPE(cp_cfm_type), INTENT(OUT)                     :: matrix_s_copy
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: c0_evals
       REAL(KIND=dp), INTENT(IN)                          :: energy_gap
 
       CHARACTER(len=*), PARAMETER :: routineN = 'prepare_complex_full_all'
-      REAL(KIND=dp), PARAMETER                           :: fudge_factor = 0.25_dp, &
-                                                            lambda_base = 10.0_dp
+      REAL(KIND=dp), PARAMETER                           :: fudge_factor = 0.25_dp
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: shifted_evals
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: reference_evals
       INTEGER                                            :: handle, k, n
-      REAL(KIND=dp)                                      :: error_estimate, lambda
+      REAL(KIND=dp)                                      :: error_estimate, reference_level
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: residual_norm_sq
       TYPE(cp_cfm_type)                                  :: matrix_chc, matrix_hc0, matrix_sc0, &
                                                             matrix_sc_chc, matrix_shifted_sc
+      TYPE(cp_cfm_type), POINTER                         :: reduced_h
 
       CALL timeset(routineN, handle)
 
@@ -202,18 +205,18 @@ CONTAINS
       ! Estimate the S^-1 norm of the Ritz residual, R = H C - S C epsilon.
       ! As in the real FULL_ALL implementation, use it to prevent an inaccurate
       ! reference subspace from producing an overly aggressive preconditioner.
-      ALLOCATE (shifted_evals(k), residual_norm_sq(k))
+      ALLOCATE (reference_evals(k), residual_norm_sq(k))
       IF (PRESENT(c0_evals)) THEN
          preconditioner_env%occ_evals(:) = c0_evals(1:k)
       ELSE
          ! OT MO labels can be stale or independent Mermin variables. Use the current
          ! reference and Hamiltonian without changing the orbitals or occupations.
-         CALL cp_cfm_get_diag(matrix_chc, shifted_evals)
-         preconditioner_env%occ_evals(:) = REAL(shifted_evals, KIND=dp)
+         CALL cp_cfm_get_diag(matrix_chc, reference_evals)
+         preconditioner_env%occ_evals(:) = REAL(reference_evals, KIND=dp)
       END IF
-      shifted_evals(:) = CMPLX(preconditioner_env%occ_evals, 0.0_dp, KIND=dp)
+      reference_evals(:) = CMPLX(preconditioner_env%occ_evals, 0.0_dp, KIND=dp)
       CALL cp_cfm_to_cfm(matrix_sc0, matrix_sc_chc)
-      CALL cp_cfm_column_scale(matrix_sc_chc, shifted_evals)
+      CALL cp_cfm_column_scale(matrix_sc_chc, reference_evals)
       CALL cp_cfm_to_cfm(matrix_hc0, matrix_shifted_sc)
       CALL cp_cfm_scale_and_add(z_one, matrix_shifted_sc, -z_one, matrix_sc_chc)
       CALL cp_cfm_to_cfm(matrix_s, matrix_s_copy)
@@ -224,7 +227,6 @@ CONTAINS
       CALL cp_cfm_vectorsnorm(matrix_shifted_sc, residual_norm_sq, squared=.TRUE.)
       error_estimate = SQRT(MAXVAL(residual_norm_sq))
       preconditioner_env%energy_gap = MAX(energy_gap, error_estimate*fudge_factor)
-      lambda = lambda_base + error_estimate
 
       ! Q^H H Q with Q = I - C C^H S. This removes occupied/complement cross terms
       ! without rotating the reference columns.
@@ -234,18 +236,27 @@ CONTAINS
       CALL cp_cfm_gemm('N', 'N', n, k, k, z_one, matrix_sc0, matrix_chc, z_zero, matrix_sc_chc)
       CALL cp_cfm_gemm('N', 'C', n, n, k, z_one, matrix_sc_chc, matrix_sc0, z_one, matrix_tmp)
 
-      ! Shift the retained reference subspace below the complementary spectrum. The caller
-      ! diagonalizes and restores the original reference columns and energy labels exactly.
-      shifted_evals(:) = CMPLX(preconditioner_env%occ_evals - lambda, 0.0_dp, KIND=dp)
-      CALL cp_cfm_to_cfm(matrix_sc0, matrix_shifted_sc)
-      CALL cp_cfm_column_scale(matrix_shifted_sc, shifted_evals)
-      CALL cp_cfm_gemm('N', 'C', n, n, k, z_one, matrix_shifted_sc, matrix_sc0, z_one, matrix_tmp)
-
-      CALL cp_cfm_to_cfm(matrix_s, matrix_s_copy)
+      ! Bound the complementary spectrum in the orthonormal basis. A direct generalized
+      ! solve still needs the AO pencil, so use its eigenvector buffer for the reduction.
+      reduced_h => matrix_tmp
+      IF (direct_generalized_diagonalization) THEN
+         reduced_h => preconditioner_env%complex_fm
+         CALL cp_cfm_to_cfm(matrix_tmp, reduced_h)
+      END IF
+      CALL cp_cfm_triangular_invert(matrix_s_copy)
+      CALL cp_cfm_triangular_multiply(matrix_s_copy, reduced_h, side='R')
+      CALL cp_cfm_triangular_multiply(matrix_s_copy, reduced_h, transa_tr='C')
+      reference_level = -2.0_dp*MAX(1.0_dp, cp_cfm_norm(reduced_h, 'I'))
+      IF (direct_generalized_diagonalization) THEN
+         CALL cp_cfm_to_cfm(matrix_s, matrix_s_copy)
+      ELSE
+         CALL cp_cfm_triangular_multiply(matrix_s_copy, matrix_sc0, transa_tr='C')
+      END IF
+      CALL cp_cfm_gemm('N', 'C', n, n, k, CMPLX(reference_level, KIND=dp), matrix_sc0, matrix_sc0, z_one, matrix_tmp)
       preconditioner_env%in_use = ot_precond_full_all
       preconditioner_env%solver = ot_precond_solver_default
 
-      DEALLOCATE (residual_norm_sq, shifted_evals)
+      DEALLOCATE (residual_norm_sq, reference_evals)
       CALL cp_cfm_release(matrix_shifted_sc)
       CALL cp_cfm_release(matrix_sc_chc)
       CALL cp_cfm_release(matrix_chc)
@@ -558,7 +569,7 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s, matrix_t
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       REAL(KIND=dp)                                      :: energy_homo
-      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues_ot
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: eigenvalues_ot
       REAL(KIND=dp)                                      :: energy_gap
       INTEGER                                            :: my_solver_type
 
@@ -840,9 +851,8 @@ CONTAINS
 !> \param matrix_c0 ...
 !> \param matrix_h ...
 !> \param matrix_s optional overlap; absent for an orthonormal basis
-!> \param c0_evals ...
+!> \param c0_evals reference energies; by default use the Rayleigh quotient of each column
 !> \param energy_gap should be a slight underestimate of the physical energy gap for almost all systems
-!>      the c0 are already ritz states of (h,s)
 !> \param common_reference optional scalar occupied-space level used by FERMI_LOW_RANK
 !> \par History
 !>      10.2006 made more stable [Joost VandeVondele]
@@ -860,17 +870,17 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_c0
       TYPE(dbcsr_type), POINTER                          :: matrix_h
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s
-      REAL(KIND=dp), DIMENSION(:)                        :: c0_evals
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: c0_evals
       REAL(KIND=dp)                                      :: energy_gap
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: common_reference
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'make_full_all'
-      REAL(KIND=dp), PARAMETER                           :: fudge_factor = 0.25_dp, &
-                                                            lambda_base = 10.0_dp
+      REAL(KIND=dp), PARAMETER                           :: fudge_factor = 0.25_dp
 
-      INTEGER                                            :: handle, k, n
-      REAL(KIND=dp)                                      :: error_estimate, lambda
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag, shifted_evals
+      INTEGER                                            :: handle, j, k, n, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices
+      REAL(KIND=dp)                                      :: error_estimate, reference_level
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: matrix_hc0, matrix_left, matrix_sc0, &
                                                             matrix_shc0, matrix_tmp, ortho
@@ -903,12 +913,7 @@ CONTAINS
             CALL cp_fm_triangular_invert(ortho)
          END IF
       END IF
-      ! 1) Construct a new H matrix, which has the current C0 as eigenvectors,
-      !    possibly shifted by an amount lambda,
-      !    and the same spectrum as the original H matrix in the space orthogonal to the C0
-      !    with P=C0 C0 ^ T
-      !    (1 - PS)^T H (1-PS) + (PS)^T (H - lambda S ) (PS)
-      !    we exploit that the C0 are already the ritz states of H
+      ! Project H onto the S-orthogonal complement of the reference orbitals.
       CALL cp_fm_create(matrix_sc0, matrix_c0%matrix_struct, name="sc0")
       IF (PRESENT(matrix_s)) THEN
          CALL cp_dbcsr_sm_fm_multiply(matrix_s, matrix_c0, matrix_sc0, k)
@@ -917,6 +922,18 @@ CONTAINS
       END IF
       CALL cp_fm_create(matrix_hc0, matrix_c0%matrix_struct, name="hc0")
       CALL cp_dbcsr_sm_fm_multiply(matrix_h, matrix_c0, matrix_hc0, k)
+      IF (PRESENT(c0_evals)) THEN
+         preconditioner_env%occ_evals(:) = c0_evals(1:k)
+      ELSE
+         ! Keep each energy label attached to its physical orbital, including empty ones.
+         CALL cp_fm_get_info(matrix_c0, nrow_local=nrow_local, ncol_local=ncol_local, col_indices=col_indices)
+         preconditioner_env%occ_evals(:) = 0.0_dp
+         DO j = 1, ncol_local
+            preconditioner_env%occ_evals(col_indices(j)) = DOT_PRODUCT(matrix_c0%local_data(:nrow_local, j), &
+                                                                       matrix_hc0%local_data(:nrow_local, j))
+         END DO
+         CALL preconditioner_env%para_env%sum(preconditioner_env%occ_evals)
+      END IF
 
       ! Only the diagonal of (U^-T H C)^T (U^-T H C) is needed, with S = U^T U.
       ALLOCATE (diag(k))
@@ -939,9 +956,9 @@ CONTAINS
       END IF
       IF (PRESENT(common_reference)) THEN
          ! ||(1-CC^T S)S^-1 H C||_F is invariant under C -> C U.
-         error_estimate = SQRT(MAX(0.0_dp, SUM(diag) - SUM(c0_evals**2)))
+         error_estimate = SQRT(MAX(0.0_dp, SUM(diag) - SUM(preconditioner_env%occ_evals**2)))
       ELSE
-         error_estimate = MAXVAL(SQRT(ABS(diag - c0_evals**2)))
+         error_estimate = MAXVAL(SQRT(ABS(diag - preconditioner_env%occ_evals**2)))
       END IF
       DEALLOCATE (diag)
       ! we'll only use the energy gap, if our estimate of the error on the eigenvalues
@@ -965,18 +982,6 @@ CONTAINS
       CALL parallel_gemm('N', 'N', n, n, k, -1.0_dp, matrix_sc0, matrix_left, 1.0_dp, matrix_tmp)
       CALL cp_fm_release(matrix_left)
 
-      ALLOCATE (shifted_evals(k))
-      lambda = lambda_base + error_estimate
-      IF (PRESENT(common_reference)) THEN
-         shifted_evals(:) = common_reference - lambda
-      ELSE
-         shifted_evals(:) = c0_evals - lambda
-      END IF
-      CALL cp_fm_to_fm(matrix_sc0, matrix_hc0)
-      CALL cp_fm_column_scale(matrix_hc0, shifted_evals)
-      CALL parallel_gemm('N', 'T', n, n, k, 1.0_dp, matrix_hc0, matrix_sc0, 1.0_dp, matrix_tmp)
-
-      ! 2) diagonalize this operator
       IF (PRESENT(matrix_s)) THEN
          SELECT CASE (preconditioner_env%cholesky_use)
          CASE (cholesky_inverse)
@@ -986,8 +991,16 @@ CONTAINS
                                            invert_tr=.FALSE., uplo_tr="U", n_rows=n, n_cols=n, alpha=1.0_dp)
          CASE (cholesky_reduce)
             CALL cp_fm_cholesky_reduce(matrix_tmp, ortho)
+            CALL cp_fm_uplo_to_full(matrix_tmp, matrix_pre)
          END SELECT
+         CALL cp_fm_triangular_multiply(ortho, matrix_sc0, transpose_tr=.TRUE., &
+                                        invert_tr=preconditioner_env%cholesky_use == cholesky_reduce)
       END IF
+
+      ! Every complementary eigenvalue is >= -||H_projected||_inf in this basis.
+      ! Place all reference columns strictly below it before restoring their physical energies.
+      reference_level = -2.0_dp*MAX(1.0_dp, cp_fm_norm(matrix_tmp, 'I'))
+      CALL parallel_gemm('N', 'T', n, n, k, reference_level, matrix_sc0, matrix_sc0, 1.0_dp, matrix_tmp)
       CALL choose_eigv_solver(matrix_tmp, matrix_pre, preconditioner_env%full_evals)
       IF (PRESENT(matrix_s)) THEN
          SELECT CASE (preconditioner_env%cholesky_use)
@@ -1001,21 +1014,14 @@ CONTAINS
          CALL cp_fm_release(ortho)
       END IF
 
-      ! 3) replace the lowest k evals and evecs with what they should be
-      IF (PRESENT(common_reference)) THEN
-         preconditioner_env%occ_evals = common_reference
-         preconditioner_env%full_evals(1:k) = common_reference
-      ELSE
-         preconditioner_env%occ_evals = c0_evals
-         ! This choice makes FULL_ALL constant when applied to sc0 (see apply_full_all).
-         preconditioner_env%full_evals(1:k) = c0_evals
-      END IF
+      ! Restore the reference energies in the same column order as C0.
+      IF (PRESENT(common_reference)) preconditioner_env%occ_evals(:) = common_reference
+      preconditioner_env%full_evals(1:k) = preconditioner_env%occ_evals(:)
       CALL cp_fm_to_fm(matrix_c0, matrix_pre, k, 1, 1)
 
       CALL cp_fm_release(matrix_sc0)
       CALL cp_fm_release(matrix_hc0)
       CALL cp_fm_release(matrix_tmp)
-      DEALLOCATE (shifted_evals)
       CALL timestop(handle)
 
    END SUBROUTINE make_full_all

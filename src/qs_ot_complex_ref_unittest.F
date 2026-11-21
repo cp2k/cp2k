@@ -15,8 +15,9 @@ PROGRAM qs_ot_complex_ref_unittest
                                               cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
-        dbcsr_finalize, dbcsr_finalize_lib, dbcsr_get_block_p, dbcsr_init_lib, dbcsr_put_block, &
-        dbcsr_release, dbcsr_reserve_blocks, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_finalize, dbcsr_finalize_lib, dbcsr_get_block_p, dbcsr_init_lib, dbcsr_p_type, &
+        dbcsr_put_block, dbcsr_release, dbcsr_reserve_blocks, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_log_handling,                 ONLY: cp_add_default_logger,&
                                               cp_logger_create,&
                                               cp_logger_release,&
@@ -34,6 +35,7 @@ PROGRAM qs_ot_complex_ref_unittest
                                               mp_para_env_type,&
                                               mp_world_finalize,&
                                               mp_world_init
+   USE qs_ot,                           ONLY: qs_ot_ref_update
    USE qs_ot_kp,                        ONLY: qs_ot_apply_complex_frechet_dbcsr,&
                                               qs_ot_complex_exp_frechet_kernel,&
                                               qs_ot_density_tangent,&
@@ -42,7 +44,9 @@ PROGRAM qs_ot_complex_ref_unittest
                                               qs_ot_get_derivative_ref_complex,&
                                               qs_ot_get_orbitals_ref_complex,&
                                               qs_ot_get_p_complex
-   USE qs_ot_types,                     ONLY: qs_ot_type
+   USE qs_ot_minimizer,                 ONLY: ot_mini
+   USE qs_ot_types,                     ONLY: qs_ot_reset_history,&
+                                              qs_ot_type
    USE reference_manager,               ONLY: remove_all_references
 
    IMPLICIT NONE
@@ -194,20 +198,23 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(INOUT)                             :: nfail
 
+      CHARACTER(LEN=4), PARAMETER :: searches(4) = ['2PNT', '3PNT', 'GOLD', 'ADPT']
+
       COMPLEX(KIND=dp), DIMENSION(k, k)                  :: direction_a, generator, gradient_a, &
                                                             inverse_sqrt, rotation
       COMPLEX(KIND=dp), DIMENSION(n, k)                  :: c_dense, c_reference, direction_x, &
                                                             gradient_x, hc_dense, q_dense, x_dense
       COMPLEX(KIND=dp), DIMENSION(n, n)                  :: hamiltonian, overlap
-      INTEGER                                            :: i, j
+      INTEGER                                            :: arithmetic, i, iter, j, scenario, search
       REAL(KIND=dp)                                      :: error_c, error_ref, error_rot, fd_ref, &
                                                             fd_rot, hstep, predicted_ref, &
-                                                            predicted_rot
+                                                            predicted_rot, tmp
       REAL(KIND=dp), DIMENSION(2)                        :: response_gradient
       REAL(KIND=dp), DIMENSION(2, 2)                     :: rayleigh_response, response_hessian
       REAL(KIND=dp), DIMENSION(k)                        :: occupation
       REAL(KIND=dp), DIMENSION(k), TARGET                :: rotation_evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(dbcsr_p_type), POINTER                        :: unused_hc(:)
       TYPE(dbcsr_type), DIMENSION(10), TARGET            :: rot_matrix
       TYPE(dbcsr_type), DIMENSION(2), TARGET             :: nk_buffer
       TYPE(dbcsr_type), DIMENSION(3), TARGET             :: nonsym_buffer
@@ -218,10 +225,13 @@ CONTAINS
                                                             hc_im, hc_re, s_im, s_re, sx_im, &
                                                             sx_re, x_im, x_re
       TYPE(mp_para_env_type), POINTER                    :: local_para_env
-      TYPE(qs_ot_type)                                   :: rotation_env
+      TYPE(qs_ot_type), POINTER                          :: minimizer(:), rotation_env
+      TYPE(qs_ot_type), TARGET                           :: environments(1)
 
       NULLIFY (blacs_env, c_im_p, c_re_p, hc_im_p, hc_re_p, local_para_env, &
-               s_im_p, s_re_p)
+               s_im_p, s_re_p, unused_hc)
+      minimizer => environments
+      rotation_env => minimizer(1)
 
       x_dense(:, 1) = [CMPLX(1.05_dp, 0.12_dp, KIND=dp), CMPLX(0.18_dp, -0.27_dp, KIND=dp), &
                        CMPLX(-0.14_dp, 0.16_dp, KIND=dp)]
@@ -259,7 +269,7 @@ CONTAINS
       DO i = 1, n
          overlap(i, i) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
       END DO
-      occupation = [1.0_dp, 0.37_dp]
+      occupation = [1.0_dp, 0.0_dp]
 
       CALL dense_inverse_sqrt(MATMUL(CONJG(TRANSPOSE(x_dense)), x_dense), inverse_sqrt)
       q_dense = MATMUL(x_dense, inverse_sqrt)
@@ -387,6 +397,92 @@ CONTAINS
          WRITE (io_unit, '(A,3(1X,ES13.6))') 'complex finite rotation slope fd/predicted/error', &
             fd_rot, predicted_rot, error_rot
       END IF
+
+      ! Reuse the fixture for a physically flat empty-state direction and a coupled search.
+      ! The physical energy and derivative agree; the joint residual also sees the empty column.
+      rotation_env%optimize_virtuals = .TRUE.
+      rotation_env%settings%ks = .TRUE.
+      rotation_env%settings%ot_algorithm = 'REF'
+      rotation_env%settings%ds_min = 0.15_dp
+      rotation_env%settings%gold_target = 0.01_dp
+      rotation_env%use_dx = .TRUE.
+      rotation_env%matrix_dx => hc_re
+      rotation_env%matrix_dx_im => hc_im
+      rotation_env%matrix_gx_old => sx_re
+      rotation_env%matrix_gx_old_im => sx_im
+      rotation_env%matrix_preconditioned_gx => c_re
+      rotation_env%matrix_preconditioned_gx_im => c_im
+      rotation_env%rot_mat_dx => rot_matrix(5)
+      rotation_env%rot_mat_dx_im => rot_matrix(6)
+      rotation_env%rot_mat_gx_old => rot_matrix(9)
+      rotation_env%rot_mat_gx_old_im => rot_matrix(10)
+      DO search = 1, SIZE(searches)
+         rotation_env%settings%line_search_method = searches(search)
+         DO scenario = 1, 2
+            DO arithmetic = 1, 6
+               rotation_env%has_complex_kpoint_state = arithmetic >= 3
+               rotation_env%settings%occupation_preconditioner = arithmetic >= 3
+               rotation_env%kpoint_weight = MERGE(0.01_dp, 1.0_dp, arithmetic >= 5)
+               rotation_env%use_gx_old = MOD(arithmetic, 2) == 0
+               rotation_env%settings%ot_method = MERGE('CG', 'SD', rotation_env%use_gx_old)
+               CALL qs_ot_reset_history(rotation_env)
+               x_dense(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+               IF (scenario == 2) x_dense(n, 1) = CMPLX(0.1_dp, 0.0_dp, KIND=dp)
+               x_dense(n, k) = CMPLX(-0.6_dp, MERGE(0.2_dp, 0.0_dp, arithmetic >= 3), KIND=dp)
+               generator(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+               IF (scenario == 2) generator(1, 2) = CMPLX(0.01_dp, 0.0_dp, KIND=dp)
+               generator(2, 1) = -CONJG(generator(1, 2))
+               CALL put_complex_pair(x_re, x_im, x_dense)
+               CALL put_complex_pair(rot_matrix(3), rot_matrix(4), generator)
+               DO iter = 1, 800
+                  gradient_x(:, :) = x_dense
+                  IF (scenario == 2) THEN
+                     gradient_x(:, 1) = gradient_x(:, 1) + 0.5_dp*x_dense(:, k)
+                     gradient_x(:, k) = gradient_x(:, k) + 0.5_dp*x_dense(:, 1)
+                  END IF
+                  gradient_x(:, :) = rotation_env%kpoint_weight*gradient_x
+                  gradient_a(:, :) = rotation_env%kpoint_weight*generator
+                  hc_dense(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+                  hc_dense(:, 1) = rotation_env%kpoint_weight*x_dense(:, 1)
+                  CALL put_complex_pair(c_re, c_im, hc_dense)
+                  rotation_env%etotal = rotation_env%kpoint_weight*(0.5_dp*SUM(ABS(x_dense(:, 1))**2) + &
+                                                                    0.25_dp*SUM(ABS(generator)**2))
+                  CALL put_complex_pair(g_re, g_im, gradient_x)
+                  CALL put_complex_pair(rot_matrix(7), rot_matrix(8), gradient_a)
+                  CALL dbcsr_dot(g_re, hc_re, rotation_env%gradient)
+                  CALL dbcsr_dot(g_im, hc_im, tmp)
+                  CALL get_complex_pair(rot_matrix(5), rot_matrix(6), direction_a)
+                  rotation_env%gradient = rotation_env%gradient + tmp + &
+                                          0.5_dp*REAL(SUM(CONJG(gradient_a)*direction_a), KIND=dp)
+                  CALL ot_mini(minimizer, unused_hc, gradient_prepared=.TRUE., restart_history=.FALSE.)
+                  IF (iter == 1) THEN
+                     predicted_ref = REAL(SUM(CONJG(hc_dense)* &
+                                              (-gradient_x/rotation_env%kpoint_weight)), KIND=dp) - &
+                                     0.5_dp*rotation_env%kpoint_weight*SUM(ABS(generator)**2)
+                     CALL check_error('energy line-search slope', ABS(rotation_env%ot_grad(1) - predicted_ref), &
+                                      1.0E-13_dp, nfail)
+                  END IF
+                  c_reference(:, :) = x_dense - rotation_env%ds_min*gradient_x/rotation_env%kpoint_weight
+                  CALL get_complex_pair(x_re, x_im, x_dense)
+                  CALL get_complex_pair(rot_matrix(3), rot_matrix(4), rotation)
+                  IF (iter == 1) THEN
+                     CALL check_error('orbital search weight', MAXVAL(ABS(x_dense - c_reference)), 1.0E-13_dp, nfail)
+                     CALL check_error('rotation search weight', &
+                                      MAXVAL(ABS(rotation - (1.0_dp - rotation_env%ds_min)*generator)), &
+                                      1.0E-13_dp, nfail)
+                     IF (rotation_env%delta < 1.0E-3_dp) nfail = nfail + 1
+                  END IF
+                  IF (qs_ot_ref_update(rotation_env) .NEQV. rotation_env%line_search_might_be_done) nfail = nfail + 1
+                  IF (rotation_env%settings%line_search_method /= searches(search)) nfail = nfail + 1
+                  IF (rotation_env%ds_min > 4.0_dp*rotation_env%settings%ds_min) nfail = nfail + 1
+                  generator(:, :) = rotation
+                  error_ref = MAX(MAXVAL(ABS(x_dense)), MAXVAL(ABS(generator)))
+                  IF (error_ref < 1.0E-9_dp) EXIT
+               END DO
+               CALL check_error('zero-occupation OT search', error_ref, 1.0E-9_dp, nfail)
+            END DO
+         END DO
+      END DO
 
       DO i = 1, SIZE(rot_matrix)
          CALL dbcsr_release(rot_matrix(i))
@@ -588,7 +684,7 @@ CONTAINS
       direction_a(2, 2) = CMPLX(0.0_dp, 0.04_dp, KIND=dp)
       direction_a(1, 2) = CMPLX(-0.08_dp, 0.06_dp, KIND=dp)
       direction_a(2, 1) = -CONJG(direction_a(1, 2))
-      occupation = [1.0_dp, 0.34_dp]
+      occupation = [1.0_dp, 0.0_dp]
 
       CALL strict_orbitals(c0, x, overlap, orbitals_base)
       rotation = dense_antihermitian_exp(generator)

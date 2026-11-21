@@ -529,7 +529,12 @@ CONTAINS
       CASE ("CG", "SD")
          SELECT CASE (qs_ot_env1%settings%line_search_method)
          CASE ("2PNT")
-            IF (qs_ot_env1%line_search_count == 2) update = .TRUE.
+            update = qs_ot_env1%line_search_count == 2
+            IF (qs_ot_env1%optimize_virtuals) update = qs_ot_env1%line_search_might_be_done
+         CASE ("3PNT", "GOLD", "ADPT")
+            update = qs_ot_env1%line_search_might_be_done
+         CASE ("NONE")
+            update = .TRUE.
          CASE DEFAULT
             CPABORT("NYI")
          END SELECT

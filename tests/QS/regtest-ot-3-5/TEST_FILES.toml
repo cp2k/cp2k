@@ -17,4 +17,6 @@
 ]
 "Al-kpoint-mermin-geo-opt.inp"        = [{matcher = "E_total", tol = 1e-8, ref = -4.06534815637185}]
 "Al-kpoint-mermin-cell-opt.inp"       = [{matcher = "E_total", tol = 1e-8, ref = -2.085979237263377}]
+"ZnO-added-mos.inp"                   = [{matcher = "E_total", tol = 1e-12, ref = -153.19014021773387}]
+"H2O-added-mos-molden.inp"            = [{matcher = "E_total", tol = 1e-12, ref = -17.19257569593673}]
 #EOF
