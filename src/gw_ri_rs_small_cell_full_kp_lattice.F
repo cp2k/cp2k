@@ -24,6 +24,7 @@ MODULE gw_ri_rs_small_cell_full_kp_lattice
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_dist2d_to_dist
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -337,9 +338,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Dense MO coefficients of the cyclically owned SCF k points (owner of k: MODULO(k-1, ranks)).
-!> The locally stored parts of the distributed matrices are summed to the owner in batches of
-!> k points: few large reductions instead of one global gather per k, and no rank stores the
-!> coefficients of k points it does not own.
+!> Pack the local BLACS tiles by destination in bounded k-point batches. The common matrix
+!> structure supplies the row and column indices for unpacking each sender's tile.
 !> \param bs_env ...
 !> \param mo_coeff distributed MO coefficients per k point and spin
 !> \param coeff coeff(:, :, k_local, spin) for the owned k points
@@ -350,67 +350,113 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: coeff(:, :, :, :)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'owned_mo_coefficients'
-      REAL(KIND=dp), PARAMETER                           :: batch_bytes = 128.0E6_dp
+      INTEGER(KIND=int_8), PARAMETER :: buffer_elements = 64000000_int_8/INT(2*dp_size, int_8)
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: batch(:, :, :)
-      INTEGER                                            :: batch_size, first_owned, handle, &
-                                                            i_batch, ikp, ispin, n_ao, n_batch, &
-                                                            n_k, n_mo, n_owned, num_pe, root_rank
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: received(:), sent(:)
+      INTEGER :: batch_size, col, first_k, first_owned, first_owned_k, handle, i_col, i_owned, &
+         i_rank, i_row, ikp, ipcol, iprow, ispin, last_k, my_rank, n_ao, n_k, n_mo, n_owned, &
+         n_owned_batch, ncol_local, ncol_src, nrow_local, nrow_src, num_pe, offset
+      INTEGER(KIND=int_8)                                :: matrix_size, max_tile_size
+      INTEGER, ALLOCATABLE                               :: cols(:, :), recv_counts(:), &
+                                                            recv_displs(:), rows(:, :), &
+                                                            send_counts(:), send_displs(:), &
+                                                            tile_sizes(:)
+      INTEGER, POINTER                                   :: local_cols(:), local_rows(:)
+      LOGICAL                                            :: same_layout
+      TYPE(cp_blacs_env_type), POINTER                   :: context
+      TYPE(cp_fm_struct_type), POINTER                   :: layout
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
       n_k = SIZE(mo_coeff, 1)
-      num_pe = bs_env%para_env%num_pe
-      CALL cp_cfm_get_info(mo_coeff(1, 1), nrow_global=n_ao, ncol_global=n_mo)
-      ALLOCATE (coeff(n_ao, n_mo, (n_k + num_pe - 1 - bs_env%para_env%mepos)/num_pe, SIZE(mo_coeff, 2)))
-      batch_size = MAX(1, MIN((n_k + num_pe - 1)/num_pe, INT(batch_bytes/(complex_bytes*REAL(n_ao*n_mo, dp)))))
-      ALLOCATE (batch(n_ao, n_mo, batch_size))
+      para_env => bs_env%para_env
+      num_pe = para_env%num_pe
+      my_rank = para_env%mepos
+      CALL cp_cfm_get_info(mo_coeff(1, 1), nrow_global=n_ao, ncol_global=n_mo, nrow_local=nrow_local, &
+                           ncol_local=ncol_local, context=context, matrix_struct=layout)
+      CPASSERT(layout%para_env%num_pe == num_pe)
+      CPASSERT(layout%para_env%mepos == my_rank)
+      CALL cp_fm_struct_get(layout, nrow_locals=local_rows, ncol_locals=local_cols)
+      matrix_size = INT(n_ao, int_8)*INT(n_mo, int_8)
+      max_tile_size = INT(MAXVAL(local_rows), int_8)*INT(MAXVAL(local_cols), int_8)
+      CPASSERT(matrix_size > 0_int_8 .AND. max_tile_size > 0_int_8)
+      CPASSERT(matrix_size + max_tile_size <= INT(HUGE(0), int_8))
+      n_owned = (n_k + num_pe - 1 - my_rank)/num_pe
+      batch_size = INT(MIN(INT(n_k, int_8), INT(num_pe, int_8)*MAX(1_int_8, buffer_elements/matrix_size), &
+                           MAX(1_int_8, buffer_elements/max_tile_size)))
+      ALLOCATE (coeff(n_ao, n_mo, n_owned, SIZE(mo_coeff, 2)), &
+                sent(MAX(1, nrow_local*ncol_local*batch_size)), &
+                received(MAX(1, INT(matrix_size)*MIN(n_owned, (batch_size + num_pe - 1)/num_pe))))
+      ALLOCATE (rows(MAXVAL(local_rows), 0:context%num_pe(1) - 1), &
+                cols(MAXVAL(local_cols), 0:context%num_pe(2) - 1), &
+                recv_counts(0:num_pe - 1), recv_displs(0:num_pe - 1), &
+                send_counts(0:num_pe - 1), send_displs(0:num_pe - 1), tile_sizes(0:num_pe - 1))
+      DO iprow = 0, context%num_pe(1) - 1
+         DO i_row = 1, local_rows(iprow)
+            rows(i_row, iprow) = layout%l2g_row(i_row, iprow)
+         END DO
+      END DO
+      DO ipcol = 0, context%num_pe(2) - 1
+         DO i_col = 1, local_cols(ipcol)
+            cols(i_col, ipcol) = layout%l2g_col(i_col, ipcol)
+         END DO
+      END DO
+      DO i_rank = 0, num_pe - 1
+         iprow = context%mpi2blacs(1, i_rank)
+         ipcol = context%mpi2blacs(2, i_rank)
+         tile_sizes(i_rank) = local_rows(iprow)*local_cols(ipcol)
+      END DO
+      CPASSERT(SUM(tile_sizes) == INT(matrix_size))
+
       DO ispin = 1, SIZE(mo_coeff, 2)
-         DO root_rank = 0, MIN(num_pe, n_k) - 1
-            n_owned = (n_k - root_rank - 1)/num_pe + 1
-            DO first_owned = 1, n_owned, batch_size
-               n_batch = MIN(batch_size, n_owned - first_owned + 1)
-               DO i_batch = 1, n_batch
-                  ikp = root_rank + 1 + (first_owned + i_batch - 2)*num_pe
-                  CALL copy_local_cfm(mo_coeff(ikp, ispin), batch(:, :, i_batch))
+         DO first_k = 1, n_k, batch_size
+            last_k = MIN(first_k + batch_size - 1, n_k)
+            first_owned_k = first_k + MODULO(my_rank + 1 - first_k, num_pe)
+            first_owned = (first_owned_k - 1)/num_pe + 1
+            n_owned_batch = (last_k - first_owned_k + num_pe)/num_pe
+            recv_counts(:) = n_owned_batch*tile_sizes
+            recv_displs(0) = 0
+            DO i_rank = 1, num_pe - 1
+               recv_displs(i_rank) = recv_displs(i_rank - 1) + recv_counts(i_rank - 1)
+            END DO
+
+            offset = 0
+            DO i_rank = 0, num_pe - 1
+               send_displs(i_rank) = offset
+               DO ikp = first_k + MODULO(i_rank + 1 - first_k, num_pe), last_k, num_pe
+                  same_layout = ASSOCIATED(mo_coeff(ikp, ispin)%matrix_struct, layout)
+                  CPASSERT(same_layout)
+                  DO i_col = 1, ncol_local
+                     sent(offset + 1:offset + nrow_local) = mo_coeff(ikp, ispin)%local_data(:nrow_local, i_col)
+                     offset = offset + nrow_local
+                  END DO
                END DO
-               CALL bs_env%para_env%sum(batch(:, :, 1:n_batch), root_rank)
-               IF (root_rank == bs_env%para_env%mepos) THEN
-                  coeff(:, :, first_owned:first_owned + n_batch - 1, ispin) = batch(:, :, 1:n_batch)
-               END IF
+               send_counts(i_rank) = offset - send_displs(i_rank)
+            END DO
+
+            CALL para_env%alltoall(sent, send_counts, send_displs, received, recv_counts, recv_displs)
+            DO i_rank = 0, num_pe - 1
+               IF (recv_counts(i_rank) == 0) CYCLE
+               iprow = context%mpi2blacs(1, i_rank)
+               ipcol = context%mpi2blacs(2, i_rank)
+               nrow_src = local_rows(iprow)
+               ncol_src = local_cols(ipcol)
+               offset = recv_displs(i_rank)
+               DO i_owned = first_owned, first_owned + n_owned_batch - 1
+                  DO i_col = 1, ncol_src
+                     col = cols(i_col, ipcol)
+                     coeff(rows(:nrow_src, iprow), col, i_owned, ispin) = received(offset + 1:offset + nrow_src)
+                     offset = offset + nrow_src
+                  END DO
+               END DO
             END DO
          END DO
       END DO
-      DEALLOCATE (batch)
 
       CALL timestop(handle)
 
    END SUBROUTINE owned_mo_coefficients
-
-! **************************************************************************************************
-!> \brief Copy the locally owned elements of a distributed complex full matrix.
-!> \param cfm ...
-!> \param array ...
-! **************************************************************************************************
-   SUBROUTINE copy_local_cfm(cfm, array)
-      TYPE(cp_cfm_type)                                  :: cfm
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: array
-
-      INTEGER                                            :: col, i_col, i_row, ncol_local, &
-                                                            nrow_local, row
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-
-      CALL cp_cfm_get_info(cfm, nrow_local=nrow_local, ncol_local=ncol_local, &
-                           row_indices=row_indices, col_indices=col_indices)
-      array = z_zero
-      DO i_col = 1, ncol_local
-         col = col_indices(i_col)
-         DO i_row = 1, nrow_local
-            row = row_indices(i_row)
-            array(row, col) = cfm%local_data(i_row, i_col)
-         END DO
-      END DO
-   END SUBROUTINE copy_local_cfm
 
 ! **************************************************************************************************
 !> \brief Construct a complete cell grid dual to the uniform SCF k-point mesh.

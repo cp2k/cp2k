@@ -1696,7 +1696,7 @@ CONTAINS
 
       n_k_local = (n_k + para_env%num_pe - 1 - para_env%mepos)/para_env%num_pe
       ALLOCATE (dipole(n_spin, n_k_local, 3, MAXVAL(nocc_spin), MAXVAL(nmo_spin - nocc_spin)), source=z_zero)
-      ! Each rank works only on its own k points, with their MO coefficients summed to it.
+      ! Each rank works only on its own k points, with their MO coefficients redistributed to it.
       CALL owned_mo_coefficients(bs_env, mo_coeff(1:n_k, :), coeff_owned)
       ! Per direction α: ∂S/∂k_α, the moment d_α and ∂H/∂k_α of each spin.
       n_mat = 3*(2 + n_spin)
