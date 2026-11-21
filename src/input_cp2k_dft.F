@@ -1713,6 +1713,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="LOCALIZE_INITIAL_WFN", &
+                          description="Replace the occupied orbitals of the initial wavefunction by "// &
+                          "localized orbitals, computed as requested in the DFT%LOCALIZE section, "// &
+                          "before the propagation starts. Applies to INITIAL_WFN SCF_WFN and RESTART_WFN; "// &
+                          "with RESTART_WFN the localization is done before APPLY_WFN_MIX_INIT_RESTART, so that "// &
+                          "WFN_MIX acts on the localized orbitals. The rotation is unitary within orbitals "// &
+                          "of equal occupation: the density matrix and all observables are unchanged, "// &
+                          "only the orbital representation of the propagated wavefunction differs. "// &
+                          "Ignored with INITIAL_WFN RT_RESTART and in the linear scaling propagation.", &
+                          usage="LOCALIZE_INITIAL_WFN", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="APPLY_DELTA_PULSE", &
                           description="Applies a delta kick to the initial wfn (only RTP for now - the EMD"// &
                           " case is not yet implemented). Only work for INITIAL_WFN=SCF_WFN", &

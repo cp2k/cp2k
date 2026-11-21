@@ -513,6 +513,19 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      NULLIFY (print_key)
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "WFN_RESTART", &
+                                       description="Controls the printing of a standard wavefunction restart "// &
+                                       "file in which the occupied orbitals are replaced by the localized ones. "// &
+                                       "Unlike LOC_RESTART, which is read back only by LOCALIZE%RESTART, this "// &
+                                       "file can be read through DFT%WFN_RESTART_FILE_NAME, e.g. by "// &
+                                       "SCF_GUESS RESTART or by REAL_TIME_PROPAGATION%INITIAL_WFN RESTART_WFN. "// &
+                                       "The stored eigenvalues are those of the canonical orbitals.", &
+                                       print_level=high_print_level, add_last=add_last_numeric, &
+                                       common_iter_levels=3, filename="LOC-RESTART")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
    END SUBROUTINE print_wanniers
 
 ! **************************************************************************************************

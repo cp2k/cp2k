@@ -396,6 +396,10 @@ CONTAINS
          ! now obtain the initial condition in mos_old
          CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1), nmo, 1, 1)
          CALL parallel_gemm("N", "N", nao, nmo, nvirt, 1.0_dp, virtuals, momentum, 0.0_dp, mos_old(2*ispin))
+         IF (dft_control%rtp_control%localize_initial_wfn) THEN
+            CALL rotate_kicked_mos(matrix_s(1)%matrix, mos(ispin)%mo_coeff, &
+                                   mos_old(2*ispin - 1), mos_old(2*ispin))
+         END IF
 
          CALL cp_fm_release(virtuals)
          CALL cp_fm_release(momentum)
@@ -648,6 +652,10 @@ CONTAINS
          ! now obtain the initial condition in mos_old
          CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1), nmo, 1, 1)
          CALL parallel_gemm("N", "N", nao, nmo, nvirt, 1.0_dp, virtuals, perturbation, 0.0_dp, mos_old(2*ispin))
+         IF (dft_control%rtp_control%localize_initial_wfn) THEN
+            CALL rotate_kicked_mos(matrix_s(1)%matrix, mos(ispin)%mo_coeff, &
+                                   mos_old(2*ispin - 1), mos_old(2*ispin))
+         END IF
 
          CALL cp_fm_release(virtuals)
          CALL cp_fm_release(perturbation)
@@ -775,5 +783,42 @@ CONTAINS
       CALL cp_fm_release(S_fm)
 
    END SUBROUTINE orthonormalize_complex_mos
+
+! **************************************************************************************************
+!> \brief Expresses the kicked orbitals, built from the canonical orbitals, in the representation
+!>        of the MOs mo_coeff (localized with LOCALIZE_INITIAL_WFN). The kick is linear in the
+!>        orbitals, so both parts are multiplied by U = C_can^T S C.
+!> \param matrix_s overlap matrix
+!> \param mo_coeff MOs that define the representation
+!> \param mos_re real part of the kicked orbitals, equal to the canonical orbitals C_can on entry
+!> \param mos_im imaginary part of the kicked orbitals
+! **************************************************************************************************
+   SUBROUTINE rotate_kicked_mos(matrix_s, mo_coeff, mos_re, mos_im)
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff, mos_re, mos_im
+
+      INTEGER                                            :: nao, nmo
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: sc, umat
+
+      CALL cp_fm_get_info(mo_coeff, nrow_global=nao, ncol_global=nmo)
+      CALL cp_fm_create(sc, mo_coeff%matrix_struct, name="S*C")
+      CALL cp_dbcsr_sm_fm_multiply(matrix_s, mo_coeff, sc, ncol=nmo)
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nmo, ncol_global=nmo, &
+                               template_fmstruct=mo_coeff%matrix_struct)
+      CALL cp_fm_create(umat, fm_struct, name="U")
+      CALL cp_fm_struct_release(fm_struct)
+      CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_re, sc, 0.0_dp, umat)
+
+      CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mos_re, umat, 0.0_dp, sc)
+      CALL cp_fm_to_fm(sc, mos_re)
+      CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mos_im, umat, 0.0_dp, sc)
+      CALL cp_fm_to_fm(sc, mos_im)
+
+      CALL cp_fm_release(sc)
+      CALL cp_fm_release(umat)
+
+   END SUBROUTINE rotate_kicked_mos
 
 END MODULE rt_delta_pulse
