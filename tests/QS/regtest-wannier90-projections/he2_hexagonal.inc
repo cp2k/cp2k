@@ -2,10 +2,10 @@
 @SET scf_guess ATOMIC
 @SET write_restart OFF
 @IF ( ${project} == he2_hexagonal )
-  @SET write_restart ON
+@SET write_restart ON
 @ENDIF
 @IF ( ${project} == he2_hexagonal_diagonalize )
-  @SET scf_guess RESTART
+@SET scf_guess RESTART
 @ENDIF
 &GLOBAL
   PRINT_LEVEL LOW
@@ -21,9 +21,9 @@
     &KPOINTS
       EPS_SYMMETRY 1.e-8
       FULL_GRID OFF
+      GAMMA_CENTERED T
       PARALLEL_GROUP_SIZE 0
       SCHEME MONKHORST-PACK 2 2 2
-      GAMMA_CENTERED T
       SYMMETRY ON
       SYMMETRY_BACKEND ${backend}
       WAVEFUNCTIONS COMPLEX
@@ -34,13 +34,13 @@
     &END MGRID
     &PRINT
       &WANNIER90 ON
+        INITIAL_PROJECTIONS AO_HYBRID
         KPOINTS_SOURCE SCF
         REUSE_SCF_MOS ${reuse}
-        VALIDATE_REUSE_SCF_MOS ${reuse}
         SEED_NAME ${project}
         USE_BLOCH_PHASES T
+        VALIDATE_REUSE_SCF_MOS ${reuse}
         WANNIER_FUNCTIONS 2
-        INITIAL_PROJECTIONS AO_HYBRID
       &END WANNIER90
     &END PRINT
     &QS
@@ -59,8 +59,8 @@
       &END MIXING
       &PRINT
         &RESTART ${write_restart}
-          FILENAME =he2_hexagonal-RESTART.wfn
           BACKUP_COPIES 0
+          FILENAME =he2_hexagonal-RESTART.wfn
         &END RESTART
       &END PRINT
     &END SCF
