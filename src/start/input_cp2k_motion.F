@@ -1159,8 +1159,35 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL section_create(subsection, __LOCATION__, name="DIMER", &
-                          description="Specifies parameters for Dimer Method", &
+                          description="Parameters for a dimer saddle search. Both GEO_OPT and ROT_OPT require OPTIMIZER CG.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SOLID_STATE", &
+                          description="Search for a saddle of E+pV in joint atomic and six cell coordinates. "// &
+                          "Requires full periodicity and analytical stress. See DIMER_VECTOR for the component order.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EXTERNAL_PRESSURE", &
+                          description="Hydrostatic pressure for the solid-state enthalpy E+pV.", &
+                          unit_str="bar", default_r_val=0.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CELL_WEIGHT", &
+                          description="Relative weight of cell deformation in the solid-state metric. "// &
+                          "The scale is this weight times the mean atomic spacing times sqrt(number of atoms).", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_CELL", &
+                          description="Reference cell vectors A, B and C for the solid-state metric. "// &
+                          "Defaults to the starting cell and is saved in the restart to preserve the dimer vector.", &
+                          type_of_var=real_t, n_var=9, unit_str="angstrom")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DR", &
                           description="This keyword sets the value for the DR parameter.", &
@@ -1284,13 +1311,17 @@ CONTAINS
       CALL section_release(subsection2)
 
       CALL section_create(subsection2, __LOCATION__, name="DIMER_VECTOR", &
-                          description="Specifies the initial dimer vector. This "// &
-                          "section overrides INITIALIZATION_METHOD, and will be "// &
-                          "updated on each step for producing the restart files.", &
+                          description="Initial dimer direction, overriding INITIALIZATION_METHOD. For a molecular dimer "// &
+                          "supply 3*N components: one Cartesian x, y, z triplet per atom in coordinate order. "// &
+                          "With SOLID_STATE supply 3*N+6 components: the N atomic triplets in the reference frame, "// &
+                          "then six scaled components of the relative cell deformation. These are the logarithmic "// &
+                          "stretches AX, BY, CZ followed by the shears BX, CX, CY in that frame. "// &
+                          "Restart files contain the updated direction.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-                          description="Specify on each line the components of the dimer vector.", repeats=.TRUE., &
-                          usage="{Real} {Real} {Real}", type_of_var=real_t, n_var=-1)
+                          description="Give one atomic triplet per line. For SOLID_STATE put the six cell components "// &
+                          "on a final line.", repeats=.TRUE., &
+                          usage="{Real} ...", type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection2, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(subsection, subsection2)

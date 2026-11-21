@@ -14,15 +14,22 @@
 ! **************************************************************************************************
 MODULE dimer_methods
    USE bibliography,                    ONLY: Henkelman2014,&
+                                              Xiao2014,&
                                               cite_reference
+   USE cell_methods,                    ONLY: init_cell
+   USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                              cp_subsys_type
+                                              cp_subsys_set,&
+                                              cp_subsys_type,&
+                                              pack_subsys_particles,&
+                                              unpack_subsys_particles
    USE dimer_types,                     ONLY: dimer_env_type,&
-                                              dimer_fixed_atom_control
+                                              dimer_fixed_atom_control,&
+                                              dimer_remove_translation
    USE dimer_utils,                     ONLY: get_theta
    USE force_env_methods,               ONLY: force_env_calc_energy_force
    USE force_env_types,                 ONLY: force_env_get
@@ -36,6 +43,10 @@ MODULE dimer_methods
    USE motion_utils,                    ONLY: rot_ana,&
                                               thrs_motion
    USE particle_list_types,             ONLY: particle_list_type
+   USE solid_state_coordinates,         ONLY: solid_state_force,&
+                                              solid_state_unpack,&
+                                              ss_cell_dof
+   USE virial_types,                    ONLY: virial_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -44,7 +55,7 @@ MODULE dimer_methods
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dimer_methods'
 
-   PUBLIC :: cp_eval_at_ts
+   PUBLIC :: cp_eval_at_ts, dimer_apply_solid_state_geometry
 
 CONTAINS
 
@@ -152,6 +163,7 @@ CONTAINS
       ELSE
          ! Compute energy, gradients and rotation vector for R0
          CALL cp_eval_at_ts_low(gopt_env, x, 0, dimer_env, calc_force, f, dimer_env%rot%g0)
+         IF (dimer_env%solid_state) dimer_env%enthalpy = f
 
          ! The dimer is rotated only when we are out of the translation line search
          IF (.NOT. gopt_env%do_line_search) THEN
@@ -201,6 +213,14 @@ CONTAINS
          END IF
          IF (.NOT. gopt_env%do_line_search) THEN
             f = NORM2(gradient)
+            IF (dimer_env%solid_state) THEN
+               CALL cite_reference(Xiao2014)
+               IF (iw > 0) THEN
+                  WRITE (iw, '(T2,A,1X,F22.12)') "SS-DIMER| Enthalpy [au]", dimer_env%enthalpy
+                  WRITE (iw, '(T2,A,1X,ES20.10)') "SS-DIMER| Curvature [au]", dimer_env%rot%curvature
+                  WRITE (iw, '(T2,A,1X,ES20.10)') "SS-DIMER| Joint-force norm [au]", NORM2(dimer_env%rot%g0)
+               END IF
+            END IF
          ELSE
             f = -DOT_PRODUCT(gradient, dimer_env%tsl%tls_vec)
          END IF
@@ -237,6 +257,11 @@ CONTAINS
       CALL cp_subsys_get(subsys, particles=particles)
 
       natoms = particles%n_els
+      IF (gopt_env%dimer_env%solid_state) THEN
+         CALL dimer_remove_translation(gradient, natoms)
+         CALL timestop(handle)
+         RETURN
+      END IF
       norm_gradient_old = NORM2(gradient)
       IF (norm_gradient_old > 0.0_dp) THEN
          IF (natoms > 1) THEN
@@ -292,10 +317,38 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_eval_at_ts_low'
 
       INTEGER                                            :: handle, idg, idir, ip
+      REAL(KIND=dp)                                      :: pv, work(SIZE(x)), &
+                                                            forces(SIZE(x) - ss_cell_dof)
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
+      IF (dimer_env%solid_state) THEN
+         work(:) = x + (REAL(dimer_index, KIND=dp)*dimer_env%dr)*dimer_env%nvec
+         CALL dimer_apply_solid_state_geometry(gopt_env, work)
+         CALL force_env_calc_energy_force(gopt_env%force_env, calc_force=calc_force)
+         CALL force_env_get(gopt_env%force_env, cell=cell, subsys=subsys)
+         pv = dimer_env%external_pressure*cell%deth
+         IF (PRESENT(f)) THEN
+            CALL force_env_get(gopt_env%force_env, potential_energy=f)
+            f = f + pv
+         END IF
+         IF (PRESENT(gradient)) THEN
+            CALL cp_subsys_get(subsys, virial=virial)
+            CALL pack_subsys_particles(subsys, f=forces)
+            IF (dimer_index == 0) THEN
+               dimer_env%centre_force(:) = forces
+               dimer_env%centre_virial = virial
+            END IF
+            CALL solid_state_force(dimer_env%frame, work, forces, virial%pv_virial, pv, gradient)
+            CALL dimer_remove_translation(gradient, SIZE(forces)/3)
+            gradient(:) = -gradient
+         END IF
+         CALL timestop(handle)
+         RETURN
+      END IF
       idg = 0
       CALL force_env_get(gopt_env%force_env, subsys=subsys)
       CALL cp_subsys_get(subsys, particles=particles)
@@ -328,5 +381,25 @@ CONTAINS
       END IF
       CALL timestop(handle)
    END SUBROUTINE cp_eval_at_ts_low
+
+! **************************************************************************************************
+!> \brief Install a solid-state dimer centre or displaced image in the force environment.
+!> \param gopt_env optimizer environment
+!> \param x joint atomic and cell coordinates
+! **************************************************************************************************
+   SUBROUTINE dimer_apply_solid_state_geometry(gopt_env, x)
+      TYPE(gopt_f_type), INTENT(IN)                      :: gopt_env
+      REAL(KIND=dp), INTENT(IN)                          :: x(:)
+
+      REAL(KIND=dp)                                      :: h(3, 3), r(SIZE(x) - ss_cell_dof)
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+
+      CALL solid_state_unpack(gopt_env%dimer_env%frame, x, h, r)
+      CALL force_env_get(gopt_env%force_env, cell=cell, subsys=subsys)
+      CALL init_cell(cell, hmat=h)
+      CALL cp_subsys_set(subsys, cell=cell)
+      CALL unpack_subsys_particles(subsys, r=r)
+   END SUBROUTINE dimer_apply_solid_state_geometry
 
 END MODULE dimer_methods

@@ -1,6 +1,8 @@
 "hcn_ts.inp"                   = [{matcher = "M007", tol = 1e-09, ref = -0.5846764182}]
 "hcn_ts_r.inp"                 = [{matcher = "M007", tol = 1e-07, ref = 0.084182408}]
 "hcn_ts_kdimer.inp"            = [{matcher = "M007", tol = 1e-07, ref = -0.0006648450}]
+# One Quickstep dimer step along a mixed atomic and cell direction, with analytical stress.
+"He-solid-state-dimer.inp"     = [{matcher = "Ssdimer_joint_force_norm", tol = 1e-5, ref = 0.055193882685}]
 # dimer method with fixed atom constraints
 "hcn_ts_fix.inp"               = [
   {matcher = "M007", tol = 2e-06, ref = -0.0641024915},

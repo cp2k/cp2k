@@ -1,0 +1,88 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ar_ssdimer
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    MAX_DR 1.0E-6
+    MAX_FORCE 1.0E-7
+    MAX_ITER 30
+    OPTIMIZER CG
+    RMS_DR 1.0E-6
+    RMS_FORCE 1.0E-7
+    TYPE TRANSITION_STATE
+    &CG
+      &LINE_SEARCH
+        TYPE 2PNT
+      &END LINE_SEARCH
+    &END CG
+    &TRANSITION_STATE
+      &DIMER
+        ANGLE_TOLERANCE [deg] 0.5
+        DR [bohr] 0.002
+        SOLID_STATE
+        &DIMER_VECTOR
+          # Atomic directions in coordinate order (x, y, z)
+          -1.0 0.0 0.0
+          1.0 0.0 0.0
+          # Cell deformation: AX BY CZ (stretches), BX CX CY (shears)
+          0.15 0.0 0.0 0.0 0.0 0.0
+        &END DIMER_VECTOR
+        &ROT_OPT
+          MAX_ITER 8
+          OPTIMIZER CG
+          &CG
+            &LINE_SEARCH
+              TYPE 2PNT
+            &END LINE_SEARCH
+          &END CG
+        &END ROT_OPT
+      &END DIMER
+    &END TRANSITION_STATE
+  &END GEO_OPT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Ar
+        CHARGE 0
+      &END CHARGE
+      &NONBONDED
+        &GENPOT
+          ATOMS Ar Ar
+          FUNCTION K*((X-X0)^2-A^2)^2
+          PARAMETERS K X0 A
+          RCUT 4.7
+          VALUES 0.008 6.3 0.45
+          VARIABLES X
+        &END GENPOT
+      &END NONBONDED
+      &SPLINE
+        EMAX_ACCURACY 10000
+        EMAX_SPLINE 200000
+        EPS_SPLINE 1.0E-8
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10 10 10
+    &END CELL
+    &COORD
+      UNIT BOHR
+      Ar 5.0 5.0 5.0
+      Ar 11.26 5.0 5.0
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
