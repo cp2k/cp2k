@@ -59,8 +59,9 @@ case "${with_elpa}" in
         tail_excerpt elpa_nx1_tail_block.patch.log
 
       # Ensure a successful installation of nVidia version built with "-std=c++14" flag
-      sed -i 's/creal(/__real__(/g' src/GPU/CUDA/cudaFunctions_template.h
-      sed -i 's/cimag(/__imag__(/g' src/GPU/CUDA/cudaFunctions_template.h
+      # -i.bak: the in-place form BSD (macOS) and GNU sed both accept.
+      sed -i.bak -e 's/creal(/__real__(/g' -e 's/cimag(/__imag__(/g' src/GPU/CUDA/cudaFunctions_template.h
+      rm -f src/GPU/CUDA/cudaFunctions_template.h.bak
 
       # ELPA-2017xxxx enables AVX2 by default, switch off if machine doesn't support it.
       AVX_flag=""

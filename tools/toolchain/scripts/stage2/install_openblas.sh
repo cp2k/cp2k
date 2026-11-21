@@ -92,7 +92,12 @@ case "${with_openblas}" in
     OPENBLAS_ROOT="${pkg_install_dir}"
     # Prefer static library if available
     if [ -f "${pkg_install_dir}/lib/libopenblas.a" ]; then
-      OPENBLAS_LIBS="-l:libopenblas.a"
+      if [ "$(uname -s)" = "Darwin" ]; then
+        # Apple's linker has no -l:libfoo.a; name the archive by its path instead.
+        OPENBLAS_LIBS="${pkg_install_dir}/lib/libopenblas.a"
+      else
+        OPENBLAS_LIBS="-l:libopenblas.a"
+      fi
     else
       OPENBLAS_LIBS="-lopenblas"
     fi
