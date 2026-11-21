@@ -483,37 +483,49 @@ CONTAINS
 
       !! Get the full density from all the processors
       CALL timeset(routineN//"_getP", handle_getP)
+!$OMP END MASTER
+!$OMP BARRIER
       CALL get_full_density(para_env, full_density_alpha(:, 1), rho_ao(1, 1)%matrix, shm_number_of_p_entries, &
-                            shm_block_offset, &
+                            shm_block_offset, shm_atomic_block_offset, &
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
                             antisymmetric=is_anti_symmetric)
       ! for now only closed shell case
       IF (with_resp_density) THEN
+!$OMP MASTER
          NULLIFY (full_density_resp)
          ALLOCATE (full_density_resp(shm_block_offset(ncpu + 1)))
+!$OMP END MASTER
+!$OMP BARRIER
          CALL get_full_density(para_env, full_density_resp, rho_ao_resp(1)%matrix, shm_number_of_p_entries, &
-                               shm_block_offset, &
+                               shm_block_offset, shm_atomic_block_offset, &
                                kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
                                antisymmetric=is_anti_symmetric)
       END IF
 
       IF (my_nspins == 2) THEN
+!$OMP MASTER
          ALLOCATE (full_density_beta(shm_block_offset(ncpu + 1), 1))
+!$OMP END MASTER
+!$OMP BARRIER
          CALL get_full_density(para_env, full_density_beta(:, 1), rho_ao(2, 1)%matrix, shm_number_of_p_entries, &
-                               shm_block_offset, &
+                               shm_block_offset, shm_atomic_block_offset, &
                                kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
                                antisymmetric=is_anti_symmetric)
          ! With resp density
          IF (with_resp_density) THEN
+!$OMP MASTER
             NULLIFY (full_density_resp_beta)
             ALLOCATE (full_density_resp_beta(shm_block_offset(ncpu + 1)))
+!$OMP END MASTER
+!$OMP BARRIER
             CALL get_full_density(para_env, full_density_resp_beta, rho_ao_resp(2)%matrix, shm_number_of_p_entries, &
-                                  shm_block_offset, &
+                                  shm_block_offset, shm_atomic_block_offset, &
                                   kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
                                   antisymmetric=is_anti_symmetric)
          END IF
 
       END IF
+!$OMP MASTER
       CALL timestop(handle_getP)
 
       !! Calculate max entries for screening on actual density. If screen_p_mat_forces = FALSE, the

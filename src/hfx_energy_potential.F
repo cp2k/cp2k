@@ -578,7 +578,6 @@ CONTAINS
          ALLOCATE (pgf_list_kl(i)%image_list(nneighbors))
       END DO
 !$OMP BARRIER
-!$OMP MASTER
       !! Calculate helper array that stores if a certain atomic pair is associated in the KS matrix
       IF (my_geo_change) THEN
          CALL get_atomic_block_maps(ks_matrix(1, 1)%matrix, basis_parameter, kind_of, &
@@ -590,7 +589,9 @@ CONTAINS
                                     shm_master_x_data%block_offset, &
                                     shm_master_x_data%map_atoms_to_cpus, &
                                     nkind)
-
+      END IF
+!$OMP MASTER
+      IF (my_geo_change) THEN
          shm_is_assoc_atomic_block => shm_master_x_data%is_assoc_atomic_block
 
          !! Get occupation of KS-matrix
@@ -738,22 +739,30 @@ CONTAINS
       !! Get the full density from all the processors
       NULLIFY (full_density_alpha, full_density_beta)
       ALLOCATE (full_density_alpha(shm_block_offset(ncpu + 1), nkimages))
+!$OMP END MASTER
+!$OMP BARRIER
       IF (.NOT. treat_lsd_in_core .OR. my_nspins == 1) THEN
+!$OMP MASTER
          CALL timeset(routineN//"_getP", handle_getP)
+!$OMP END MASTER
          DO img = 1, nkimages
             CALL get_full_density(para_env, full_density_alpha(:, img), rho_ao(ispin, img)%matrix, shm_number_of_p_entries, &
-                                  shm_master_x_data%block_offset, &
+                                  shm_master_x_data%block_offset, shm_master_x_data%atomic_block_offset, &
                                   kind_of, basis_parameter, get_max_vals_spin=.FALSE., antisymmetric=is_anti_symmetric)
          END DO
 
          IF (my_nspins == 2) THEN
+!$OMP MASTER
             ALLOCATE (full_density_beta(shm_block_offset(ncpu + 1), nkimages))
+!$OMP END MASTER
+!$OMP BARRIER
             DO img = 1, nkimages
                CALL get_full_density(para_env, full_density_beta(:, img), rho_ao(2, img)%matrix, shm_number_of_p_entries, &
-                                     shm_master_x_data%block_offset, &
+                                     shm_master_x_data%block_offset, shm_master_x_data%atomic_block_offset, &
                                      kind_of, basis_parameter, get_max_vals_spin=.FALSE., antisymmetric=is_anti_symmetric)
             END DO
          END IF
+!$OMP MASTER
          CALL timestop(handle_getP)
 
          !! Calculate the max values of the density matrix actual_pmax stores the data from the actual density matrix
@@ -774,15 +783,20 @@ CONTAINS
                                     nkind, shm_master_x_data%is_assoc_atomic_block, my_nspins)
             END IF
          END IF
+!$OMP END MASTER
+!$OMP BARRIER
       ELSE
          IF (do_p_screening) THEN
+!$OMP MASTER
             CALL timeset(routineN//"_getP", handle_getP)
+!$OMP END MASTER
             DO img = 1, nkimages
                CALL get_full_density(para_env, full_density_alpha(:, img), rho_ao(1, img)%matrix, shm_number_of_p_entries, &
-                                     shm_master_x_data%block_offset, &
+                                     shm_master_x_data%block_offset, shm_master_x_data%atomic_block_offset, &
                                      kind_of, basis_parameter, get_max_vals_spin=.TRUE., &
                                      rho_beta=rho_ao(2, img)%matrix, antisymmetric=is_anti_symmetric)
             END DO
+!$OMP MASTER
             CALL timestop(handle_getP)
 
             !! Calculate the max values of the density matrix actual_pmax stores the data from the actual density matrix
@@ -801,16 +815,19 @@ CONTAINS
                                     natom, kind_of, basis_parameter, &
                                     nkind, shm_master_x_data%is_assoc_atomic_block, my_nspins)
             END IF
+!$OMP END MASTER
+!$OMP BARRIER
          END IF
          ! ** Now get the density(ispin)
          DO img = 1, nkimages
             CALL get_full_density(para_env, full_density_alpha(:, img), rho_ao(ispin, img)%matrix, shm_number_of_p_entries, &
-                                  shm_master_x_data%block_offset, &
+                                  shm_master_x_data%block_offset, shm_master_x_data%atomic_block_offset, &
                                   kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
                                   antisymmetric=is_anti_symmetric)
          END DO
       END IF
 
+!$OMP MASTER
       NULLIFY (full_ks_alpha, full_ks_beta)
       ALLOCATE (shm_master_x_data%full_ks_alpha(shm_block_offset(ncpu + 1), nkimages))
       full_ks_alpha => shm_master_x_data%full_ks_alpha
@@ -2042,32 +2059,45 @@ CONTAINS
       END DO
 
       CALL para_env%sync()
+!$OMP END MASTER
+!$OMP BARRIER
       afac = 1.0_dp
       IF (is_anti_symmetric) afac = 0._dp
       IF (distribute_fock_matrix) THEN
          !! Distribute the current KS-matrix to all the processes
+!$OMP MASTER
          CALL timeset(routineN//"_dist_KS", handle_dist_ks)
+!$OMP END MASTER
          DO img = 1, nkimages
             CALL distribute_ks_matrix(para_env, full_ks_alpha(:, img), ks_matrix(ispin, img)%matrix, shm_number_of_p_entries, &
-                                      shm_block_offset, kind_of, basis_parameter, &
+                                      shm_block_offset, shm_atomic_block_offset, kind_of, basis_parameter, &
                                       off_diag_fac=0.5_dp, diag_fac=afac)
          END DO
-
+!$OMP MASTER
          NULLIFY (full_ks_alpha)
          DEALLOCATE (shm_master_x_data%full_ks_alpha)
+!$OMP END MASTER
+!$OMP BARRIER
          IF (.NOT. treat_lsd_in_core) THEN
             IF (my_nspins == 2) THEN
                DO img = 1, nkimages
                   CALL distribute_ks_matrix(para_env, full_ks_beta(:, img), ks_matrix(2, img)%matrix, shm_number_of_p_entries, &
-                                            shm_block_offset, kind_of, basis_parameter, &
+                                            shm_block_offset, shm_atomic_block_offset, kind_of, basis_parameter, &
                                             off_diag_fac=0.5_dp, diag_fac=afac)
                END DO
+!$OMP MASTER
                NULLIFY (full_ks_beta)
                DEALLOCATE (shm_master_x_data%full_ks_beta)
+!$OMP END MASTER
+!$OMP BARRIER
             END IF
          END IF
+!$OMP MASTER
          CALL timestop(handle_dist_ks)
+!$OMP END MASTER
       END IF
+!$OMP BARRIER
+!$OMP MASTER
 
       IF (distribute_fock_matrix) THEN
          !! ** Calculate the exchange energy

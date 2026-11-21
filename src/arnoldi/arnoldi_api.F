@@ -331,12 +331,14 @@ CONTAINS
       !
       CALL dbcsr_get_info(x, nfullrows_local=nloc)
       !
+!$OMP PARALLEL DEFAULT(NONE) SHARED(x, vec_x) PRIVATE(dbcsr_iter, i, j, xvec, nb, no)
       CALL dbcsr_iterator_start(dbcsr_iter, x)
       DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
          CALL dbcsr_iterator_next_block(dbcsr_iter, i, j, xvec, row_size=nb, row_offset=no)
          xvec(1:nb, 1) = vec_x(no:no + nb - 1)
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
+!$OMP END PARALLEL
 
       ! Arnoldi interface (used just for the iterator information here
       ALLOCATE (arnoldi_matrices(3))
@@ -356,12 +358,14 @@ CONTAINS
       converged = arnoldi_is_converged(arnoldi_env)
 
       vec_x = 0.0_dp
+!$OMP PARALLEL DEFAULT(NONE) SHARED(x, vec_x) PRIVATE(dbcsr_iter, i, j, xvec, nb, no)
       CALL dbcsr_iterator_start(dbcsr_iter, x)
       DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
          CALL dbcsr_iterator_next_block(dbcsr_iter, i, j, xvec, row_size=nb, row_offset=no)
          vec_x(no:no + nb - 1) = xvec(1:nb, 1)
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
+!$OMP END PARALLEL
       control => get_control(arnoldi_env)
       CALL control%mp_group%sum(vec_x)
       ! Deallocated the work vectors
@@ -511,6 +515,8 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
 
       adotb = 0.0_dp
+!$OMP PARALLEL DEFAULT(NONE) SHARED(avec, bvec) &
+!$OMP PRIVATE(dbcsr_iter, i, j, av, bv, found) REDUCTION(+:adotb)
       CALL dbcsr_iterator_start(dbcsr_iter, avec)
       DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
          CALL dbcsr_iterator_next_block(dbcsr_iter, i, j, av)
@@ -520,6 +526,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
+!$OMP END PARALLEL
       CALL mpgrp%sum(adotb)
 
    END FUNCTION vec_dot_vec

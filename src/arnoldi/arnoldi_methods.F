@@ -235,6 +235,8 @@ CONTAINS
          CALL transfer_local_array_to_dbcsr(vectors%input_vec, ar_data%f_vec, nrow_local, control%local_comp)
       ELSE
          ! Setup the initial normalized random vector (sufficient if it only happens on proc_col 0)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(vectors) &
+!$OMP PRIVATE(iter, row, col, data_block, row_size, col_size, iseed)
          CALL dbcsr_iterator_start(iter, vectors%input_vec)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, row, col, data_block, row_size=row_size, col_size=col_size)
@@ -242,6 +244,7 @@ CONTAINS
             CALL dlarnv(2, iseed, row_size*col_size, data_block)
          END DO
          CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
       END IF
 
       CALL transfer_dbcsr_to_local_array(vectors%input_vec, v_vec, nrow_local, control%local_comp)
@@ -326,6 +329,8 @@ CONTAINS
          CALL transfer_local_array_to_dbcsr(vectors%input_vec, ar_data%f_vec, nrow_local, control%local_comp)
       ELSE
          ! Setup the initial normalized random vector (sufficient if it only happens on proc_col 0)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(vectors) &
+!$OMP PRIVATE(iter, row, col, data_block, row_size, col_size, iseed)
          CALL dbcsr_iterator_start(iter, vectors%input_vec)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, row, col, data_block, row_size=row_size, col_size=col_size)
@@ -333,6 +338,7 @@ CONTAINS
             CALL dlarnv(2, iseed, row_size*col_size, data_block)
          END DO
          CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
       END IF
 
       CALL transfer_dbcsr_to_local_array(vectors%input_vec, v_vec, nrow_local, control%local_comp)
