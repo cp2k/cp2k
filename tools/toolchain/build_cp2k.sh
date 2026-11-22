@@ -192,6 +192,13 @@ source "${TOOLCHAIN_INSTALL_DIR}/toolchain.conf"
 # Generate cmake options for compiling cp2k
 CMAKE_OPTIONS="-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DCMAKE_INSTALL_LIBDIR=lib"
 CMAKE_OPTIONS+=" -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}"
+# On macOS the installed executables cannot rely on cp2k_env to find libcp2k:
+# LD_LIBRARY_PATH is ignored there, and System Integrity Protection removes
+# DYLD_LIBRARY_PATH whenever a system binary (/usr/bin/env, /bin/bash) starts,
+# e.g. do_regtest.py or a job script. Give them a run path to ../lib instead.
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  CMAKE_OPTIONS+=" -DCMAKE_INSTALL_RPATH=@loader_path/../lib"
+fi
 if [[ ${CMAKE_INSTALL_PREFIX} == ${CP2K_ROOT}/* ]]; then
   CMAKE_OPTIONS+=" -DCP2K_DATA_DIR=${CP2K_ROOT}/data"
 fi
