@@ -1001,7 +1001,7 @@ CONTAINS
          ! Make sure that atom indices are specified in the input CHARGE section
          ! if np is equal to zero this means that this is not a collective variable.
          IF (np == 0) THEN
-           CALL cp_abort(__LOCATION__, &
+            CALL cp_abort(__LOCATION__, &
                           "CHARGE Colvar defined using two groups of atoms. "// &
                           "At least one atom has to be defined for each group!")
          END IF

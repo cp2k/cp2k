@@ -6606,7 +6606,7 @@ CONTAINS
          CALL dqdr_atom(mos, i, matrix_s, nspin, dcdr, dsdr, dqdr)
          ! Check dqdr before appending it to MD
          IF (dqdr(1) == 0.0_dp .OR. dqdr(2) == 0.0_dp .OR. dqdr(3) == 0.0_dp) THEN
-           CPABORT("dqdR is equal to 0. This should not have happened!")
+            CPABORT("dqdR is equal to 0. This should not have happened!")
          END IF
          CALL put_derivative(colvar, i, dqdr)
          IF (output_unit > 0) THEN
