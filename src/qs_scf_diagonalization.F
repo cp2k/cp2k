@@ -129,6 +129,7 @@ MODULE qs_scf_diagonalization
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gspace_mixing,                ONLY: gspace_mixing
+   USE qs_kpoint_density_state,         ONLY: kpoint_density_state_capture
    USE qs_kpoint_operators,             ONLY: &
         kpoint_operator_batch_size, kpoint_operator_context_create, &
         kpoint_operator_context_release, kpoint_operator_context_type, kpoint_operator_evaluate, &
@@ -1015,8 +1016,12 @@ CONTAINS
             ! density matrices
             CALL kpoint_density_matrices(kpoints)
             ! density matrices in real space
-            CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
-                                          matrix_s(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s)
+            IF (ALLOCATED(kpoints%native_density)) THEN
+               CALL kpoint_density_state_capture(kpoints)
+            ELSE
+               CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
+                                             matrix_s(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s)
+            END IF
          END IF
       END IF
 

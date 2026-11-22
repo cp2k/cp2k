@@ -568,6 +568,13 @@ CONTAINS
          de = 10.0_dp*sigma
       END SELECT
       de = MAX(de, 0.5_dp)
+      ! Keep the empty endpoint exact instead of bisecting to the lowest eigenvalue.
+      IF (nel == 0.0_dp) THEN
+         f = 0.0_dp
+         kTS = 0.0_dp
+         mu = MINVAL(e) - de
+         RETURN
+      END IF
 
       ! Bisection with bisect_method
       mu_min = MINVAL(e) - de
@@ -710,6 +717,13 @@ CONTAINS
          de = 10.0_dp*sigma
       END SELECT
       de = MAX(de, 0.5_dp)
+      ! Keep the empty endpoint exact instead of bisecting to the lowest eigenvalue.
+      IF (nel == 0.0_dp) THEN
+         f = 0.0_dp
+         kTS = 0.0_dp
+         mu = MINVAL(e) - de
+         RETURN
+      END IF
 
       ! Bisection with bisect_method
       mu_min = MINVAL(e) - de

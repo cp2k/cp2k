@@ -874,3 +874,5 @@ registry["Kubo_symmetry_points"] = GenericMatcher(
 registry["Unfold_band1_energy"] = GenericMatcher(
     r"^\s*1\s+([-+]?\d+\.\d+)\s+\d+\.\d+\s+\d+\.\d+", col=2, regex=True
 )
+
+registry["SCF_raw_map_delta"] = GenericMatcher("raw_map_delta=", col=6)
