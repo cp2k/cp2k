@@ -17,6 +17,7 @@
 MODULE machine
    USE ISO_C_BINDING, ONLY: C_CHAR, &
                             C_INT, &
+                            C_INT64_T, &
                             C_SIZE_T, &
                             C_PTR, &
                             C_NULL_CHAR, &
@@ -517,6 +518,14 @@ CONTAINS
       CHARACTER(LEN=Nbuffer) :: meminfo
 
       INTEGER :: i, unit_nr
+      INTEGER(KIND=C_INT64_T) :: c_free, c_likely_free, c_total
+
+      INTERFACE
+         SUBROUTINE m_memory_details_c(total, free, likely_free) BIND(C, name="m_memory_details_c")
+            IMPORT :: C_INT64_T
+            INTEGER(KIND=C_INT64_T) :: total, free, likely_free
+         END SUBROUTINE m_memory_details_c
+      END INTERFACE
 
       MemTotal = 0
       MemFree = 0
@@ -548,6 +557,14 @@ CONTAINS
       ! reclaimable (Shmem, e.g., shared-memory segments of MPI)
       MemLikelyFree = get_field_value_in_bytes('MemAvailable:')
       IF (MemLikelyFree <= 0) MemLikelyFree = MemFree + Buffers + Cached + SReclaimable
+
+      ! no /proc/meminfo (macOS): ask the system directly, see machine_memory.c
+      IF (MemTotal <= 0) THEN
+         CALL m_memory_details_c(c_total, c_free, c_likely_free)
+         MemTotal = c_total
+         MemFree = c_free
+         MemLikelyFree = c_likely_free
+      END IF
 
    CONTAINS
 
