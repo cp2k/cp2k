@@ -62,6 +62,8 @@ MODULE qs_integrate_potential_product
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                               realspace_grid_type
    USE rs_pw_interface,                 ONLY: potential_pw2rs
@@ -577,6 +579,9 @@ CONTAINS
 !> \param basis_type ...
 !> \param pw_env_external ...
 !> \param task_list_external ...
+!> \param force_response Optional local atomic energy gradients.
+!> \param virial_response Optional local contribution to the virial.
+!> \param ks_env_external Native KS environment owning the grid task lists.
 !> \par History
 !>      IAB (29-Apr-2010): Added OpenMP parallelisation to task loop
 !>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2010 on behalf of the HECToR project
@@ -596,7 +601,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_v_rspace(v_rspace, hmat, hmat_kp, pmat, pmat_kp, &
                                  qs_env, calculate_forces, force_adm, &
-                                 compute_tau, gapw, basis_type, pw_env_external, task_list_external)
+                                 compute_tau, gapw, basis_type, pw_env_external, task_list_external, &
+                                 force_response, virial_response, ks_env_external)
 
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
       TYPE(dbcsr_p_type), INTENT(INOUT), OPTIONAL        :: hmat
@@ -605,13 +611,16 @@ CONTAINS
       TYPE(dbcsr_p_type), INTENT(IN), OPTIONAL           :: pmat
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pmat_kp
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: force_adm
       LOGICAL, INTENT(IN), OPTIONAL                      :: compute_tau, gapw
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external
+      REAL(dp), INTENT(OUT), OPTIONAL                    :: force_response(:, :), &
+                                                            virial_response(3, 3)
+      TYPE(qs_ks_env_type), INTENT(IN), OPTIONAL         :: ks_env_external
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace'
 
@@ -639,6 +648,11 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
+
+      CPASSERT(PRESENT(qs_env) .NEQV. PRESENT(ks_env_external))
+      IF (PRESENT(force_response) .OR. PRESENT(virial_response)) THEN
+         CPASSERT(calculate_forces)
+      END IF
 
       ! we test here if the provided operator matrices are consistent
       CPASSERT(PRESENT(hmat) .OR. PRESENT(hmat_kp))
@@ -672,9 +686,11 @@ CONTAINS
       ! task lists have to be in sync with basis sets
       ! there is an option to provide the task list from outside (not through qs_env)
       ! outside option has highest priority
-      CALL get_qs_env(qs_env=qs_env, &
-                      task_list=task_list, &
-                      task_list_soft=task_list_soft)
+      IF (PRESENT(ks_env_external)) THEN
+         CALL get_ks_env(ks_env_external, task_list=task_list, task_list_soft=task_list_soft)
+      ELSE
+         CALL get_qs_env(qs_env=qs_env, task_list=task_list, task_list_soft=task_list_soft)
+      END IF
       IF (.NOT. my_basis_type == "ORB") THEN
          CPASSERT(PRESENT(task_list_external))
       END IF
@@ -685,19 +701,23 @@ CONTAINS
       ! the information on the grids is provided through pw_env
       ! pw_env has to be the parent env for the potential grid (input)
       ! there is an option to provide an external grid
-      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+      IF (PRESENT(ks_env_external)) THEN
+         CALL get_ks_env(ks_env_external, pw_env=pw_env)
+      ELSE
+         CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+      END IF
       IF (PRESENT(pw_env_external)) pw_env => pw_env_external
 
       ! get all the general information on the system we are working on
-      CALL get_qs_env(qs_env=qs_env, &
-                      atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set, &
-                      cell=cell, &
-                      natom=natoms, &
-                      dft_control=dft_control, &
-                      particle_set=particle_set, &
-                      force=force, &
-                      virial=virial)
+      IF (PRESENT(ks_env_external)) THEN
+         CALL get_ks_env(ks_env_external, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                         cell=cell, natom=natoms, dft_control=dft_control, particle_set=particle_set, &
+                         force=force, virial=virial)
+      ELSE
+         CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                         cell=cell, natom=natoms, dft_control=dft_control, particle_set=particle_set, &
+                         force=force, virial=virial)
+      END IF
 
       admm_scal_fac = 1.0_dp
       IF (PRESENT(force_adm)) admm_scal_fac = force_adm
@@ -716,7 +736,8 @@ CONTAINS
          CPASSERT(do_kp)
       END IF
       nkind = SIZE(qs_kind_set)
-      calculate_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer) .AND. calculate_forces
+      calculate_virial = ((virial%pv_availability .AND. .NOT. virial%pv_numer) .OR. &
+                          PRESENT(virial_response)) .AND. calculate_forces
       pab_required = (PRESENT(pmat) .OR. PRESENT(pmat_kp)) .AND. calculate_forces
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
@@ -753,7 +774,10 @@ CONTAINS
                                     forces=forces_array, &
                                     virial=virial_matrix)
 
-      IF (calculate_forces) THEN
+      IF (PRESENT(force_response)) THEN
+         CPASSERT(ALL(SHAPE(force_response) == [3, natoms]))
+         force_response = admm_scal_fac*forces_array
+      ELSE IF (calculate_forces) THEN
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
 !$OMP PARALLEL DO DEFAULT(NONE)  PRIVATE(atom_a, ikind) &
 !$OMP             SHARED(natoms, force, forces_array, atom_of_kind, kind_of, admm_scal_fac)
@@ -766,7 +790,9 @@ CONTAINS
          DEALLOCATE (atom_of_kind, kind_of)
       END IF
 
-      IF (calculate_virial) THEN
+      IF (PRESENT(virial_response)) THEN
+         virial_response = admm_scal_fac*virial_matrix
+      ELSE IF (calculate_virial) THEN
          virial%pv_virial = virial%pv_virial + admm_scal_fac*virial_matrix
       END IF
 

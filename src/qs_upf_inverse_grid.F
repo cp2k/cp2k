@@ -182,7 +182,13 @@ CONTAINS
       CPASSERT(ALL(SHAPE(p) == SIZE(frame%ao%soft, 2)))
       n = SIZE(frame%ao%weights)
       ALLOCATE (rho(n), dn(n, 3), t(n))
-      CALL upf_inverse_smooth_density(frame%ao%soft, frame%ao%soft_gradient, p, rho, dn, t)
+      IF (frame%native_gaussian) THEN
+         rho = 0.0_dp
+         dn = 0.0_dp
+         t = 0.0_dp
+      ELSE
+         CALL upf_inverse_smooth_density(frame%ao%soft, frame%ao%soft_gradient, p, rho, dn, t)
+      END IF
       IF (PRESENT(projector_density) .OR. PRESENT(augmentation)) THEN
          nproj = SIZE(frame%ao%coefficients, 1)
          ALLOCATE (projected(nproj, nproj))
@@ -278,8 +284,12 @@ CONTAINS
       DO axis = 1, 3
          CALL pack_grid(frame, vgradient(axis), dg(:, axis))
       END DO
-      CALL upf_inverse_semilocal_pair(frame%ao%soft, frame%ao%soft, frame%ao%soft_gradient, frame%ao%soft_gradient, &
-                                      frame%ao%weights, dn, dg, dt, h, frame%ao%point_comm)
+      IF (frame%native_gaussian) THEN
+         h = 0.0_dp
+      ELSE
+         CALL upf_inverse_semilocal_pair(frame%ao%soft, frame%ao%soft, frame%ao%soft_gradient, frame%ao%soft_gradient, &
+                                         frame%ao%weights, dn, dg, dt, h, frame%ao%point_comm)
+      END IF
       IF (PRESENT(augmentation)) THEN
          nproj = SIZE(frame%ao%coefficients, 1)
          ALLOCATE (projected(nproj, nproj))
@@ -337,7 +347,11 @@ CONTAINS
       nproj = SIZE(frame%ao%coefficients, 1)
       CPASSERT(ALL(SHAPE(projector_metric) == [nproj, nproj]))
       ALLOCATE (metric(nao, nao))
-      CALL upf_inverse_pair(frame%ao%soft, frame%ao%soft, frame%ao%weights, metric, frame%ao%point_comm)
+      IF (frame%native_gaussian) THEN
+         metric = 0.0_dp
+      ELSE
+         CALL upf_inverse_pair(frame%ao%soft, frame%ao%soft, frame%ao%weights, metric, frame%ao%point_comm)
+      END IF
       metric(:, :) = metric + MATMUL(CONJG(TRANSPOSE(frame%ao%coefficients)), &
                                      MATMUL(projector_metric, frame%ao%coefficients))
    END SUBROUTINE qs_upf_inverse_grid_metric_dense
@@ -361,11 +375,12 @@ CONTAINS
 !> \param operator_response New replicated complex operator response, without k/spin weights.
 !> \param metric_response New metric response in the same inverse AO variables.
 !> \param projector_operator Optional original geometry-independent operator, e.g. Dion.
+!> \param dw Optional geometry derivative of the inverse projector coefficients used in the operator response.
 ! **************************************************************************************************
    SUBROUTINE qs_upf_inverse_grid_response(frame, augmentation, projector_metric, vdensity, vgradient, vtau, &
                                            atom_response, cell_response, reduced_k_response, vdensity_response, &
                                            vgradient_response, vtau_response, operator_response, metric_response, &
-                                           projector_operator)
+                                           projector_operator, dw)
       TYPE(qs_upf_inverse_grid_type), INTENT(IN)         :: frame
       TYPE(qs_upf_inverse_augmentation_type), &
          INTENT(INOUT)                                   :: augmentation
@@ -379,6 +394,7 @@ CONTAINS
       COMPLEX(dp), ALLOCATABLE, INTENT(OUT)              :: operator_response(:, :), &
                                                             metric_response(:, :)
       COMPLEX(dp), INTENT(IN), OPTIONAL                  :: projector_operator(:, :)
+      COMPLEX(dp), ALLOCATABLE, INTENT(OUT), OPTIONAL    :: dw(:, :)
 
       COMPLEX(dp), ALLOCATABLE :: coefficients_response(:, :), gradient_response(:, :, :), &
          projected(:, :), projected_response(:, :), soft_response(:, :)
@@ -422,10 +438,14 @@ CONTAINS
          CALL qs_upf_inverse_response(frame%ao, points_response, atom_response, cell_response, reduced_k_response, &
                                       weights_response, coefficients_response, soft_response)
       END IF
-      CALL upf_inverse_semilocal_response(frame%ao%soft, frame%ao%soft, &
-                                          frame%ao%soft_gradient, frame%ao%soft_gradient, frame%ao%weights, dn, dg, dt, &
-                                          soft_response, soft_response, gradient_response, gradient_response, &
-                                          weights_response, dvn, dvg, dvt, operator_response, frame%ao%point_comm)
+      IF (frame%native_gaussian) THEN
+         operator_response = 0.0_dp
+      ELSE
+         CALL upf_inverse_semilocal_response(frame%ao%soft, frame%ao%soft, &
+                                             frame%ao%soft_gradient, frame%ao%soft_gradient, frame%ao%weights, dn, dg, dt, &
+                                             soft_response, soft_response, gradient_response, gradient_response, &
+                                             weights_response, dvn, dvg, dvt, operator_response, frame%ao%point_comm)
+      END IF
       CALL qs_upf_inverse_augmentation_fourier_integrate(frame%ao, augmentation, vdensity, vgradient, projected)
       CALL qs_upf_inverse_augmentation_fourier_response(frame%ao, augmentation, vdensity, vgradient, atom_response, &
                                                         cell_response, vdensity_response, vgradient_response, &
@@ -439,11 +459,16 @@ CONTAINS
       operator_response(:, :) = operator_response + MATMUL(CONJG(TRANSPOSE(coefficients_response)), &
                                                            MATMUL(projected, frame%ao%coefficients)) + &
                                 MATMUL(CONJG(TRANSPOSE(frame%ao%coefficients)), MATMUL(projected, coefficients_response))
-      CALL upf_inverse_pair_response(frame%ao%soft, frame%ao%soft, frame%ao%weights, soft_response, soft_response, &
-                                     weights_response, metric_response, frame%ao%point_comm)
+      IF (frame%native_gaussian) THEN
+         metric_response = 0.0_dp
+      ELSE
+         CALL upf_inverse_pair_response(frame%ao%soft, frame%ao%soft, frame%ao%weights, soft_response, soft_response, &
+                                        weights_response, metric_response, frame%ao%point_comm)
+      END IF
       metric_response(:, :) = metric_response + MATMUL(CONJG(TRANSPOSE(coefficients_response)), &
                                                        MATMUL(projector_metric, frame%ao%coefficients)) + &
                               MATMUL(CONJG(TRANSPOSE(frame%ao%coefficients)), MATMUL(projector_metric, coefficients_response))
+      IF (PRESENT(dw)) CALL MOVE_ALLOC(coefficients_response, dw)
    END SUBROUTINE qs_upf_inverse_grid_response
 
 ! **************************************************************************************************

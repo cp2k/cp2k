@@ -17,6 +17,7 @@ MODULE qs_upf_inverse_scf
                                               dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
+                                              dbcsr_scale,&
                                               dbcsr_set,&
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
@@ -38,6 +39,8 @@ MODULE qs_upf_inverse_scf
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
+   USE qs_collocate_density,            ONLY: calculate_rho_elec
+   USE qs_integrate_potential_product,  ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_kinetic,                      ONLY: build_kinetic_matrix
@@ -103,6 +106,7 @@ CONTAINS
       TYPE(dbcsr_p_type), POINTER                        :: kinetic(:), metric(:), overlap(:)
       TYPE(dbcsr_type)                                   :: imaginary
       TYPE(dft_control_type), POINTER                    :: control
+      TYPE(pw_r3d_rs_type)                               :: unit_potential
       TYPE(qs_kind_type), POINTER                        :: kinds(:)
       TYPE(qs_upf_inverse_scf_type), POINTER             :: previous, state
       TYPE(qs_uspp_type), POINTER                        :: uspp
@@ -133,6 +137,10 @@ CONTAINS
          END IF
       END DO
       ALLOCATE (state)
+      IF (PRESENT(direct)) state%native_gaussian = direct
+      IF (state%native_gaussian) THEN
+         CALL direct_prepare(ks_env, state)
+      END IF
       IF (do_kpoints) THEN
          CPABORT("Inverse USPP k-point consumers are not included in this implementation")
       END IF
@@ -143,15 +151,21 @@ CONTAINS
          CALL qs_upf_inverse_scf_release(state)
          RETURN
       END IF
-      IF (state%frame%ao%atom_local) THEN
-         CALL get_ks_env(ks_env, kinetic=kinetic)
-         CALL qs_upf_inverse_matrix_gather(state%frame%ao, kinetic(1)%matrix, state%gaussian_kinetic)
-      END IF
+      CALL get_ks_env(ks_env, kinetic=kinetic)
+      CALL qs_upf_inverse_matrix_gather(state%frame%ao, kinetic(1)%matrix, state%gaussian_kinetic)
       CALL qs_upf_inverse_augmentation_prepare(ks_env, state%frame%ao, state%augmentation)
       ALLOCATE (metric(1))
       ALLOCATE (metric(1)%matrix)
+      state%frame%native_gaussian = state%native_gaussian
       CALL qs_upf_inverse_grid_metric(state%frame, state%frame%ao%radial_q, overlap(1)%matrix, &
                                       metric(1)%matrix, imaginary)
+      IF (state%native_gaussian) THEN
+         CALL unit_potential%create(grid)
+         unit_potential%array = 1.0_dp
+         CALL direct_integrate(ks_env, state, unit_potential)
+         CALL dbcsr_add(metric(1)%matrix, state%direct_potential(1)%matrix, 1.0_dp, 1.0_dp)
+         CALL unit_potential%release()
+      END IF
       CALL check_real(state, metric(1)%matrix, imaginary)
       CALL dbcsr_release(imaginary)
       CALL set_1d_pointer(state%metric, metric)
@@ -195,7 +209,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: grid
       TYPE(pw_pool_type), POINTER                        :: pool
-      TYPE(pw_r3d_rs_type)                               :: local_r, unit_tau, zero_density, zeros(3)
+      TYPE(pw_r3d_rs_type)                               :: local_r, unit_tau, zeros(3)
       TYPE(qs_upf_inverse_scf_type), POINTER             :: state
 
       CALL get_ks_env(ks_env, upf_inverse=state)
@@ -209,22 +223,14 @@ CONTAINS
       grid => pool%pw_grid
       CALL local_r%create(grid)
       CALL unit_tau%create(grid)
-      CALL zero_density%create(grid)
-      unit_tau%array = 1.0_dp
-      zero_density%array = 0.0_dp
+      unit_tau%array = 0.0_dp
       DO axis = 1, 3
          CALL zeros(axis)%create(grid)
          zeros(axis)%array = 0.0_dp
       END DO
-      IF (state%frame%ao%atom_local) THEN
-         CALL qs_upf_inverse_atomic_operators(state%frame%ao, state%frame%ao%radial_q, atomic_t, atomic_m)
-         atomic_t(:, :) = atomic_t + state%gaussian_kinetic
-         CALL qs_upf_inverse_matrix_scatter(state%frame%ao, atomic_t, overlap(1)%matrix, real_part, imaginary)
-         unit_tau%array = 0.0_dp
-      ELSE
-         CALL qs_upf_inverse_grid_integrate(state%frame, zero_density, zeros, unit_tau, overlap(1)%matrix, &
-                                            real_part, imaginary)
-      END IF
+      CALL qs_upf_inverse_atomic_operators(state%frame%ao, state%frame%ao%radial_q, atomic_t, atomic_m)
+      atomic_t(:, :) = atomic_t + state%gaussian_kinetic
+      CALL qs_upf_inverse_matrix_scatter(state%frame%ao, atomic_t, overlap(1)%matrix, real_part, imaginary)
       CALL check_real(state, real_part, imaginary)
       CALL dbcsr_copy(kinetic(1)%matrix, real_part)
       CALL dbcsr_release(real_part)
@@ -234,13 +240,16 @@ CONTAINS
                                          real_part, imaginary, projector_operator=state%frame%ao%dion, &
                                          augmentation=state%augmentation, fourier_charge=.TRUE.)
       CALL check_real(state, real_part, imaginary)
+      IF (state%native_gaussian) THEN
+         CALL direct_integrate(ks_env, state, local_r)
+         CALL dbcsr_add(real_part, state%direct_potential(1)%matrix, 1.0_dp, 1.0_dp)
+      END IF
       CALL dbcsr_copy(h(1)%matrix, real_part)
-      IF (state%frame%ao%atom_local) CALL dbcsr_add(h(1)%matrix, kinetic(1)%matrix, 1.0_dp, 1.0_dp)
+      CALL dbcsr_add(h(1)%matrix, kinetic(1)%matrix, 1.0_dp, 1.0_dp)
       CALL dbcsr_release(real_part)
       CALL dbcsr_release(imaginary)
       CALL local_r%release()
       CALL unit_tau%release()
-      CALL zero_density%release()
       DO axis = 1, 3
          CALL zeros(axis)%release()
       END DO
@@ -252,15 +261,16 @@ CONTAINS
 !> \param rho_struct Native AO/grid density with occupations in its density matrices.
 ! **************************************************************************************************
    SUBROUTINE qs_upf_inverse_scf_collocate(ks_env, rho_struct)
-      TYPE(qs_ks_env_type), INTENT(IN)                   :: ks_env
+      TYPE(qs_ks_env_type), INTENT(IN), TARGET           :: ks_env
       TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_struct
 
       INTEGER                                            :: axis, spin
       REAL(dp), POINTER                                  :: total(:)
       TYPE(dbcsr_p_type), POINTER                        :: density(:, :)
       TYPE(pw_c1d_gs_type), POINTER                      :: rho_g(:)
-      TYPE(pw_r3d_rs_type)                               :: gradient(3), tau
+      TYPE(pw_r3d_rs_type)                               :: gaussian_rho, gradient(3), tau
       TYPE(pw_r3d_rs_type), POINTER                      :: rho_r(:)
+      TYPE(qs_ks_env_type), POINTER                      :: native_ks
       TYPE(qs_upf_inverse_scf_type), POINTER             :: state
 
       CALL get_ks_env(ks_env, upf_inverse=state)
@@ -268,6 +278,8 @@ CONTAINS
       CALL check_geometry(ks_env, state)
       CALL qs_rho_get(rho_struct, rho_ao_kp=density, rho_r=rho_r, rho_g=rho_g, tot_rho_r=total)
       CPASSERT(SIZE(density, 2) == 1)
+      native_ks => ks_env
+      IF (state%native_gaussian) CALL gaussian_rho%create(rho_r(1)%pw_grid)
       CALL tau%create(rho_r(1)%pw_grid)
       DO axis = 1, 3
          CALL gradient(axis)%create(rho_r(1)%pw_grid)
@@ -275,10 +287,17 @@ CONTAINS
       DO spin = 1, SIZE(density, 1)
          CALL qs_upf_inverse_grid_collocate(state%frame, density(spin, 1)%matrix, rho_r(spin), gradient, tau, &
                                             augmentation=state%augmentation, fourier_charge=.TRUE.)
+         IF (state%native_gaussian) THEN
+            CALL dbcsr_copy(state%direct_density(1)%matrix, density(spin, 1)%matrix)
+            CALL calculate_rho_elec(matrix_p_kp=state%direct_density, rho=gaussian_rho, rho_gspace=rho_g(spin), &
+                                    ks_env=native_ks, soft_valid=.FALSE.)
+            rho_r(spin)%array = rho_r(spin)%array + gaussian_rho%array
+         END IF
          CALL pw_transfer(rho_r(spin), rho_g(spin))
          total(spin) = pw_integrate_function(rho_r(spin), isign=-1)
       END DO
       CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+      IF (state%native_gaussian) CALL gaussian_rho%release()
       CALL tau%release()
       DO axis = 1, 3
          CALL gradient(axis)%release()
@@ -319,6 +338,10 @@ CONTAINS
       CALL qs_upf_inverse_grid_integrate(state%frame, unweighted, zeros, zero_tau, hamiltonian, &
                                          real_part, imaginary, augmentation=state%augmentation, fourier_charge=.TRUE.)
       CALL check_real(state, real_part, imaginary)
+      IF (state%native_gaussian) THEN
+         CALL direct_integrate(ks_env, state, unweighted)
+         CALL dbcsr_add(real_part, state%direct_potential(1)%matrix, 1.0_dp, 1.0_dp)
+      END IF
       CALL dbcsr_add(hamiltonian, real_part, 1.0_dp, 1.0_dp)
       CALL dbcsr_release(real_part)
       CALL dbcsr_release(imaginary)
@@ -358,7 +381,7 @@ CONTAINS
                                                             metric_response(:, :)
 
       COMPLEX(dp), ALLOCATABLE                           :: atomic_m(:, :), atomic_t(:, :), &
-                                                            dm(:, :), dt(:, :)
+                                                            dm(:, :), dt(:, :), dw(:, :)
       INTEGER                                            :: axis, info
       REAL(dp)                                           :: cell_inverse(3, 3), strain(3, 3)
       TYPE(pw_r3d_rs_type)                               :: local_r, local_response, unit_tau, zero, &
@@ -372,8 +395,8 @@ CONTAINS
       CALL local_response%create(grid)
       CALL unit_tau%create(grid)
       CALL zero%create(grid)
-      unit_tau%array = 1.0_dp
-      IF (frame%ao%atom_local) unit_tau%array = 0.0_dp
+      unit_tau%array = 0.0_dp
+
       zero%array = 0.0_dp
       DO axis = 1, 3
          CALL zeros(axis)%create(grid)
@@ -382,12 +405,10 @@ CONTAINS
       CALL local_potential(ks_env, grid, frame%ao%positions, local_r, local_response, atom_response, strain)
       CALL qs_upf_inverse_grid_response(frame, augmentation, frame%ao%radial_q, local_r, zeros, unit_tau, &
                                         atom_response, cell_response, reduced_k_response, local_response, zeros, zero, &
-                                        core_response, metric_response, frame%ao%dion)
-      IF (frame%ao%atom_local) THEN
-         CALL qs_upf_inverse_atomic_operators(frame%ao, frame%ao%radial_q, atomic_t, atomic_m, dt, dm, &
-                                              atom_response, cell_response, reduced_k_response)
-         core_response(:, :) = core_response + dt
-      END IF
+                                        core_response, metric_response, frame%ao%dion, dw)
+      CALL qs_upf_inverse_atomic_operators(frame%ao, frame%ao%radial_q, atomic_t, atomic_m, dt, dm, &
+                                           atom_response, cell_response, reduced_k_response, dw)
+      core_response(:, :) = core_response + dt
       CALL local_r%release()
       CALL local_response%release()
       CALL unit_tau%release()
@@ -423,8 +444,10 @@ CONTAINS
 
       COMPLEX(dp), ALLOCATABLE :: core(:, :, :), density(:, :, :), energy_weighted(:, :, :), &
          matrix(:, :), metric(:, :, :), metric_part(:, :)
-      INTEGER                                            :: axis, ik, nk, nspin
-      REAL(dp)                                           :: weight
+      INTEGER                                            :: axis, ik, inv_info, nk, nspin
+      REAL(dp)                                           :: inverse_cell(3, 3), native_energy, &
+                                                            native_metric, strain(3, 3), weight
+      REAL(dp), ALLOCATABLE                              :: relative_motion(:, :)
       TYPE(dbcsr_p_type), POINTER                        :: density_gamma(:, :), energy_gamma(:)
       TYPE(pw_grid_type), POINTER                        :: grid
       TYPE(pw_r3d_rs_type)                               :: zero, zeros(3)
@@ -453,6 +476,15 @@ CONTAINS
          core(:, :, ik) = matrix
          metric(:, :, ik) = metric_part
       END DO
+      IF (state%native_gaussian) THEN
+         CPASSERT(ALL(reduced_k_response == 0.0_dp))
+         ALLOCATE (relative_motion, MOLD=atom_response)
+         inverse_cell = state%frame%ao%cell
+         CALL invmat(inverse_cell, inv_info)
+         CPASSERT(inv_info == 0)
+         strain = MATMUL(cell_response, inverse_cell)
+         relative_motion = atom_response - MATMUL(strain, state%frame%ao%positions)
+      END IF
       response = 0.0_dp
       metric_response = 0.0_dp
       CALL qs_rho_get(rho, rho_ao_kp=density_gamma)
@@ -465,10 +497,14 @@ CONTAINS
          density(:, :, 1) = matrix
          CALL qs_upf_inverse_matrix_gather(state%frame%ao, energy_gamma(axis)%matrix, matrix)
          energy_weighted(:, :, 1) = matrix
-         IF (state%frame%ao%atom_local) THEN
-            CALL gaussian_kinetic_response(ks_env, density_gamma(axis, 1)%matrix, &
-                                           atom_response, cell_response, weight)
-            response = response + weight
+         CALL gaussian_kinetic_response(ks_env, density_gamma(axis, 1)%matrix, &
+                                        atom_response, cell_response, weight)
+         response = response + weight
+         IF (state%native_gaussian) THEN
+            CALL native_grid_response(ks_env, state, density, energy_weighted, vdensity(axis), vgradient(:, axis), vtau(axis), &
+                                      atom_response, strain, relative_motion, native_energy, native_metric)
+            response = response + native_energy
+            metric_response = metric_response + native_metric
          END IF
          DO ik = 1, nk
             weight = 1.0_dp
@@ -676,8 +712,8 @@ CONTAINS
       INTEGER                                            :: atom, axis, ikind, image, info, ix, iy, &
                                                             iz, lower(3), upper(3)
       INTEGER, ALLOCATABLE                               :: images(:, :)
-      REAL(dp)                                           :: fractional(3), lower_real(3), radius, &
-                                                            reach, upper_real(3)
+      REAL(dp) :: domain_lower(3), domain_upper(3), fractional(3), lower_real(3), radius, reach, &
+         reciprocal_norm(3), upper_real(3)
       REAL(dp), ALLOCATABLE                              :: radial_radius(:)
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: control
@@ -712,6 +748,17 @@ CONTAINS
          radial_radius(ikind) = MAX(beta%radius, delta%radius)
       END DO
       IF (ANY(cell%perd == 0)) CPABORT("Inverse USPP GPW currently requires a fully periodic cell")
+      reciprocal_norm = SQRT(SUM(cell%h_inv**2, DIM=2))
+      domain_lower = 0.0_dp
+      domain_upper = 1.0_dp
+      IF (control%qs_control%uspp_method == uspp_method_inverse) THEN
+         DO atom = 1, SIZE(atoms)
+            radius = radial_radius(atoms(atom)%atomic_kind%kind_number)
+            fractional = MATMUL(cell%h_inv, atoms(atom)%r)
+            domain_lower = MIN(domain_lower, fractional - radius*reciprocal_norm)
+            domain_upper = MAX(domain_upper, fractional + radius*reciprocal_norm)
+         END DO
+      END IF
       lower_real = 0.0_dp
       upper_real = 0.0_dp
       DO atom = 1, SIZE(atoms)
@@ -723,10 +770,10 @@ CONTAINS
          END IF
          fractional = MATMUL(cell%h_inv, atoms(atom)%r)
          DO axis = 1, 3
-            reach = radius*SQRT(SUM(cell%h_inv(axis, :)**2))
+            reach = radius*reciprocal_norm(axis)
             ! One additional cell keeps exponentially small Gaussian tails away from image boundaries.
-            lower_real(axis) = MIN(lower_real(axis), -fractional(axis) - reach - 1.0_dp)
-            upper_real(axis) = MAX(upper_real(axis), 1.0_dp - fractional(axis) + reach + 1.0_dp)
+            lower_real(axis) = MIN(lower_real(axis), domain_lower(axis) - fractional(axis) - reach - 1.0_dp)
+            upper_real(axis) = MAX(upper_real(axis), domain_upper(axis) - fractional(axis) + reach + 1.0_dp)
          END DO
       END DO
       lower = FLOOR(lower_real)
@@ -755,5 +802,187 @@ CONTAINS
       END IF
       IF (info /= 0) CPABORT("Inverse USPP reconstruction is singular or ill-conditioned")
    END SUBROUTINE qs_upf_inverse_scf_initialize
+
+! **************************************************************************************************
+!> \brief Allocate native matrix workspaces on the Gaussian overlap sparsity pattern.
+!> \param ks_env Quickstep environment owning the overlap matrices.
+!> \param state DIRECT density and potential workspaces.
+! **************************************************************************************************
+   SUBROUTINE direct_prepare(ks_env, state)
+      TYPE(qs_ks_env_type), INTENT(IN)                   :: ks_env
+      TYPE(qs_upf_inverse_scf_type), INTENT(INOUT)       :: state
+
+      INTEGER                                            :: i
+      TYPE(dbcsr_p_type), POINTER                        :: overlap(:, :)
+
+      CALL get_ks_env(ks_env, matrix_s_kp=overlap)
+      ALLOCATE (state%direct_density(SIZE(overlap, 2)), state%direct_potential(SIZE(overlap, 2)))
+      DO i = 1, SIZE(overlap, 2)
+         ALLOCATE (state%direct_density(i)%matrix, state%direct_potential(i)%matrix)
+         CALL dbcsr_copy(state%direct_density(i)%matrix, overlap(1, i)%matrix)
+         CALL dbcsr_copy(state%direct_potential(i)%matrix, overlap(1, i)%matrix)
+      END DO
+   END SUBROUTINE direct_prepare
+
+! **************************************************************************************************
+!> \brief Copy the spin density into the real-space Gaussian matrix blocks.
+!> \param state DIRECT matrix workspace.
+!> \param matrix Density matrices in the original AO order.
+! **************************************************************************************************
+   SUBROUTINE direct_set_density(state, matrix)
+      TYPE(qs_upf_inverse_scf_type), INTENT(INOUT)       :: state
+      COMPLEX(dp), INTENT(IN)                            :: matrix(:, :, :)
+
+      TYPE(dbcsr_type)                                   :: imaginary, real_part
+
+      CALL qs_upf_inverse_matrix_scatter(state%frame%ao, matrix(:, :, 1), state%direct_density(1)%matrix, real_part, imaginary)
+      CALL dbcsr_copy(state%direct_density(1)%matrix, real_part)
+      CALL dbcsr_release(real_part)
+      CALL dbcsr_release(imaginary)
+   END SUBROUTINE direct_set_density
+
+! **************************************************************************************************
+!> \brief Gather native Gaussian potential matrices in the orbital representation.
+!> \param state DIRECT matrix workspace.
+!> \param operators Dense potential matrices in the original AO order.
+! **************************************************************************************************
+   SUBROUTINE direct_operator(state, operators)
+      TYPE(qs_upf_inverse_scf_type), INTENT(IN)          :: state
+      COMPLEX(dp), ALLOCATABLE, INTENT(OUT)              :: operators(:, :, :)
+
+      COMPLEX(dp), ALLOCATABLE                           :: gamma(:, :)
+
+      CALL qs_upf_inverse_matrix_gather(state%frame%ao, state%direct_potential(1)%matrix, gamma)
+      ALLOCATE (operators(SIZE(gamma, 1), SIZE(gamma, 2), 1))
+      operators(:, :, 1) = gamma
+   END SUBROUTINE direct_operator
+
+! **************************************************************************************************
+!> \brief Apply the adjoint of the Gaussian density collocation to a scalar potential.
+!> \param ks_env Quickstep environment owning the grid task lists.
+!> \param state DIRECT matrix workspace for the result.
+!> \param potential Scalar potential before multiplication by the integration measure.
+! **************************************************************************************************
+   SUBROUTINE direct_integrate(ks_env, state, potential)
+      TYPE(qs_ks_env_type), INTENT(IN)                   :: ks_env
+      TYPE(qs_upf_inverse_scf_type), INTENT(INOUT)       :: state
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: potential
+
+      INTEGER                                            :: i
+
+      DO i = 1, SIZE(state%direct_potential)
+         CALL dbcsr_set(state%direct_potential(i)%matrix, 0.0_dp)
+      END DO
+      CALL integrate_v_rspace(potential, hmat_kp=state%direct_potential, calculate_forces=.FALSE., ks_env_external=ks_env)
+      DO i = 1, SIZE(state%direct_potential)
+         CALL dbcsr_scale(state%direct_potential(i)%matrix, potential%pw_grid%dvol)
+      END DO
+   END SUBROUTINE direct_integrate
+
+! **************************************************************************************************
+!> \brief Differentiate the native DIRECT Gaussian density map and its unit-potential metric.
+!>        Native grid kernels supply the field derivatives. Include the integration measure and
+!>        the explicit local-potential response before subtracting the normalization constraint.
+!> \param ks_env Native owner of the same full Gaussian task lists used during SCF.
+!> \param state Prepared DIRECT state with separate Gaussian and original augmentation maps.
+!> \param density Accepted spin occupations, without k-point weights.
+!> \param weighted Matching energy-weighted occupations, without k-point weights.
+!> \param vdensity Folded density potential, including the spectral gradient adjoint.
+!> \param vgradient Must be zero because native integration consumes the folded scalar potential.
+!> \param vtau Potential conjugate to Gaussian kinetic density.
+!> \param atom_response Cartesian displacements of the original atoms.
+!> \param strain Physical deformation gradient of the cell.
+!> \param relative_motion Atomic displacement relative to the moving fractional grid.
+!> \param response Gaussian local and XC response, without the metric constraint.
+!> \param metric_response Signed Gaussian normalization response.
+! **************************************************************************************************
+   SUBROUTINE native_grid_response(ks_env, state, density, weighted, vdensity, vgradient, vtau, &
+                                   atom_response, strain, relative_motion, response, metric_response)
+      TYPE(qs_ks_env_type), INTENT(IN)                   :: ks_env
+      TYPE(qs_upf_inverse_scf_type), INTENT(INOUT)       :: state
+      COMPLEX(dp), INTENT(IN)                            :: density(:, :, :), weighted(:, :, :)
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: vdensity, vgradient(3), vtau
+      REAL(dp), INTENT(IN)                               :: atom_response(:, :), strain(3, 3), &
+                                                            relative_motion(:, :)
+      REAL(dp), INTENT(OUT)                              :: response, metric_response
+
+      COMPLEX(dp), ALLOCATABLE                           :: operators(:, :, :)
+      INTEGER                                            :: axis, ik
+      REAL(dp)                                           :: energy, trace_strain, virial(3, 3), &
+                                                            weights(SIZE(density, 3))
+      REAL(dp), ALLOCATABLE                              :: forces(:, :)
+      TYPE(pw_grid_type), POINTER                        :: grid
+      TYPE(pw_r3d_rs_type)                               :: explicit_response, potential
+
+      weights = 1.0_dp
+      CPASSERT(state%native_gaussian)
+      DO axis = 1, 3
+         CPASSERT(ALL(vgradient(axis)%array == 0.0_dp))
+      END DO
+      grid => vdensity%pw_grid
+      CALL potential%create(grid)
+      CALL explicit_response%create(grid)
+      ! Positions belong to the original AO ordering, including translated Bloch atoms.
+      CALL local_potential(ks_env, grid, state%frame%ao%positions, potential, explicit_response, atom_response, strain)
+      potential%array = potential%array + vdensity%array
+      ALLOCATE (forces(3, SIZE(atom_response, 2)))
+      trace_strain = strain(1, 1) + strain(2, 2) + strain(3, 3)
+      CALL direct_geometry(ks_env, state, density, potential, forces, virial)
+      CALL direct_operator(state, operators)
+      energy = 0.0_dp
+      DO ik = 1, SIZE(density, 3)
+         energy = energy + weights(ik)*REAL(SUM(density(:, :, ik)*CONJG(operators(:, :, ik))), dp)
+      END DO
+      response = -SUM(forces*relative_motion) - SUM(virial*strain) + trace_strain*energy
+      CALL direct_integrate(ks_env, state, explicit_response)
+      CALL direct_operator(state, operators)
+      DO ik = 1, SIZE(density, 3)
+         response = response + weights(ik)*REAL(SUM(density(:, :, ik)*CONJG(operators(:, :, ik))), dp)
+      END DO
+      CPASSERT(ALL(vtau%array == 0.0_dp))
+      potential%array = 1.0_dp
+      CALL direct_geometry(ks_env, state, weighted, potential, forces, virial)
+      CALL direct_operator(state, operators)
+      energy = 0.0_dp
+      DO ik = 1, SIZE(density, 3)
+         energy = energy + weights(ik)*REAL(SUM(weighted(:, :, ik)*CONJG(operators(:, :, ik))), dp)
+      END DO
+      metric_response = SUM(forces*relative_motion) + SUM(virial*strain) - trace_strain*energy
+      CALL potential%release()
+      CALL explicit_response%release()
+   END SUBROUTINE native_grid_response
+
+! **************************************************************************************************
+!> \brief Differentiate the Gaussian potential integral at fixed density.
+!> \param ks_env Quickstep environment owning the grid task lists.
+!> \param state DIRECT matrix workspace.
+!> \param density Density matrices in the original AO order.
+!> \param potential Scalar potential on the density grid.
+!> \param forces Cartesian forces.
+!> \param virial Cell virial.
+! **************************************************************************************************
+   SUBROUTINE direct_geometry(ks_env, state, density, potential, forces, virial)
+      TYPE(qs_ks_env_type), INTENT(IN)                   :: ks_env
+      TYPE(qs_upf_inverse_scf_type), INTENT(INOUT)       :: state
+      COMPLEX(dp), INTENT(IN)                            :: density(:, :, :)
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: potential
+      REAL(dp), INTENT(OUT)                              :: forces(:, :), virial(3, 3)
+
+      INTEGER                                            :: i
+      TYPE(pw_r3d_rs_type)                               :: weighted
+
+      CALL direct_set_density(state, density)
+      DO i = 1, SIZE(state%direct_potential)
+         CALL dbcsr_set(state%direct_potential(i)%matrix, 0.0_dp)
+      END DO
+      CALL weighted%create(potential%pw_grid)
+      weighted%array = potential%pw_grid%dvol*potential%array
+      CALL integrate_v_rspace(weighted, hmat_kp=state%direct_potential, pmat_kp=state%direct_density, ks_env_external=ks_env, &
+                              calculate_forces=.TRUE., force_response=forces, virial_response=virial)
+      CALL potential%pw_grid%para%group%sum(forces)
+      CALL potential%pw_grid%para%group%sum(virial)
+      forces = -forces
+      CALL weighted%release()
+   END SUBROUTINE direct_geometry
 
 END MODULE qs_upf_inverse_scf

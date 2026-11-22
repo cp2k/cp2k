@@ -11,20 +11,32 @@
 ! **************************************************************************************************
 MODULE qs_upf_inverse_types
    USE basis_set_types,                 ONLY: gto_basis_set_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE kinds,                           ONLY: dp
    USE kpoint_transitional,             ONLY: kpoint_transitional_release,&
                                               kpoint_transitional_type
    USE message_passing,                 ONLY: mp_comm_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
+   USE qs_grid_atom,                    ONLY: grid_atom_type
    USE upf_inverse,                     ONLY: upf_inverse_atomic_type,&
                                               upf_inverse_type
+   USE upf_projector_integrals,         ONLY: upf_projector_type
    USE upf_radial_fields,               ONLY: upf_radial_fields_type
    USE uspp_augmentation,               ONLY: uspp_augmentation_type
 
    IMPLICIT NONE
    PRIVATE
 
+   TYPE qs_upf_inverse_atom_grid_ref_type
+      TYPE(grid_atom_type), POINTER :: grid => NULL()
+      TYPE(upf_projector_type) :: projectors
+      REAL(dp), ALLOCATABLE :: directions(:, :), angular_weights(:), home_coupling(:, :)
+   END TYPE qs_upf_inverse_atom_grid_ref_type
+   PUBLIC :: qs_upf_inverse_atom_grid_ref_type
+
    TYPE qs_upf_inverse_type
+      TYPE(qs_upf_inverse_atom_grid_ref_type), ALLOCATABLE :: defining_atom_grids(:)
       TYPE(upf_inverse_type) :: inverse
       LOGICAL :: atom_local = .FALSE., direct = .FALSE.
       TYPE(upf_inverse_atomic_type), ALLOCATABLE :: atomic_cache(:)
@@ -43,6 +55,7 @@ MODULE qs_upf_inverse_types
    END TYPE qs_upf_inverse_type
 
    TYPE qs_upf_inverse_grid_type
+      LOGICAL :: native_gaussian = .FALSE.
       TYPE(qs_upf_inverse_type) :: ao
       INTEGER :: bounds(2, 3) = 0, bounds_local(2, 3) = 0, npts(3) = 0, mode = PW_MODE_LOCAL
       REAL(dp) :: dh(3, 3) = 0.0_dp, dvol = 0.0_dp
@@ -53,6 +66,8 @@ MODULE qs_upf_inverse_types
    END TYPE qs_upf_inverse_augmentation_type
 
    TYPE qs_upf_inverse_scf_type
+      LOGICAL :: native_gaussian = .FALSE.
+      TYPE(dbcsr_p_type), POINTER :: direct_density(:) => NULL(), direct_potential(:) => NULL()
       LOGICAL :: enabled = .FALSE.
       INTEGER :: density_evaluations = 0, operator_evaluations = 0
       TYPE(qs_upf_inverse_grid_type) :: frame
@@ -75,6 +90,8 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(state)) RETURN
       CALL kpoint_transitional_release(state%metric)
+      IF (ASSOCIATED(state%direct_density)) CALL dbcsr_deallocate_matrix_set(state%direct_density)
+      IF (ASSOCIATED(state%direct_potential)) CALL dbcsr_deallocate_matrix_set(state%direct_potential)
       DEALLOCATE (state)
       NULLIFY (state)
    END SUBROUTINE qs_upf_inverse_scf_release

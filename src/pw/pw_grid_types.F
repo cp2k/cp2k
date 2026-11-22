@@ -20,7 +20,16 @@ MODULE pw_grid_types
    IMPLICIT NONE
 
    PRIVATE
-   PUBLIC :: pw_grid_type, map_pn
+   PUBLIC :: pw_grid_type, map_pn, pw_nyquist_map_type
+
+   ! Sparse correction to real Fourier interpolation and its transpose. Only
+   ! split Nyquist planes communicate; a grid owns its fixed reference-grid map.
+   TYPE pw_nyquist_map_type
+      INTEGER :: reference = -1
+      INTEGER, ALLOCATABLE :: send_count(:), send_offset(:), receive_count(:), receive_offset(:)
+      INTEGER, ALLOCATABLE :: coarse_index(:), fine_index(:)
+      REAL(dp), ALLOCATABLE :: weight(:)
+   END TYPE pw_nyquist_map_type
 
    ! (only for reciprocal grid:) fill in half or full space
    INTEGER, PARAMETER, PUBLIC :: HALFSPACE = 211, FULLSPACE = 212
@@ -76,6 +85,7 @@ MODULE pw_grid_types
       INTEGER :: first_gne0 = 0 ! first g index /= 0 [1/2]
       INTEGER :: id_nr = -1 ! tag of this grid
       INTEGER :: reference = 0 ! reference grid identifier
+      TYPE(pw_nyquist_map_type) :: real_interpolation
       INTEGER, DIMENSION(:), POINTER :: gidx => NULL() ! ref grid index
       INTEGER :: ref_count = 0 ! reference count
       LOGICAL :: spherical = .FALSE. ! spherical cutoff?

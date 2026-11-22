@@ -12,28 +12,40 @@
 MODULE qs_upf_inverse
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
+   USE cp_control_types,                ONLY: dft_control_type
+   USE cryssym,                         ONLY: crys_sym_lattice_rotations
    USE gaussian_basis_fields,           ONLY: gaussian_basis_fields_periodic
+   USE input_constants,                 ONLY: uspp_method_inverse
    USE kinds,                           ONLY: dp
+   USE lebedev,                         ONLY: deallocate_lebedev_grids,&
+                                              get_number_of_lebedev_grid,&
+                                              init_lebedev_grids,&
+                                              lebedev_average_points,&
+                                              lebedev_grid
    USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_comm_type
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
+   USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
+                                              create_grid_atom,&
+                                              grid_atom_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
-   USE qs_upf_inverse_types,            ONLY: qs_upf_inverse_type
+   USE qs_upf_inverse_types,            ONLY: qs_upf_inverse_atom_grid_ref_type,&
+                                              qs_upf_inverse_type
    USE qs_uspp_types,                   ONLY: qs_uspp_type
    USE upf_inverse,                     ONLY: &
-        upf_inverse_atomic_init, upf_inverse_atomic_residual, upf_inverse_basis, &
-        upf_inverse_basis_response, upf_inverse_fields_init, upf_inverse_init, &
+        upf_inverse_atomic_difference_init, upf_inverse_atomic_init, upf_inverse_atomic_residual, &
+        upf_inverse_basis, upf_inverse_basis_response, upf_inverse_fields_init, upf_inverse_init, &
         upf_inverse_operator_response, upf_inverse_project, upf_inverse_project_response
-   USE upf_inverse_quadrature,          ONLY: upf_inverse_pair,&
-                                              upf_inverse_pair_response
-   USE upf_projector_integrals,         ONLY: upf_projector_overlap,&
+   USE upf_projector_integrals,         ONLY: upf_projector_init,&
+                                              upf_projector_overlap,&
                                               upf_projector_type
-   USE upf_radial_fields,               ONLY: upf_radial_fields_periodic
+   USE upf_radial_fields,               ONLY: upf_radial_fields_evaluate,&
+                                              upf_radial_fields_periodic
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -200,15 +212,27 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: info
       LOGICAL, INTENT(IN), OPTIONAL                      :: atom_local, direct
 
-      TYPE(cell_type), POINTER                           :: cell
+      REAL(dp), ALLOCATABLE                              :: rotations(:, :, :)
+      TYPE(cell_type), POINTER                           :: cell, cell_ref
+      TYPE(dft_control_type), POINTER                    :: control
       TYPE(particle_type), POINTER                       :: particles(:)
       TYPE(qs_kind_type), POINTER                        :: kinds(:)
       TYPE(qs_uspp_type), POINTER                        :: uspp
 
-      CALL get_ks_env(ks_env, qs_kind_set=kinds, particle_set=particles, cell=cell, uspp=uspp)
+      CALL get_ks_env(ks_env, qs_kind_set=kinds, particle_set=particles, cell=cell, cell_ref=cell_ref, &
+                      dft_control=control, uspp=uspp)
       CPASSERT(ASSOCIATED(kinds) .AND. ASSOCIATED(particles) .AND. ASSOCIATED(cell))
       CPASSERT(ASSOCIATED(uspp))
-CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, images, reduced_k, comm, frame, info, atom_local, direct)
+
+      IF (ALL(control%qs_control%upf_angular_reference_cell == 0.0_dp)) THEN
+         control%qs_control%upf_angular_reference_cell = cell%hmat
+         IF (ASSOCIATED(cell_ref)) control%qs_control%upf_angular_reference_cell = cell_ref%hmat
+      END IF
+      IF (control%qs_control%uspp_method == uspp_method_inverse) THEN
+         CALL crys_sym_lattice_rotations(control%qs_control%upf_angular_reference_cell, rotations)
+      END IF
+      CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, images, reduced_k, comm, &
+                                  frame, info, atom_local, direct, control%qs_control%gapw_control%quadrature, rotations)
    END SUBROUTINE qs_upf_inverse_from_ks
 
 ! **************************************************************************************************
@@ -229,10 +253,12 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
 !> \param info ...
 !> \param atom_local Optional nonoverlapping one-center inverse. Status -2 reports overlapping support.
 !> \param direct Use original projectors and soft orbitals without reconstruction.
+!> \param quadrature Radial quadrature rule for the atom-centered integrals.
+!> \param rotations Optional reference-cell rotations used to average the angular quadrature.
 ! **************************************************************************************************
    SUBROUTINE qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, images, reduced_k, comm, &
-                                     frame, info, atom_local, direct)
-      TYPE(qs_kind_type), INTENT(IN)                     :: kinds(:)
+                                     frame, info, atom_local, direct, quadrature, rotations)
+      TYPE(qs_kind_type), INTENT(INOUT)                  :: kinds(:)
       TYPE(particle_type), INTENT(IN)                    :: particles(:)
       TYPE(cell_type), INTENT(IN)                        :: cell
       TYPE(qs_uspp_type), INTENT(IN)                     :: uspp
@@ -243,6 +269,8 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
       TYPE(qs_upf_inverse_type), INTENT(OUT)             :: frame
       INTEGER, INTENT(OUT)                               :: info
       LOGICAL, INTENT(IN), OPTIONAL                      :: atom_local, direct
+      INTEGER, INTENT(IN)                                :: quadrature
+      REAL(dp), INTENT(IN), OPTIONAL                     :: rotations(:, :, :)
 
       COMPLEX(dp), ALLOCATABLE                           :: coupling(:, :), overlaps(:, :)
       INTEGER                                            :: atom, axis, center, degree, first, &
@@ -303,7 +331,11 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
       ALLOCATE (frame%center_kinds, SOURCE=uspp%center_kinds)
       ALLOCATE (frame%projector_first(ncenter), frame%projector_last(ncenter), &
                 frame%beta_cache(SIZE(kinds)), frame%delta_cache(SIZE(kinds)))
-      IF (use_atomic) ALLOCATE (frame%atomic_cache(SIZE(kinds)))
+      ALLOCATE (frame%atomic_cache(SIZE(kinds)))
+      IF (.NOT. use_atomic) THEN
+         ALLOCATE (frame%defining_atom_grids(SIZE(kinds)))
+         CALL init_lebedev_grids()
+      END IF
       nproj = 0
       DO center = 1, ncenter
          ikind = frame%center_kinds(center)
@@ -311,12 +343,24 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
          CPASSERT(.NOT. kinds(ikind)%ghost)
          CPASSERT(particles(atom)%atomic_kind%kind_number == ikind)
          IF (frame%beta_cache(ikind)%nproj == 0) THEN
-            CALL upf_inverse_fields_init(kinds(ikind)%sgp_potential%upf_data, &
-                                         frame%beta_cache(ikind), frame%delta_cache(ikind), frame%direct)
-            IF (use_atomic) THEN
-            CALL upf_inverse_atomic_init(kinds(ikind)%sgp_potential%upf_data, degree, frame%atomic_cache(ikind), info, frame%direct)
-               IF (info /= 0) RETURN
-            END IF
+            ASSOCIATE (pot => kinds(ikind)%sgp_potential%upf_data)
+               IF (use_atomic) THEN
+                  CALL upf_inverse_fields_init(pot, frame%beta_cache(ikind), frame%delta_cache(ikind), frame%direct)
+                  CALL upf_inverse_atomic_init(pot, degree, frame%atomic_cache(ikind), info, frame%direct)
+                  IF (info /= 0) RETURN
+               ELSE
+                  ASSOCIATE (rule => frame%defining_atom_grids(ikind))
+                     CALL qs_upf_atom_kind_grid(kinds(ikind), quadrature, rule%grid)
+                     CALL upf_projector_init(pot, degree, rule%projectors)
+                     CALL upf_inverse_fields_init(pot, frame%beta_cache(ikind), frame%delta_cache(ikind), &
+                                                  home_coupling=rule%home_coupling)
+                     IF (PRESENT(rotations)) THEN
+                        CALL qs_upf_atom_angular_average(rule%grid, rotations, rule%directions, rule%angular_weights)
+                     END IF
+                  END ASSOCIATE
+                  CALL upf_inverse_atomic_difference_init(pot, degree, frame%atomic_cache(ikind))
+               END IF
+            END ASSOCIATE
          END IF
          p = kinds(ikind)%sgp_potential%upf_projectors%nproj
          CPASSERT(frame%beta_cache(ikind)%nproj == p)
@@ -324,6 +368,7 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
          nproj = nproj + frame%beta_cache(ikind)%nproj
          frame%projector_last(center) = nproj
       END DO
+      IF (.NOT. use_atomic) CALL deallocate_lebedev_grids()
       ALLOCATE (frame%beta(npoint, nproj), frame%delta(npoint, nproj), frame%delta_gradient(npoint, nproj, 3), &
                 frame%q(nproj, nproj), frame%radial_q(nproj, nproj), frame%dion(nproj, nproj), frame%coefficients(nproj, nao))
       frame%q(:, :) = CMPLX(0.0_dp, 0.0_dp, dp)
@@ -359,8 +404,7 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
          frame%atom_local = .TRUE.
       ELSE
          ALLOCATE (coupling(nproj, nproj), overlaps(nproj, nao))
-         CALL upf_inverse_pair(frame%beta, frame%delta, weights, coupling, comm)
-         CALL upf_inverse_pair(frame%beta, frame%gaussian, weights, overlaps, comm)
+         CALL qs_upf_inverse_centered_pairs(frame, coupling, overlaps)
          CALL upf_inverse_init(coupling, frame%inverse, info)
          IF (info /= 0) RETURN
          CALL upf_inverse_project(frame%inverse, overlaps, frame%coefficients)
@@ -473,9 +517,10 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
 !> \param atom_response Optional nuclear and Gaussian-center displacement.
 !> \param cell_response Optional lattice displacement.
 !> \param reduced_k_response Optional reduced Bloch-vector displacement.
+!> \param coefficients_response Optional precomputed geometry derivative of the inverse projector coefficients.
 ! **************************************************************************************************
    SUBROUTINE qs_upf_inverse_atomic_operators(frame, projector_metric, kinetic, metric, kinetic_response, metric_response, &
-                                              atom_response, cell_response, reduced_k_response)
+                                              atom_response, cell_response, reduced_k_response, coefficients_response)
       TYPE(qs_upf_inverse_type), INTENT(IN)              :: frame
       COMPLEX(dp), INTENT(IN)                            :: projector_metric(:, :)
       COMPLEX(dp), ALLOCATABLE, INTENT(OUT)              :: kinetic(:, :), metric(:, :)
@@ -484,14 +529,18 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
       REAL(dp), INTENT(IN), OPTIONAL                     :: atom_response(:, :), &
                                                             cell_response(3, 3), &
                                                             reduced_k_response(3)
+      COMPLEX(dp), INTENT(IN), OPTIONAL, TARGET          :: coefficients_response(:, :)
 
-      COMPLEX(dp), ALLOCATABLE :: dl(:, :), dw(:, :), dz(:, :), laplacian(:, :), overlaps(:, :), &
-         rs(:, :), rt(:, :), z(:, :), zero_ao(:, :), zero_projectors(:, :)
+      COMPLEX(dp), ALLOCATABLE :: cross(:, :), dcross(:, :), dl(:, :), dz(:, :), laplacian(:, :), &
+         mixed(:, :), overlaps(:, :), rs(:, :), rt(:, :), z(:, :), zero_ao(:, :), &
+         zero_projectors(:, :)
+      COMPLEX(dp), ALLOCATABLE, TARGET                   :: owned_dw(:, :)
+      COMPLEX(dp), POINTER                               :: dw(:, :)
       INTEGER                                            :: atom, b, center, first, ikind, last, n, &
                                                             np, p, q
       LOGICAL                                            :: calculate_response
 
-      CPASSERT(frame%atom_local .AND. ALLOCATED(frame%atomic_cache))
+      CPASSERT(ALLOCATED(frame%atomic_cache))
       n = SIZE(frame%coefficients, 2)
       np = SIZE(frame%coefficients, 1)
       CPASSERT(ALL(SHAPE(projector_metric) == [np, np]))
@@ -510,12 +559,23 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
       END IF
       IF (frame%direct) RETURN
       IF (calculate_response) THEN
-         ALLOCATE (dw(np, n), overlaps(np, n), zero_ao(n, n))
+         ALLOCATE (zero_ao(n, n))
          zero_ao = CMPLX(0.0_dp, 0.0_dp, dp)
-         CALL atomic_coefficients(frame, overlaps, dw, atom_response, cell_response, reduced_k_response)
+         IF (PRESENT(coefficients_response)) THEN
+            CPASSERT(ALL(SHAPE(coefficients_response) == [np, n]))
+            dw => coefficients_response
+         ELSE
+            CPASSERT(frame%atom_local)
+            ALLOCATE (owned_dw(np, n), overlaps(np, n))
+            dw => owned_dw
+            CALL atomic_coefficients(frame, overlaps, dw, atom_response, cell_response, reduced_k_response)
+         END IF
       END IF
       DO center = 1, SIZE(frame%center_atoms)
          ikind = frame%center_kinds(center)
+         IF (.NOT. frame%atom_local) THEN
+            IF (frame%delta_cache(ikind)%radius <= 0.0_dp) CYCLE
+         END IF
          atom = frame%center_atoms(center)
          p = frame%projector_first(center)
          q = frame%projector_last(center)
@@ -558,6 +618,18 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
          DEALLOCATE (z, laplacian, rt, rs)
          IF (calculate_response) DEALLOCATE (dz, dl, zero_projectors)
       END DO
+      IF (frame%atom_local) RETURN
+      ALLOCATE (cross(np, np))
+      IF (calculate_response) THEN
+         ALLOCATE (dcross(np, np), mixed(n, n))
+         CALL qs_upf_inverse_cross_kinetic(frame, cross, dcross, atom_response, cell_response, reduced_k_response)
+         mixed(:, :) = MATMUL(CONJG(TRANSPOSE(dw)), MATMUL(cross, frame%coefficients))
+         kinetic_response(:, :) = kinetic_response + mixed + CONJG(TRANSPOSE(mixed)) + &
+                                  MATMUL(CONJG(TRANSPOSE(frame%coefficients)), MATMUL(dcross, frame%coefficients))
+      ELSE
+         CALL qs_upf_inverse_cross_kinetic(frame, cross)
+      END IF
+      kinetic(:, :) = kinetic + MATMUL(CONJG(TRANSPOSE(frame%coefficients)), MATMUL(cross, frame%coefficients))
    END SUBROUTINE qs_upf_inverse_atomic_operators
 
 ! **************************************************************************************************
@@ -581,8 +653,8 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
       COMPLEX(dp), INTENT(OUT), OPTIONAL                 :: soft_response(:, :), &
                                                             gradient_response(:, :, :)
 
-      COMPLEX(dp), ALLOCATABLE :: beta(:, :), chi(:, :), db(:, :), dbeta(:, :), dchi(:, :), &
-         ddelta(:, :), delta(:, :), dgc(:, :, :), dgd(:, :, :), dk(:, :), gc(:, :, :), gd(:, :, :)
+      COMPLEX(dp), ALLOCATABLE :: chi(:, :), db(:, :), dchi(:, :), ddelta(:, :), delta(:, :), &
+         dgc(:, :, :), dgd(:, :, :), dk(:, :), gc(:, :, :), gd(:, :, :)
       INTEGER                                            :: atom, axis, center, first, ikind, last, &
                                                             nao, npoint, nproj
       LOGICAL                                            :: shared_response
@@ -601,7 +673,7 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
       IF (PRESENT(gradient_response)) THEN
          CPASSERT(ALL(SHAPE(gradient_response) == [npoint, nao, 3]))
       END IF
-      ALLOCATE (beta(npoint, nproj), delta(npoint, nproj), dbeta(npoint, nproj), ddelta(npoint, nproj), &
+      ALLOCATE (delta(npoint, nproj), ddelta(npoint, nproj), &
                 chi(npoint, nao), dchi(npoint, nao), dk(nproj, nproj), db(nproj, nao))
       IF (PRESENT(gradient_response)) THEN
          ALLOCATE (gd(npoint, nproj, 3), dgd(npoint, nproj, 3), gc(npoint, nao, 3), dgc(npoint, nao, 3))
@@ -642,16 +714,9 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
             CYCLE
          END IF
          IF (.NOT. shared_response .AND. ALL(atom_response(:, atom) == 0.0_dp)) THEN
-            dbeta(:, first:last) = CMPLX(0.0_dp, 0.0_dp, dp)
             ddelta(:, first:last) = CMPLX(0.0_dp, 0.0_dp, dp)
             IF (PRESENT(gradient_response)) dgd(:, first:last, :) = CMPLX(0.0_dp, 0.0_dp, dp)
             CYCLE
-         END IF
-         IF (.NOT. frame%atom_local) THEN
-            CALL upf_radial_fields_periodic(frame%beta_cache(ikind), frame%points, frame%positions(:, atom), &
-                                    frame%cell, frame%images, frame%reduced_k, beta(:, first:last), response=dbeta(:, first:last), &
-                                            points_response=point_response, center_response=atom_response(:, atom), &
-                                            cell_response=cell_response, reduced_k_response=reduced_k_response)
          END IF
          IF (PRESENT(gradient_response)) THEN
             CALL upf_radial_fields_periodic(frame%delta_cache(ikind), frame%points, frame%positions(:, atom), &
@@ -669,10 +734,9 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
       IF (frame%atom_local) THEN
          CALL atomic_coefficients(frame, db, coefficients_response, atom_response, cell_response, reduced_k_response)
       ELSE
-         CALL upf_inverse_pair_response(frame%beta, frame%delta, frame%weights, dbeta, ddelta, &
-                                        weights_response, dk, frame%point_comm)
-         CALL upf_inverse_pair_response(frame%beta, frame%gaussian, frame%weights, dbeta, dchi, &
-                                        weights_response, db, frame%point_comm)
+         CALL qs_upf_inverse_centered_pairs(frame, coupling_response=dk, overlaps_response=db, &
+                                            atom_response=atom_response, cell_response=cell_response, &
+                                            reduced_k_response=reduced_k_response)
          CALL upf_inverse_project_response(frame%inverse, frame%coefficients, db, dk, coefficients_response)
       END IF
       IF (PRESENT(soft_response)) THEN
@@ -698,5 +762,401 @@ CALL qs_upf_inverse_prepare(kinds, particles, cell, uspp, points, weights, image
 
       frame = empty
    END SUBROUTINE qs_upf_inverse_release
+
+! **************************************************************************************************
+!> \brief Unfold each Bloch projector bra to its home atom's quadrature.
+!>        The Gaussian and difference-wave kets retain all periodic images and interatomic
+!>        couplings. The home offsets and weights are Cartesian and fixed under strain.
+!>        The defining overlap is independent of the uniform density grid.
+!> \param frame Original projector, Gaussian and difference-wave fields.
+!> \param coupling Original beta-Delta integrals without the identity.
+!> \param overlaps Original beta-Gaussian integrals.
+!> \param coupling_response Joint geometry response of the beta-Delta integrals.
+!> \param overlaps_response Joint geometry response of the beta-Gaussian integrals.
+!> \param atom_response Physical atom motion, including motion of the projector quadrature.
+!> \param cell_response Physical lattice response at fixed home offsets.
+!> \param reduced_k_response Motion of the reduced Bloch vector.
+!> \param image A single unphased ket image for the equivalent real-space convolution.
+! **************************************************************************************************
+   SUBROUTINE qs_upf_inverse_centered_pairs(frame, coupling, overlaps, coupling_response, overlaps_response, &
+                                            atom_response, cell_response, reduced_k_response, image)
+      TYPE(qs_upf_inverse_type), INTENT(IN), TARGET      :: frame
+      COMPLEX(dp), INTENT(OUT), OPTIONAL                 :: coupling(:, :), overlaps(:, :), &
+                                                            coupling_response(:, :), &
+                                                            overlaps_response(:, :)
+      REAL(dp), INTENT(IN), OPTIONAL                     :: atom_response(:, :), &
+                                                            cell_response(3, 3), &
+                                                            reduced_k_response(3)
+      INTEGER, INTENT(IN), OPTIONAL                      :: image(3)
+
+      COMPLEX(dp), ALLOCATABLE                           :: beta(:, :), ddelta(:, :), delta(:, :), &
+                                                            pair_b(:, :), pair_k(:, :)
+      INTEGER                                            :: atom, basis_atom, center, first, im, ir, &
+                                                            kind, last, na, nao, ni, nproj, other, &
+                                                            other_atom, p, q
+      INTEGER, ALLOCATABLE                               :: image_counts(:)
+      INTEGER, ALLOCATABLE, TARGET                       :: supported_images(:, :, :)
+      INTEGER, POINTER                                   :: images(:, :), ket_images(:, :)
+      INTEGER, TARGET                                    :: single_image(3, 1)
+      LOGICAL                                            :: derivative, includes_home, &
+                                                            shared_response, values
+      REAL(dp)                                           :: bra_radius, distance(3), ket_radius, &
+                                                            wavevector(3)
+      REAL(dp), ALLOCATABLE :: angular_weights(:), directions(:, :), motion(:, :), points(:, :), &
+         radial_beta(:), translations(:, :), weights(:)
+      TYPE(grid_atom_type), POINTER                      :: grid
+
+      values = PRESENT(coupling)
+      derivative = PRESENT(coupling_response)
+      wavevector = frame%reduced_k
+      images => frame%images
+      IF (PRESENT(image)) THEN
+         single_image(:, 1) = image
+         images => single_image
+         wavevector = 0.0_dp
+      END IF
+      ALLOCATE (image_counts(SIZE(frame%center_atoms)), &
+                supported_images(3, SIZE(images, 2), SIZE(frame%center_atoms)), &
+                translations(3, SIZE(images, 2)))
+      DO im = 1, SIZE(images, 2)
+         translations(:, im) = MATMUL(frame%cell, REAL(images(:, im), dp))
+      END DO
+      includes_home = ANY(ALL(images == 0, DIM=1))
+      IF (values) THEN
+         coupling = CMPLX(0.0_dp, 0.0_dp, dp)
+         overlaps = CMPLX(0.0_dp, 0.0_dp, dp)
+      END IF
+      shared_response = .FALSE.
+      IF (derivative) THEN
+         CPASSERT(PRESENT(atom_response) .AND. PRESENT(cell_response))
+         CPASSERT(PRESENT(reduced_k_response))
+         shared_response = ANY(cell_response /= 0.0_dp) .OR. ANY(reduced_k_response /= 0.0_dp)
+         coupling_response = CMPLX(0.0_dp, 0.0_dp, dp)
+         overlaps_response = CMPLX(0.0_dp, 0.0_dp, dp)
+      END IF
+      nao = SIZE(frame%coefficients, 2)
+      nproj = SIZE(frame%coefficients, 1)
+      DO center = frame%point_comm%mepos + 1, SIZE(frame%center_atoms), frame%point_comm%num_pe
+         atom = frame%center_atoms(center)
+         kind = frame%center_kinds(center)
+         first = frame%projector_first(center)
+         last = frame%projector_last(center)
+         grid => frame%defining_atom_grids(kind)%grid
+         CPASSERT(ASSOCIATED(grid))
+         CALL centered_grid(frame%defining_atom_grids(kind), directions, angular_weights)
+         na = SIZE(angular_weights)
+         ALLOCATE (points(3, na), weights(na), radial_beta(last - first + 1), &
+                   beta(na, last - first + 1), delta(na, nproj), &
+                   pair_b(last - first + 1, nao), pair_k(last - first + 1, nproj))
+         IF (derivative) THEN
+            ALLOCATE (motion(3, na), ddelta(na, nproj))
+            motion(:, :) = SPREAD(atom_response(:, atom), 2, na)
+         END IF
+         ! B uses the original radial weights and the analytic Gaussian angular integrals.
+         DO basis_atom = 1, SIZE(frame%bases)
+            ! A common translation leaves the overlap unchanged at fixed cell and reduced k.
+            IF (.NOT. values .AND. derivative .AND. .NOT. shared_response) THEN
+               IF (ALL(atom_response(:, basis_atom) == atom_response(:, atom))) CYCLE
+            END IF
+            p = frame%ao_first(basis_atom)
+            q = frame%ao_last(basis_atom)
+            ASSOCIATE (basis => frame%bases(basis_atom)%gto_basis_set, raw => frame%defining_atom_grids(kind)%projectors)
+               IF (derivative) THEN
+                  CALL qs_upf_inverse_atomic_overlap(basis, raw, frame%positions(:, atom), frame%positions(:, basis_atom), &
+                                               frame%cell, images, wavevector, pair_b(:, p:q), overlaps_response(first:last, p:q), &
+                                            atom_response(:, atom), atom_response(:, basis_atom), cell_response, reduced_k_response)
+               ELSE
+                  CALL qs_upf_inverse_atomic_overlap(basis, raw, frame%positions(:, atom), frame%positions(:, basis_atom), &
+                                                     frame%cell, images, wavevector, pair_b(:, p:q))
+               END IF
+            END ASSOCIATE
+            IF (values) overlaps(first:last, p:q) = pair_b(:, p:q)
+         END DO
+         ! The home block uses the same radial integral as the local inverse.
+         ! Its atom, cell and Bloch-vector derivatives are zero.
+         IF (values .AND. includes_home) THEN
+            coupling(first:last, first:last) = frame%defining_atom_grids(kind)%home_coupling
+         END IF
+         bra_radius = frame%beta_cache(kind)%radius
+         image_counts = 0
+         DO other = 1, SIZE(frame%center_atoms)
+            other_atom = frame%center_atoms(other)
+            ket_radius = frame%delta_cache(frame%center_kinds(other))%radius
+            IF (ket_radius <= 0.0_dp) CYCLE
+            IF (.NOT. values .AND. derivative .AND. .NOT. shared_response) THEN
+               IF (ALL(atom_response(:, other_atom) == atom_response(:, atom))) CYCLE
+            END IF
+            ni = 0
+            DO im = 1, SIZE(images, 2)
+               IF (other == center .AND. ALL(images(:, im) == 0)) CYCLE
+               ! Disjoint compact radial supports contribute neither a value nor a first derivative.
+               distance = frame%positions(:, atom) - (frame%positions(:, other_atom) + translations(:, im))
+               IF (SUM(distance**2) > (bra_radius + ket_radius)**2) CYCLE
+               ni = ni + 1
+               supported_images(:, ni, other) = images(:, im)
+            END DO
+            image_counts(other) = ni
+         END DO
+         DO ir = 1, MERGE(grid%nr, 0, ANY(image_counts > 0))
+            IF (grid%rad(ir) >= bra_radius) CYCLE
+            CALL centered_shell(frame, center, grid%rad(ir), directions, points, beta, radial_beta)
+            weights(:) = grid%wr(ir)*angular_weights
+            DO other = 1, SIZE(frame%center_atoms)
+               p = frame%projector_first(other)
+               q = frame%projector_last(other)
+               ni = image_counts(other)
+               IF (ni == 0) THEN
+                  IF (values) delta(:, p:q) = CMPLX(0.0_dp, 0.0_dp, dp)
+                  IF (derivative) ddelta(:, p:q) = CMPLX(0.0_dp, 0.0_dp, dp)
+                  CYCLE
+               END IF
+               ket_images => supported_images(:, :ni, other)
+               ASSOCIATE (field => frame%delta_cache(frame%center_kinds(other)), other_atom => frame%center_atoms(other))
+                  IF (derivative) THEN
+                     IF (shared_response .OR. ANY(atom_response(:, other_atom) /= atom_response(:, atom))) THEN
+                        CALL upf_radial_fields_periodic(field, points, frame%positions(:, other_atom), frame%cell, &
+                                                        ket_images, wavevector, delta(:, p:q), response=ddelta(:, p:q), &
+                                                        points_response=motion, center_response=atom_response(:, other_atom), &
+                                                        cell_response=cell_response, reduced_k_response=reduced_k_response)
+                        CYCLE
+                     END IF
+                     ddelta(:, p:q) = CMPLX(0.0_dp, 0.0_dp, dp)
+                  END IF
+                  IF (values) THEN
+                     CALL upf_radial_fields_periodic(field, points, frame%positions(:, other_atom), frame%cell, &
+                                                     ket_images, wavevector, delta(:, p:q))
+                  END IF
+               END ASSOCIATE
+            END DO
+            IF (values) THEN
+               CALL upf_inverse_pair(beta, delta, weights, pair_k)
+               coupling(first:last, :) = coupling(first:last, :) + pair_k
+            END IF
+            IF (derivative) THEN
+               CALL upf_inverse_pair(beta, ddelta, weights, pair_k)
+               coupling_response(first:last, :) = coupling_response(first:last, :) + pair_k
+            END IF
+         END DO
+         DEALLOCATE (directions, angular_weights, points, weights, radial_beta, beta, delta, pair_b, pair_k)
+         IF (derivative) DEALLOCATE (motion, ddelta)
+      END DO
+      IF (values) THEN
+         CALL frame%point_comm%sum(overlaps)
+         CALL frame%point_comm%sum(coupling)
+      END IF
+      IF (derivative) THEN
+         CALL frame%point_comm%sum(overlaps_response)
+         CALL frame%point_comm%sum(coupling_response)
+      END IF
+   END SUBROUTINE qs_upf_inverse_centered_pairs
+
+! **************************************************************************************************
+!> \brief Kinetic overlap of compact difference waves on distinct centers or images.
+!>        The home bra and its quadrature move together. Both bra quadratures enter the
+!>        Hermitian average, including for a pair of periodic images of the same atom.
+!> \param frame Coupled inverse with the native atom-centered quadratures.
+!> \param matrix Intercenter part of the Bloch difference-wave kinetic matrix.
+!> \param response Optional joint derivative of the same finite quadrature.
+!> \param atom_response Cartesian atom displacements.
+!> \param cell_response Lattice displacement at fixed Cartesian home offsets.
+!> \param reduced_k_response Displacement of the reduced Bloch vector.
+! **************************************************************************************************
+   SUBROUTINE qs_upf_inverse_cross_kinetic(frame, matrix, response, atom_response, cell_response, reduced_k_response)
+      TYPE(qs_upf_inverse_type), INTENT(IN), TARGET      :: frame
+      COMPLEX(dp), INTENT(OUT)                           :: matrix(:, :)
+      COMPLEX(dp), INTENT(OUT), OPTIONAL                 :: response(:, :)
+      REAL(dp), INTENT(IN), OPTIONAL                     :: atom_response(:, :), &
+                                                            cell_response(3, 3), &
+                                                            reduced_k_response(3)
+
+      COMPLEX(dp), ALLOCATABLE                           :: bra(:, :, :), dket(:, :, :), &
+                                                            ket(:, :, :), pair(:, :), value(:, :)
+      INTEGER                                            :: a, axis, b, ia, image, ir, ka, kb, na, &
+                                                            ni, p, q, u, v
+      INTEGER, ALLOCATABLE                               :: images(:, :)
+      REAL(dp)                                           :: displacement(3), radius, radius_sum
+      REAL(dp), ALLOCATABLE                              :: angular_weights(:), directions(:, :), &
+                                                            gradient(:, :), motion(:, :), &
+                                                            points(:, :), scratch(:), weights(:)
+      TYPE(grid_atom_type), POINTER                      :: grid
+      TYPE(qs_upf_inverse_atom_grid_ref_type), POINTER   :: rule
+
+      CPASSERT(ALLOCATED(frame%defining_atom_grids))
+      IF (PRESENT(response)) THEN
+         CPASSERT(PRESENT(atom_response) .AND. PRESENT(cell_response))
+         CPASSERT(PRESENT(reduced_k_response))
+         response = CMPLX(0.0_dp, 0.0_dp, dp)
+      END IF
+      matrix = CMPLX(0.0_dp, 0.0_dp, dp)
+      ALLOCATE (images(3, SIZE(frame%images, 2)))
+      DO a = 1, SIZE(frame%center_atoms)
+         ka = frame%center_kinds(a)
+         radius = frame%delta_cache(ka)%radius
+         IF (radius <= 0.0_dp) CYCLE
+         p = frame%projector_first(a)
+         q = frame%projector_last(a)
+         rule => frame%defining_atom_grids(ka)
+         grid => rule%grid
+         CALL centered_grid(rule, directions, angular_weights)
+         na = SIZE(angular_weights)
+         ALLOCATE (bra(na, q - p + 1, 3), gradient(3, q - p + 1), scratch(q - p + 1), &
+                   points(3, na), weights(na))
+         IF (PRESENT(response)) THEN
+            ALLOCATE (motion(3, na))
+            motion(:, :) = SPREAD(atom_response(:, frame%center_atoms(a)), 2, na)
+         END IF
+         DO b = 1, SIZE(frame%center_atoms)
+            kb = frame%center_kinds(b)
+            IF (frame%delta_cache(kb)%radius <= 0.0_dp) CYCLE
+            radius_sum = radius + frame%delta_cache(kb)%radius
+            ni = 0
+            DO image = 1, SIZE(frame%images, 2)
+               IF (a == b .AND. ALL(frame%images(:, image) == 0)) CYCLE
+               displacement = frame%positions(:, frame%center_atoms(a)) - frame%positions(:, frame%center_atoms(b)) - &
+                              MATMUL(frame%cell, REAL(frame%images(:, image), dp))
+               IF (SUM(displacement**2) >= radius_sum**2) CYCLE
+               ni = ni + 1
+               images(:, ni) = frame%images(:, image)
+            END DO
+            IF (ni == 0) CYCLE
+            u = frame%projector_first(b)
+            v = frame%projector_last(b)
+            ALLOCATE (value(na, v - u + 1), ket(na, v - u + 1, 3), pair(q - p + 1, v - u + 1))
+            IF (PRESENT(response)) ALLOCATE (dket, MOLD=ket)
+            DO ir = 1, grid%nr
+               IF (grid%rad(ir) >= radius) CYCLE
+               points(:, :) = SPREAD(frame%positions(:, frame%center_atoms(a)), 2, na) + grid%rad(ir)*directions
+               weights(:) = 0.5_dp*grid%wr(ir)*angular_weights
+               DO ia = 1, na
+                  CALL upf_radial_fields_evaluate(frame%delta_cache(ka), grid%rad(ir)*directions(:, ia), scratch, gradient)
+                  bra(ia, :, :) = TRANSPOSE(gradient)
+               END DO
+               IF (PRESENT(response)) THEN
+                  CALL upf_radial_fields_periodic(frame%delta_cache(kb), points, frame%positions(:, frame%center_atoms(b)), &
+                                                  frame%cell, images(:, :ni), frame%reduced_k, value, gradient=ket, &
+                                                  gradient_response=dket, points_response=motion, &
+                                                  center_response=atom_response(:, frame%center_atoms(b)), &
+                                                  cell_response=cell_response, reduced_k_response=reduced_k_response)
+               ELSE
+                  CALL upf_radial_fields_periodic(frame%delta_cache(kb), points, frame%positions(:, frame%center_atoms(b)), &
+                                                  frame%cell, images(:, :ni), frame%reduced_k, value, gradient=ket)
+               END IF
+               DO axis = 1, 3
+                  CALL upf_inverse_pair(bra(:, :, axis), ket(:, :, axis), weights, pair)
+                  matrix(p:q, u:v) = matrix(p:q, u:v) + pair
+                  IF (.NOT. PRESENT(response)) CYCLE
+                  CALL upf_inverse_pair(bra(:, :, axis), dket(:, :, axis), weights, pair)
+                  response(p:q, u:v) = response(p:q, u:v) + pair
+               END DO
+            END DO
+            DEALLOCATE (value, ket, pair)
+            IF (PRESENT(response)) DEALLOCATE (dket)
+         END DO
+         IF (PRESENT(response)) DEALLOCATE (motion)
+         DEALLOCATE (bra, gradient, scratch, points, weights, directions, angular_weights)
+      END DO
+      matrix = 0.5_dp*(matrix + CONJG(TRANSPOSE(matrix)))
+      IF (PRESENT(response)) response = 0.5_dp*(response + CONJG(TRANSPOSE(response)))
+   END SUBROUTINE qs_upf_inverse_cross_kinetic
+
+! **************************************************************************************************
+!> \brief Select the same angular weights for the defining integrals and their adjoints.
+!> \param rule Native atom grid and optional rotated directions.
+!> \param directions ...
+!> \param weights ...
+! **************************************************************************************************
+   SUBROUTINE centered_grid(rule, directions, weights)
+      TYPE(qs_upf_inverse_atom_grid_ref_type), &
+         INTENT(IN)                                      :: rule
+      REAL(dp), ALLOCATABLE, INTENT(OUT)                 :: directions(:, :), weights(:)
+
+      IF (ALLOCATED(rule%directions)) THEN
+         ALLOCATE (directions, SOURCE=rule%directions)
+         ALLOCATE (weights, SOURCE=rule%angular_weights)
+      ELSE
+         ASSOCIATE (grid => rule%grid)
+            ALLOCATE (directions(3, grid%ng_sphere), weights(grid%ng_sphere))
+            directions(1, :) = grid%sin_pol*grid%cos_azi
+            directions(2, :) = grid%sin_pol*grid%sin_azi
+            directions(3, :) = grid%cos_pol
+            weights(:) = grid%wa
+         END ASSOCIATE
+      END IF
+   END SUBROUTINE centered_grid
+
+! **************************************************************************************************
+!> \brief Evaluate one home-projector shell with fixed Cartesian offsets.
+!> \param frame ...
+!> \param center ...
+!> \param radius ...
+!> \param directions ...
+!> \param points ...
+!> \param beta ...
+!> \param values Scratch for one point.
+! **************************************************************************************************
+   SUBROUTINE centered_shell(frame, center, radius, directions, points, beta, values)
+      TYPE(qs_upf_inverse_type), INTENT(IN)              :: frame
+      INTEGER, INTENT(IN)                                :: center
+      REAL(dp), INTENT(IN)                               :: radius, directions(:, :)
+      REAL(dp), INTENT(OUT)                              :: points(:, :)
+      COMPLEX(dp), INTENT(OUT)                           :: beta(:, :)
+      REAL(dp), INTENT(OUT)                              :: values(:)
+
+      INTEGER                                            :: ia, kind
+
+      kind = frame%center_kinds(center)
+      points(:, :) = SPREAD(frame%positions(:, frame%center_atoms(center)), 2, SIZE(directions, 2)) + radius*directions
+      DO ia = 1, SIZE(directions, 2)
+         CALL upf_radial_fields_evaluate(frame%beta_cache(kind), radius*directions(:, ia), values)
+         beta(ia, :) = values
+      END DO
+   END SUBROUTINE centered_shell
+
+! **************************************************************************************************
+!> \brief Reuse or initialize the radial and angular quadrature owned by the kind.
+!> \param kind Native kind with the requested radial and angular grid sizes.
+!> \param quadrature Native radial quadrature identifier.
+!> \param grid Borrowed grid. The caller initializes the Lebedev table before this call.
+! **************************************************************************************************
+   SUBROUTINE qs_upf_atom_kind_grid(kind, quadrature, grid)
+      TYPE(qs_kind_type), INTENT(INOUT)                  :: kind
+      INTEGER, INTENT(IN)                                :: quadrature
+      TYPE(grid_atom_type), POINTER                      :: grid
+
+      INTEGER                                            :: ll, na, nr
+
+      CALL get_qs_kind(kind, grid_atom=grid, ngrid_ang=na, ngrid_rad=nr)
+      IF (.NOT. ASSOCIATED(grid)) THEN
+         CALL allocate_grid_atom(kind%grid_atom)
+         grid => kind%grid_atom
+      END IF
+      IF (ASSOCIATED(grid%weight)) RETURN
+      ll = get_number_of_lebedev_grid(n=na)
+      na = lebedev_grid(ll)%n
+      grid%nr = nr
+      grid%ng_sphere = na
+      CALL create_grid_atom(grid, nr, na, 0, ll, quadrature)
+   END SUBROUTINE qs_upf_atom_kind_grid
+
+! **************************************************************************************************
+!> \brief Extend the native atom directions by the reference group when needed.
+!> \param grid Native angular rule and weights.
+!> \param rotations Cartesian reference rotations.
+!> \param directions Expanded unit directions, unallocated when the native rule already suffices.
+!> \param weights Expanded weights with the original angular normalization.
+! **************************************************************************************************
+   SUBROUTINE qs_upf_atom_angular_average(grid, rotations, directions, weights)
+      TYPE(grid_atom_type), INTENT(IN)                   :: grid
+      REAL(dp), INTENT(IN)                               :: rotations(:, :, :)
+      REAL(dp), ALLOCATABLE, INTENT(OUT)                 :: directions(:, :), weights(:)
+
+      REAL(dp)                                           :: original(3, grid%ng_sphere)
+
+      original(1, :) = grid%sin_pol*grid%cos_azi
+      original(2, :) = grid%sin_pol*grid%sin_azi
+      original(3, :) = grid%cos_pol
+      CALL lebedev_average_points(original, grid%wa, directions, weights, rotations)
+      IF (SIZE(weights) == grid%ng_sphere) DEALLOCATE (directions, weights)
+   END SUBROUTINE qs_upf_atom_angular_average
 
 END MODULE qs_upf_inverse

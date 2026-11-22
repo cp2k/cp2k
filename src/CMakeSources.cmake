@@ -681,6 +681,7 @@ list(
   qs_interactions.F
   qs_kernel_methods.F
   qs_kernel_types.F
+  qs_ionic_charge.F
   qs_kind_types.F
   qs_kinetic.F
   qs_kpoint_operators.F

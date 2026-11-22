@@ -89,6 +89,8 @@ MODULE qs_collocate_density
                        pw_r3d_rs_type
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
+   USE qs_ionic_charge, ONLY: ionic_charge_fourier, &
+                              uses_augmented_gpw
    USE qs_kind_types, ONLY: get_qs_kind, &
                             get_qs_kind_set, &
                             qs_kind_type
@@ -813,6 +815,9 @@ CONTAINS
          TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
          TYPE(pw_env_type), POINTER                         :: pw_env
          TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+         #:if kind == "r3d_rs"
+            TYPE(pw_c1d_gs_type)                                :: rhoc_g
+         #:endif
          TYPE(pw_r3d_rs_type)                                      :: rhoc_r
          TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
          TYPE(realspace_grid_type), POINTER                 :: rs_rho
@@ -820,8 +825,6 @@ CONTAINS
          CALL timeset(routineN, handle)
          NULLIFY (cell, dft_control, pab, atomic_kind_set, qs_kind_set, particle_set, &
                   atom_list, pw_env, rs_rho, auxbas_pw_pool, cores)
-         ALLOCATE (pab(1, 1))
-
          my_only_nopaw = .FALSE.
          IF (PRESENT(only_nopaw)) my_only_nopaw = only_nopaw
          IF (PRESENT(calpha)) THEN
@@ -837,6 +840,23 @@ CONTAINS
                          pw_env=pw_env)
          CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
                          auxbas_pw_pool=auxbas_pw_pool)
+         IF (.NOT. PRESENT(calpha) .AND. .NOT. my_only_nopaw .AND. &
+             uses_augmented_gpw(dft_control%qs_control, qs_kind_set)) THEN
+            #:if kind == "c1d_gs"
+               CALL ionic_charge_fourier(particle_set, qs_kind_set, rho_core)
+               total_rho = pw_integrate_function(rho_core, isign=-1)
+            #:else
+               CALL auxbas_pw_pool%create_pw(rhoc_g)
+               CALL ionic_charge_fourier(particle_set, qs_kind_set, rhoc_g)
+               total_rho = pw_integrate_function(rhoc_g, isign=-1)
+               CALL pw_transfer(rhoc_g, rho_core)
+               CALL auxbas_pw_pool%give_back_pw(rhoc_g)
+            #:endif
+            CALL timestop(handle)
+            RETURN
+         END IF
+
+         ALLOCATE (pab(1, 1))
          ! be careful in parallel nsmax is chosen with multigrid in mind!
          CALL rs_grid_zero(rs_rho)
 
@@ -958,8 +978,6 @@ CONTAINS
       CALL timeset(routineN, handle)
       NULLIFY (cell, dft_control, pab, atomic_kind_set, qs_kind_set, particle_set, &
                atom_list, pw_env, rs_rho, auxbas_pw_pool, cores)
-      ALLOCATE (pab(1, 1))
-
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
@@ -967,6 +985,13 @@ CONTAINS
                       dft_control=dft_control, &
                       particle_set=particle_set, &
                       pw_env=pw_env)
+      IF (uses_augmented_gpw(dft_control%qs_control, qs_kind_set)) THEN
+         CALL ionic_charge_fourier(particle_set(lambda:lambda), qs_kind_set, drho_core, axis=beta)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      ALLOCATE (pab(1, 1))
       CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
                       auxbas_pw_pool=auxbas_pw_pool)
       ! be careful in parallel nsmax is chosen with multigrid in mind!

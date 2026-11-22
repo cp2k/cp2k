@@ -53,6 +53,7 @@ MODULE upf_inverse
    PUBLIC :: upf_inverse_delta_init, upf_inverse_fields_init
    PUBLIC :: upf_inverse_kinetic_type, upf_inverse_kinetic_init, upf_inverse_kinetic_evaluate
    PUBLIC :: upf_inverse_atomic_type, upf_inverse_atomic_init, upf_inverse_kinetic_matrix
+   PUBLIC :: upf_inverse_atomic_difference_init
    PUBLIC :: upf_inverse_atomic_residual
 
 CONTAINS
@@ -69,20 +70,56 @@ CONTAINS
 !> \param direct Use original projectors and soft orbitals without reconstruction.
 ! **************************************************************************************************
    SUBROUTINE upf_inverse_atomic_init(pot, degree, atomic, info, direct)
-      TYPE(atom_upfpot_type), INTENT(IN)                 :: pot
+      TYPE(atom_upfpot_type), INTENT(IN), TARGET         :: pot
       INTEGER, INTENT(IN)                                :: degree
       TYPE(upf_inverse_atomic_type), INTENT(OUT)         :: atomic
       INTEGER, INTENT(OUT)                               :: info
       LOGICAL, INTENT(IN), OPTIONAL                      :: direct
 
+      CALL prepare_atomic(pot, degree, atomic, info, radial_only=.FALSE., direct=direct)
+   END SUBROUTINE upf_inverse_atomic_init
+
+! **************************************************************************************************
+!> \brief Prepare the local difference integrals without factorizing a local inverse.
+!> \param pot Original scalar USPP dataset.
+!> \param degree Largest Gaussian Cartesian degree including derivatives.
+!> \param atomic Difference projectors and their radial matrices.
+! **************************************************************************************************
+   SUBROUTINE upf_inverse_atomic_difference_init(pot, degree, atomic)
+      TYPE(atom_upfpot_type), INTENT(IN), TARGET         :: pot
+      INTEGER, INTENT(IN)                                :: degree
+      TYPE(upf_inverse_atomic_type), INTENT(OUT)         :: atomic
+
+      INTEGER                                            :: info
+
+      CALL prepare_atomic(pot, degree, atomic, info, radial_only=.TRUE.)
+      CPASSERT(info == 0)
+   END SUBROUTINE upf_inverse_atomic_difference_init
+
+! **************************************************************************************************
+!> \brief Common radial integrals for the local and coupled representations.
+!> \param pot ...
+!> \param degree ...
+!> \param atomic ...
+!> \param info ...
+!> \param radial_only Skip the local factorization and the associated hard projectors.
+!> \param direct ...
+! **************************************************************************************************
+   SUBROUTINE prepare_atomic(pot, degree, atomic, info, radial_only, direct)
+      TYPE(atom_upfpot_type), INTENT(IN), TARGET         :: pot
+      INTEGER, INTENT(IN)                                :: degree
+      TYPE(upf_inverse_atomic_type), INTENT(OUT)         :: atomic
+      INTEGER, INTENT(OUT)                               :: info
+      LOGICAL, INTENT(IN)                                :: radial_only
+      LOGICAL, INTENT(IN), OPTIONAL                      :: direct
+
       COMPLEX(dp), ALLOCATABLE                           :: coupling(:, :), identity(:, :), &
                                                             rotation(:, :)
-      INTEGER                                            :: i, j, nb, p, q
+      INTEGER                                            :: i, j, nb, np, p, q
       REAL(dp)                                           :: norm_difference
       REAL(dp), ALLOCATABLE                              :: delta_kinetic(:, :), &
                                                             delta_overlap(:, :), &
-                                                            radial_kinetic(:, :), &
-                                                            radial_weights(:), weights(:)
+                                                            radial_kinetic(:, :), radial_weights(:)
       TYPE(atom_upfpot_type)                             :: hard, radial
       TYPE(upf_inverse_kinetic_type)                     :: kinetic
 
@@ -106,42 +143,37 @@ CONTAINS
       CALL upf_inverse_kinetic_init(pot, kinetic)
       CALL upf_inverse_kinetic_matrix(pot, kinetic, radial_kinetic, delta_kinetic, delta_overlap)
       ALLOCATE (radial_weights, SOURCE=upf_radial_weights(pot))
-      ALLOCATE (weights, SOURCE=radial_weights*pot%r**2)
-      ALLOCATE (coupling(nb, nb), identity(nb, nb), rotation(nb, nb))
-      coupling = CMPLX(0.0_dp, 0.0_dp, dp)
-      identity = CMPLX(0.0_dp, 0.0_dp, dp)
-      DO j = 1, nb
-         identity(j, j) = CMPLX(1.0_dp, 0.0_dp, dp)
-         DO i = 1, nb
-            IF (pot%lbeta(i) /= pot%lbeta(j)) CYCLE
-            coupling(i, j) = CMPLX(SUM(weights*pot%beta(:, i)*radial%beta(:, j)), 0.0_dp, dp)
+      IF (.NOT. radial_only) THEN
+         ALLOCATE (coupling(nb, nb), identity(nb, nb), rotation(nb, nb))
+         coupling(:, :) = inverse_radial_coupling(pot, radial, radial_weights)
+         identity = CMPLX(0.0_dp, 0.0_dp, dp)
+         DO j = 1, nb
+            identity(j, j) = CMPLX(1.0_dp, 0.0_dp, dp)
          END DO
-      END DO
-      CALL upf_inverse_init(coupling, atomic%inverse, info)
-      IF (info /= 0) RETURN
-      CALL upf_inverse_project(atomic%inverse, identity, rotation)
-      ! Bra_i = sum_j K^-1_ij beta_j^*. The stored real ket uses the transpose.
-      hard%number_of_proj = nb
-      hard%has_so = pot%has_so
-      ALLOCATE (hard%r, SOURCE=pot%r)
-      ALLOCATE (hard%rab, SOURCE=pot%rab)
-      ALLOCATE (hard%lbeta, SOURCE=pot%lbeta)
-      ALLOCATE (hard%beta, SOURCE=MATMUL(pot%beta, REAL(TRANSPOSE(rotation), dp)))
-      ALLOCATE (hard%dion, SOURCE=pot%dion - radial_kinetic)
-      CALL upf_projector_init(hard, degree, atomic%hard)
-      CALL compact_projector(atomic%hard)
-      ALLOCATE (atomic%kinetic(atomic%hard%nproj, atomic%hard%nproj), SOURCE=0.0_dp)
-      ALLOCATE (atomic%metric(atomic%hard%nproj, atomic%hard%nproj), SOURCE=0.0_dp)
-      ALLOCATE (atomic%wave_overlap(atomic%hard%nproj, atomic%hard%nproj), SOURCE=0.0_dp)
-      ALLOCATE (atomic%difference_kinetic(atomic%hard%nproj, atomic%hard%nproj), SOURCE=0.0_dp)
-      ALLOCATE (atomic%difference_overlap(atomic%hard%nproj, atomic%hard%nproj), SOURCE=0.0_dp)
+         CALL upf_inverse_init(coupling, atomic%inverse, info)
+         IF (info /= 0) RETURN
+         CALL upf_inverse_project(atomic%inverse, identity, rotation)
+         ! Bra_i = sum_j K^-1_ij beta_j^*. The stored real ket uses the transpose.
+         hard%number_of_proj = nb
+         hard%has_so = pot%has_so
+         ALLOCATE (hard%r, SOURCE=pot%r)
+         ALLOCATE (hard%rab, SOURCE=pot%rab)
+         ALLOCATE (hard%lbeta, SOURCE=pot%lbeta)
+         ALLOCATE (hard%beta, SOURCE=MATMUL(pot%beta, REAL(TRANSPOSE(rotation), dp)))
+         ALLOCATE (hard%dion, SOURCE=pot%dion - radial_kinetic)
+         CALL upf_projector_init(hard, degree, atomic%hard)
+         CALL compact_projector(atomic%hard)
+      END IF
+      np = atomic%difference%nproj
+      ALLOCATE (atomic%kinetic(np, np), atomic%metric(np, np), atomic%wave_overlap(np, np), &
+                atomic%difference_kinetic(np, np), atomic%difference_overlap(np, np), SOURCE=0.0_dp)
       CPASSERT(ALLOCATED(pot%qij))
       CPASSERT(ALL(SHAPE(pot%qij) == [nb, nb]))
-      DO q = 1, atomic%hard%nproj
-         j = atomic%hard%radial_index(q)
-         DO p = 1, atomic%hard%nproj
-            IF (atomic%hard%angular_index(p) /= atomic%hard%angular_index(q)) CYCLE
-            i = atomic%hard%radial_index(p)
+      DO q = 1, np
+         j = atomic%difference%radial_index(q)
+         DO p = 1, np
+            IF (atomic%difference%angular_index(p) /= atomic%difference%angular_index(q)) CYCLE
+            i = atomic%difference%radial_index(p)
             atomic%kinetic(p, q) = radial_kinetic(i, j)
             atomic%difference_kinetic(p, q) = delta_kinetic(i, j)
             atomic%difference_overlap(p, q) = delta_overlap(i, j)
@@ -153,7 +185,7 @@ CONTAINS
             atomic%wave_overlap(p, q) = norm_difference
          END DO
       END DO
-   END SUBROUTINE upf_inverse_atomic_init
+   END SUBROUTINE prepare_atomic
 
 ! **************************************************************************************************
 !> \brief Drop exactly zero trailing quadrature rows without changing radial weights or support.
@@ -276,7 +308,7 @@ CONTAINS
       COMPLEX(dp), ALLOCATABLE                           :: mixed(:, :)
       INTEGER                                            :: n, np
 
-      np = atomic%hard%nproj
+      np = SIZE(atomic%difference_kinetic, 1)
       n = SIZE(coefficients, 2)
       CPASSERT(SIZE(coefficients, 1) == np)
       CPASSERT(ALL(SHAPE(delta_overlap) == [np, n]))
@@ -398,15 +430,20 @@ CONTAINS
 !> \param beta Original projector fields, without weights.
 !> \param delta Original reconstruction differences, without weights.
 !> \param direct Use original projectors and soft orbitals without reconstruction.
+!> \param home_coupling Optional on-site overlaps between the projectors and the reconstruction differences.
 ! **************************************************************************************************
-   SUBROUTINE upf_inverse_fields_init(pot, beta, delta, direct)
+   SUBROUTINE upf_inverse_fields_init(pot, beta, delta, direct, home_coupling)
       TYPE(atom_upfpot_type), INTENT(IN)                 :: pot
       TYPE(upf_radial_fields_type), INTENT(OUT)          :: beta, delta
       LOGICAL, INTENT(IN), OPTIONAL                      :: direct
+      REAL(dp), ALLOCATABLE, INTENT(OUT), OPTIONAL       :: home_coupling(:, :)
 
+      INTEGER                                            :: p, q
+      REAL(dp), ALLOCATABLE                              :: radial_coupling(:, :)
       TYPE(atom_upfpot_type)                             :: radial
 
       CALL upf_radial_fields_init(pot%r, pot%beta, pot%lbeta, beta)
+      IF (PRESENT(home_coupling)) ALLOCATE (home_coupling(beta%nproj, beta%nproj), SOURCE=0.0_dp)
       IF (PRESENT(direct)) THEN
          IF (direct) THEN
             ALLOCATE (radial%beta(SIZE(pot%r), SIZE(pot%lbeta)), SOURCE=0.0_dp)
@@ -422,8 +459,43 @@ CONTAINS
       ELSE
          CALL inverse_radial_data(pot, radial)
          CALL upf_radial_fields_init(radial%r, radial%beta, radial%lbeta, delta)
+         IF (PRESENT(home_coupling)) THEN
+            ALLOCATE (radial_coupling(pot%number_of_proj, pot%number_of_proj))
+            radial_coupling(:, :) = inverse_radial_coupling(pot, radial, upf_radial_weights(pot))
+            DO q = 1, delta%nproj
+               DO p = 1, beta%nproj
+                  IF (beta%angular_index(p) /= delta%angular_index(q)) CYCLE
+                  home_coupling(p, q) = radial_coupling(beta%radial_index(p), delta%radial_index(q))
+               END DO
+            END DO
+         END IF
       END IF
    END SUBROUTINE upf_inverse_fields_init
+
+! **************************************************************************************************
+!> \brief Integrate the same-center beta-Delta block on the original radial mesh.
+!> \param pot Original UPF projectors.
+!> \param radial Reconstruction differences on the same mesh.
+!> \param radial_weights Original UPF radial integration weights.
+!> \return Coupling in the original radial channel order.
+! **************************************************************************************************
+   FUNCTION inverse_radial_coupling(pot, radial, radial_weights) RESULT(coupling)
+      TYPE(atom_upfpot_type), INTENT(IN)                 :: pot, radial
+      REAL(dp), INTENT(IN)                               :: radial_weights(:)
+      REAL(dp) :: coupling(pot%number_of_proj, pot%number_of_proj)
+
+      INTEGER                                            :: i, j
+      REAL(dp)                                           :: weights(SIZE(radial_weights))
+
+      weights = radial_weights*pot%r**2
+      coupling = 0.0_dp
+      DO j = 1, pot%number_of_proj
+         DO i = 1, pot%number_of_proj
+            IF (pot%lbeta(i) /= pot%lbeta(j)) CYCLE
+            coupling(i, j) = SUM(weights*pot%beta(:, i)*radial%beta(:, j))
+         END DO
+      END DO
+   END FUNCTION inverse_radial_coupling
 
 ! **************************************************************************************************
 !> \brief Assemble original reconstruction differences for overlap and point-field caches.

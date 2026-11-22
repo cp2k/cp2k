@@ -519,6 +519,7 @@ MODULE cp_control_types
 !                     Gaussian-type functions (primitive basis functions).
 ! **************************************************************************************************
    TYPE qs_control_type
+      REAL(dp)                             :: upf_angular_reference_cell(3, 3) = 0.0_dp
       INTEGER                              :: uspp_method = 2
       INTEGER                              :: method_id = 0
       REAL(KIND=dp)                        :: eps_core_charge = 0.0_dp, &

@@ -96,6 +96,7 @@ MODULE pw_env_methods
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_ionic_charge,                 ONLY: uses_augmented_gpw
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
@@ -356,6 +357,7 @@ CONTAINS
 
       ! methods that require smoothing or nearest neighbor have to use a plane distributed setup
       ! find the xc properties (FIXME this could miss other xc sections that operate on the grid ...)
+      pw_env%real_grid_interpolation = uses_augmented_gpw(dft_control%qs_control, qs_kind_set)
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       xc_deriv_method_id = section_get_ival(xc_section, "XC_GRID%XC_DERIV")
       xc_smooth_method_id = section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO")
