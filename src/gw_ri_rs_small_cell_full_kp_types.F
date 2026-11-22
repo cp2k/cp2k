@@ -12,6 +12,7 @@
 MODULE gw_ri_rs_small_cell_full_kp_types
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp,&
+                                              int_1,&
                                               int_8
    USE kpoint_transform,                ONLY: kp_transform_plan_type
    USE message_passing,                 ONLY: mp_para_env_type
@@ -23,7 +24,7 @@ MODULE gw_ri_rs_small_cell_full_kp_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_small_cell_full_kp_types'
 
    PUBLIC :: gamma_atom_projection_type, gamma_correction_type, gwkp_type, &
-             ri_q_matrix_block_type
+             ri_q_matrix_block_type, sigma_projection_type
 
    ! Gamma correction of W per real-space cell R, kept factored from the grid vectors:
    ! head_cell_tau(R,τ) multiplies Z_l0 Z_l'0*, and the wing of R at τ is
@@ -45,6 +46,16 @@ MODULE gw_ri_rs_small_cell_full_kp_types
       COMPLEX(KIND=dp), ALLOCATABLE :: values(:, :, :)
    END TYPE ri_q_matrix_block_type
 
+   ! One matrix job per native inversion pair; every target keeps its own orbital.
+   TYPE sigma_projection_type
+      INTEGER, ALLOCATABLE :: jobs(:, :), counts(:), mesh_index(:), partner(:), partner_slot(:)
+      COMPLEX(KIND=dp), ALLOCATABLE :: partner_orbitals(:, :, :, :)
+      INTEGER :: first_image(3) = 0, last_image(3) = 0
+      INTEGER, ALLOCATABLE :: offmesh_slot(:), image_shift(:, :)
+      INTEGER(KIND=int_1), ALLOCATABLE :: image_tie(:, :)
+      REAL(KIND=dp), ALLOCATABLE :: displacement(:, :), image_weights(:, :, :), phase_cos(:, :), phase_sin(:, :)
+   END TYPE sigma_projection_type
+
    ! Work data shared by the periodic GW stages; input settings remain in bs_env.
    TYPE :: gwkp_type
       REAL(KIND=dp), ALLOCATABLE                 :: eigenvalues_G(:, :, :)
@@ -53,6 +64,7 @@ MODULE gw_ri_rs_small_cell_full_kp_types
       REAL(dp), ALLOCATABLE                     :: sigma_c_bands(:, :, :, :, :), sigma_x_bands(:, :, :)
       ! Band Bloch orbitals on the RI-RS grid, only of the band k points owned in the Σ ranks, MOD(k-1,P).
       COMPLEX(dp), ALLOCATABLE                  :: band_orbitals(:, :, :, :)
+      TYPE(sigma_projection_type)               :: sigma_projection
       ! Charge neutralisation of the fitted pair densities in χ(q), see compute_W0: e(q) = M(q) c/|c| and
       ! X(q,iω) = M(q) (s/N_k) Σ_k,ia d_ia m_ia* w_ia(iω) per owned q, L0(iω) = (s/N_k) Σ_k,ia |m_ia|² w_ia(iω).
       COMPLEX(dp), ALLOCATABLE                  :: leak_e(:, :), leak_x(:, :, :)
