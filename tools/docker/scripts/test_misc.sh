@@ -32,6 +32,7 @@ run_test ./tools/precommit/format_fortran_test.py
 run_test ./tools/minimax_tools/minimax_to_fortran_source.py --check
 run_test ./tools/docker/generate_dockerfiles.py --check
 run_test python3 -m unittest discover -s ./tools/blue_moon -p 'test_*.py'
+run_test python3 -m unittest discover -s ./tools/band_structure -p 'test_*.py'
 run_test python3 ./tools/regtesting/test_compare_wannier90_mmn.py
 
 # Test pao-ml training.
@@ -66,6 +67,7 @@ run_test mypy --strict ./tests/do_regtest.py
 run_test mypy --strict ./docs/generate_input_reference.py
 run_test mypy --strict ./docs/fix_github_links.py
 run_test mypy --strict ./tools/vibronic_spec/
+run_test mypy --strict ./tools/band_structure/
 
 # Test Wannier90 .wout parsing without requiring an external wannier90.x binary.
 W90_TEST_DIR=$(mktemp -d)

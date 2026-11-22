@@ -214,6 +214,8 @@ parallelization choice and does not change the physical k-point mesh.
 The k-point mesh used for SCF can also be used by several electronic-structure workflows. Their
 additional requirements are documented separately:
 
+- [](../electronic_structure/band/index) documents DFT band structures, supercell band unfolding,
+  and *GW* quasiparticle band structures.
 - [](../electronic_structure/dos) explains DOS and PDOS output. DOS/PDOS commonly need a denser mesh
   than a geometry optimization.
 - [](../electronic_structure/molecular_orbitals.md#k-point-mo-output-mokp) documents the `.mokp`
