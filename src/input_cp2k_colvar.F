@@ -23,15 +23,9 @@ MODULE input_cp2k_colvar
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE fparser,                         ONLY: docf
    USE generic_function_input,          ONLY: create_function_section
-   USE input_constants,                 ONLY: apt_pop,&
-                                              func_diff,&
-                                              func_sum,&
-                                              gaussian,&
-                                              mulliken_pop,&
-                                              numerical,&
-                                              rmsd_all,&
-                                              rmsd_list,&
-                                              rmsd_weightlist
+   USE input_constants,                 ONLY: &
+        apt_pop, func_diff, func_sum, gaussian, mulliken_pop, numerical, rmsd_all, rmsd_list, &
+        rmsd_weightlist
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type

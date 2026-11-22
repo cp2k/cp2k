@@ -356,8 +356,8 @@ MODULE colvar_types
                                                        n_atoms_group_2, &
                                                        print_level
       ! Lists of atomic indices of group 1 and 2, defined by users
-      INTEGER, DIMENSION(:), POINTER                :: group_1, &
-                                                       group_2
+      INTEGER, DIMENSION(:), POINTER                :: group_1 => null(), &
+                                                       group_2 => null()
       ! Population metion method and math function to operate between two charges
       CHARACTER(LEN=default_string_length)          :: pop_method, &
                                                        func
@@ -1000,10 +1000,11 @@ CONTAINS
          np = colvar%charge_param%n_atoms_group_1 + colvar%charge_param%n_atoms_group_2
          ! Make sure that atom indices are specified in the input CHARGE section
          ! if np is equal to zero this means that this is not a collective variable.
-         IF (np == 0) &
-            CALL cp_abort(__LOCATION__, &
+         IF (np == 0) THEN
+           CALL cp_abort(__LOCATION__, &
                           "CHARGE Colvar defined using two groups of atoms. "// &
                           "At least one atom has to be defined for each group!")
+         END IF
 
          ! Number of real atoms involved in the colvar
          colvar%n_atom_s = 0

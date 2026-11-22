@@ -25,15 +25,16 @@ MODULE colvar_methods
    USE colvar_elec_utils,               ONLY: charge_cv_cleanup
    USE colvar_types,                    ONLY: &
         HBP_colvar_id, Wc_colvar_id, acid_hyd_dist_colvar_id, acid_hyd_shell_colvar_id, &
-        angle_colvar_id, charge_colvar_id, colvar_create, colvar_setup, colvar_type, combine_colvar_id, &
-        coord_colvar_id, dfunct_colvar_id, dist_colvar_id, distance_from_path_colvar_id, &
-        do_clv_fix_point, do_clv_geo_center, do_clv_x, do_clv_xy, do_clv_xz, do_clv_y, do_clv_yz, &
-        do_clv_z, eval_point_der, eval_point_mass, eval_point_pos, gyration_colvar_id, &
-        hydronium_dist_colvar_id, hydronium_shell_colvar_id, mindist_colvar_id, plane_def_atoms, &
-        plane_def_vec, plane_distance_colvar_id, plane_plane_angle_colvar_id, &
-        population_colvar_id, qparm_colvar_id, reaction_path_colvar_id, ring_puckering_colvar_id, &
-        rmsd_colvar_id, rotation_colvar_id, torsion_colvar_id, u_colvar_id, voronoiipz_colvar_id, &
-        xyz_diag_colvar_id, xyz_outerdiag_colvar_id
+        angle_colvar_id, charge_colvar_id, colvar_create, colvar_setup, colvar_type, &
+        combine_colvar_id, coord_colvar_id, dfunct_colvar_id, dist_colvar_id, &
+        distance_from_path_colvar_id, do_clv_fix_point, do_clv_geo_center, do_clv_x, do_clv_xy, &
+        do_clv_xz, do_clv_y, do_clv_yz, do_clv_z, eval_point_der, eval_point_mass, eval_point_pos, &
+        gyration_colvar_id, hydronium_dist_colvar_id, hydronium_shell_colvar_id, &
+        mindist_colvar_id, plane_def_atoms, plane_def_vec, plane_distance_colvar_id, &
+        plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
+        reaction_path_colvar_id, ring_puckering_colvar_id, rmsd_colvar_id, rotation_colvar_id, &
+        torsion_colvar_id, u_colvar_id, voronoiipz_colvar_id, xyz_diag_colvar_id, &
+        xyz_outerdiag_colvar_id
    USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
@@ -55,7 +56,6 @@ MODULE colvar_methods
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
@@ -176,7 +176,7 @@ CONTAINS
                                                             nr_frame, v_count
       INTEGER, DIMENSION(:), POINTER                     :: iatms
       INTEGER, DIMENSION(:, :), POINTER                  :: p_bounds
-      LOGICAL                                            :: check, use_mixed_energy
+      LOGICAL                                            :: use_mixed_energy
       LOGICAL, DIMENSION(28)                             :: my_subsection
       REAL(dp), DIMENSION(:), POINTER                    :: s1, wei, weights
       REAL(dp), DIMENSION(:, :), POINTER                 :: p_range, s1v
@@ -193,9 +193,9 @@ CONTAINS
          gyration_section, HBP_section, hydronium_dist_section, hydronium_shell_section, &
          mindist_section, path_section, plane_dist_section, plane_plane_angle_section, &
          plane_sections, point_section, population_section, qparm_section, reaction_path_section, &
-         ring_puckering_section, rmsd_section, rotation_section, torsion_section, u_section, &
-         voronoiipz_section, Wc_section
-      TYPE(section_vals_type), POINTER :: wrk_section, xyz_diag_section, xyz_outerdiag_section
+         ring_puckering_section, rmsd_section, rotation_section, torsion_section, u_section
+      TYPE(section_vals_type), POINTER :: voronoiipz_section, Wc_section, wrk_section, &
+         xyz_diag_section, xyz_outerdiag_section
 
       CALL timeset(routineN, handle)
       NULLIFY (logger, c_kinds, iatms)
@@ -6415,36 +6415,36 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'charge_colvar'
 
-      CHARACTER(LEN=default_string_length)               :: func, pop_method, description
-      INTEGER                                            :: handle, i, ii, natom_1, natom_2, nspin, &
-                                                            output_unit, print_level, nsgf
+      CHARACTER(LEN=default_string_length)               :: description, func, pop_method
+      INTEGER                                            :: handle, i, ii, natom_1, natom_2, nsgf, &
+                                                            nspin, output_unit, print_level
       INTEGER, DIMENSION(:), POINTER                     :: group_atoms, list_dcdr_atoms
       LOGICAL                                            :: unique
       REAL(KIND=dp)                                      :: q1, q2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coord_1, coord_2
       REAL(KIND=dp), DIMENSION(3)                        :: dqdr
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: all_sumorbpop
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: orbpop
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: coord_1, coord_2
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      ! TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dsdr
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dsdr
       TYPE(cp_fm_type), DIMENSION(:, :, :), POINTER      :: dcdr
       TYPE(cp_result_type), POINTER                      :: results
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dsdr, matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles_i
       TYPE(particle_type), DIMENSION(:), POINTER         :: my_particles, particle_set
-      TYPE(section_vals_type), POINTER                   :: dcdr_section
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(section_vals_type), POINTER                   :: dcdr_section
 
-      NULLIFY (atomic_kind_set, para_env, qs_env, matrix_p, matrix_s, matrix_s_kp, &
-               dcdr, dsdr, dft_control, qs_kind_set, rho, mos, particle_set, &
-               my_particles, particles_i, group_atoms, list_dcdr_atoms, orbpop, all_sumorbpop)
+! TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dsdr
+
+      NULLIFY (atomic_kind_set, para_env, qs_env, matrix_p, matrix_s, &
+               matrix_s_kp, dcdr, dsdr, dft_control, qs_kind_set, rho, mos, &
+               particle_set, my_particles, particles_i, group_atoms, &
+               list_dcdr_atoms, orbpop)
 
       CALL timeset(routineN, handle)
 
@@ -6605,8 +6605,9 @@ CONTAINS
       DO i = 1, SIZE(list_dcdr_atoms)
          CALL dqdr_atom(mos, i, matrix_s, nspin, dcdr, dsdr, dqdr)
          ! Check dqdr before appending it to MD
-         IF (dqdr(1) == 0.0_dp .OR. dqdr(2) == 0.0_dp .OR. dqdr(3) == 0.0_dp) &
-            CPABORT("dqdR is equal to 0. This should not have happened!")
+         IF (dqdr(1) == 0.0_dp .OR. dqdr(2) == 0.0_dp .OR. dqdr(3) == 0.0_dp) THEN
+           CPABORT("dqdR is equal to 0. This should not have happened!")
+         END IF
          CALL put_derivative(colvar, i, dqdr)
          IF (output_unit > 0) THEN
             WRITE (output_unit, FMT="(A,I3,T36,3E15.6)") " COLVARS| CHARGE  >>> dqdR Atom", list_dcdr_atoms(i), dqdr
