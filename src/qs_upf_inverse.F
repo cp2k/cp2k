@@ -41,6 +41,7 @@ MODULE qs_upf_inverse
         upf_inverse_atomic_difference_init, upf_inverse_atomic_init, upf_inverse_atomic_residual, &
         upf_inverse_basis, upf_inverse_basis_response, upf_inverse_fields_init, upf_inverse_init, &
         upf_inverse_operator_response, upf_inverse_project, upf_inverse_project_response
+   USE upf_inverse_quadrature,          ONLY: upf_inverse_pair
    USE upf_projector_integrals,         ONLY: upf_projector_init,&
                                               upf_projector_overlap,&
                                               upf_projector_type

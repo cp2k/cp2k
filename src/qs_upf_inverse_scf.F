@@ -483,7 +483,7 @@ CONTAINS
          CALL invmat(inverse_cell, inv_info)
          CPASSERT(inv_info == 0)
          strain = MATMUL(cell_response, inverse_cell)
-         relative_motion = atom_response - MATMUL(strain, state%frame%ao%positions)
+         relative_motion(:, :) = atom_response - MATMUL(strain, state%frame%ao%positions)
       END IF
       response = 0.0_dp
       metric_response = 0.0_dp
