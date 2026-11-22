@@ -61,7 +61,8 @@ PROGRAM atom_upf_unittest
                                               create_grid_atom,&
                                               deallocate_grid_atom,&
                                               grid_atom_type
-   USE upf_types,                       ONLY: upf_has_complete_partial_waves
+   USE upf_types,                       ONLY: upf_has_complete_partial_waves,&
+                                              upf_nlcc_kinetic
 
    IMPLICIT NONE
    LOGICAL :: source_root_argument
@@ -86,6 +87,7 @@ PROGRAM atom_upf_unittest
    CALL check_basis_optimization_export()
    CALL check_uspp_import()
    CALL check_uspp_partial_waves()
+   CALL check_paw_import()
 
    ! The same temporary is reused for successive KIND sections in Quickstep.
    ALLOCATE (pot%rho_nlcc(3))
@@ -150,7 +152,10 @@ CONTAINS
    SUBROUTINE check_uspp_import()
       CHARACTER(LEN=*), PARAMETER :: fixture = "uspp-augmentation-test.upf"
 
+      CHARACTER(LEN=256)                                 :: reason
       INTEGER                                            :: unit
+      LOGICAL                                            :: available
+      REAL(dp), ALLOCATABLE                              :: kinetic(:)
       TYPE(atom_upfpot_type)                             :: pot
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -159,8 +164,9 @@ CONTAINS
          OPEN (NEWUNIT=unit, FILE=fixture, STATUS='REPLACE', ACTION='WRITE')
          WRITE (unit, '(A)') &
             '<UPF version="2.0.1">', &
-            '<PP_HEADER element="Pt" pseudo_type="USPP" is_ultrasoft="true"', &
-            ' z_valence="16" mesh_size="3" number_of_proj="2" l_max="1" />', &
+            "<PP_HEADER generated='Generated using ""atomic""' element=""Pt"" pseudo_type=""USPP""", &
+            " is_ultrasoft='true' z_valence='16' mesh_size=""3"" number_of_proj=""2"" l_max=""1""", &
+            ' core_correction="true" with_metagga_info="true" />', &
             '<PP_MESH mesh="3">', &
             '<PP_R>', &
             '0.5 1.0 1.5', &
@@ -169,6 +175,10 @@ CONTAINS
             '0.5 0.5 0.5', &
             '</PP_RAB>', &
             '</PP_MESH>', &
+            '<PP_NLCC>', '1 0.5 0.1', '</PP_NLCC>', &
+            '<PP_TAUMOD type="real" size="3" convention="hartree_per_volume">', &
+            '0.2 0.7 0.05', '</PP_TAUMOD>', &
+            '<PP_TAUATOM type="real" size="3">', '3 2 1', '</PP_TAUATOM>', &
             '<PP_LOCAL type="real" size="3">', &
             '6 4 2', &
             '</PP_LOCAL>', &
@@ -205,6 +215,7 @@ CONTAINS
       END IF
       CALL logger%para_env%sync()
       CALL atom_read_upf(pot, fixture, read_augmentation=.TRUE.)
+      IF (pot%generated /= 'Generated using "atomic"') ERROR STOP 'Quoted UPF header value was changed'
       IF (ANY(pot%econf(0:3) /= [1, 6, 9, 0])) ERROR STOP 'Wrong 62-electron core subtraction'
       IF (ANY(SHAPE(pot%qijl) /= [3, 3, 3]) .OR. LBOUND(pot%qijl, 3) /= 0) ERROR STOP 'Wrong augmentation shape'
       IF (MAXVAL(ABS(pot%qij - RESHAPE([2._dp, 0._dp, 0._dp, 3._dp], [2, 2]))) > 1.e-14_dp) THEN
@@ -216,8 +227,32 @@ CONTAINS
       IF (ANY(pot%qijl(:, :, 2) /= 0._dp)) ERROR STOP 'Null augmentation was not zero initialized'
       IF (MAXVAL(ABS(pot%beta(:, 2) - [4._dp, -1._dp, 2._dp])) > 1.e-14_dp) ERROR STOP 'USPP beta normalization changed'
       IF (ABS(pot%dion(2, 2) - 4._dp) > 1.e-14_dp) ERROR STOP 'USPP D is not in Hartree'
+      IF (.NOT. pot%with_metagga_info) ERROR STOP 'UPF meta-GGA header flag was not retained'
+      IF (ANY(pot%tau_atom /= [3._dp, 2._dp, 1._dp]) .OR. pot%tau_atom_convention /= '') THEN
+         ERROR STOP 'Raw UPF atomic tau was converted or assigned an unknown convention'
+      END IF
+      CALL upf_nlcc_kinetic(pot, kinetic, available, reason)
+      IF (.NOT. available .OR. ANY(kinetic /= [0.2_dp, 0.7_dp, 0.05_dp])) THEN
+         ERROR STOP 'Explicit canonical UPF core tau was not preserved'
+      END IF
+      pot%tau_nlcc_convention = ''
+      CALL upf_nlcc_kinetic(pot, kinetic, available, reason)
+      IF (available) ERROR STOP 'Unlabelled core tau was accepted as canonical'
+      DEALLOCATE (pot%tau_nlcc)
+      CALL upf_nlcc_kinetic(pot, kinetic, available, reason)
+      IF (available) ERROR STOP 'NLCC charge was used to infer missing core tau'
+      pot%rho_nlcc = 0.0_dp
+      CALL upf_nlcc_kinetic(pot, kinetic, available, reason)
+      IF (.NOT. available .OR. ANY(kinetic /= 0.0_dp)) ERROR STOP 'Absent core tau was not exact zero'
+      ALLOCATE (pot%tau_nlcc(3), SOURCE=1.0_dp)
+      CALL upf_nlcc_kinetic(pot, kinetic, available, reason)
+      IF (available) ERROR STOP 'Nonzero core tau without NLCC charge was accepted'
       CALL atom_release_upf(pot)
       IF (ALLOCATED(pot%qij) .OR. ALLOCATED(pot%qijl)) ERROR STOP 'Augmentation arrays were not released'
+      IF (ALLOCATED(pot%tau_nlcc) .OR. ALLOCATED(pot%tau_atom)) ERROR STOP 'UPF kinetic arrays were not released'
+      IF (pot%with_metagga_info .OR. pot%tau_nlcc_convention /= '' .OR. pot%tau_atom_convention /= '') THEN
+         ERROR STOP 'UPF kinetic metadata was not reset'
+      END IF
       CALL logger%para_env%sync()
       IF (logger%para_env%is_source()) THEN
          OPEN (NEWUNIT=unit, FILE=fixture, STATUS='OLD')
@@ -315,6 +350,74 @@ CONTAINS
          CLOSE (unit, STATUS='DELETE')
       END IF
    END SUBROUTINE check_uspp_partial_waves
+
+! **************************************************************************************************
+!> \brief Read PAW one-center data and one optional frozen-core orbital.
+! **************************************************************************************************
+   SUBROUTINE check_paw_import()
+      CHARACTER(LEN=*), PARAMETER :: fixture = 'paw-import-test.upf'
+
+      INTEGER                                            :: unit
+      TYPE(atom_upfpot_type)                             :: pot
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      logger => cp_get_default_logger()
+      IF (logger%para_env%is_source()) THEN
+         OPEN (NEWUNIT=unit, FILE=fixture, STATUS='REPLACE', ACTION='WRITE')
+         WRITE (unit, '(A)') &
+            '<UPF version="2.0.1">', &
+            '<PP_HEADER element="Li" pseudo_type="PAW" is_ultrasoft="true" is_paw="true"', &
+            ' z_valence="1" mesh_size="3" number_of_proj="1" l_max="0"/>', &
+            '<PP_MESH mesh="3">', '<PP_R>', '0.5 1 1.5', '</PP_R>', &
+            '<PP_RAB>', '0.5 0.5 0.5', '</PP_RAB>', '</PP_MESH>', &
+            '<PP_LOCAL>', '-6 -4 -2', '</PP_LOCAL>', '<PP_NONLOCAL>', &
+            '<PP_BETA.1 index="1" angular_momentum="0" size="3">', '1 2 3', '</PP_BETA.1>', &
+            '<PP_DIJ>', '2', '</PP_DIJ>', &
+            '<PP_AUGMENTATION q_with_l="T" nqf="0" nqlc="1" cutoff_r_index="2" l_max_aug="0">', &
+            '<PP_Q>', '0.25', '</PP_Q>', '<PP_MULTIPOLES>', '0.125', '</PP_MULTIPOLES>', &
+            '<PP_QIJL.1.1.0 first_index="1" second_index="1" composite_index="1" angular_momentum="0">', &
+            '1 2 0', '</PP_QIJL.1.1.0>', '</PP_AUGMENTATION>', '</PP_NONLOCAL>', &
+            '<PP_FULL_WFC number_of_wfc="1">', &
+            '<PP_AEWFC.1 l="0">', '-2 3 4', '</PP_AEWFC.1>', &
+            '<PP_PSWFC.1 l="0">', '1 3 4', '</PP_PSWFC.1>', '</PP_FULL_WFC>', &
+            '<PP_PAW paw_data_format="2" core_energy="-8">', &
+            '<PP_OCCUPATIONS>', '1', '</PP_OCCUPATIONS>', &
+            '<PP_AE_NLCC>', '2 1 0', '</PP_AE_NLCC>', &
+            '<PP_AE_VLOC>', '-10 -6 -2', '</PP_AE_VLOC>', '</PP_PAW>', &
+            '<PP_GIPAW gipaw_data_format="2">', '<PP_GIPAW_CORE_ORBITALS number_of_core_orbitals="1">', &
+            '<PP_GIPAW_CORE_ORBITAL.1 index="1" n="1.0" l="0.0">', &
+            '3 -2 1', '</PP_GIPAW_CORE_ORBITAL.1>', '</PP_GIPAW_CORE_ORBITALS>', '</PP_GIPAW>', '</UPF>'
+         CLOSE (unit)
+      END IF
+      CALL logger%para_env%sync()
+      CALL atom_read_upf(pot, fixture, read_header=.TRUE.)
+      IF (.NOT. pot%is_paw .OR. ALLOCATED(pot%paw)) ERROR STOP 'Wrong PAW header-only import'
+      CALL atom_release_upf(pot)
+      CALL atom_read_upf(pot, fixture, read_paw=.TRUE.)
+      IF (.NOT. upf_has_complete_partial_waves(pot)) ERROR STOP 'Missing complete PAW waves'
+      ASSOCIATE (paw => pot%paw)
+         IF (ANY(paw%ae_wfc(:, 1) /= [-2._dp, 3._dp, 4._dp]) .OR. &
+             ANY(paw%ps_wfc(:, 1) /= [1._dp, 3._dp, 4._dp])) ERROR STOP 'Changed PAW wave normalization'
+         IF (paw%cutoff_index /= 2 .OR. paw%multipoles(1, 1, 0) /= 0.125_dp .OR. &
+             ANY(pot%qijl(:, 1, 0) /= [1._dp, 2._dp, 0._dp])) ERROR STOP 'Changed PAW augmentation'
+         IF (.NOT. paw%has_core_energy .OR. paw%core_energy /= -4._dp .OR. &
+             ANY(paw%vlocal /= [-5._dp, -3._dp, -1._dp])) ERROR STOP 'Wrong PAW energy units'
+         IF (ANY(paw%rho_core /= [2._dp, 1._dp, 0._dp]) .OR. &
+             ANY(paw%occupations /= 1._dp)) ERROR STOP 'Changed PAW core charge or occupations'
+         IF (.NOT. ALLOCATED(paw%gipaw_core_orbitals)) ERROR STOP 'Missing GIPAW core orbitals'
+         ASSOCIATE (orbitals => paw%gipaw_core_orbitals)
+            IF (ANY(orbitals%principal_quantum_numbers /= 1) .OR. ANY(orbitals%angular_momenta /= 0) .OR. &
+                ANY(orbitals%wfc(:, 1) /= [3._dp, -2._dp, 1._dp])) ERROR STOP 'Changed GIPAW core orbital'
+         END ASSOCIATE
+      END ASSOCIATE
+      CALL atom_release_upf(pot)
+      IF (ALLOCATED(pot%paw) .OR. pot%is_paw) ERROR STOP 'PAW data were not reset on release'
+      CALL logger%para_env%sync()
+      IF (logger%para_env%is_source()) THEN
+         OPEN (NEWUNIT=unit, FILE=fixture, STATUS='OLD')
+         CLOSE (unit, STATUS='DELETE')
+      END IF
+   END SUBROUTINE check_paw_import
 
 ! **************************************************************************************************
 !> \brief Check the repaired radial maps at the size that exposes endpoint cancellation.

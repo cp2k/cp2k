@@ -10,6 +10,7 @@
 !>        Dataset availability does not select an orbital representation or calculation method.
 ! **************************************************************************************************
 MODULE upf_types
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -26,6 +27,25 @@ MODULE upf_types
       REAL(dp), ALLOCATABLE :: ae_wfc(:, :), ps_wfc(:, :)
       INTEGER, ALLOCATABLE :: angular_momenta(:)
    END TYPE upf_partial_waves_type
+
+   TYPE upf_gipaw_orbitals_type
+      ! Signed u=r*R(r), without a frozen-core assignment or assumed occupations.
+      INTEGER :: data_format = -1
+      REAL(dp), ALLOCATABLE :: wfc(:, :)
+      INTEGER, ALLOCATABLE :: indices(:), principal_quantum_numbers(:), angular_momenta(:)
+   END TYPE upf_gipaw_orbitals_type
+
+   TYPE, EXTENDS(upf_partial_waves_type) :: upf_paw_type
+      INTEGER :: data_format = -1, cutoff_index = -1, lmax_aug = -1
+      CHARACTER(LEN=default_string_length) :: augmentation_shape = ""
+      REAL(dp) :: cutoff_radius = -1.0_dp, augmentation_epsilon = 1.e-12_dp
+      REAL(dp) :: core_energy = 0.0_dp
+      LOGICAL :: has_core_energy = .FALSE.
+      REAL(dp), ALLOCATABLE :: occupations(:), multipoles(:, :, :)
+      ! AE core density per volume; AE local potential and core energy in Hartree.
+      REAL(dp), ALLOCATABLE :: rho_core(:), vlocal(:)
+      TYPE(upf_gipaw_orbitals_type), ALLOCATABLE :: gipaw_core_orbitals
+   END TYPE upf_paw_type
 
    TYPE atom_upfpot_type
       CHARACTER(LEN=2)                               :: symbol = ""
@@ -54,6 +74,7 @@ MODULE upf_types
       LOGICAL                                        :: has_gipaw = .FALSE.
       LOGICAL                                        :: paw_as_gipaw = .FALSE.
       LOGICAL                                        :: core_correction = .FALSE.
+      LOGICAL                                        :: with_metagga_info = .FALSE.
       REAL(dp)                                       :: total_psenergy = 0.0_dp
       REAL(dp)                                       :: wfc_cutoff = 0.0_dp
       REAL(dp)                                       :: rho_cutoff = 0.0_dp
@@ -71,6 +92,9 @@ MODULE upf_types
       REAL(dp), DIMENSION(:), ALLOCATABLE            :: r, rab
       ! <NLCC>
       REAL(dp), DIMENSION(:), ALLOCATABLE            :: rho_nlcc
+      ! Preserve supplied samples. Only an explicit canonical convention permits XC use.
+      REAL(dp), ALLOCATABLE :: tau_nlcc(:), tau_atom(:)
+      CHARACTER(LEN=default_string_length) :: tau_nlcc_convention = "", tau_atom_convention = ""
       ! <LOCAL>
       REAL(dp), DIMENSION(:), ALLOCATABLE            :: vlocal
       ! <NONLOCAL>: keep the tabulated projector amplitude; D includes Ry -> Hartree.
@@ -83,13 +107,78 @@ MODULE upf_types
       REAL(dp), DIMENSION(:, :), ALLOCATABLE         :: qij
       REAL(dp), DIMENSION(:, :, :), ALLOCATABLE      :: qijl
       TYPE(upf_partial_waves_type), ALLOCATABLE :: partial_waves
+      TYPE(upf_paw_type), ALLOCATABLE :: paw
       ! <SEMILOCAL>
       REAL(dp), DIMENSION(:, :), ALLOCATABLE         :: vsemi
    END TYPE atom_upfpot_type
 
    PUBLIC :: atom_upfpot_type, upf_partial_waves_type, upf_radial_weights
+   PUBLIC :: upf_paw_type, upf_gipaw_orbitals_type
    PUBLIC :: upf_release, upf_has_complete_partial_waves
+   PUBLIC :: upf_nlcc_kinetic, upf_uses_model_core_tau
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Select model-core tau for USPP and for NC with an explicitly supplied table.
+!> \param pot Original UPF metadata and optional model-core table.
+!> \return Whether this dataset uses the model-core convention instead of PAW reconstruction.
+! **************************************************************************************************
+   PURE FUNCTION upf_uses_model_core_tau(pot) RESULT(use_tau)
+      TYPE(atom_upfpot_type), INTENT(IN)                 :: pot
+      LOGICAL                                            :: use_tau
+
+      use_tau = .NOT. pot%is_paw .AND. (pot%is_ultrasoft .OR. ALLOCATED(pot%tau_nlcc))
+   END FUNCTION upf_uses_model_core_tau
+
+! **************************************************************************************************
+!> \brief Obtain the independently supplied model-core kinetic density in Hartree per cubic bohr.
+!>        Charge augmentation and NLCC charge do not determine this field. Unlabelled samples
+!>        remain available as raw data, without an assumed generator normalization.
+!> \param pot Original UPF dataset.
+!> \param kinetic Spin-summed canonical core tau, zero for an absent partial core.
+!> \param available Whether the canonical field is defined for this dataset.
+!> \param reason Explanation when the field cannot be used.
+! **************************************************************************************************
+   SUBROUTINE upf_nlcc_kinetic(pot, kinetic, available, reason)
+      TYPE(atom_upfpot_type), INTENT(IN)                 :: pot
+      REAL(dp), ALLOCATABLE, INTENT(OUT)                 :: kinetic(:)
+      LOGICAL, INTENT(OUT)                               :: available
+      CHARACTER(LEN=*), INTENT(OUT)                      :: reason
+
+      LOGICAL                                            :: has_core
+
+      CPASSERT(ALLOCATED(pot%r))
+      ALLOCATE (kinetic(SIZE(pot%r)), SOURCE=0.0_dp)
+      available = .FALSE.
+      reason = "UPF model-core tau is missing. Supply canonical PP_TAUMOD or prepare an explicit model with add_upf_core_tau.py"
+      has_core = .FALSE.
+      IF (ALLOCATED(pot%rho_nlcc)) has_core = ANY(pot%rho_nlcc /= 0.0_dp)
+      IF (.NOT. has_core) THEN
+         IF (ALLOCATED(pot%tau_nlcc)) THEN
+            IF (ANY(pot%tau_nlcc /= 0.0_dp)) THEN
+               reason = "UPF has a nonzero model-core kinetic density without a nonzero NLCC density"
+               RETURN
+            END IF
+         END IF
+         available = .TRUE.
+         reason = ""
+         RETURN
+      END IF
+      IF (.NOT. pot%core_correction) THEN
+         reason = "UPF has a nonzero NLCC density with core_correction disabled"
+         RETURN
+      END IF
+      IF (.NOT. ALLOCATED(pot%tau_nlcc)) RETURN
+      IF (TRIM(pot%tau_nlcc_convention) /= "HARTREE_PER_VOLUME") THEN
+         reason = "UPF PP_TAUMOD requires an explicit hartree_per_volume convention before use in XC"
+         RETURN
+      END IF
+      CPASSERT(SIZE(pot%tau_nlcc) == SIZE(pot%r))
+      CPASSERT(ALL(ieee_is_finite(pot%tau_nlcc)))
+      kinetic(:) = pot%tau_nlcc
+      available = .TRUE.
+      reason = ""
+   END SUBROUTINE upf_nlcc_kinetic
 
 ! **************************************************************************************************
 !> \brief Composite Simpson weights for dr on the supplied UPF mesh index.
@@ -127,21 +216,37 @@ CONTAINS
       INTEGER                                            :: n, nb
 
       complete = .FALSE.
-      IF (.NOT. ALLOCATED(pot%partial_waves)) RETURN
       IF (.NOT. ALLOCATED(pot%lbeta)) RETURN
       IF (.NOT. ALLOCATED(pot%r) .OR. .NOT. ALLOCATED(pot%rab)) RETURN
       n = pot%mesh_size
       nb = pot%number_of_proj
       IF (n < 3 .OR. nb < 1 .OR. SIZE(pot%lbeta) /= nb) RETURN
       IF (SIZE(pot%r) /= n .OR. SIZE(pot%rab) /= n) RETURN
-      ASSOCIATE (waves => pot%partial_waves)
+      IF (pot%is_paw) THEN
+         IF (.NOT. ALLOCATED(pot%paw)) RETURN
+         complete = compatible_waves(pot%paw)
+      ELSE
+         IF (.NOT. ALLOCATED(pot%partial_waves)) RETURN
+         complete = compatible_waves(pot%partial_waves)
+      END IF
+   CONTAINS
+! **************************************************************************************************
+!> \brief ...
+!> \param waves ...
+!> \return ...
+! **************************************************************************************************
+      PURE FUNCTION compatible_waves(waves) RESULT(compatible)
+         CLASS(upf_partial_waves_type), INTENT(IN) :: waves
+         LOGICAL :: compatible
+
+         compatible = .FALSE.
          IF (.NOT. ALLOCATED(waves%ae_wfc) .OR. .NOT. ALLOCATED(waves%ps_wfc)) RETURN
          IF (.NOT. ALLOCATED(waves%angular_momenta)) RETURN
          IF (ANY(SHAPE(waves%ae_wfc) /= [n, nb])) RETURN
          IF (ANY(SHAPE(waves%ps_wfc) /= [n, nb])) RETURN
          IF (SIZE(waves%angular_momenta) /= nb) RETURN
-         complete = ALL(waves%angular_momenta == pot%lbeta)
-      END ASSOCIATE
+         compatible = ALL(waves%angular_momenta == pot%lbeta)
+      END FUNCTION compatible_waves
    END FUNCTION upf_has_complete_partial_waves
 
 ! **************************************************************************************************
