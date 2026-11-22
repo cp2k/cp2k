@@ -48,7 +48,7 @@ MODULE gw_ri_rs_small_cell_full_kp_types
    ! Work data shared by the periodic GW stages; input settings remain in bs_env.
    TYPE :: gwkp_type
       REAL(KIND=dp), ALLOCATABLE                 :: eigenvalues_G(:, :, :)
-      COMPLEX(dp), ALLOCATABLE                  :: metric_coulomb_factor(:, :, :), psi_lm_k(:, :, :, :), &
+      COMPLEX(dp), ALLOCATABLE                  :: psi_lm_k(:, :, :, :), &
                                                    Z_lP_q(:, :, :), Z_lP_zero(:, :, :)
       REAL(dp), ALLOCATABLE                     :: sigma_c_bands(:, :, :, :, :), sigma_x_bands(:, :, :)
       ! Band Bloch orbitals on the RI-RS grid, only of the band k points owned in the Σ ranks, MOD(k-1,P).
@@ -66,7 +66,9 @@ MODULE gw_ri_rs_small_cell_full_kp_types
       REAL(dp)                                  :: progress_start = 0.0_dp
       CHARACTER(LEN=32)                         :: progress_label = ''
       TYPE(gamma_correction_type)               :: gamma_correction
-      TYPE(ri_q_matrix_block_type), ALLOCATABLE :: chi_q_frequency(:), W_PQ_tau(:)
+      ! Keep q <= q_partner(q). q_slot maps native indices to compact world-owner columns.
+      INTEGER, ALLOCATABLE                      :: q_partner(:), q_slot(:)
+      TYPE(ri_q_matrix_block_type), ALLOCATABLE :: chi_q_frequency(:), metric_coulomb_factor(:), W_PQ_tau(:)
       ! AO image operators retained only until the Gamma-correction contraction.
       TYPE(dbcsr_p_type), POINTER               :: gamma_corr_d(:, :) => NULL(), &
                                                    gamma_corr_h(:, :) => NULL(), gamma_corr_s(:, :) => NULL()

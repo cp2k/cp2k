@@ -1189,58 +1189,56 @@ CONTAINS
 !>        holds the Coulomb matrix on exit.
 !> \param V_k ...
 !> \param qs_env ...
-!> \param kpoints ...
+!> \param local_q Fractional q coordinates in the local order of V_k.
 !> \param basis_type ...
 !> \param omega range-separation parameter of the Ewald splitting
-!> \param ikp_start ...
-!> \param ikp_end ...
 ! **************************************************************************************************
-   SUBROUTINE add_ewald_reciprocal(V_k, qs_env, kpoints, basis_type, omega, ikp_start, ikp_end)
+   SUBROUTINE add_ewald_reciprocal(V_k, qs_env, local_q, basis_type, omega)
       COMPLEX(KIND=dp), INTENT(INOUT)                    :: V_k(:, :, :)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(kpoint_type), POINTER                         :: kpoints
+      REAL(KIND=dp), INTENT(IN)                          :: local_q(:, :)
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
       REAL(KIND=dp), INTENT(IN)                          :: omega
-      INTEGER, INTENT(IN)                                :: ikp_start, ikp_end
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'add_ewald_reciprocal'
       INTEGER, PARAMETER                                 :: n_block = 128
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: fourier_basis(:, :), scaled_basis(:, :)
-      INTEGER                                            :: bounds(3), handle, idim, ikp, ikp_local, &
-                                                            ix, iy, iz, n_atom, n_bf, n_col
+      INTEGER                                            :: bounds(3), handle, idim, ikp_local, ix, &
+                                                            iy, iz, n_atom, n_bf, n_col
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bf_end, bf_start
       REAL(KIND=dp)                                      :: cutoff, p(3), p2, prefactor, q(3), &
                                                             reciprocal(3, 3)
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), POINTER                       :: particles(:)
       TYPE(qs_kind_type), POINTER                        :: qs_kinds(:)
 
       CALL timeset(routineN, handle)
+      CPASSERT(SIZE(local_q, 1) == 3)
+      CPASSERT(SIZE(local_q, 2) == SIZE(V_k, 3))
+      IF (SIZE(local_q, 2) == 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
 
-      CALL get_qs_env(qs_env, cell=cell, para_env=para_env, particle_set=particles, qs_kind_set=qs_kinds)
+      CALL get_qs_env(qs_env, cell=cell, particle_set=particles, qs_kind_set=qs_kinds)
       CALL get_basis_sizes(qs_env, n_atom, basis_type, bf_start, bf_end, n_bf)
       IF (COUNT(cell%perd /= 0) == 2) THEN
-         CALL add_ewald_reciprocal_2d(V_k, qs_env, kpoints, basis_type, omega, &
-                                      bf_start, bf_end, ikp_start, ikp_end)
+         CALL add_ewald_reciprocal_2d(V_k, qs_env, local_q, basis_type, omega, bf_start, bf_end)
       ELSE
          CPASSERT(COUNT(cell%perd /= 0) == 3)
          reciprocal = twopi*TRANSPOSE(cell%h_inv)
          cutoff = 2.0_dp*omega*SQRT(ewald_tail_exponent + ewald_lmax_margin*basis_lmax(qs_kinds, basis_type))
          ! Each thread handles its own k points of this rank and adds n_block momenta p per GEMM.
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP          SHARED(V_k, ikp_start, ikp_end, kpoints, para_env, cell, reciprocal, cutoff, omega, &
+!$OMP          SHARED(V_k, local_q, cell, reciprocal, cutoff, omega, &
 !$OMP                 particles, qs_kinds, basis_type, bf_start, bf_end, n_bf) &
-!$OMP          PRIVATE(ikp, ikp_local, q, idim, bounds, ix, iy, iz, p, p2, prefactor, n_col, &
+!$OMP          PRIVATE(ikp_local, q, idim, bounds, ix, iy, iz, p, p2, prefactor, n_col, &
 !$OMP                  fourier_basis, scaled_basis)
          ALLOCATE (fourier_basis(n_bf, n_block), scaled_basis(n_bf, n_block))
 !$OMP DO SCHEDULE(DYNAMIC)
-         DO ikp = ikp_start, ikp_end
-            IF (MODULO(ikp, para_env%num_pe) /= para_env%mepos) CYCLE
-            ikp_local = (ikp - para_env%mepos)/para_env%num_pe + 1
-            IF (para_env%mepos == 0) ikp_local = ikp/para_env%num_pe
-            q = kpoints%xkp(:, ikp)
+         DO ikp_local = 1, SIZE(local_q, 2)
+            q = local_q(:, ikp_local)
             DO idim = 1, 3
                bounds(idim) = CEILING(cutoff*NORM2(cell%hmat(:, idim))/twopi + ABS(q(idim)))
             END DO
@@ -1285,40 +1283,35 @@ CONTAINS
 !> The momentum perpendicular to their plane is integrated continuously.
 !> \param V_k ...
 !> \param qs_env ...
-!> \param kpoints ...
+!> \param local_q Fractional q coordinates in the local order of V_k.
 !> \param basis_type ...
 !> \param omega ...
 !> \param bf_start ...
 !> \param bf_end ...
-!> \param ikp_start ...
-!> \param ikp_end ...
 ! **************************************************************************************************
-   SUBROUTINE add_ewald_reciprocal_2d(V_k, qs_env, kpoints, basis_type, omega, &
-                                      bf_start, bf_end, ikp_start, ikp_end)
+   SUBROUTINE add_ewald_reciprocal_2d(V_k, qs_env, local_q, basis_type, omega, bf_start, bf_end)
       COMPLEX(KIND=dp), INTENT(INOUT)                    :: V_k(:, :, :)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(kpoint_type), POINTER                         :: kpoints
+      REAL(KIND=dp), INTENT(IN)                          :: local_q(:, :)
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
       REAL(KIND=dp), INTENT(IN)                          :: omega
-      INTEGER, INTENT(IN)                                :: bf_start(:), bf_end(:), ikp_start, &
-                                                            ikp_end
+      INTEGER, INTENT(IN)                                :: bf_start(:), bf_end(:)
 
       INTEGER, PARAMETER                                 :: n_kz = 192
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: f_minus(:), f_plus(:), f_zero(:), &
                                                             left(:, :), right(:, :)
-      INTEGER                                            :: free_axis, i_col, ikp, ikp_local, inode, &
-                                                            ix, iy, n_bf, nx, ny, periodic_axis(2)
+      INTEGER                                            :: free_axis, i_col, ikp_local, inode, ix, &
+                                                            iy, n_bf, nx, ny, periodic_axis(2)
       REAL(KIND=dp)                                      :: a1(3), a2(3), area, b1(3), b2(3), &
                                                             cutoff, factor, kz, nodes(n_kz), &
                                                             normal(3), p(3), pnorm, q(3), weight, &
                                                             weights(n_kz)
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), POINTER                       :: particles(:)
       TYPE(qs_kind_type), POINTER                        :: qs_kinds(:)
 
-      CALL get_qs_env(qs_env, cell=cell, para_env=para_env, &
+      CALL get_qs_env(qs_env, cell=cell, &
                       particle_set=particles, qs_kind_set=qs_kinds)
       CPASSERT(COUNT(cell%perd /= 0) == 2)
       periodic_axis = PACK([1, 2, 3], cell%perd /= 0)
@@ -1340,18 +1333,15 @@ CONTAINS
       ! Each thread handles its own k points of this rank and adds all terms of one momentum p
       ! as SUM_i left_i right_i^H in one GEMM.
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP          SHARED(V_k, ikp_start, ikp_end, kpoints, para_env, free_axis, periodic_axis, cutoff, &
+!$OMP          SHARED(V_k, local_q, free_axis, periodic_axis, cutoff, &
 !$OMP                 a1, a2, b1, b2, normal, area, omega, nodes, weights, particles, qs_kinds, cell, basis_type, &
 !$OMP                 bf_start, bf_end, n_bf) &
-!$OMP          PRIVATE(ikp, ikp_local, q, nx, ny, ix, iy, p, pnorm, factor, inode, kz, weight, i_col, &
+!$OMP          PRIVATE(ikp_local, q, nx, ny, ix, iy, p, pnorm, factor, inode, kz, weight, i_col, &
 !$OMP                  f_zero, f_plus, f_minus, left, right)
       ALLOCATE (f_zero(n_bf), f_plus(n_bf), f_minus(n_bf), left(n_bf, 4*n_kz + 1), right(n_bf, 4*n_kz + 1))
 !$OMP DO SCHEDULE(DYNAMIC)
-      DO ikp = ikp_start, ikp_end
-         IF (MODULO(ikp, para_env%num_pe) /= para_env%mepos) CYCLE
-         ikp_local = (ikp - para_env%mepos)/para_env%num_pe + 1
-         IF (para_env%mepos == 0) ikp_local = ikp/para_env%num_pe
-         q = kpoints%xkp(:, ikp)
+      DO ikp_local = 1, SIZE(local_q, 2)
+         q = local_q(:, ikp_local)
          IF (ABS(q(free_axis)) > 0.0_dp) THEN
             CPABORT('2D reciprocal transfer has a nonzero nonperiodic component')
          END IF
