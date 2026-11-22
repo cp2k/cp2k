@@ -1,20 +1,20 @@
 {
-  "version": "v0.2.0",
+  "version": "v0.3.0",
   "catalog": {
-    "file": "inverse-uspp-v0.2.0.json",
-    "url": "https://github.com/DCM-Uni-Paderborn/inverse-uspp/releases/download/v0.2.0/inverse-uspp-v0.2.0.json",
-    "sha256": "2e0701fa67b15fa669a4d443d8d69a56ed4f103fd812435df7dc67eecc81ecc4"
+    "file": "inverse-uspp-v0.3.0.json",
+    "url": "https://github.com/DCM-Uni-Paderborn/inverse-uspp/releases/download/v0.3.0/inverse-uspp-v0.3.0.json",
+    "sha256": "98480390109382f2dee3697684bf856c03deec7c0024be17548d82dd7f627470"
   },
   "archives": {
     "pbe": {
-      "file": "inverse-uspp-pbe-v0.2.0.tar.gz",
-      "url": "https://github.com/DCM-Uni-Paderborn/inverse-uspp/releases/download/v0.2.0/inverse-uspp-pbe-v0.2.0.tar.gz",
-      "sha256": "d99f45a107bd7d22004ce54acf9b6f635956ca12058b95907e363d5e28fd06e3"
+      "file": "inverse-uspp-pbe-v0.3.0.tar.gz",
+      "url": "https://github.com/DCM-Uni-Paderborn/inverse-uspp/releases/download/v0.3.0/inverse-uspp-pbe-v0.3.0.tar.gz",
+      "sha256": "6b4c3eddf9de80e3f19664bf0f53773a1a6af4f1709a6d0acfc8e97f4ee939ab"
     },
     "pbesol": {
-      "file": "inverse-uspp-pbesol-v0.2.0.tar.gz",
-      "url": "https://github.com/DCM-Uni-Paderborn/inverse-uspp/releases/download/v0.2.0/inverse-uspp-pbesol-v0.2.0.tar.gz",
-      "sha256": "de74df90d20afc9faf26c6842638e9c864abeb1e483451c2c245180ccf511bc3"
+      "file": "inverse-uspp-pbesol-v0.3.0.tar.gz",
+      "url": "https://github.com/DCM-Uni-Paderborn/inverse-uspp/releases/download/v0.3.0/inverse-uspp-pbesol-v0.3.0.tar.gz",
+      "sha256": "4dde32d1124a3c2946df0bb544ac497c1b00922493c70d358e315cf014765073"
     }
   }
 }
