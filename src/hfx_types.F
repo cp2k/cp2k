@@ -339,6 +339,7 @@ MODULE hfx_types
 
       ! input parameters from hfx
       TYPE(coulomb_operator_type) :: hfx_pot = coulomb_operator_type() ! interaction potential
+      LOGICAL :: explicit_hfx_cutoff = .FALSE.
       REAL(KIND=dp) :: eps_schwarz = 0.0_dp ! integral screening threshold
       REAL(KIND=dp) :: eps_schwarz_forces = 0.0_dp ! integral derivatives screening threshold
 
@@ -1076,6 +1077,7 @@ CONTAINS
                                      extension=".scfLog")
 
       hf_sub_section => section_vals_get_subs_vals(hfx_section, "INTERACTION_POTENTIAL", i_rep_section=irep)
+      CALL section_vals_val_get(hf_sub_section, "CUTOFF_RADIUS", explicit=ri_data%explicit_hfx_cutoff)
       CALL section_vals_val_get(hf_sub_section, "T_C_G_DATA", c_val=char_val)
       CALL compress(char_val, .TRUE.)
 
@@ -1130,7 +1132,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_init_read_input'
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: explicit
+      LOGICAL                                            :: explicit, explicit_ri_cutoff
       REAL(dp)                                           :: eps_storage_scaling
 
       CALL timeset(routineN, handle)
@@ -1152,9 +1154,13 @@ CONTAINS
             ri_metric%omega = hfx_pot%omega
          END IF
 
-         CALL section_vals_val_get(ri_section, "CUTOFF_RADIUS", r_val=ri_metric%cutoff_radius, explicit=explicit)
-         IF (.NOT. explicit) THEN
-            ri_metric%cutoff_radius = hfx_pot%cutoff_radius
+         CALL section_vals_val_get(ri_section, "CUTOFF_RADIUS", r_val=ri_metric%cutoff_radius, explicit=explicit_ri_cutoff)
+         IF (.NOT. explicit_ri_cutoff) THEN
+            IF (ri_metric%potential_type == do_potential_short) THEN
+               CALL erfc_cutoff(ri_data%eps_schwarz, ri_metric%omega, ri_metric%cutoff_radius)
+            ELSE
+               ri_metric%cutoff_radius = hfx_pot%cutoff_radius
+            END IF
          END IF
 
          CALL section_vals_val_get(ri_section, "SCALE_COULOMB", r_val=ri_metric%scale_coulomb, explicit=explicit)
@@ -1167,10 +1173,18 @@ CONTAINS
             ri_metric%scale_longrange = hfx_pot%scale_longrange
          END IF
 
-         IF (ri_metric%potential_type == do_potential_short) THEN
-            CALL erfc_cutoff(ri_data%eps_schwarz, ri_metric%omega, ri_metric%cutoff_radius)
-         END IF
          IF (ri_metric%potential_type == do_potential_id) ri_metric%cutoff_radius = 0.0_dp
+         IF (hfx_pot%potential_type == do_potential_short .AND. .NOT. ri_data%explicit_hfx_cutoff) THEN
+            ! Use the tighter 2c screening threshold for the exchange metric.
+            CALL erfc_cutoff(ri_data%filter_eps_2c, hfx_pot%omega, hfx_pot%cutoff_radius)
+         END IF
+
+         ri_data%same_op = compare_potential_types(ri_metric, hfx_pot)
+         IF (ri_metric%potential_type == do_potential_short .AND. &
+             (explicit_ri_cutoff .OR. ri_data%explicit_hfx_cutoff)) THEN
+            ! Distinct user-selected screening ranges require separate 2c matrices.
+            ri_data%same_op = ri_data%same_op .AND. ri_metric%cutoff_radius == hfx_pot%cutoff_radius
+         END IF
       END ASSOCIATE
 
       CALL section_vals_val_get(ri_section, "2C_MATRIX_FUNCTIONS", i_val=ri_data%t2c_method)
@@ -1232,7 +1246,6 @@ CONTAINS
                                                             dist_RI
       INTEGER, DIMENSION(2)                              :: pdims_2d
       INTEGER, DIMENSION(3)                              :: pdims
-      LOGICAL                                            :: same_op
       TYPE(distribution_3d_type)                         :: dist_3d
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: basis_set_AO, basis_set_RI
@@ -1245,22 +1258,6 @@ CONTAINS
       natom = SIZE(particle_set)
       nkind = SIZE(qs_kind_set, 1)
       nproc = para_env%num_pe
-
-      ASSOCIATE (ri_metric => ri_data%ri_metric, hfx_pot => ri_data%hfx_pot)
-         IF (ri_metric%potential_type == do_potential_short) THEN
-            CALL erfc_cutoff(ri_data%eps_schwarz, ri_metric%omega, ri_metric%cutoff_radius)
-         END IF
-
-         IF (hfx_pot%potential_type == do_potential_short) THEN
-            ! need a more accurate threshold for determining 2-center integral operator range
-            ! because stability of matrix inversion/sqrt is sensitive to this
-            CALL erfc_cutoff(ri_data%filter_eps_2c, hfx_pot%omega, hfx_pot%cutoff_radius)
-         END IF
-         ! determine whether RI metric is same operator as used in HFX
-         same_op = compare_potential_types(ri_metric, hfx_pot)
-      END ASSOCIATE
-
-      ri_data%same_op = same_op
 
       pdims = 0
       CALL mp_comm_3d%create(para_env, 3, pdims)
@@ -2986,7 +2983,7 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: cval1, cval2
       INTEGER                                            :: irep, ival1, ival2, n_rep_hf1, n_rep_hf2
-      LOGICAL                                            :: lval1, lval2
+      LOGICAL                                            :: explicit1, explicit2, lval1, lval2
       REAL(dp)                                           :: rval1, rval2
       TYPE(section_vals_type), POINTER                   :: hfx_sub_section1, hfx_sub_section2
 
@@ -3022,6 +3019,17 @@ CONTAINS
          CALL section_vals_val_get(hfx_sub_section2, "POTENTIAL_TYPE", i_val=ival2, i_rep_section=irep)
          IF (ival1 /= ival2) is_identical = .FALSE.
          IF (.NOT. is_identical) RETURN
+
+         IF (ival1 == do_potential_short) THEN
+            CALL section_vals_val_get(hfx_sub_section1, "CUTOFF_RADIUS", explicit=explicit1)
+            CALL section_vals_val_get(hfx_sub_section2, "CUTOFF_RADIUS", explicit=explicit2)
+            IF (explicit1 .NEQV. explicit2) is_identical = .FALSE.
+            IF (explicit1 .AND. explicit2) THEN
+               CALL section_vals_val_get(hfx_sub_section1, "CUTOFF_RADIUS", r_val=rval1)
+               CALL section_vals_val_get(hfx_sub_section2, "CUTOFF_RADIUS", r_val=rval2)
+               IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+            END IF
+         END IF
 
          IF (ival1 == do_potential_truncated .OR. ival1 == do_potential_mix_cl_trunc) THEN
             CALL section_vals_val_get(hfx_sub_section1, "CUTOFF_RADIUS", r_val=rval1, i_rep_section=irep)

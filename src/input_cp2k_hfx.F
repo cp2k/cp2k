@@ -301,10 +301,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
-                          description="Cutoff radius for the truncated $\frac{1}{r}$ potential or the short-range "// &
-                          "$\frac{\mathrm{erfc}(\omega \cdot r)}{r}$ potential. For truncated Coulomb in a "// &
-                          "periodic cell, choose a radius compatible with the cell dimensions. The default value "// &
-                          "for short-range potentials when this keyword is omitted is solved from "// &
+                          description="Cutoff radius for the truncated $\frac{1}{r}$ potential, or screening range "// &
+                          "for the short-range $\frac{\mathrm{erfc}(\omega \cdot r)}{r}$ potential. For truncated Coulomb "// &
+                          "in a periodic cell, choose a radius compatible with the cell dimensions. If omitted for "// &
+                          "a short-range potential, the default screening range is solved from "// &
                           "$\frac{\mathrm{erfc}(\omega \cdot r)}{r} = \epsilon_{\mathrm{schwarz}}$ "// &
                           "by Newton-Raphson method, with $\epsilon_{\mathrm{schwarz}}$ set by SCREENING/EPS_SCHWARZ", &
                           usage="CUTOFF_RADIUS 10.0", type_of_var=real_t, & ! default_r_val=10.0_dp,&
@@ -563,8 +563,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
-                          description="The cutoff radius (in Angstroms) for the truncated Coulomb operator. "// &
-                          "Default is CUTOFF_RADIUS from INTERACTION_POTENTIAL. ", &
+                          description="Cutoff radius for a truncated Coulomb fitting metric or screening range "// &
+                          "for a short-range fitting metric. The truncated metric defaults to the "// &
+                          "exchange radius. The short-range metric defaults to the range set by EPS_SCHWARZ.", &
                           variants=["KP_CUTOFF_RADIUS"], &
                           default_r_val=0.0_dp, &
                           repeats=.FALSE., &
