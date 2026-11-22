@@ -17,6 +17,8 @@ MODULE qs_upf_inverse_types
    USE kpoint_transitional,             ONLY: kpoint_transitional_release,&
                                               kpoint_transitional_type
    USE message_passing,                 ONLY: mp_comm_type
+   USE paw_types,                       ONLY: paw_kind_type,&
+                                              paw_potential_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE upf_inverse,                     ONLY: upf_inverse_atomic_type,&
@@ -79,6 +81,10 @@ MODULE qs_upf_inverse_types
       TYPE(qs_upf_inverse_augmentation_type) :: augmentation
       TYPE(kpoint_transitional_type) :: metric
       COMPLEX(dp), ALLOCATABLE :: gaussian_kinetic(:, :)
+      TYPE(paw_kind_type), ALLOCATABLE :: paw(:)
+      TYPE(paw_potential_type), ALLOCATABLE :: paw_potential(:)
+      COMPLEX(dp), ALLOCATABLE :: paw_density(:, :, :, :), paw_operator(:, :, :, :)
+      INTEGER :: paw_density_evaluation = -1
    END TYPE qs_upf_inverse_scf_type
 
    PUBLIC :: qs_upf_inverse_type, qs_upf_inverse_grid_type, qs_upf_inverse_augmentation_type

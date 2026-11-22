@@ -55,7 +55,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Prepare radial quadrature and Gaunt coefficients in the native beta convention.
-!> \param pot Original scalar USPP with angular-resolved augmentation.
+!> \param pot Original scalar USPP or PAW dataset with angular-resolved augmentation.
 !> \param projectors Prepared native projectors, with Cartesian degree at least max(lbeta).
 !> \param augmentation Immutable augmentation data, in the same magnetic-projector ordering.
 ! **************************************************************************************************
@@ -67,7 +67,7 @@ CONTAINS
       INTEGER                                            :: i, j, l, m, n, nc, p, pair, q, s
       REAL(KIND=dp), ALLOCATABLE                         :: weights(:)
 
-      CPASSERT(.NOT. pot%has_so .AND. .NOT. pot%is_paw)
+      CPASSERT(.NOT. pot%has_so)
       CPASSERT(ALLOCATED(pot%qijl))
       CPASSERT(projectors%degree >= MAXVAL(pot%lbeta))
       CPASSERT(ALL(projectors%lbeta == pot%lbeta))

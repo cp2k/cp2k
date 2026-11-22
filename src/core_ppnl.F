@@ -370,7 +370,8 @@ CONTAINS
                do_upf = ALLOCATED(spotential(kkind)%sgp_potential%upf_data)
                IF (do_upf) THEN
                   ! USPP D0 is assembled with the full projector-mediated AO pattern.
-                  IF (spotential(kkind)%sgp_potential%upf_data%is_ultrasoft) CYCLE
+                  IF (spotential(kkind)%sgp_potential%upf_data%is_ultrasoft .OR. &
+                      spotential(kkind)%sgp_potential%upf_data%is_paw) CYCLE
                   upf => spotential(kkind)%sgp_potential%upf_projectors
                   nppnl = upf%nproj
                ELSE
@@ -626,7 +627,8 @@ CONTAINS
                DO kkind = 1, nkind
                   IF (ASSOCIATED(spotential(kkind)%sgp_potential)) THEN
                      IF (ALLOCATED(spotential(kkind)%sgp_potential%upf_data)) THEN
-                        IF (spotential(kkind)%sgp_potential%upf_data%is_ultrasoft) CYCLE
+                        IF (spotential(kkind)%sgp_potential%upf_data%is_ultrasoft .OR. &
+                            spotential(kkind)%sgp_potential%upf_data%is_paw) CYCLE
                      END IF
                   END IF
                   iac = ikind + nkind*(kkind - 1)

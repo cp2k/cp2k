@@ -834,6 +834,12 @@ CONTAINS
                   "Hartree energy:                                ", energy%hartree, &
                   "Exchange-correlation energy:                   ", exc_energy
             END IF
+            IF (energy%paw_hartree /= 0.0_dp .OR. energy%paw_xc /= 0.0_dp .OR. energy%paw_core /= 0.0_dp) THEN
+               WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
+                  "PAW| one-center Hartree correction:           ", energy%paw_hartree, &
+                  "PAW| one-center XC correction:                ", energy%paw_xc, &
+                  "PAW| frozen-core energy:                      ", energy%paw_core
+            END IF
             IF (energy%e_hartree /= 0.0_dp) THEN
                WRITE (UNIT=output_unit, FMT="(T3,A,/,T3,A,T56,F25.14)") &
                   "Coulomb Electron-Electron Interaction Energy ", &

@@ -32,3 +32,8 @@
   {matcher = "Atomic_force_1_z", tol = 1e-7, ref = -0.0258824640},
   {matcher = "M031", tol = 1e-7, ref = 263372.194097},
 ]
+
+# The atomic guess accepts PAW and the GPW energy includes its one-center terms.
+"FeH2_PAW_GPW.inp" = [
+  {matcher = "M011", tol = 1e-10, ref = -1258.675343202854},
+]

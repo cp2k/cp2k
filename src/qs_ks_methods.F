@@ -140,7 +140,9 @@ MODULE qs_ks_methods
                                               sccs_core_fill_coefficients
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE qs_upf_inverse_core,             ONLY: qs_upf_inverse_core_force
-   USE qs_upf_inverse_scf,              ONLY: qs_upf_inverse_scf_active
+   USE qs_upf_inverse_scf,              ONLY: qs_upf_inverse_scf_active,&
+                                              qs_upf_inverse_scf_add_paw,&
+                                              qs_upf_inverse_scf_paw_evaluate
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom,&
                                               gapw_cdft_one_center
@@ -231,7 +233,7 @@ CONTAINS
       REAL(KIND=dp) :: ecore_ppl, edisp, ee_ener, ekin_mol, mulliken_order_p, &
          native_skala_composite_contraction, native_skala_composite_rho_contraction, &
          native_skala_composite_tau_contraction, native_skala_exc_scf, native_skala_total_scf, &
-         vscale
+         paw_energies(3), vscale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cdft_gapw_values
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cdft_charge_correction, &
                                                             cdft_electronic_charge, &
@@ -1069,6 +1071,11 @@ CONTAINS
          CALL harris_set_potentials(harris_env, v_hartree_rspace, v_rspace_new)
       END IF
 
+      CALL qs_upf_inverse_scf_paw_evaluate(ks_env, xc_section, paw_energies)
+      energy%paw_hartree = paw_energies(1)
+      energy%paw_xc = paw_energies(2)
+      energy%paw_core = paw_energies(3)
+
       NULLIFY (rho_struct)
       IF (use_virial .AND. calculate_forces) THEN
          virial%pv_exc = virial%pv_exc - virial%pv_xc
@@ -1220,6 +1227,7 @@ CONTAINS
                                    v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, &
                                    v_sic_rspace, v_spin_ddapc_rest_r, v_sccs_rspace, v_rspace_embed, &
                                    cdft_control, calculate_forces)
+         CALL qs_upf_inverse_scf_add_paw(ks_env)
 
          IF (use_gauxc_matrix) THEN
             CALL get_qs_env(qs_env=qs_env, matrix_vxc_kp=matrix_vxc)

@@ -20,12 +20,17 @@ PROGRAM upf_inverse_unittest
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               ncoset
+   USE paw_onecenter,                   ONLY: paw_onecenter_hartree,&
+                                              paw_onecenter_init,&
+                                              paw_onecenter_type
    USE upf_core,                        ONLY: upf_core_fourier
    USE upf_inverse,                     ONLY: &
         upf_inverse_atomic_residual, upf_inverse_atomic_type, upf_inverse_basis, &
         upf_inverse_basis_response, upf_inverse_init, upf_inverse_operator, &
         upf_inverse_operator_response, upf_inverse_project, upf_inverse_project_response, &
         upf_inverse_type
+   USE upf_projector_integrals,         ONLY: upf_projector_angular_init,&
+                                              upf_projector_type
    USE upf_types,                       ONLY: atom_upfpot_type
 
    IMPLICIT NONE
@@ -35,8 +40,38 @@ PROGRAM upf_inverse_unittest
    CALL check_atomic_residual()
    CALL check_gaussian_fields()
    CALL check_core_fourier()
+   CALL check_paw_hartree()
    WRITE (*, '(A)') 'upf_inverse_unittest PASS'
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Analytic PAW Hartree correction and projector derivative for one s partial wave.
+! **************************************************************************************************
+   SUBROUTINE check_paw_hartree()
+      REAL(dp), PARAMETER                                :: occupation = 0.8_dp
+
+      REAL(dp)                                           :: energy, potential(1, 1)
+      TYPE(atom_upfpot_type)                             :: pot
+      TYPE(paw_onecenter_type)                           :: onecenter
+      TYPE(upf_projector_type)                           :: projectors
+
+      pot%is_paw = .TRUE.
+      pot%number_of_proj = 1
+      ALLOCATE (pot%paw, pot%lbeta(1), pot%qijl(5, 1, 0:0))
+      pot%lbeta = 0
+      ALLOCATE (pot%r, SOURCE=[0.0_dp, 0.25_dp, 0.5_dp, 0.75_dp, 1.0_dp])
+      pot%paw%cutoff_index = SIZE(pot%r)
+      ALLOCATE (pot%paw%ae_wfc, SOURCE=RESHAPE(SQRT(pot%r), [5, 1]))
+      ALLOCATE (pot%paw%ps_wfc, SOURCE=0.5_dp*pot%paw%ae_wfc)
+      pot%qijl(:, 1, 0) = 0.25_dp*pot%r
+      CALL upf_projector_angular_init(pot%lbeta, 0, projectors)
+      CALL paw_onecenter_init(pot, projectors, onecenter)
+      CALL paw_onecenter_hartree(onecenter, RESHAPE([occupation], [1, 1]), energy, potential)
+      ! The two radial sources are r and r/2. The s harmonic cancels the kernel's 4*pi factor.
+      CALL check(ABS(energy - occupation**2/8.0_dp), 'PAW compensated Hartree energy', 2.e-15_dp)
+      CALL check(ABS(potential(1, 1) - occupation/4.0_dp), 'PAW compensated Hartree derivative', 2.e-15_dp)
+   END SUBROUTINE check_paw_hartree
+
 ! **************************************************************************************************
 !> \brief Original core normalization, finite endpoint and joint phase/lattice/volume derivative.
 ! **************************************************************************************************

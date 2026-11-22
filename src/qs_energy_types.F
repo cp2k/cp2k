@@ -39,6 +39,9 @@ MODULE qs_energy_types
                        exc = 0.0_dp, &
                        exc_aux_fit = 0.0_dp, &
                        exc1 = 0.0_dp, &
+                       paw_hartree = 0.0_dp, &
+                       paw_xc = 0.0_dp, &
+                       paw_core = 0.0_dp, &
                        exc1_aux_fit = 0.0_dp, & !the GAPW contribution to ADMM
                        hartree = 0.0_dp, &
                        hartree_1c = 0.0_dp, &
@@ -171,6 +174,9 @@ CONTAINS
          qs_energy%exc = 0.0_dp
          qs_energy%exc_aux_fit = 0.0_dp
          qs_energy%exc1 = 0.0_dp
+         qs_energy%paw_hartree = 0.0_dp
+         qs_energy%paw_xc = 0.0_dp
+         qs_energy%paw_core = 0.0_dp
          qs_energy%exc1_aux_fit = 0.0_dp
          qs_energy%e_hartree = 0.0_dp
          qs_energy%hartree = 0.0_dp

@@ -2871,8 +2871,8 @@ CONTAINS
                   CALL allocate_potential(qs_kind%sgp_potential)
                   CALL get_potential(qs_kind%sgp_potential, description=description)
                   description(4) = "UPF "//TRIM(potential_name)
-                  CALL atom_read_upf(upfpot, potential_name, read_augmentation=.TRUE.)
-                  IF (TRIM(upfpot%pseudo_type) == "NC" .OR. upfpot%is_ultrasoft) THEN
+                  CALL atom_read_upf(upfpot, potential_name, read_paw=.TRUE.)
+                  IF (TRIM(upfpot%pseudo_type) == "NC" .OR. upfpot%is_ultrasoft .OR. upfpot%is_paw) THEN
                      ALLOCATE (qs_kind%sgp_potential%upf_data, SOURCE=upfpot)
                   END IF
                   CALL set_potential(qs_kind%sgp_potential, name=upfpot%pname, description=description, &

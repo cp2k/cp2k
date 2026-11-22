@@ -499,12 +499,13 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="USPP_METHOD", &
-                          description="Orbital representation for scalar ultrasoft pseudopotentials. "// &
-                          "DIRECT expands soft orbitals without requiring full reference waves. "// &
+                          description="Orbital representation for scalar ultrasoft and PAW datasets. "// &
+                          "DIRECT expands soft orbitals. USPP DIRECT with LDA or GGA needs no full reference waves. "// &
+                          "PAW retains its one-center corrections in every representation. "// &
                           "INVERSE_1C uses atom-local transformed projectors and native Gaussian kinetic integrals. "// &
                           "It requires nonoverlapping reconstruction and projector supports. "// &
-                          "INVERSE retains the general coupled inverse as a reference. "// &
-                          "Both retain the original augmentation and finite reconstruction residuals.", &
+                          "INVERSE retains couplings between reconstruction regions. "// &
+                          "Both inverse representations retain the original augmentation and reconstruction residuals.", &
                           usage="USPP_METHOD INVERSE_1C", &
                           enum_c_vals=s2a("DIRECT", "INVERSE", "INVERSE_1C"), &
                           enum_desc=s2a("Soft Gaussian orbitals", "General coupled inverse", "Nonoverlapping atom-local inverse"), &
