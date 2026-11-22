@@ -48,7 +48,7 @@ CONTAINS
 
       INTEGER                                            :: a, b, base(3), extent(3), i, j, k, n, &
                                                             shift(3)
-      REAL(dp)                                           :: distance, delta(3)
+      REAL(dp)                                           :: delta(3), distance
 
       CPASSERT(ASSOCIATED(cell))
       layout%natom = SIZE(atom_coords, 2)
