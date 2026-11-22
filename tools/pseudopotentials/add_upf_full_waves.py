@@ -4,9 +4,11 @@
 Usage: add_upf_full_waves.py ORIGINAL GENERATED OUTPUT
 Regenerate the original potential with its original recipe and generator,
 requesting projector-indexed AE and PS waves (QE ld1: lsave_wfc=.true.).
-The mesh, quadrature, potential, projectors and augmentation must reproduce
-the original numeric data exactly. Only atomic guess waves/density allow
-roundoff differences. Existing original data are preserved byte for byte,
+By default, the mesh, quadrature, potential, projectors and augmentation
+must reproduce the original numeric data exactly. --replay-tolerance permits
+bounded relative differences in regenerated tables, but not in the radial
+mesh, quadrature or structural attributes. Atomic guess waves may differ by
+a global sign and roundoff. Existing original data are preserved byte for byte,
 apart from has_wfc; only PP_FULL_WFC is added. No missing core kinetic data
 are inferred. OUTPUT must not already exist.
 """
@@ -26,6 +28,13 @@ def real(text):
     if not math.isfinite(value):
         raise ValueError("Nonfinite UPF numeric value")
     return value
+
+
+def integer(value):
+    number = real(value)
+    if not number.is_integer():
+        raise ValueError("Noninteger UPF attribute")
+    return int(number)
 
 
 def values(node):
@@ -61,7 +70,28 @@ def children(node):
     return result
 
 
-def compare(original, generated):
+def mask_upf_info(data):
+    """Mask free-form UPF provenance without moving the surrounding byte offsets."""
+    return re.sub(
+        rb"(<PP_INFO\b[^>]*>)(.*?)(</PP_INFO>)",
+        lambda match: match[1] + b" " * len(match[2]) + match[3],
+        data,
+        count=1,
+        flags=re.S,
+    )
+
+
+def parse_upf(data):
+    try:
+        return ET.fromstring(data), data
+    except ET.ParseError:
+        masked = mask_upf_info(data)
+        return ET.fromstring(masked), masked
+
+
+def compare(original, generated, replay_tolerance=0.0):
+    if not math.isfinite(replay_tolerance) or replay_tolerance < 0:
+        raise ValueError("Replay tolerance must be finite and nonnegative")
     if original.tag != generated.tag:
         raise ValueError("Different UPF elements")
     ignored = {"columns", "type"}
@@ -77,8 +107,25 @@ def compare(original, generated):
         for key, value in generated.attrib.items()
         if key not in ignored
     }
-    if a != b:
+    if a.keys() != b.keys():
         raise ValueError(f"Different attributes in {original.tag}")
+    maximum = 0.0
+    numeric_attributes = {"total_psenergy", "wfc_cutoff", "rho_cutoff", "pseudo_energy"}
+    for key, x in a.items():
+        y = b[key]
+        if x == y:
+            continue
+        if (
+            key not in numeric_attributes
+            or not isinstance(x, float)
+            or not isinstance(y, float)
+        ):
+            raise ValueError(f"Different attribute {key} in {original.tag}")
+        scale = max(abs(x), abs(y))
+        difference = abs(x - y) / scale
+        if difference > replay_tolerance:
+            raise ValueError(f"Different attribute {key} in {original.tag}")
+        maximum = max(maximum, difference)
     ca, cb = children(original), children(generated)
     if original.tag == "UPF":
         for name in ("PP_INFO", "PP_FULL_WFC"):
@@ -88,7 +135,7 @@ def compare(original, generated):
         raise ValueError(f"Different data sections in {original.tag}")
     if ca:
         for name in ca:
-            compare(ca[name], cb[name])
+            maximum = max(maximum, compare(ca[name], cb[name], replay_tolerance))
     elif original.tag != "PP_HEADER":
         va, vb = values(original), values(generated)
         if len(va) != len(vb):
@@ -96,8 +143,20 @@ def compare(original, generated):
         tolerance = 0.0
         if original.tag.startswith("PP_CHI.") or original.tag == "PP_RHOATOM":
             tolerance = 64 * sys.float_info.epsilon * max(map(abs, va), default=0.0)
-        if any(abs(x - y) > tolerance for x, y in zip(va, vb)):
+        scale = max(max(map(abs, va), default=0.0), max(map(abs, vb), default=0.0))
+        if original.tag not in ("PP_R", "PP_RAB"):
+            tolerance = max(tolerance, replay_tolerance * scale)
+        difference = max((abs(x - y) for x, y in zip(va, vb)), default=0.0)
+        if original.tag.startswith("PP_CHI."):
+            # Atomic guess phases do not change the original USPP operators.
+            difference = min(
+                difference, max((abs(x + y) for x, y in zip(va, vb)), default=0.0)
+            )
+        if difference > tolerance:
             raise ValueError(f"Different numeric data in {original.tag}")
+        if scale:
+            maximum = max(maximum, difference / scale)
+    return maximum
 
 
 def top_level_spans(data):
@@ -135,10 +194,9 @@ def top_level_spans(data):
     return spans, root_end
 
 
-def enrich(original_data, generated_data):
-    original, generated = (
-        ET.fromstring(data) for data in (original_data, generated_data)
-    )
+def enrich(original_data, generated_data, replay_tolerance=0.0):
+    original, original_xml = parse_upf(original_data)
+    generated, generated_xml = parse_upf(generated_data)
     for tree in (original, generated):
         if tree.tag != "UPF" or tree.get("version") != "2.0.1":
             raise ValueError("Requires UPF version 2.0.1")
@@ -159,7 +217,7 @@ def enrich(original_data, generated_data):
         raise ValueError("Original already declares full partial waves")
     if not flag(generated.find("PP_HEADER"), "has_wfc"):
         raise ValueError("Generator file does not declare full partial waves")
-    compare(original, generated)
+    compare(original, generated, replay_tolerance)
     header = original.find("PP_HEADER")
     mesh, count = int(header.attrib["mesh_size"]), int(header.attrib["number_of_proj"])
     full = generated.find("PP_FULL_WFC")
@@ -186,14 +244,14 @@ def enrich(original_data, generated_data):
             wave = wave_nodes[f"PP_{kind}WFC.{i}"]
             if (
                 int(wave.get("index", str(i))) != i
-                or int(wave.attrib["l"]) != angular
+                or integer(wave.attrib["l"]) != angular
                 or angular < 0
             ):
                 raise ValueError(f"Different full-wave channel for projector {i}")
             if len(values(wave)) != mesh:
                 raise ValueError(f"Incomplete full wave for projector {i}")
-    spans, root_end = top_level_spans(original_data)
-    generated_spans, _ = top_level_spans(generated_data)
+    spans, root_end = top_level_spans(original_xml)
+    generated_spans, _ = top_level_spans(generated_xml)
     start, end = spans["PP_HEADER"]
     old_header = original_data[start:end]
     if "has_wfc" in header.attrib:
@@ -228,10 +286,16 @@ def main():
     parser.add_argument("original", type=Path)
     parser.add_argument("generated", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument(
+        "--replay-tolerance",
+        type=float,
+        default=0.0,
+        help="maximum relative replay difference per numeric table (default: exact agreement)",
+    )
     args = parser.parse_args()
     try:
         original, generated = args.original.read_bytes(), args.generated.read_bytes()
-        result = enrich(original, generated)
+        result = enrich(original, generated, args.replay_tolerance)
         with args.output.open("xb") as output:
             output.write(result)
     except (OSError, ValueError, KeyError, ET.ParseError, expat.ExpatError) as error:
@@ -242,7 +306,11 @@ def main():
         ("Output", result),
     ):
         print(f"{name} SHA-256: {sha256(data).hexdigest()}")
-    print(f"Verified original data and added full partial waves: {args.output}")
+    if args.replay_tolerance:
+        print(
+            f"Generator replay accepted with relative tolerance {args.replay_tolerance:g}"
+        )
+    print(f"Preserved original data and added full partial waves: {args.output}")
 
 
 if __name__ == "__main__":
