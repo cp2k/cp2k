@@ -1925,8 +1925,8 @@ CONTAINS
 
       env => bs_env%para_env
       n_grid = bs_env%ri_rs%n_grid_points
-      n_own = (bs_env%nkp_bs_and_DOS - env%mepos + env%num_pe - 1)/env%num_pe
-      CALL collect_band_mo_coefficients(bs_env, coefficients)
+      CALL owned_mo_coefficients(bs_env, bs_env%cfm_mo_coeff_kp, coefficients)
+      n_own = SIZE(coefficients, 3)
       orbital_bytes = REAL(n_grid, dp)*REAL(bs_env%n_ao, dp)* &
                       (complex_bytes*REAL(n_own*bs_env%n_spin, dp) + complex_bytes + real_bytes)
       CALL mp_mem_avail_per_rank_GB(env, available_GB)
@@ -2040,41 +2040,6 @@ CONTAINS
       END DO
 
    END FUNCTION native_q_index
-
-! **************************************************************************************************
-!> \brief MO coefficients of the band k points owned by this rank, MOD(k-1,P).
-!> \param bs_env ...
-!> \param band_coefficients ...
-! **************************************************************************************************
-   SUBROUTINE collect_band_mo_coefficients(bs_env, band_coefficients)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: band_coefficients(:, :, :, :)
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'collect_band_mo_coefficients'
-
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: coefficients(:, :)
-      INTEGER                                            :: handle, i_kp_eval, ispin
-      TYPE(mp_para_env_type), POINTER                    :: env
-
-      CALL timeset(routineN, handle)
-
-      env => bs_env%para_env
-      ALLOCATE (coefficients(bs_env%n_ao, bs_env%n_ao))
-      ALLOCATE (band_coefficients(bs_env%n_ao, bs_env%n_ao, &
-                                  (bs_env%nkp_bs_and_DOS - env%mepos + env%num_pe - 1)/env%num_pe, &
-                                  bs_env%n_spin))
-      DO ispin = 1, bs_env%n_spin
-         DO i_kp_eval = 1, bs_env%nkp_bs_and_DOS
-            CALL cp_cfm_get_submatrix(bs_env%cfm_mo_coeff_kp(i_kp_eval, ispin), coefficients)
-            IF (MODULO(i_kp_eval - 1, env%num_pe) == env%mepos) THEN
-               band_coefficients(:, :, (i_kp_eval - 1)/env%num_pe + 1, ispin) = coefficients
-            END IF
-         END DO
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE collect_band_mo_coefficients
 
 ! **************************************************************************************************
 !> \brief Project Σ_ll′(k) onto the band Bloch orbitals, Σ_n(k) = Re[ψ_n(k)† Σ(k) ψ_n(k)].
