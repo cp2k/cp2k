@@ -365,7 +365,7 @@ def compute_kpath_geometry(
     lat = bs.prim_cell_angstrom if bs.prim_cell_angstrom is not None else cell_angstrom
     recip: Optional[FloatArray] = None
     if lat is not None and abs(float(np.linalg.det(lat))) > 1.0e-12:
-        recip = 2.0 * math.pi * np.linalg.inv(lat).T
+        recip = np.asarray(2.0 * math.pi * np.linalg.inv(lat).T, dtype=np.float64)
 
     set_x: list[FloatArray] = []
     tick_positions: list[float] = []
