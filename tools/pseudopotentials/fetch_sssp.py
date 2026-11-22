@@ -99,6 +99,15 @@ class PreparedCollection:
                     ):
                         raise RuntimeError("Invalid generator-input path")
                     metadata.update(f"{recipe}/{kind}.adat" for kind in ("ae", "ps"))
+                reference = row.get("model_core_tau", {}).get("reference_file")
+                if row["functional"] == functional and reference:
+                    path = PurePosixPath(reference)
+                    if (
+                        path.parts[:2] != ("inputs", "core-kinetic")
+                        or ".." in path.parts
+                    ):
+                        raise RuntimeError("Invalid core-reference path")
+                    metadata.add(reference)
             with tarfile.open(archive) as contents:
                 for member in contents:
                     if member.name not in wanted and member.name not in metadata:
