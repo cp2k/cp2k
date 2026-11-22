@@ -4273,12 +4273,13 @@ CONTAINS
       CALL basis_set_list_setup(basis_set_RI, ri_data%ri_basis_type, qs_kind_set)
       CALL basis_set_list_setup(basis_set_AO, ri_data%orb_basis_type, qs_kind_set)
 
-      !In case of shortrange HFX potential, it is imprtant to be consistent with the rest of the KP
-      !code, and use EPS_SCHWARZ to determine the range (rather than eps_filter_2c in normal RI-HFX)
       IF (ri_data%hfx_pot%potential_type == do_potential_short) THEN
-         CALL erfc_cutoff(ri_data%eps_schwarz, ri_data%hfx_pot%omega, ri_data%hfx_pot%cutoff_radius)
+         ! Use the same default screening range as the rest of the k-point code.
+         IF (.NOT. ri_data%explicit_hfx_cutoff) THEN
+            CALL erfc_cutoff(ri_data%eps_schwarz, ri_data%hfx_pot%omega, ri_data%hfx_pot%cutoff_radius)
+         END IF
          WRITE (warning_msg, '(A)') &
-            "The SHORTANGE HFX potential typically extends over many periodic images, "// &
+            "The SHORTRANGE HFX potential typically extends over many periodic images, "// &
             "possibly slowing down the calculation. Consider using the TRUNCATED "// &
             "potential for better computational performance."
          CPWARN(warning_msg)
