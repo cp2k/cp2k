@@ -44,7 +44,8 @@ EOF
       [ -d libxsmm-${libxsmm_ver} ] && rm -rf libxsmm-${libxsmm_ver}
       tar -xzf libxsmm-${libxsmm_ver}.tar.gz
       cd libxsmm-${libxsmm_ver}
-      mkdir build && cd build
+      # Not "build": the source has a file BUILD, and macOS file names ignore case.
+      mkdir build-cp2k && cd build-cp2k
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \

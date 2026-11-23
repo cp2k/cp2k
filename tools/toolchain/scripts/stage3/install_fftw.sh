@@ -47,7 +47,9 @@ case "$with_fftw" in
           grep '\bsse2\b' /proc/cpuinfo 1> /dev/null && FFTW_FLAGS="${FFTW_FLAGS} --enable-sse2"
         fi
       fi
-      ./configure CFLAGS="${CFLAGS} -std=c17" \
+      # -fasm: FFTW's timer for Apple silicon (kernel/cycle.h) uses the GNU asm
+      # keyword. Not -std=gnu17, which also enables FP contraction (FMA).
+      ./configure CFLAGS="${CFLAGS} -std=c17 -fasm" \
         --prefix=${pkg_install_dir} \
         --libdir="${pkg_install_dir}/lib" \
         ${FFTW_FLAGS} \
