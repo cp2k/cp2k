@@ -23,12 +23,12 @@
   {matcher = "M031", tol = 1e-7, ref = 262991.167868},
 ]
 "H2_USPP_INVERSE.inp"    = [
-  {matcher = "M011", tol = 1e-10, ref = -2.132485340781509},
-  {matcher = "Atomic_force_1_z", tol = 1e-7, ref = -0.0538541905},
-  {matcher = "M031", tol = 1e-7, ref = 272566.59149},
+  {matcher = "M011", tol = 1e-10, ref = -2.157667115178090},
+  {matcher = "Atomic_force_1_z", tol = 1e-7, ref = -0.0258824640},
+  {matcher = "M031", tol = 1e-7, ref = 263372.194097},
 ]
 "H2_USPP_INVERSE_1C.inp" = [
-  {matcher = "M011", tol = 1e-10, ref = -2.13248534078151},
-  {matcher = "Atomic_force_1_z", tol = 1e-7, ref = -0.0538541905},
-  {matcher = "M031", tol = 1e-7, ref = 272566.59149},
+  {matcher = "M011", tol = 1e-10, ref = -2.157667115178106},
+  {matcher = "Atomic_force_1_z", tol = 1e-7, ref = -0.0258824640},
+  {matcher = "M031", tol = 1e-7, ref = 263372.194097},
 ]

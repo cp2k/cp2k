@@ -53,7 +53,7 @@ MODULE qs_upf_inverse
    PRIVATE
 
    PUBLIC :: qs_upf_inverse_type, qs_upf_inverse_prepare, qs_upf_inverse_from_ks
-   PUBLIC :: qs_upf_inverse_response, qs_upf_inverse_release
+   PUBLIC :: qs_upf_inverse_response, qs_upf_inverse_release, split_reconstruction
    PUBLIC :: qs_upf_inverse_atomic_overlap
    PUBLIC :: qs_upf_inverse_atomic_operators
 
@@ -740,6 +740,14 @@ CONTAINS
                                             reduced_k_response=reduced_k_response)
          CALL upf_inverse_project_response(frame%inverse, frame%coefficients, db, dk, coefficients_response)
       END IF
+      IF (ALLOCATED(frame%patch_center)) THEN
+         CALL split_reconstruction(frame, ddelta)
+         IF (PRESENT(gradient_response)) THEN
+            DO axis = 1, 3
+               CALL split_reconstruction(frame, dgd(:, :, axis))
+            END DO
+         END IF
+      END IF
       IF (PRESENT(soft_response)) THEN
          CALL upf_inverse_basis_response(dchi, frame%delta, ddelta, frame%coefficients, &
                                          coefficients_response, soft_response)
@@ -751,6 +759,33 @@ CONTAINS
          END DO
       END IF
    END SUBROUTINE qs_upf_inverse_response
+
+! **************************************************************************************************
+!> \brief Partition the quadratic correction exactly, also where several centers overlap.
+!>        For d=sum(d_a), the contribution of center a is the difference of products made from
+!>        chi+(d+d_a)/2 and chi+(d-d_a)/2. The same linear split applies to geometry derivatives.
+!> \param frame Native projector ranges and the anchor atom of each patch point.
+!> \param delta Original radial differences or their derivatives, overwritten with the split fields.
+! **************************************************************************************************
+   SUBROUTINE split_reconstruction(frame, delta)
+      TYPE(qs_upf_inverse_type), INTENT(IN)              :: frame
+      COMPLEX(dp), INTENT(INOUT)                         :: delta(:, :)
+
+      INTEGER                                            :: center, first, last, n, np, p
+
+      n = frame%coarse_points
+      np = SIZE(frame%patch_center)
+      delta(:n, :) = 0.0_dp
+      DO p = 1, np
+         center = frame%patch_center(p)
+         first = frame%projector_first(center)
+         last = frame%projector_last(center)
+         delta(n + np + p, :) = 0.5_dp*delta(n + p, :)
+         delta(n + p, :first - 1) = delta(n + np + p, :first - 1)
+         delta(n + p, last + 1:) = delta(n + np + p, last + 1:)
+         delta(n + np + p, first:last) = 0.0_dp
+      END DO
+   END SUBROUTINE split_reconstruction
 
 ! **************************************************************************************************
 !> \brief Release owned fields and borrowed basis pointers before destroying their KS environment.

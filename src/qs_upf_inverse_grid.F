@@ -21,15 +21,19 @@ MODULE qs_upf_inverse_grid
    USE mathlib,                         ONLY: invmat
    USE message_passing,                 ONLY: mp_comm_self,&
                                               mp_comm_type
+   USE particle_types,                  ONLY: particle_type
    USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED,&
                                               PW_MODE_LOCAL,&
                                               pw_grid_type
    USE pw_types,                        ONLY: pw_r3d_rs_type
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type
    USE qs_upf_inverse,                  ONLY: qs_upf_inverse_from_ks,&
                                               qs_upf_inverse_release,&
                                               qs_upf_inverse_response,&
-                                              qs_upf_inverse_type
+                                              qs_upf_inverse_type,&
+                                              split_reconstruction
    USE qs_upf_inverse_augmentation,     ONLY: qs_upf_inverse_augmentation_collocate,&
                                               qs_upf_inverse_augmentation_fourier_collocate,&
                                               qs_upf_inverse_augmentation_fourier_integrate,&
@@ -37,15 +41,22 @@ MODULE qs_upf_inverse_grid
                                               qs_upf_inverse_augmentation_integrate,&
                                               qs_upf_inverse_augmentation_type
    USE qs_upf_inverse_types,            ONLY: qs_upf_inverse_grid_type
+   USE qs_uspp_types,                   ONLY: qs_uspp_type
+   USE upf_inverse,                     ONLY: upf_inverse_basis,&
+                                              upf_inverse_fields_init
    USE upf_inverse_quadrature,          ONLY: upf_inverse_pair,&
                                               upf_inverse_pair_response,&
                                               upf_inverse_semilocal_pair,&
                                               upf_inverse_semilocal_response,&
                                               upf_inverse_smooth_density
+   USE upf_radial_fields,               ONLY: upf_radial_fields_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
+
+   ! Composite midpoint quadrature of the compact reconstruction products.
+   INTEGER, PARAMETER :: subdivisions = 2, interpolation_order = 8
 
    PUBLIC :: qs_upf_inverse_grid_type, qs_upf_inverse_grid_prepare, qs_upf_inverse_grid_release
    PUBLIC :: qs_upf_inverse_grid_collocate, qs_upf_inverse_grid_integrate
@@ -78,8 +89,11 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: info
       LOGICAL, INTENT(IN), OPTIONAL                      :: atom_local, direct
 
-      INTEGER                                            :: ix, iy, iz, n, point
-      REAL(dp), ALLOCATABLE                              :: points(:, :), weights(:)
+      INTEGER                                            :: axis, ix, iy, iz, n, point
+      INTEGER, ALLOCATABLE                               :: patch_center(:)
+      LOGICAL                                            :: refine
+      REAL(dp), ALLOCATABLE                              :: metric_weights(:), points(:, :), &
+                                                            weights(:)
       TYPE(mp_comm_type)                                 :: comm
 
       frame%bounds = grid%bounds
@@ -110,8 +124,207 @@ CONTAINS
             END DO
          END DO
       END DO
+      refine = .TRUE.
+      IF (PRESENT(direct)) refine = .NOT. direct
+      IF (refine) THEN
+         CALL reconstruction_quadrature(frame, ks_env, points, weights, metric_weights, patch_center)
+      END IF
       CALL qs_upf_inverse_from_ks(ks_env, points, weights, images, reduced_k, comm, frame%ao, info, atom_local, direct)
+      IF (info /= 0 .OR. .NOT. refine) RETURN
+      frame%ao%coarse_points = n
+      frame%ao%patch_points = SIZE(patch_center)
+      CALL MOVE_ALLOC(patch_center, frame%ao%patch_center)
+      CALL MOVE_ALLOC(metric_weights, frame%ao%metric_weights)
+      CALL split_reconstruction(frame%ao, frame%ao%delta)
+      CALL upf_inverse_basis(frame%ao%gaussian, frame%ao%delta, frame%ao%coefficients, frame%ao%soft)
+      DO axis = 1, 3
+         CALL split_reconstruction(frame%ao, frame%ao%delta_gradient(:, :, axis))
+         CALL upf_inverse_basis(frame%ao%gaussian_gradient(:, :, axis), frame%ao%delta_gradient(:, :, axis), &
+                                frame%ao%coefficients, frame%ao%soft_gradient(:, :, axis))
+      END DO
    END SUBROUTINE qs_upf_inverse_grid_prepare
+
+! **************************************************************************************************
+!> \brief Sample each compact density correction on a translated fine lattice centered on its atom.
+!>        The transpose of the potential interpolation deposits the density on the GPW grid.
+!> \param frame Native grid geometry and local indices of the interpolation stencil.
+!> \param ks_env Atomic positions and original UPF radial fields.
+!> \param points Global grid samples followed by the two copies of each atom-centered sample.
+!> \param weights Signed volume weights used for the density and potential.
+!> \param metric_weights Weights with unique ownership across overlapping MPI halos.
+!> \param patch_center Reconstruction center of each additional quadrature point.
+! **************************************************************************************************
+   SUBROUTINE reconstruction_quadrature(frame, ks_env, points, weights, metric_weights, patch_center)
+      TYPE(qs_upf_inverse_grid_type), INTENT(INOUT)      :: frame
+      TYPE(qs_ks_env_type), INTENT(IN)                   :: ks_env
+      REAL(dp), ALLOCATABLE, INTENT(INOUT)               :: points(:, :), weights(:)
+      REAL(dp), ALLOCATABLE, INTENT(OUT)                 :: metric_weights(:)
+      INTEGER, ALLOCATABLE, INTENT(OUT)                  :: patch_center(:)
+
+      INTEGER :: axis, base(3), box(3), center, count, extent(3), &
+         grid_indices(interpolation_order, 3), i, info, j, kind, n, nc, owner(3), pass, q(3), &
+         step(3), x, y, z
+      REAL(dp)                                           :: coord(3), fraction, inverse_dh(3, 3), &
+                                                            offset(3), origin(3), radius, width(3)
+      REAL(dp), ALLOCATABLE                              :: radii(:), refined(:, :)
+      TYPE(particle_type), POINTER                       :: atoms(:)
+      TYPE(qs_kind_type), POINTER                        :: kinds(:)
+      TYPE(qs_uspp_type), POINTER                        :: uspp
+      TYPE(upf_radial_fields_type)                       :: beta, delta
+
+      CALL get_ks_env(ks_env, qs_kind_set=kinds, particle_set=atoms, uspp=uspp)
+      CPASSERT(ASSOCIATED(kinds) .AND. ASSOCIATED(atoms) .AND. ASSOCIATED(uspp))
+      nc = SIZE(uspp%center_atoms)
+      ALLOCATE (radii(SIZE(kinds)), SOURCE=-1.0_dp)
+      DO center = 1, nc
+         kind = uspp%center_kinds(center)
+         IF (radii(kind) >= 0.0_dp) CYCLE
+         CALL upf_inverse_fields_init(kinds(kind)%sgp_potential%upf_data, beta, delta)
+         radii(kind) = delta%radius
+      END DO
+      n = SIZE(weights)
+      inverse_dh = frame%dh
+      CALL invmat(inverse_dh, info)
+      CPASSERT(info == 0)
+      width = SQRT(SUM(inverse_dh**2, DIM=2))
+      extent = subdivisions*frame%npts
+      ALLOCATE (frame%stencil(interpolation_order, subdivisions, 3, nc), &
+                frame%dstencil(interpolation_order, subdivisions, 3, nc))
+      DO pass = 1, 2
+         count = 0
+         DO center = 1, nc
+            radius = radii(uspp%center_kinds(center))
+            IF (radius <= 0.0_dp) CYCLE
+            origin = MATMUL(inverse_dh, atoms(uspp%center_atoms(center))%r)
+            box = CEILING(radius*width*subdivisions + 0.5_dp)
+            IF (pass == 1) THEN
+               DO axis = 1, 3
+                  DO j = 1, subdivisions
+                     fraction = MODULO(origin(axis) + (j - 0.5_dp)/subdivisions, 1.0_dp)
+                     CALL cardinal_stencil(fraction, frame%stencil(:, j, axis, center), frame%dstencil(:, j, axis, center))
+                  END DO
+               END DO
+            END IF
+            DO z = -box(3), box(3)
+               DO y = -box(2), box(2)
+                  DO x = -box(1), box(1)
+                     q = [x, y, z]
+                     offset = (REAL(q, dp) + 0.5_dp)/subdivisions
+                     IF (SUM(MATMUL(frame%dh, offset)**2) >= radius**2) CYCLE
+                     IF (ANY(2*box + 1 > extent)) THEN
+                        IF (previous_image(q, box, extent, frame%dh, radius)) CYCLE
+                     END IF
+                     coord = origin + offset
+                     step = MODULO(q, subdivisions) + 1
+                     ! Use the same fractional argument as the stencil, also at a grid plane.
+                     base = FLOOR(origin + (REAL(step, dp) - 0.5_dp)/subdivisions) + (q - (step - 1))/subdivisions
+                     DO axis = 1, 3
+                        DO j = 1, interpolation_order
+                           i = MODULO(base(axis) + j - interpolation_order/2, frame%npts(axis)) + frame%bounds(1, axis)
+                           IF (i < frame%bounds_local(1, axis) .OR. i > frame%bounds_local(2, axis)) i = HUGE(0)
+                           grid_indices(j, axis) = i
+                        END DO
+                     END DO
+                     IF (ANY(ALL(grid_indices == HUGE(0), DIM=1))) CYCLE
+                     count = count + 1
+                     IF (pass == 1) CYCLE
+                     frame%patch_index(:, :, count) = grid_indices
+                     frame%patch_offset(:, count) = step
+                     patch_center(count) = center
+                     refined(:, n + count) = MATMUL(frame%dh, MODULO(coord, REAL(frame%npts, dp)))
+                     ! A unique coarse node owns each metric contribution across MPI quadrature halos.
+                     owner = MODULO(base, frame%npts) + frame%bounds(1, :)
+                     IF (ALL(owner >= frame%bounds_local(1, :)) .AND. ALL(owner <= frame%bounds_local(2, :))) THEN
+                        metric_weights(n + count) = frame%dvol/REAL(subdivisions**3, dp)
+                     END IF
+                  END DO
+               END DO
+            END DO
+         END DO
+         IF (pass == 1) THEN
+            ALLOCATE (frame%patch_index(interpolation_order, 3, count), frame%patch_offset(3, count), patch_center(count), &
+                      refined(3, n + 2*count), metric_weights(n + 2*count))
+            refined(:, :n) = points
+            metric_weights = 0.0_dp
+         END IF
+      END DO
+      refined(:, n + count + 1:) = refined(:, n + 1:n + count)
+      CALL MOVE_ALLOC(refined, points)
+      DEALLOCATE (weights)
+      ALLOCATE (weights(n + 2*count))
+      weights(:n) = frame%dvol
+      weights(n + 1:n + count) = frame%dvol/REAL(subdivisions**3, dp)
+      weights(n + count + 1:) = -weights(n + 1:n + count)
+      metric_weights(:n) = weights(:n)
+      metric_weights(n + count + 1:) = -metric_weights(n + 1:n + count)
+   END SUBROUTINE reconstruction_quadrature
+
+! **************************************************************************************************
+!> \brief Keep each periodic fine node once when a reconstruction sphere intersects its own images.
+!> \param q Fine-grid offset within the bounding box of the sphere.
+!> \param box Maximum offsets in each direction.
+!> \param extent Fine-grid periods.
+!> \param dh Coarse-grid basis vectors.
+!> \param radius Support of the radial reconstruction.
+!> \retval duplicate An earlier image contains the same quadrature point.
+! **************************************************************************************************
+   LOGICAL FUNCTION previous_image(q, box, extent, dh, radius) RESULT(duplicate)
+      INTEGER, INTENT(IN)                                :: q(3), box(3), extent(3)
+      REAL(dp), INTENT(IN)                               :: dh(3, 3), radius
+
+      INTEGER                                            :: first(3), last(3), q2(3), x, y, z
+
+      duplicate = .FALSE.
+      first = -((box + q)/extent)
+      last = (box - q)/extent
+      DO z = first(3), MIN(0, last(3))
+         DO y = first(2), last(2)
+            DO x = first(1), last(1)
+               IF (z == 0 .AND. (y > 0 .OR. (y == 0 .AND. x >= 0))) CYCLE
+               q2 = q + extent*[x, y, z]
+               IF (SUM(MATMUL(dh, (REAL(q2, dp) + 0.5_dp)/subdivisions)**2) < radius**2) THEN
+                  duplicate = .TRUE.
+                  RETURN
+               END IF
+            END DO
+         END DO
+      END DO
+   END FUNCTION previous_image
+
+! **************************************************************************************************
+!> \brief Interpolate the resolved density spectrum with a moment-corrected cardinal B-spline.
+!>        Values and two derivatives agree as a moving atom crosses a lattice plane.
+!> \param t Fractional position between neighboring grid nodes.
+!> \param weights Interpolation weights on the eight nearest nodes.
+!> \param derivatives Derivative of the weights with respect to t.
+! **************************************************************************************************
+   SUBROUTINE cardinal_stencil(t, weights, derivatives)
+      REAL(dp), INTENT(IN)                               :: t
+      REAL(dp), INTENT(OUT) :: weights(interpolation_order), derivatives(interpolation_order)
+
+      REAL(dp), PARAMETER :: second_moment = REAL(interpolation_order, dp)/24.0_dp
+
+      INTEGER                                            :: cell, degree, j
+      REAL(dp) :: b(-interpolation_order:3, 0:interpolation_order - 1), curvature, third
+
+      ! Cardinal B-splines with their second moment removed. Low spatial frequencies
+      ! are reproduced through cubic order while unresolved frequencies are attenuated.
+      degree = interpolation_order - 1
+      b = 0.0_dp
+      b(0, 0) = 1.0_dp
+      DO j = 1, degree
+         DO cell = -j, 0
+            b(cell, j) = ((t - cell)*b(cell, j - 1) + (cell + j + 1 - t)*b(cell + 1, j - 1))/j
+         END DO
+      END DO
+      DO j = 1, interpolation_order
+         cell = j - interpolation_order
+         curvature = b(cell, degree - 2) - 2*b(cell + 1, degree - 2) + b(cell + 2, degree - 2)
+         third = b(cell, degree - 3) - 3*b(cell + 1, degree - 3) + 3*b(cell + 2, degree - 3) - b(cell + 3, degree - 3)
+         weights(j) = b(cell, degree) - second_moment*curvature
+         derivatives(j) = b(cell, degree - 1) - b(cell + 1, degree - 1) - second_moment*third
+      END DO
+   END SUBROUTINE cardinal_stencil
 
 ! **************************************************************************************************
 !> \brief Collocate one spin/k contribution and its projector density in the same inverse frame.
@@ -350,7 +563,11 @@ CONTAINS
       IF (frame%native_gaussian) THEN
          metric = 0.0_dp
       ELSE
-         CALL upf_inverse_pair(frame%ao%soft, frame%ao%soft, frame%ao%weights, metric, frame%ao%point_comm)
+         IF (ALLOCATED(frame%ao%metric_weights)) THEN
+            CALL upf_inverse_pair(frame%ao%soft, frame%ao%soft, frame%ao%metric_weights, metric, frame%ao%point_comm)
+         ELSE
+            CALL upf_inverse_pair(frame%ao%soft, frame%ao%soft, frame%ao%weights, metric, frame%ao%point_comm)
+         END IF
       END IF
       metric(:, :) = metric + MATMUL(CONJG(TRANSPOSE(frame%ao%coefficients)), &
                                      MATMUL(projector_metric, frame%ao%coefficients))
@@ -398,11 +615,14 @@ CONTAINS
 
       COMPLEX(dp), ALLOCATABLE :: coefficients_response(:, :), gradient_response(:, :, :), &
          projected(:, :), projected_response(:, :), soft_response(:, :)
-      INTEGER                                            :: axis, info, n, nao, nproj
-      REAL(dp)                                           :: cell_inverse(3, 3), strain(3, 3), &
+      INTEGER                                            :: atom, axis, center, info, n, nao, np, &
+                                                            nproj, p, row
+      REAL(dp)                                           :: cell_inverse(3, 3), inverse_dh(3, 3), &
+                                                            relative(3), strain(3, 3), &
                                                             volume_response
       REAL(dp), ALLOCATABLE                              :: dg(:, :), dn(:), dt(:), dvg(:, :), &
-                                                            dvn(:), dvt(:), points_response(:, :), &
+                                                            dvn(:), dvt(:), motion(:, :), &
+                                                            points_response(:, :), &
                                                             weights_response(:)
 
       CPASSERT((frame%ao%atom_local .OR. frame%ao%inverse%ready))
@@ -429,6 +649,31 @@ CONTAINS
          CALL pack_grid(frame, vgradient(axis), dg(:, axis))
          CALL pack_grid(frame, vgradient_response(axis), dvg(:, axis))
       END DO
+      IF (ALLOCATED(frame%ao%patch_center)) THEN
+         inverse_dh = frame%dh
+         CALL invmat(inverse_dh, info)
+         CPASSERT(info == 0)
+         ALLOCATE (motion(3, SIZE(frame%ao%center_atoms)))
+         DO center = 1, SIZE(frame%ao%center_atoms)
+            atom = frame%ao%center_atoms(center)
+            relative = atom_response(:, atom) - MATMUL(strain, frame%ao%positions(:, atom))
+            motion(:, center) = MATMUL(inverse_dh, relative)
+         END DO
+         np = frame%ao%patch_points
+         DO p = 1, np
+            center = frame%ao%patch_center(p)
+            row = frame%ao%coarse_points + p
+            points_response(:, row) = points_response(:, row) + MATMUL(frame%dh, motion(:, center))
+            points_response(:, row + np) = points_response(:, row)
+         END DO
+         IF (ANY(motion /= 0.0_dp)) THEN
+            CALL transfer_patch(frame, vdensity, gathered=dvn, motion=motion)
+            CALL transfer_patch(frame, vtau, gathered=dvt, motion=motion)
+            DO axis = 1, 3
+               CALL transfer_patch(frame, vgradient(axis), gathered=dvg(:, axis), motion=motion)
+            END DO
+         END IF
+      END IF
       IF (ANY(dg /= 0.0_dp) .OR. ANY(dt /= 0.0_dp) .OR. ANY(dvg /= 0.0_dp) .OR. ANY(dvt /= 0.0_dp)) THEN
          CALL qs_upf_inverse_response(frame%ao, points_response, atom_response, cell_response, reduced_k_response, &
                                       weights_response, coefficients_response, soft_response, gradient_response)
@@ -462,8 +707,13 @@ CONTAINS
       IF (frame%native_gaussian) THEN
          metric_response = 0.0_dp
       ELSE
-         CALL upf_inverse_pair_response(frame%ao%soft, frame%ao%soft, frame%ao%weights, soft_response, soft_response, &
-                                        weights_response, metric_response, frame%ao%point_comm)
+         IF (ALLOCATED(frame%ao%metric_weights)) THEN
+            CALL upf_inverse_pair_response(frame%ao%soft, frame%ao%soft, frame%ao%metric_weights, soft_response, soft_response, &
+                                           volume_response*frame%ao%metric_weights, metric_response, frame%ao%point_comm)
+         ELSE
+            CALL upf_inverse_pair_response(frame%ao%soft, frame%ao%soft, frame%ao%weights, soft_response, soft_response, &
+                                           weights_response, metric_response, frame%ao%point_comm)
+         END IF
       END IF
       metric_response(:, :) = metric_response + MATMUL(CONJG(TRANSPOSE(coefficients_response)), &
                                                        MATMUL(projector_metric, frame%ao%coefficients)) + &
@@ -639,9 +889,13 @@ CONTAINS
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: field
       REAL(dp), INTENT(OUT)                              :: points(:)
 
+      INTEGER                                            :: n
+
       CALL check_grid(frame, field)
-      CPASSERT(SIZE(points) == SIZE(field%array))
-      points = RESHAPE(field%array, [SIZE(points)])
+      n = SIZE(field%array)
+      points(:n) = RESHAPE(field%array, [n])
+      points(n + 1:) = 0.0_dp
+      IF (ALLOCATED(frame%ao%patch_center)) CALL transfer_patch(frame, field, gathered=points)
    END SUBROUTINE pack_grid
 
 ! **************************************************************************************************
@@ -655,10 +909,86 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: points(:)
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: field
 
+      INTEGER                                            :: n
+
       CALL check_grid(frame, field)
-      CPASSERT(SIZE(points) == SIZE(field%array))
-      field%array = RESHAPE(points, SHAPE(field%array))
+      n = SIZE(field%array)
+      field%array = RESHAPE(points(:n), SHAPE(field%array))
+      IF (ALLOCATED(frame%ao%patch_center)) CALL transfer_patch(frame, field, scattered=points)
    END SUBROUTINE unpack_grid
+
+! **************************************************************************************************
+!> \brief Add the interpolation or its transpose, including only grid nodes owned by this rank.
+!> \param frame Atom-centered quadrature and interpolation weights.
+!> \param field Global-grid field. Scattering accumulates in its local array.
+!> \param gathered Local samples to which interpolated values are added.
+!> \param scattered Paired samples to deposit with opposite quadrature weights.
+!> \param motion Optional motion of each center in grid coordinates. Gather the interpolation derivative.
+! **************************************************************************************************
+   SUBROUTINE transfer_patch(frame, field, gathered, scattered, motion)
+      TYPE(qs_upf_inverse_grid_type), INTENT(IN)         :: frame
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: field
+      REAL(dp), INTENT(INOUT), OPTIONAL                  :: gathered(:)
+      REAL(dp), INTENT(IN), OPTIONAL                     :: scattered(:), motion(:, :)
+
+      INTEGER                                            :: a, axis, b, c, center, i, j, k, n, np, &
+                                                            offset, p
+      REAL(dp)                                           :: dw(interpolation_order, 3), v, &
+                                                            w(interpolation_order, 3), &
+                                                            wx(interpolation_order), yz
+
+      CPASSERT(PRESENT(gathered) .NEQV. PRESENT(scattered))
+      IF (PRESENT(gathered)) THEN
+         IF (ALL(field%array == 0.0_dp)) RETURN
+      END IF
+      n = frame%ao%coarse_points
+      np = frame%ao%patch_points
+      DO p = 1, np
+         center = frame%ao%patch_center(p)
+         IF (PRESENT(motion)) THEN
+            IF (ALL(motion(:, center) == 0.0_dp)) CYCLE
+         END IF
+         v = 0.0_dp
+         IF (PRESENT(scattered)) THEN
+            v = (scattered(n + p) - scattered(n + np + p))/REAL(subdivisions**3, dp)
+            IF (v == 0.0_dp) CYCLE
+         END IF
+         DO axis = 1, 3
+            offset = frame%patch_offset(axis, p)
+            w(:, axis) = frame%stencil(:, offset, axis, center)
+            IF (PRESENT(motion)) dw(:, axis) = frame%dstencil(:, offset, axis, center)*motion(axis, center)
+         END DO
+         DO k = 1, interpolation_order
+            c = frame%patch_index(k, 3, p)
+            IF (c == HUGE(0)) CYCLE
+            DO j = 1, interpolation_order
+               b = frame%patch_index(j, 2, p)
+               IF (b == HUGE(0)) CYCLE
+               yz = w(j, 2)*w(k, 3)
+               IF (PRESENT(motion)) THEN
+                  wx = dw(:, 1)*yz + w(:, 1)*(dw(j, 2)*w(k, 3) + w(j, 2)*dw(k, 3))
+               ELSE
+                  wx = w(:, 1)*yz
+               END IF
+               IF (PRESENT(scattered)) THEN
+                  DO i = 1, interpolation_order
+                     a = frame%patch_index(i, 1, p)
+                     IF (a /= HUGE(0)) field%array(a, b, c) = field%array(a, b, c) + v*wx(i)
+                  END DO
+               ELSE
+                  DO i = 1, interpolation_order
+                     a = frame%patch_index(i, 1, p)
+                     IF (a /= HUGE(0)) v = v + field%array(a, b, c)*wx(i)
+                  END DO
+               END IF
+            END DO
+         END DO
+         IF (PRESENT(gathered)) THEN
+            gathered(n + p) = gathered(n + p) + v
+            gathered(n + np + p) = gathered(n + np + p) + v
+         END IF
+      END DO
+   END SUBROUTINE transfer_patch
 
 ! **************************************************************************************************
 !> \brief Release owned inverse fields before their borrowed KS basis owner is destroyed.

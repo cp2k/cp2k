@@ -40,6 +40,9 @@ MODULE qs_upf_inverse_types
       TYPE(upf_inverse_type) :: inverse
       LOGICAL :: atom_local = .FALSE., direct = .FALSE.
       TYPE(upf_inverse_atomic_type), ALLOCATABLE :: atomic_cache(:)
+      INTEGER :: coarse_points = -1, patch_points = 0
+      INTEGER, ALLOCATABLE :: patch_center(:)
+      REAL(dp), ALLOCATABLE :: metric_weights(:)
       TYPE(mp_comm_type) :: point_comm
       ! Bases are borrowed from the live Quickstep environment; radial caches and fields are owned.
       TYPE(gto_basis_set_p_type), ALLOCATABLE :: bases(:)
@@ -57,6 +60,8 @@ MODULE qs_upf_inverse_types
    TYPE qs_upf_inverse_grid_type
       LOGICAL :: native_gaussian = .FALSE.
       TYPE(qs_upf_inverse_type) :: ao
+      INTEGER, ALLOCATABLE :: patch_index(:, :, :), patch_offset(:, :)
+      REAL(dp), ALLOCATABLE :: stencil(:, :, :, :), dstencil(:, :, :, :)
       INTEGER :: bounds(2, 3) = 0, bounds_local(2, 3) = 0, npts(3) = 0, mode = PW_MODE_LOCAL
       REAL(dp) :: dh(3, 3) = 0.0_dp, dvol = 0.0_dp
    END TYPE qs_upf_inverse_grid_type

@@ -526,8 +526,14 @@ CONTAINS
       CPASSERT((frame%atom_local .OR. frame%inverse%ready) .AND. ASSOCIATED(grid))
       CPASSERT(ASSOCIATED(grid%g) .AND. grid%vol > 0.0_dp)
       ! The quadrature follows the real-space rectangle, not the reciprocal block.
-      CPASSERT(SIZE(frame%weights) == PRODUCT(MAX(0, grid%npts_local)))
-      CPASSERT(ALL(frame%weights == grid%dvol))
+      IF (frame%coarse_points >= 0) THEN
+         CPASSERT(frame%coarse_points == PRODUCT(MAX(0, grid%npts_local)))
+         CPASSERT(SIZE(frame%weights) == frame%coarse_points + 2*frame%patch_points)
+         CPASSERT(ALL(frame%weights(:frame%coarse_points) == grid%dvol))
+      ELSE
+         CPASSERT(SIZE(frame%weights) == PRODUCT(MAX(0, grid%npts_local)))
+         CPASSERT(ALL(frame%weights == grid%dvol))
+      END IF
       CPASSERT(grid%grid_span == FULLSPACE .OR. grid%grid_span == HALFSPACE)
       IF (grid%grid_span == HALFSPACE) THEN
          CPASSERT(ALL(MODULO(grid%npts, 2) == 1))
