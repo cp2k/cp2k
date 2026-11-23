@@ -49,7 +49,7 @@
       MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &COORD
-      @INCLUDE 'FH-chain.xyz'
+      @INCLUDE 'FH-chain.coord'
     &END COORD
     &KIND H
       BASIS_SET SZV-GTH

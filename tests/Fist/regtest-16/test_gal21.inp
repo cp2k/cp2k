@@ -55,7 +55,7 @@
       PERIODIC XYZ
     &END CELL
     &COORD
-      @INCLUDE "coord-gal21.inc"
+      @INCLUDE "coord-gal21.coord"
     &END COORD
     &TOPOLOGY
       &GENERATE

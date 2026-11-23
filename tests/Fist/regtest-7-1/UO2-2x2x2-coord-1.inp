@@ -81,7 +81,7 @@
     &TOPOLOGY
       CONNECTIVITY user
       COORD_FILE_FORMAT cp2k
-      COORD_FILE_NAME ../sample_cp2k/UO2-2x2x2-coord-1.xyz
+      COORD_FILE_NAME ../sample_cp2k/UO2-2x2x2-coord-1.coord
       DISABLE_EXCLUSION_LISTS
       PARA_RES off
     &END TOPOLOGY
