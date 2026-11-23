@@ -29,7 +29,7 @@
     &SCF
       EPS_DIIS 1.E-3
       EPS_SCF 1.E-12
-      MAX_SCF 60
+      MAX_SCF 120
       &ADIIS
         VERBOSE T
       &END ADIIS
