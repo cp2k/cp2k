@@ -13,6 +13,7 @@
 MODULE rt_propagation_utils
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
+   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
@@ -81,6 +82,13 @@ MODULE rt_propagation_utils
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
+   USE qs_loc_states,                   ONLY: get_localization_info
+   USE qs_loc_types,                    ONLY: qs_loc_env_create,&
+                                              qs_loc_env_release,&
+                                              qs_loc_env_type
+   USE qs_loc_utils,                    ONLY: loc_set_mo_coeff,&
+                                              qs_loc_control_init,&
+                                              qs_loc_init
    USE qs_mo_io,                        ONLY: read_mo_set_from_restart,&
                                               read_rt_mos_from_restart,&
                                               write_mo_set_to_output_unit
@@ -107,6 +115,7 @@ MODULE rt_propagation_utils
    PRIVATE
 
    PUBLIC :: get_restart_wfn, &
+             rt_localize_initial_mos, &
              calc_S_derivs, &
              calc_update_rho, &
              calc_update_rho_sparse, &
@@ -120,6 +129,88 @@ MODULE rt_propagation_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Replaces the occupied orbitals of the initial wavefunction by the localized orbitals
+!>        defined in DFT%LOCALIZE (REAL_TIME_PROPAGATION%LOCALIZE_INITIAL_WFN).
+!>        The density matrix is unchanged, only the orbital representation differs.
+!> \param qs_env ...
+!> \param mo_array the MOs of qs_env, overwritten by the localized ones
+! **************************************************************************************************
+   SUBROUTINE rt_localize_initial_mos(qs_env, mo_array)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mo_array
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'rt_localize_initial_mos'
+
+      INTEGER                                            :: handle, ispin, output_unit
+      INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
+      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: occupied_evals
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_localized, occupied_orbs
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_c1d_gs_type)                               :: wf_g
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type)                               :: wf_r
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(section_vals_type), POINTER                   :: input, loc_section
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (auxbas_pw_pool, input, loc_section, marked_states, occupied_evals, particles, &
+               pw_env, qs_loc_env, subsys)
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+
+      CALL get_qs_env(qs_env, input=input, pw_env=pw_env, subsys=subsys)
+      CALL qs_subsys_get(subsys, particles=particles)
+      loc_section => section_vals_get_subs_vals(input, "DFT%LOCALIZE")
+
+      IF (output_unit > 0) THEN
+         WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+            "RTP| Localizing the occupied orbitals of the initial wavefunction"
+      END IF
+
+      ALLOCATE (occupied_orbs(SIZE(mo_array)), mo_localized(SIZE(mo_array)))
+      ALLOCATE (occupied_evals(SIZE(mo_array)))
+      DO ispin = 1, SIZE(mo_array)
+         occupied_orbs(ispin) = mo_array(ispin)%mo_coeff
+         occupied_evals(ispin)%array => mo_array(ispin)%eigenvalues
+         CALL cp_fm_create(mo_localized(ispin), mo_array(ispin)%mo_coeff%matrix_struct)
+         CALL cp_fm_to_fm(mo_array(ispin)%mo_coeff, mo_localized(ispin))
+      END DO
+
+      ALLOCATE (qs_loc_env)
+      CALL qs_loc_env_create(qs_loc_env)
+      CALL qs_loc_control_init(qs_loc_env, loc_section, do_homo=.TRUE.)
+      IF (.NOT. qs_loc_env%do_localize) THEN
+         CALL cp_abort(__LOCATION__, "LOCALIZE_INITIAL_WFN requires the DFT%LOCALIZE section "// &
+                       "with a localization METHOD")
+      END IF
+      CALL qs_loc_init(qs_env, qs_loc_env, loc_section, mo_localized, do_homo=.TRUE., &
+                       do_mo_cubes=.FALSE.)
+
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      CALL auxbas_pw_pool%create_pw(wf_r)
+      CALL auxbas_pw_pool%create_pw(wf_g)
+      CALL get_localization_info(qs_env, qs_loc_env, loc_section, mo_localized, wf_r, wf_g, &
+                                 particles, occupied_orbs, occupied_evals, marked_states)
+      CALL auxbas_pw_pool%give_back_pw(wf_r)
+      CALL auxbas_pw_pool%give_back_pw(wf_g)
+
+      CALL loc_set_mo_coeff(qs_env, qs_loc_env, mo_array, mo_localized)
+
+      CALL cp_fm_release(mo_localized)
+      DEALLOCATE (occupied_orbs, occupied_evals)
+      CALL qs_loc_env_release(qs_loc_env)
+      DEALLOCATE (qs_loc_env)
+      IF (ASSOCIATED(marked_states)) DEALLOCATE (marked_states)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE rt_localize_initial_mos
 
 ! **************************************************************************************************
 !> \brief Calculates dS/dR respectily the velocity weighted derivatves
@@ -303,6 +394,11 @@ CONTAINS
                                        id_nr=id_nr, multiplicity=dft_control%multiplicity, &
                                        dft_section=dft_section)
          CALL set_uniform_occupation_mo_array(mo_array, nspin)
+
+         ! localize before WFN_MIX, which then acts on the localized orbitals
+         IF (dft_control%rtp_control%localize_initial_wfn .AND. .NOT. rtp%linear_scaling) THEN
+            CALL rt_localize_initial_mos(qs_env, mo_array)
+         END IF
 
          IF (dft_control%rtp_control%apply_wfn_mix_init_restart) THEN
             CALL wfn_mix(mo_array, particle_set, dft_section, qs_kind_set, para_env, output_unit, &

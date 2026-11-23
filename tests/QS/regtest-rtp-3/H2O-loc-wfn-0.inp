@@ -1,0 +1,61 @@
+! SCF with a localization of the occupied orbitals (Jacobi), written to the standard
+! wavefunction restart file H2O-loc-wfn-LOCALIZED-RESTART.wfn by LOCALIZE%PRINT%WFN_RESTART
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2O-loc-wfn
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    &LOCALIZE
+      EPS_LOCALIZATION 1.0E-10
+      METHOD JACOBI
+      &PRINT
+        ! standard wavefunction restart file with the localized occupied orbitals
+        &WFN_RESTART
+        &END WFN_RESTART
+      &END PRINT
+    &END LOCALIZE
+    &MGRID
+      CUTOFF 150
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      ADDED_MOS 2
+      EPS_SCF 1.0E-8
+      MAX_SCF 50
+      SCF_GUESS ATOMIC
+      &DIAGONALIZATION
+        ALGORITHM STANDARD
+      &END DIAGONALIZATION
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+    &END CELL
+    &COORD
+      O   0.000000    0.000000   -0.065587 H2O
+      H   0.000000   -0.757136    0.520545 H2O
+      H   0.000000    0.757136    0.520545 H2O
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-BLYP
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-BLYP
+      POTENTIAL GTH-BLYP-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

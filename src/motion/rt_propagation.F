@@ -103,6 +103,7 @@ MODULE rt_propagation
                                               get_restart_wfn,&
                                               read_moments,&
                                               recalculate_fields,&
+                                              rt_localize_initial_mos,&
                                               warn_section_unused
    USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix
    USE rt_propagator_init,              ONLY: init_propagators,&
@@ -290,6 +291,10 @@ CONTAINS
       rtp_control => dft_control%rtp_control
 
       IF (rtp_control%initial_wfn == use_scf_wfn) THEN
+         IF (rtp_control%localize_initial_wfn .AND. .NOT. rtp%linear_scaling) THEN
+            CALL get_qs_env(qs_env, mos=mos)
+            CALL rt_localize_initial_mos(qs_env, mos)
+         END IF
          IF (rtp_control%apply_delta_pulse .OR. rtp_control%apply_delta_pulse_mag) THEN
             CALL apply_delta_pulse(qs_env, rtp, rtp_control)
          ELSE

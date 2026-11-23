@@ -3533,6 +3533,8 @@ CONTAINS
                                 l_val=dft_control%rtp_control%hfx_redistribute)
       CALL section_vals_val_get(rtp_section, "APPLY_WFN_MIX_INIT_RESTART", &
                                 l_val=dft_control%rtp_control%apply_wfn_mix_init_restart)
+      CALL section_vals_val_get(rtp_section, "LOCALIZE_INITIAL_WFN", &
+                                l_val=dft_control%rtp_control%localize_initial_wfn)
       CALL section_vals_val_get(rtp_section, "APPLY_DELTA_PULSE", &
                                 l_val=dft_control%rtp_control%apply_delta_pulse)
       CALL section_vals_val_get(rtp_section, "APPLY_DELTA_PULSE_MAG", &

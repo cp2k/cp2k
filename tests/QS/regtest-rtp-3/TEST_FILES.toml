@@ -15,4 +15,9 @@
 "H2O-delta-03.inp"       = [{matcher = "E_total", tol = 1e-13, ref = -16.81088185881686}]
 "H2O-delta-04.inp"       = [{matcher = "E_total", tol = 4e-14, ref = -17.17819854564585}]
 "H2O_added_mos_emd.inp"  = [{matcher = "E_total", tol = 3e-14, ref = -17.16616425877817}]
+# localized initial orbitals: LOCALIZE%PRINT%WFN_RESTART (-0, -1) and LOCALIZE_INITIAL_WFN (-2, -3)
+"H2O-loc-wfn-0.inp"      = [{matcher = "E_total", tol = 1e-12, ref = -17.18852591875707}]
+"H2O-loc-wfn-1.inp"      = [{matcher = "E_total", tol = 1e-10, ref = -15.74758448212426}]
+"H2O-loc-wfn-2.inp"      = [{matcher = "E_total", tol = 1e-10, ref = -15.74758448212426}]
+"H2O-loc-wfn-3.inp"      = [{matcher = "E_total", tol = 1e-10, ref = -17.18852374194047}]
 #EOF

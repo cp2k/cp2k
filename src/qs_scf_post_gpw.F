@@ -176,6 +176,7 @@ MODULE qs_scf_post_gpw
                                               qs_loc_env_release,&
                                               qs_loc_env_type
    USE qs_loc_utils,                    ONLY: loc_write_restart,&
+                                              loc_write_wfn_restart,&
                                               qs_loc_control_init,&
                                               qs_loc_env_init,&
                                               qs_loc_init,&
@@ -845,6 +846,8 @@ CONTAINS
          p_loc = p_loc .OR. BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
          print_key => section_vals_get_subs_vals(loc_print_section, "WANNIER_STATES")
          p_loc = p_loc .OR. BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
+         print_key => section_vals_get_subs_vals(loc_print_section, "WFN_RESTART")
+         p_loc = p_loc .OR. BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
       ELSE
          p_loc = .FALSE.
       END IF
@@ -989,6 +992,8 @@ CONTAINS
             !write restart for localization of occupied orbitals
             CALL loc_write_restart(qs_loc_env_homo, loc_print_section, mos, &
                                    homo_localized, do_homo)
+            !write the localized occupied orbitals to a standard wavefunction restart file
+            CALL loc_write_wfn_restart(qs_env, qs_loc_env_homo, loc_print_section, mos, homo_localized)
             CALL cp_fm_release(homo_localized)
             DEALLOCATE (occupied_orbs)
             DEALLOCATE (occupied_evals)

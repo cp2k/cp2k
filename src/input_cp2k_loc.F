@@ -212,7 +212,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="RESTART", &
                           description="Restart the localization from a set of orbitals"// &
-                          " read from a localization restart file.", &
+                          " read from a localization restart file written by PRINT%LOC_RESTART."// &
+                          " The wavefunction file written by PRINT%WFN_RESTART cannot be used here.", &
                           usage="RESTART", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -220,7 +221,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="LOCHOMO_RESTART_FILE_NAME", &
                           description="File name where to read the MOS from "// &
-                          "which to restart the localization procedure for occupied states", &
+                          "which to restart the localization procedure for occupied states "// &
+                          "(a file written by PRINT%LOC_RESTART)", &
                           usage="LOCHOMO_RESTART_FILE_NAME <FILENAME>", &
                           type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
@@ -228,7 +230,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="LOCMIXD_RESTART_FILE_NAME", &
                           description="File name where to read the MOS from "// &
-                          "which to restart the localization procedure for MIXED states", &
+                          "which to restart the localization procedure for MIXED states "// &
+                          "(a file written by PRINT%LOC_RESTART)", &
                           usage="LOCMIXD_RESTART_FILE_NAME <FILENAME>", &
                           type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
@@ -236,7 +239,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="LOCLUMO_RESTART_FILE_NAME", &
                           description="File name where to read the MOS from "// &
-                          "which to restart the localization procedure for unoccupied states", &
+                          "which to restart the localization procedure for unoccupied states "// &
+                          "(a file written by PRINT%LOC_RESTART)", &
                           usage="LOCLUMO_RESTART_FILE_NAME <FILENAME>", &
                           type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
@@ -508,8 +512,25 @@ CONTAINS
 
       NULLIFY (print_key)
       CALL cp_print_key_section_create(print_key, __LOCATION__, "LOC_RESTART", &
-                                       description="Controls the printing of restart file for localized MOS", &
+                                       description="Controls the printing of the restart file of the localization procedure "// &
+                                       "(PROJECT-LOC_HOMO-*.wfn, PROJECT-LOC_LUMO-*.wfn, PROJECT-LOC_MIXED-*.wfn). "// &
+                                       "It is read only by LOCALIZE%RESTART to continue the localization, and it is "// &
+                                       "not a wavefunction restart file for SCF, RTP or EMD (see WFN_RESTART).", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      NULLIFY (print_key)
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "WFN_RESTART", &
+                                       description="Controls the printing of a standard wavefunction restart "// &
+                                      "file (PROJECT-LOCALIZED-RESTART.wfn) in which the occupied orbitals are replaced by the "// &
+                                       "localized ones. It is read through DFT%WFN_RESTART_FILE_NAME, e.g. by "// &
+                                       "SCF_GUESS RESTART or by REAL_TIME_PROPAGATION%INITIAL_WFN RESTART_WFN. "// &
+                                       "It is a different file from LOC_RESTART: it restarts SCF, RTP or EMD, "// &
+                                       "not the localization procedure, and it cannot be read by LOCALIZE%RESTART. "// &
+                                       "The stored eigenvalues are those of the canonical orbitals.", &
+                                       print_level=high_print_level, add_last=add_last_numeric, &
+                                       common_iter_levels=3, filename="LOCALIZED-RESTART")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
