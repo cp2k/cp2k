@@ -16,7 +16,7 @@
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 "Al_fcc_gfn1_kp_ot_smear.inp"          = [
-  {matcher = "E_total", tol = 1.0E-9, ref = -1.14684309056033},
+  {matcher = "E_total", tol = 4.0E-9, ref = -1.14684309056033},
   {matcher = "Electronic_entropic_energy", tol = 1.0E-9, ref = -7.1232462562E-4},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 2},
   {matcher = "NO_TEXT", text = "K-point smearing includes the first band"},

@@ -210,10 +210,10 @@ CONTAINS
          force_env_section => force_env(ibox)%force_env%force_env_section
          root_section => force_env(ibox)%force_env%root_section
          IF (ibox == 1) THEN
-            CALL read_mc_section(mc_par(ibox)%mc_par, para_env, globenv, input_file_name, &
+            CALL read_mc_section(mc_par(ibox)%mc_par, para_env, input_file_name, &
                                  root_section, force_env_section)
          ELSE
-            CALL read_mc_section(mc_par(ibox)%mc_par, para_env, globenv, box2_file, &
+            CALL read_mc_section(mc_par(ibox)%mc_par, para_env, box2_file, &
                                  root_section, force_env_section)
          END IF
 

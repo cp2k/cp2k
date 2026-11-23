@@ -42,6 +42,12 @@ void cp_mpi_finalize(void);
 cp_mpi_comm_t cp_mpi_get_comm_world(void);
 
 /*******************************************************************************
+ * \brief Returns MPI_COMM_WORLD.
+ * \author Ole Schuett
+ ******************************************************************************/
+cp_mpi_comm_t cp_mpi_get_comm_null(void);
+
+/*******************************************************************************
  * \brief Wrapper around MPI_Comm_f2c.
  * \author Ole Schuett
  ******************************************************************************/
@@ -138,6 +144,13 @@ void cp_mpi_max_double(double *values, const int count,
                        const cp_mpi_comm_t comm);
 
 /*******************************************************************************
+ * \brief Wrapper around MPI_Reduce for op MPI_MAX and datatype MPI_DOUBLE.
+ * \author Frederick Stein
+ ******************************************************************************/
+void cp_mpi_max_root_double(double *values, const int count, const int root,
+                            const cp_mpi_comm_t comm);
+
+/*******************************************************************************
  * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_INT.
  * \author Ole Schuett
  ******************************************************************************/
@@ -162,6 +175,13 @@ void cp_mpi_sum_int64(int64_t *values, const int count,
  ******************************************************************************/
 void cp_mpi_sum_double(double *values, const int count,
                        const cp_mpi_comm_t comm);
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Reduce for op MPI_SUM and datatype MPI_DOUBLE.
+ * \author Frederick Stein
+ ******************************************************************************/
+void cp_mpi_sum_root_double(double *values, const int count, const int root,
+                            const cp_mpi_comm_t comm);
 
 /*******************************************************************************
  * \brief Wrapper around MPI_Sendrecv for datatype MPI_BYTE.
@@ -205,6 +225,20 @@ void cp_mpi_alltoallv_double(const double *sendbuf, const int *sendcounts,
                              const int *sdispls, double *recvbuf,
                              const int *recvcounts, const int *rdispls,
                              const cp_mpi_comm_t comm);
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Bcast for datatype MPI_INT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void cp_mpi_bcast_int(int *buf, const int count, const int root,
+                      const cp_mpi_comm_t comm);
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Bcast for datatype MPI_CHAR.
+ * \author Frederick Stein
+ ******************************************************************************/
+void cp_mpi_bcast_char(char *buf, const int count, const int root,
+                       const cp_mpi_comm_t comm);
 
 /*******************************************************************************
  * \brief Wrapper around MPI_Alloc_mem.
