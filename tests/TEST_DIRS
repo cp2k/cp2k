@@ -23,6 +23,7 @@ QS/regtest-debug-5                                          libint
 QS/regtest-ec                                               libint libvori
 QS/regtest-acc-2                                            libint libxc
 QS/regtest-kp-2                                             libint
+QS/regtest-kp-emass
 QS/regtest-tddfpt-force-3                                   libint
 QS/regtest-p-efield
 QS/regtest-gpw-3

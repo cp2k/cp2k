@@ -120,8 +120,8 @@ MODULE input_cp2k_print_dft
                                   create_ext_vxc_section
    USE input_cp2k_field, ONLY: create_efield_section, &
                                create_per_efield_section
-   USE input_cp2k_kpoints, ONLY: create_kpoint_set_section, create_unfolding_section, &
-                                 create_kpoints_section
+   USE input_cp2k_kpoints, ONLY: create_effective_mass_section, create_kpoint_set_section, &
+                                 create_unfolding_section, create_kpoints_section
    USE input_cp2k_loc, ONLY: create_localize_section, &
                              print_wanniers
    USE input_cp2k_ls, ONLY: create_ls_scf_section
@@ -2632,6 +2632,9 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
       CALL create_unfolding_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+      CALL create_effective_mass_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

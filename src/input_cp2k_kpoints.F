@@ -12,7 +12,8 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE input_cp2k_kpoints
-   USE bibliography, ONLY: MacDonald1978, &
+   USE bibliography, ONLY: LuttingerKohn1955, &
+                           MacDonald1978, &
                            Monkhorst1976, &
                            Quan2026
    USE cp_units, ONLY: cp_unit_to_cp2k
@@ -49,6 +50,7 @@ MODULE input_cp2k_kpoints
    PUBLIC :: create_kpoints_section
    PUBLIC :: create_kpoint_set_section
    PUBLIC :: create_unfolding_section
+   PUBLIC :: create_effective_mass_section
    PUBLIC :: use_real_wfn, use_complex_wfn
    PUBLIC :: use_k290_kpoint_symmetry, use_spglib_kpoint_symmetry
    PUBLIC :: use_k290_kpoint_backend, use_spglib_kpoint_backend
@@ -402,5 +404,85 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_unfolding_section
+
+! **************************************************************************************************
+!> \brief Effective mass subsection of &BAND_STRUCTURE: analytical band velocities and
+!>        effective mass tensors from k-derivatives of the converged Hamiltonian
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_effective_mass_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="EFFECTIVE_MASS", &
+                          description="Analytical band velocities and effective-mass tensors"// &
+                          " from first and second Cartesian k-derivatives of the converged"// &
+                          " real-space H and S matrices in the full overlap metric."// &
+                          " Supports GPW/GAPW/GAPW_XC (Gamma or k-point SCF), plus k-point"// &
+                          " DFT+U (Mulliken and analytical Lowdin S^(1/2) derivatives),"// &
+                          " k-point RI-HFX/ADMM (purification NONE/NONE_DM), and k-point"// &
+                          " DFTB/xTB. The full AO spectrum is diagonalized (no ADDED_MOS"// &
+                          " needed). Degenerate bands within EPS_DEGENERACY use a"// &
+                          " Luttinger-Kohn k.p subspace reduction along canonical directions.", &
+                          n_keywords=0, n_subsections=0, repeats=.FALSE., &
+                          citations=[LuttingerKohn1955])
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="AUTO_EXTREMA", &
+                          description="Locate VBM and CBM candidates across the SCF k-points"// &
+                          " and EXTREMA_SEARCH_MESH, then evaluate their velocities and"// &
+                          " effective masses (in addition to any explicit KPOINTs).", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="REFINE_EXTREMA", &
+                          description="Polish AUTO_EXTREMA VBM/CBM seeds off the mesh using"// &
+                          " damped spectral Newton steps until band velocity vanishes;"// &
+                          " explicit KPOINTs are never moved.", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EXTREMA_SEARCH_MESH", &
+                          description="Uniform fractional k-mesh (time-reversal partners"// &
+                          " skipped) seeding AUTO_EXTREMA VBM/CBM candidates. Set 1 1 1"// &
+                          " to seed from the SCF k-points only.", &
+                          usage="EXTREMA_SEARCH_MESH 4 4 4", n_var=3, type_of_var=integer_t, &
+                          repeats=.FALSE., default_i_vals=[4, 4, 4])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="KPOINT", &
+                          description="Explicit k-point coordinates (repeatable) in UNITS.", &
+                          usage="KPOINT 0.0 0.0 0.0", n_var=3, type_of_var=real_t, &
+                          repeats=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
+                          description="Coordinate units for KPOINT: B_VECTOR (fractional"// &
+                          " reciprocal lattice units), CART_BOHR (1/Bohr), or CART_ANGSTROM (1/Angstrom).", &
+                          usage="UNITS B_VECTOR", type_of_var=char_t, default_c_val="B_VECTOR")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="BAND_INDICES", &
+                          description="1-based AO band indices evaluated at each explicit"// &
+                          " KPOINT; defaults to bands within ENERGY_WINDOW around VBM/CBM.", &
+                          usage="BAND_INDICES 4 5", n_var=-1, type_of_var=integer_t, &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
+                          description="Half-width around VBM/CBM selecting bands at explicit"// &
+                          " KPOINTs when BAND_INDICES is omitted (0.0 selects VBM/CBM only).", &
+                          usage="ENERGY_WINDOW 0.5", unit_str="hartree", default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_DEGENERACY", &
+                          description="Adjacent-gap threshold grouping eigenvalues into one"// &
+                          " degenerate Luttinger-Kohn subspace.", &
+                          usage="EPS_DEGENERACY 1.0E-5", unit_str="hartree", default_r_val=1.0E-5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_effective_mass_section
 
 END MODULE input_cp2k_kpoints

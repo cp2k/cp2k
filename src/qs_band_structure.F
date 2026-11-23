@@ -50,6 +50,8 @@ MODULE qs_band_structure
    USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: angstrom,&
                                               evolt
+   USE qs_effective_mass,               ONLY: calculate_effective_mass,&
+                                              check_effective_mass_preconditions
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_env_release,&
                                               qs_environment_type
@@ -97,14 +99,17 @@ CONTAINS
       bs_input => section_vals_get_subs_vals(qs_env%input, "DFT%PRINT%BAND_STRUCTURE")
       CALL section_vals_get(bs_input, explicit=explicit)
       IF (explicit) THEN
+         CALL check_effective_mass_preconditions(qs_env)
          CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
          IF (do_kpoints) THEN
             CALL do_calculate_band_structure(qs_env)
+            CALL calculate_effective_mass(qs_env, from_gamma=.FALSE.)
          ELSE
             BLOCK
                TYPE(qs_environment_type), POINTER :: qs_env_kp
                CALL create_kp_from_gamma(qs_env, qs_env_kp)
                CALL do_calculate_band_structure(qs_env_kp)
+               CALL calculate_effective_mass(qs_env_kp, from_gamma=.TRUE.)
                CALL qs_env_release(qs_env_kp)
                DEALLOCATE (qs_env_kp)
             END BLOCK

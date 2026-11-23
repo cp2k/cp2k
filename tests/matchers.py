@@ -844,6 +844,15 @@ registry["LOCALIZER_UNRESOLVED"] = TextPresenceMatcher(
 registry["Band_first_eigenvalue"] = GenericMatcher(
     r"^\s*1\s+([-+]?\d+\.\d{8})\s+\d+\.\d{8}\s*$", col=2, regex=True
 )
+registry["EMASS_principal_inv_mass"] = GenericMatcher(
+    r"EFFECTIVE_MASS| Principal inv masses", col=6, first=True
+)
+registry["EMASS_degenerate_inv_mass"] = GenericMatcher(
+    r"EFFECTIVE_MASS|   Dir. inv masses", col=6, first=True
+)
+registry["EMASS_explicit_inv_mass"] = GenericMatcher(
+    r"EFFECTIVE_MASS| Principal inv masses", col=6, first=False
+)
 registry["Kubo_hall_max"] = GenericMatcher(r"KUBO_TRANSPORT| hall_max", col=3)
 
 registry["Kubo_symmetry_current_error"] = GenericMatcher(

@@ -43,5 +43,6 @@ quadratic_pseudospectrum_unittest
 pw_unittest
 
 kubo_unittest
+effective_mass_unittest
 
 #EOF
