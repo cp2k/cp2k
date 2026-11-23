@@ -49,7 +49,8 @@ MODULE molecular_moments
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_loc_types,                    ONLY: qs_loc_env_type
+   USE qs_loc_types,                    ONLY: loc_coeff_index,&
+                                              qs_loc_env_type
    USE qs_moments,                      ONLY: build_local_moment_matrix
 #include "./base/base_uses.f90"
 
@@ -163,7 +164,8 @@ CONTAINS
                END IF
                CALL para_env%bcast(states, iproc)
                ! assemble local states for this molecule
-               ASSOCIATE (mo_localized => mo_local(ispin))
+               ! in RTP mo_local holds the real and imaginary parts of each spin
+               ASSOCIATE (mo_localized => mo_local(loc_coeff_index(SIZE(mo_local), nspins, ispin)))
                   CALL cp_fm_get_info(mo_localized, ncol_global=ncol_global, nrow_global=nrow_global)
                   CALL cp_fm_struct_create(fm_struct, nrow_global=nrow_global, ncol_global=ns, &
                                            para_env=mo_localized%matrix_struct%para_env, &

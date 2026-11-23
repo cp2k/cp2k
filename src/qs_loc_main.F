@@ -58,6 +58,7 @@ MODULE qs_loc_main
                                               optimize_loc_pipek,&
                                               qs_print_cubes
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
+                                              loc_coeff_index,&
                                               localized_wfn_control_type,&
                                               qs_loc_env_type
    USE qs_mo_methods,                   ONLY: make_basis_simple,&
@@ -102,8 +103,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_loc_driver'
 
-      INTEGER                                            :: dim_op, handle, i, imo, imoloc, j, lb, &
-                                                            loc_method, nao, nmosub, restricted, ub
+      INTEGER                                            :: dim_op, handle, i, icoeff, imo, imoloc, &
+                                                            j, lb, loc_method, nao, nmosub, &
+                                                            restricted, ub
       INTEGER, DIMENSION(:), POINTER                     :: ivec
       LOGICAL, SAVE                                      :: first_time = .TRUE.
       REAL(dp), DIMENSION(6)                             :: weights
@@ -152,6 +154,8 @@ CONTAINS
       END IF
 
       loc_method = localized_wfn_control%localization_method
+      ! in RTP moloc_coeff holds the real and imaginary parts of each spin
+      icoeff = loc_coeff_index(SIZE(moloc_coeff), SIZE(mos), myspin)
 
       nmosub = localized_wfn_control%nloc_states(myspin)
       IF (localized_wfn_control%operator_type == op_loc_berry) THEN
@@ -177,13 +181,13 @@ CONTAINS
       ELSE
          SELECT CASE (localized_wfn_control%operator_type)
          CASE (op_loc_berry)
-            CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(myspin), op_sm_set, &
+            CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(icoeff), op_sm_set, &
                                     op_fm_set, para_env, cell, weights, myspin, print_loc_section, &
                                     restricted=restricted)
          CASE (op_loc_boys)
             CPABORT("Boys localization not implemented")
          CASE (op_loc_pipek)
-            CALL optimize_loc_pipek(qs_env, loc_method, qs_loc_env, moloc_coeff(myspin), &
+            CALL optimize_loc_pipek(qs_env, loc_method, qs_loc_env, moloc_coeff(icoeff), &
                                     op_fm_set, myspin, print_loc_section)
          END SELECT
       END IF
@@ -215,14 +219,14 @@ CONTAINS
             ! Get the index in the full set
             imo = localized_wfn_control%loc_states(i, myspin)
 
-            CALL cp_fm_get_submatrix(moloc_coeff(myspin), vecbuffer, 1, imoloc, &
+            CALL cp_fm_get_submatrix(moloc_coeff(icoeff), vecbuffer, 1, imoloc, &
                                      nao, 1, transpose=.TRUE.)
             CALL cp_fm_set_submatrix(locorb, vecbuffer, 1, imo, nao, 1, transpose=.TRUE.)
          END DO
          DEALLOCATE (vecbuffer)
       ELSE
          nmosub = localized_wfn_control%nloc_states(myspin)
-         CALL cp_fm_to_fm(moloc_coeff(myspin), locorb, nmosub, 1, lb)
+         CALL cp_fm_to_fm(moloc_coeff(icoeff), locorb, nmosub, 1, lb)
       END IF
 
       ! Write cube files if required
@@ -482,19 +486,23 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: print_loc_section
 
       CHARACTER(LEN=default_string_length)               :: my_pos
-      INTEGER                                            :: i, ir, istate, j, jstate, n_rep, ncubes, &
-                                                            nmo
+      INTEGER                                            :: i, icoeff, ir, istate, j, jstate, n_rep, &
+                                                            ncubes, nmo
       INTEGER, DIMENSION(:), POINTER                     :: bounds, list, list_cubes
       LOGICAL                                            :: append_cube, list_cubes_setup
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: centers
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
       TYPE(section_vals_type), POINTER                   :: print_key
 
       list_cubes_setup = .FALSE.
-      NULLIFY (bounds, list, list_cubes)
+      NULLIFY (bounds, dft_control, list, list_cubes)
 
       CALL get_qs_loc_env(qs_loc_env=qs_loc_env, &
                           localized_wfn_control=localized_wfn_control)
+      ! in RTP moloc_coeff holds the real and imaginary parts of each spin
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+      icoeff = loc_coeff_index(SIZE(moloc_coeff), dft_control%nspins, ispin)
 
       ! Provides boundaries of MOs
       CALL section_vals_val_get(print_loc_section, "WANNIER_CUBES%CUBES_LU_BOUNDS", &
@@ -540,7 +548,7 @@ CONTAINS
       END IF
 
       ncubes = SIZE(list_cubes)
-      CALL cp_fm_get_info(moloc_coeff(ispin), ncol_global=nmo)
+      CALL cp_fm_get_info(moloc_coeff(icoeff), ncol_global=nmo)
       ncubes = MIN(ncubes, nmo)
       ALLOCATE (centers(6, ncubes))
       DO i = 1, ncubes
@@ -562,7 +570,7 @@ CONTAINS
          my_pos = "APPEND"
       END IF
 
-      CALL qs_print_cubes(qs_env, moloc_coeff(ispin), ncubes, list_cubes, centers, &
+      CALL qs_print_cubes(qs_env, moloc_coeff(icoeff), ncubes, list_cubes, centers, &
                           print_key, "loc"//TRIM(ADJUSTL(qs_loc_env%tag_mo)), &
                           ispin=ispin, file_position=my_pos)
 

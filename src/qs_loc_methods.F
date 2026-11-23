@@ -102,6 +102,7 @@ MODULE qs_loc_methods
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
+                                              loc_coeff_index,&
                                               qs_loc_env_type
    USE qs_localization_methods,         ONLY: &
         approx_l1_norm_sd, cardoso_souloumiac, cardoso_souloumiac_pipek, crazy_rotations, &
@@ -1196,8 +1197,8 @@ CONTAINS
       LOGICAL, PARAMETER :: debug_this_subroutine = .FALSE.
 
       CHARACTER(len=default_path_length)                 :: file_tmp
-      INTEGER                                            :: imoment, istate, ncol_global, nm, &
-                                                            nmoloc, nrow_global, output_unit, &
+      INTEGER                                            :: icoeff, imoment, istate, ncol_global, &
+                                                            nm, nmoloc, nrow_global, output_unit, &
                                                             output_unit_sm
       REAL(dp), DIMENSION(:, :), POINTER                 :: centers
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: moment_set
@@ -1209,6 +1210,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_localized
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       logger => cp_get_default_logger()
@@ -1231,7 +1233,9 @@ CONTAINS
       CALL get_qs_loc_env(qs_loc_env=qs_loc_env, moloc_coeff=moloc_coeff)
       centers => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
 
-      CALL get_qs_env(qs_env, matrix_s=matrix_s)
+      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_s=matrix_s)
+      ! in RTP moloc_coeff holds the real and imaginary parts of each spin
+      icoeff = loc_coeff_index(SIZE(moloc_coeff), dft_control%nspins, ispin)
 
       nm = ncoset(norder) - 1
 
@@ -1239,11 +1243,11 @@ CONTAINS
       !particle_set => qs_loc_env%particle_set
       para_env => qs_loc_env%para_env
 
-      CALL cp_fm_get_info(moloc_coeff(ispin), ncol_global=nmoloc)
+      CALL cp_fm_get_info(moloc_coeff(icoeff), ncol_global=nmoloc)
       ALLOCATE (moment_set(nm, nmoloc))
       moment_set = 0.0_dp
 
-      mo_localized => moloc_coeff(ispin)
+      mo_localized => moloc_coeff(icoeff)
 
       DO istate = 1, nmoloc
          rcc = centers(1:3, istate)
@@ -1340,9 +1344,10 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: file_tmp
       COMPLEX(KIND=dp)                                   :: z
-      INTEGER                                            :: icov, imoment, istate, ncol_global, nm, &
-                                                            nmoloc, norder, nrow_global, &
-                                                            output_unit, output_unit_sm
+      INTEGER                                            :: icoeff, icov, imoment, istate, &
+                                                            ncol_global, nm, nmoloc, norder, &
+                                                            nrow_global, output_unit, &
+                                                            output_unit_sm
       REAL(dp), DIMENSION(:, :), POINTER                 :: centers
       REAL(KIND=dp)                                      :: imagpart, Lx, Ly, Lz, realpart
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: moment_set
@@ -1355,6 +1360,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_localized
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
 ! two pointers, one to each spin channel's coeff. matrix (nao x nmoloc)
@@ -1389,14 +1395,16 @@ CONTAINS
 
       para_env => qs_loc_env%para_env
 
-      CALL get_qs_env(qs_env, matrix_s=matrix_s)
+      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_s=matrix_s)
+      ! in RTP moloc_coeff holds the real and imaginary parts of each spin
+      icoeff = loc_coeff_index(SIZE(moloc_coeff), dft_control%nspins, ispin)
 
-      CALL cp_fm_get_info(moloc_coeff(ispin), ncol_global=nmoloc)
+      CALL cp_fm_get_info(moloc_coeff(icoeff), ncol_global=nmoloc)
 
       ALLOCATE (moment_set(nm, nmoloc))
       moment_set = 0.0_dp
 
-      mo_localized => moloc_coeff(ispin)
+      mo_localized => moloc_coeff(icoeff)
 
       DO istate = 1, nmoloc
          rcc = centers(1:3, istate)

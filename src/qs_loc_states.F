@@ -38,7 +38,8 @@ MODULE qs_loc_states
    USE qs_loc_methods,                  ONLY: centers_second_moments_berry,&
                                               centers_second_moments_loc
    USE qs_loc_molecules,                ONLY: wfc_to_molecule
-   USE qs_loc_types,                    ONLY: qs_loc_env_type
+   USE qs_loc_types,                    ONLY: loc_coeff_index,&
+                                              qs_loc_env_type
    USE qs_mo_types,                     ONLY: mo_set_type
    USE wannier_states,                  ONLY: construct_wannier_states
    USE wannier_states_types,            ONLY: wannier_centres_type
@@ -84,8 +85,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_localization_info'
 
-      INTEGER                                            :: handle, ispin, max_moment, mystate, ns, &
-                                                            nspins, output_unit
+      INTEGER                                            :: handle, icoeff, ispin, max_moment, &
+                                                            mystate, ns, nspins, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: lstates, marked_states_spin
       LOGICAL                                            :: com_nl, do_homo, do_mixed, magnetic, &
                                                             vel_reprs
@@ -124,7 +125,8 @@ CONTAINS
       END IF
       !
       DO ispin = 1, nspins
-         !
+         ! in RTP mo_local and coeff hold the real and imaginary parts of each spin
+         icoeff = loc_coeff_index(SIZE(mo_local), dft_control%nspins, ispin)
          IF (do_homo) THEN
             qs_loc_env%tag_mo = "HOMO"
          ELSE
@@ -152,7 +154,7 @@ CONTAINS
             scenter => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
 
             CALL qs_loc_driver(qs_env, qs_loc_env, loc_print_section, &
-                               myspin=ispin, ext_mo_coeff=mo_local(ispin))
+                               myspin=ispin, ext_mo_coeff=mo_local(icoeff))
 
             ! maps wfc to molecules, and compute the molecular dipoles if required
             IF ((BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
@@ -179,7 +181,7 @@ CONTAINS
 
                wc(ispin)%centres(:, :) = scenter(1 + (ispin - 1)*3:ispin*3, :)
                lstates => qs_loc_env%localized_wfn_control%loc_states(:, ispin)
-               CALL construct_wannier_states(mo_local(ispin), &
+               CALL construct_wannier_states(mo_local(icoeff), &
                                              ks_rmpv(ispin)%matrix, qs_env, loc_print_section=loc_print_section, &
                                              WannierCentres=wc(ispin), ns=ns, states=lstates)
             END IF
@@ -187,7 +189,7 @@ CONTAINS
             IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                                  "MOLECULAR_STATES"), cp_p_file)) THEN
                CALL construct_molecular_states( &
-                  molecule_set, mo_local(ispin), coeff(ispin), &
+                  molecule_set, mo_local(icoeff), coeff(icoeff), &
                   evals(ispin)%array, ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, wf_r, wf_g, &
                   loc_print_section=loc_print_section, particles=particles, tag=TRIM(qs_loc_env%tag_mo), &
                   marked_states=marked_states_spin, ispin=ispin)
