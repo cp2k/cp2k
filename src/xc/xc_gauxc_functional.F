@@ -241,9 +241,9 @@ CONTAINS
       ! Replicated DBCSR blocks must enter a following MPI sum exactly once. If the
       ! caller requests fill_replicated, every rank fills its own copy locally so the
       ! collective can be skipped entirely.
-      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0 .AND. .NOT. fill_local) then
-        RETURN
-      end if
+      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0 .AND. .NOT. fill_local) THEN
+         RETURN
+      END IF
 
       ! Stored blocks and their symmetry mirrors occupy disjoint dense slices.
 !$OMP PARALLEL DEFAULT(NONE) SHARED(dbcsr_mat, dense_mat, has_symmetry, symmetry_sign, ncols) &
@@ -331,9 +331,9 @@ CONTAINS
          DEALLOCATE (dense_b)
          ALLOCATE (dense_b(nrows, ncols))
       END IF
-      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0 .AND. .NOT. fill_local) then
-        RETURN
-      end if
+      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0 .AND. .NOT. fill_local) THEN
+         RETURN
+      END IF
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED(dbcsr_a, dbcsr_b, dense_a, dense_b, has_symmetry_a, has_symmetry_b, ncols, &
