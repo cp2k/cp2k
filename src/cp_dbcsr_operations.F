@@ -179,8 +179,6 @@ CONTAINS
 
       CPASSERT(dbcsr_get_matrix_type(matrix) == dbcsr_type_no_symmetry)
       dense(:, :) = 0.0_dp
-!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix, dense) &
-!$OMP PRIVATE(iter, block, transposed, nr, nc, row, col)
       CALL dbcsr_iterator_readonly_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, block=block, transposed=transposed, &
@@ -192,7 +190,6 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
-!$OMP END PARALLEL
    END SUBROUTINE copy_dbcsr_to_local
 
 ! **************************************************************************************************
@@ -211,8 +208,6 @@ CONTAINS
 
       CPASSERT(dbcsr_get_matrix_type(matrix) == dbcsr_type_no_symmetry)
       CALL dbcsr_reserve_all_blocks(matrix)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix, dense) &
-!$OMP PRIVATE(iter, block, transposed, nr, nc, row, col)
       CALL dbcsr_iterator_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, block=block, transposed=transposed, &
@@ -224,7 +219,6 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
-!$OMP END PARALLEL
    END SUBROUTINE copy_local_to_dbcsr
 
 ! **************************************************************************************************
