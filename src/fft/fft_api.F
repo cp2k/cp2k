@@ -212,7 +212,7 @@ CONTAINS
       INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: msglen, output_unit
 
       IF (output_unit <= 0) RETURN
-      WRITE (output_unit, FMT="(100A)", ADVANCE="NO") msg(1:msglen)
+      WRITE (output_unit, FMT="(*(A))", ADVANCE="NO") msg(1:msglen)
    END SUBROUTINE fft_timing_print_func
 
 ! **************************************************************************************************
