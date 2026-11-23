@@ -78,6 +78,8 @@ MODULE ri_rs_kp_compute_d_lP_analytic
    REAL(dp), PARAMETER :: envelope_fraction = 0.75_dp
    ! Tolerance of the space-group search in fractional coordinates.
    REAL(dp), PARAMETER :: eps_symmetry = 1.0E-6_dp
+   ! Below this distance*rho, envelope_bound uses the distance -> 0 limit of the erf difference.
+   REAL(dp), PARAMETER :: eps_rho_distance = 1.0E-6_dp
 
    PUBLIC :: analytic_d_lP_is_faster, &
              compute_d_lP_R_analytic
@@ -2117,7 +2119,7 @@ CONTAINS
             q = ri_envelope(1, iri)
             rho = SQRT(p*q/(p + q))
             rho_omega = SQRT(1.0_dp/(1.0_dp/p + 1.0_dp/q + 1.0_dp/omega**2))
-            IF (distance*rho < 1.0E-6_dp) THEN
+            IF (distance*rho < eps_rho_distance) THEN
                bound = bound + pair_envelope(5, ipair)*ri_envelope(2, iri)*(pi*pi/(p*q))**1.5_dp* &
                        2.0_dp/rootpi*(rho - rho_omega)
             ELSE

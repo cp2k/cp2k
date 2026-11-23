@@ -105,6 +105,8 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
 
    ! Tolerance for a sum of fractional k-point coordinates to be a reciprocal lattice vector.
    REAL(KIND=dp), PARAMETER :: eps_kpoint = 1.0E-8_dp
+   ! Tolerance (bohr^-1) for |q + G| to be the Γ point.
+   REAL(KIND=dp), PARAMETER :: eps_q_gamma = 1.0E-8_dp
 
    ! Blocking limits and named slots in the six existing CP2K matrix workspaces.
    INTEGER, PARAMETER :: column_block_cols = 32
@@ -1457,7 +1459,7 @@ CONTAINS
       gamma_on_mesh = .FALSE.
       DO iq = 1, n_q
          q = MATMUL(bmat, bs_env%kpoints_chi_eps_W%xkp(1:3, iq) - ANINT(bs_env%kpoints_chi_eps_W%xkp(1:3, iq)))
-         IF (NORM2(q) < 1.0E-8_dp) THEN
+         IF (NORM2(q) < eps_q_gamma) THEN
             gamma_on_mesh = .TRUE.
             mesh_sum = mesh_sum - alpha
          END IF
@@ -1466,7 +1468,7 @@ CONTAINS
                DO i = -n_max(1), n_max(1)
                   qg = q + i*bmat(:, 1) + j*bmat(:, 2) + k*bmat(:, 3)
                   qg2 = SUM(qg**2)
-                  IF (qg2 < 1.0E-16_dp) CYCLE
+                  IF (qg2 < eps_q_gamma**2) CYCLE
                   mesh_sum = mesh_sum + EXP(-alpha*qg2)/qg2
                END DO
             END DO
