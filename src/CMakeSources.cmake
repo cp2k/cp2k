@@ -290,7 +290,6 @@ list(
   input_cp2k_binary_restarts.F
   input_cp2k_check.F
   input_cp2k_colvar.F
-  input_cp2k_constraints.F
   input_cp2k_dft.F
   input_cp2k_harris.F
   input_cp2k_print_dft.F
@@ -309,7 +308,6 @@ list(
   input_cp2k_fde.F
   input_cp2k_field.F
   input_cp2k_force_eval.F
-  input_cp2k_free_energy.F
   input_cp2k_global.F
   input_cp2k_hfx.F
   input_cp2k_kpoints.F
@@ -317,9 +315,7 @@ list(
   input_cp2k_ls.F
   input_cp2k_mixed.F
   input_cp2k_mm.F
-  input_cp2k_motion_print.F
   input_cp2k_mp2.F
-  input_cp2k_neb.F
   input_cp2k_negf.F
   input_cp2k_nnp.F
   input_cp2k_poisson.F
@@ -334,7 +330,6 @@ list(
   input_cp2k_skala.F
   input_cp2k_subsys.F
   input_cp2k_smeagol.F
-  input_cp2k_thermostats.F
   input_cp2k_transport.F
   input_cp2k_voronoi.F
   input_cp2k_xc.F
@@ -1223,8 +1218,14 @@ list(
   motion/helium_sampling.F
   motion/helium_types.F
   motion/helium_worm.F
+  motion/input_cp2k_constraints.F
+  motion/input_cp2k_free_energy.F
   motion/input_cp2k_md.F
+  motion/input_cp2k_motion.F
+  motion/input_cp2k_motion_print.F
+  motion/input_cp2k_neb.F
   motion/input_cp2k_restarts.F
+  motion/input_cp2k_thermostats.F
   motion/input_cp2k_vib.F
   motion/integrator.F
   motion/integrator_utils.F
@@ -1351,14 +1352,8 @@ list(
   shg_int/generic_shg_integrals_init.F
   shg_int/s_contract_shg.F)
 
-list(
-  APPEND
-  CP2K_SRCS_F
-  start/cp2k_runs.F
-  start/cp2k_shell.F
-  start/input_cp2k.F
-  start/input_cp2k_motion.F
-  start/libcp2k.F)
+list(APPEND CP2K_SRCS_F start/cp2k_runs.F start/cp2k_shell.F start/input_cp2k.F
+     start/libcp2k.F)
 
 list(
   APPEND

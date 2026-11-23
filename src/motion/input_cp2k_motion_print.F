@@ -32,7 +32,7 @@ MODULE input_cp2k_motion_print
                                               section_release,&
                                               section_type
    USE string_utilities,                ONLY: s2a
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
