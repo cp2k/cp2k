@@ -187,7 +187,7 @@ CONTAINS
 !> \param dense_mat ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat, para_env)
+   SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat, para_env, replicated, fill_replicated)
       USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
                               dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
                               dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, &
@@ -197,11 +197,13 @@ CONTAINS
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: dense_mat
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: replicated
+      LOGICAL, INTENT(IN), OPTIONAL                      :: fill_replicated
 
       CHARACTER                                          :: matrix_type
       INTEGER                                            :: col_start, icol, irow, ncol, ncols, &
                                                             nrow, nrows, numnodes, row_start
-      LOGICAL                                            :: has_symmetry, transposed
+      LOGICAL                                            :: fill_local, has_symmetry, transposed
       REAL(c_double), POINTER                            :: block(:, :)
       REAL(KIND=dp)                                      :: symmetry_sign
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -212,6 +214,9 @@ CONTAINS
                           nfullcols_total=ncols, &
                           distribution=dist)
       CALL dbcsr_distribution_get(dist, numnodes=numnodes)
+      IF (PRESENT(replicated)) replicated = (numnodes == 1)
+      fill_local = .FALSE.
+      IF (PRESENT(fill_replicated)) fill_local = fill_replicated
       matrix_type = dbcsr_get_matrix_type(dbcsr_mat%matrix)
       has_symmetry = matrix_type == dbcsr_type_symmetric .OR. matrix_type == dbcsr_type_antisymmetric
       symmetry_sign = 1.0_dp
@@ -227,8 +232,11 @@ CONTAINS
       END IF
       dense_mat = 0._dp
 
-      ! Replicated DBCSR blocks must enter the following MPI sum exactly once.
-      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0) RETURN
+      ! Replicated DBCSR blocks must enter a following MPI sum exactly once. If the
+      ! caller requests fill_replicated, every rank fills its own copy locally so the
+      ! collective can be skipped entirely.
+      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0 .AND. .NOT. fill_local) &
+         RETURN
 
       ! Stored blocks and their symmetry mirrors occupy disjoint dense slices.
 !$OMP PARALLEL DEFAULT(NONE) SHARED(dbcsr_mat, dense_mat, has_symmetry, symmetry_sign) &
@@ -253,7 +261,8 @@ CONTAINS
 !> \param dense_b ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_to_dense_pair(dbcsr_a, dense_a, dbcsr_b, dense_b, para_env)
+   SUBROUTINE dbcsr_to_dense_pair(dbcsr_a, dense_a, dbcsr_b, dense_b, para_env, replicated, &
+                                  fill_replicated)
       USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
                               dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
                               dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, &
@@ -266,11 +275,13 @@ CONTAINS
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: dense_b
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: replicated
+      LOGICAL, INTENT(IN), OPTIONAL                      :: fill_replicated
 
       CHARACTER                                          :: matrix_type_a, matrix_type_b
       INTEGER :: col_start, col_start_b, icol, icol_b, irow, irow_b, ncol, ncol_b, ncols, nrow, &
          nrow_b, nrows, numnodes, row_start, row_start_b
-      LOGICAL                                            :: has_symmetry_a, has_symmetry_b, &
+      LOGICAL                                            :: fill_local, has_symmetry_a, has_symmetry_b, &
                                                             transposed_a, transposed_b
       REAL(c_double), POINTER                            :: block_a(:, :), block_b(:, :)
       REAL(KIND=dp)                                      :: symmetry_sign_a, symmetry_sign_b
@@ -280,6 +291,9 @@ CONTAINS
       CALL dbcsr_get_info(dbcsr_a%matrix, nfullrows_total=nrows, nfullcols_total=ncols, &
                           distribution=dist)
       CALL dbcsr_distribution_get(dist, numnodes=numnodes)
+      IF (PRESENT(replicated)) replicated = (numnodes == 1)
+      fill_local = .FALSE.
+      IF (PRESENT(fill_replicated)) fill_local = fill_replicated
       matrix_type_a = dbcsr_get_matrix_type(dbcsr_a%matrix)
       matrix_type_b = dbcsr_get_matrix_type(dbcsr_b%matrix)
       has_symmetry_a = matrix_type_a == dbcsr_type_symmetric .OR. &
@@ -304,7 +318,8 @@ CONTAINS
       dense_a = 0._dp
       dense_b = 0._dp
 
-      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0) RETURN
+      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0 .AND. .NOT. fill_local) &
+         RETURN
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED(dbcsr_a, dbcsr_b, dense_a, dense_b, has_symmetry_a, has_symmetry_b, &
@@ -1478,8 +1493,8 @@ CONTAINS
       LOGICAL :: backend_has_gpu, do_kpoints, external_density, gapw_method, &
          gapw_paw_pseudopotentials, gapw_pseudopotentials, grid_explicit, have_zeta, &
          int_space_explicit, is_periodic, lb_space_explicit, low_spin_scope, molecular_virial, &
-         molecular_virial_debug, need_xc_gradient, periodic_reference, pruning_explicit, use_cuda, &
-         use_skala_model, write_hdf5_output
+         molecular_virial_debug, need_xc_gradient, periodic_reference, pruning_explicit, replicated, &
+         replicated_fill, use_cuda, use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: exc_value, force_numerical_gradient_dx, &
                                                             molecular_virial_debug_dx
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1876,6 +1891,10 @@ CONTAINS
       END IF
 
       exc_value = 0.0_dp
+      ! For replicated DBCSR matrices every rank can fill its dense copy locally,
+      ! which avoids the collective. If that policy is disabled, broadcast the
+      ! root-filled copy instead of summing one nonzero contribution plus zeros.
+      replicated_fill = .TRUE.
 
       IF (ASSOCIATED(matrix_vxc)) THEN
          IF (SIZE(matrix_vxc) /= params%nspins) THEN
@@ -1893,8 +1912,13 @@ CONTAINS
          have_zeta = .FALSE.
          IF (params%nspins == 1) THEN
             CALL timeset("gauxc_density_dense", density_handle)
-            CALL dbcsr_to_dense(rho_ao(1, img), cache%density_scalar, para_env)
-            CALL para_env%sum(cache%density_scalar)
+            CALL dbcsr_to_dense(rho_ao(1, img), cache%density_scalar, para_env, &
+                                replicated=replicated, fill_replicated=replicated_fill)
+            IF (.NOT. replicated) THEN
+               CALL para_env%sum(cache%density_scalar)
+            ELSE IF (.NOT. replicated_fill .AND. para_env%num_pe > 1) THEN
+               CALL para_env%bcast(cache%density_scalar, 0)
+            END IF
             CALL timestop(density_handle)
          ELSE
             CPASSERT(params%nspins == 2)
@@ -1903,9 +1927,15 @@ CONTAINS
             ! zeta   <- rho_ao(1, :) - rho_ao(2, :)
             CALL timeset("gauxc_density_dense", density_handle)
             CALL dbcsr_to_dense_pair(rho_ao(1, img), cache%density_scalar, rho_ao(2, img), &
-                                     cache%density_zeta, para_env)
-            CALL para_env%sum(cache%density_scalar)
-            CALL para_env%sum(cache%density_zeta)
+                                     cache%density_zeta, para_env, replicated=replicated, &
+                                     fill_replicated=replicated_fill)
+            IF (.NOT. replicated) THEN
+               CALL para_env%sum(cache%density_scalar)
+               CALL para_env%sum(cache%density_zeta)
+            ELSE IF (.NOT. replicated_fill .AND. para_env%num_pe > 1) THEN
+               CALL para_env%bcast(cache%density_scalar, 0)
+               CALL para_env%bcast(cache%density_zeta, 0)
+            END IF
             CALL timestop(density_handle)
             ! Do NOT reorder the following lines!
             cache%density_scalar(:, :) = cache%density_scalar(:, :) + cache%density_zeta(:, :)

@@ -892,15 +892,23 @@ CONTAINS
 !> \param scratch ...
 !> \param like ...
 ! **************************************************************************************************
-   SUBROUTINE ensure_matrix_scratch(scratch, like)
+   SUBROUTINE ensure_matrix_scratch(scratch, like, fresh)
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: scratch
       REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: like
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: fresh
 
+      IF (PRESENT(fresh)) fresh = .FALSE.
       IF (ALLOCATED(scratch)) THEN
-         IF (ANY(SHAPE(scratch) /= SHAPE(like))) DEALLOCATE (scratch)
+         IF (ANY(SHAPE(scratch) /= SHAPE(like))) THEN
+            DEALLOCATE (scratch)
+            IF (PRESENT(fresh)) fresh = .TRUE.
+         END IF
       END IF
-      IF (.NOT. ALLOCATED(scratch)) ALLOCATE (scratch, mold=like)
+      IF (.NOT. ALLOCATED(scratch)) THEN
+         ALLOCATE (scratch, mold=like)
+         IF (PRESENT(fresh)) fresh = .TRUE.
+      END IF
    END SUBROUTINE ensure_matrix_scratch
 
 ! **************************************************************************************************
@@ -942,6 +950,7 @@ CONTAINS
       LOGICAL, DIMENSION(5)                              :: ieee_halt
 #endif
       INTEGER                                            :: omp_max_threads_restore
+      LOGICAL                                            :: fresh_scratch
 #endif
 
       use_gauxc_model = gauxc_model_active(model)
@@ -1000,8 +1009,8 @@ CONTAINS
          res%vxc_zeta = 0._dp
 
          IF (nspins == 1) THEN
-            CALL ensure_matrix_scratch(res%scratch_zeta_zero, density_scalar)
-            res%scratch_zeta_zero = 0._dp
+            CALL ensure_matrix_scratch(res%scratch_zeta_zero, density_scalar, fresh_scratch)
+            IF (fresh_scratch) res%scratch_zeta_zero = 0._dp
             CALL gauxc_integrator_eval_exc_vxc_onedft_uks( &
                status%status, &
                integrator%integrator, &
@@ -1114,6 +1123,7 @@ CONTAINS
       LOGICAL, DIMENSION(5)                              :: ieee_halt
 #endif
       INTEGER                                            :: omp_max_threads_restore
+      LOGICAL                                            :: fresh_scratch
 #endif
 
       IF (ALLOCATED(res%exc_grad)) THEN
@@ -1144,8 +1154,8 @@ CONTAINS
          CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
          IF (nspins == 1) THEN
-            CALL ensure_matrix_scratch(res%scratch_zeta_zero, density_scalar)
-            res%scratch_zeta_zero = 0._dp
+            CALL ensure_matrix_scratch(res%scratch_zeta_zero, density_scalar, fresh_scratch)
+            IF (fresh_scratch) res%scratch_zeta_zero = 0._dp
             CALL gauxc_integrator_eval_exc_grad_onedft_uks( &
                status%status, &
                integrator%integrator, &
