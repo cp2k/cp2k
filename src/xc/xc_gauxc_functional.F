@@ -356,7 +356,13 @@ CONTAINS
          dbcsr_distribution_type, &
          dbcsr_finalize, &
          dbcsr_get_info, &
+         dbcsr_get_num_blocks, &
          dbcsr_init_p, &
+         dbcsr_iterator_blocks_left, &
+         dbcsr_iterator_next_block, &
+         dbcsr_iterator_start, &
+         dbcsr_iterator_stop, &
+         dbcsr_iterator_type, &
          dbcsr_put_block, &
          dbcsr_release, &
          dbcsr_type_symmetric, &
@@ -373,8 +379,11 @@ CONTAINS
          nblkrows_total, nc, nc_t, ncols, nr, nr_t, nrows, r1, r1t, r2, r2t
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
+      LOGICAL                                            :: rebuild, transposed
       REAL(c_double)                                     :: zsign
+      REAL(c_double), DIMENSION(:, :), POINTER           :: block_ptr
       TYPE(dbcsr_distribution_type)                      :: dist
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL dbcsr_get_info(template_dbcsr%matrix, &
                           row_blk_size=row_blk_size, &
@@ -402,52 +411,85 @@ CONTAINS
                                  row_dist, col_dist)
       END IF
 
+      zsign = 1.0_dp
+      IF (PRESENT(z_sign)) zsign = z_sign
+
+      ! Reuse the existing upper-triangular block pattern when the target matrix
+      ! already matches the cached layout: only the block values need refreshing.
+      rebuild = .TRUE.
       IF (ASSOCIATED(dbcsr_mat%matrix)) THEN
-         IF (.NOT. dbcsr_target_matches_layout(dbcsr_mat%matrix, layout)) THEN
+         IF (dbcsr_target_matches_layout(dbcsr_mat%matrix, layout)) THEN
+            IF (dbcsr_get_num_blocks(dbcsr_mat%matrix) == SIZE(layout%blk_row)) rebuild = .FALSE.
+         ELSE
             CALL dbcsr_release(dbcsr_mat%matrix)
             DEALLOCATE (dbcsr_mat%matrix)
          END IF
       END IF
-      IF (ASSOCIATED(dbcsr_mat%matrix)) THEN
-         CALL dbcsr_clear(dbcsr_mat%matrix)
-      ELSE
-         CALL dbcsr_init_p(dbcsr_mat%matrix)
-         CALL dbcsr_create(dbcsr_mat%matrix, &
-                           template=template_dbcsr%matrix, &
-                           name="VXC from GauXC (dense)", &
-                           matrix_type=dbcsr_type_symmetric)
-      END IF
-      CALL dbcsr_work_create(dbcsr_mat%matrix, work_mutable=.TRUE.)
 
-      zsign = 1.0_dp
-      IF (PRESENT(z_sign)) zsign = z_sign
-      DO ib = 1, SIZE(layout%blk_row)
-         irow = layout%blk_row(ib)
-         icol = layout%blk_col(ib)
-         nr = layout%row_blk_size(irow)
-         nc = layout%col_blk_size(icol)
-         nr_t = layout%row_blk_size(icol)
-         nc_t = layout%col_blk_size(irow)
-         r1 = layout%r_offset(irow)
-         r2 = r1 + nr - 1
-         c1 = layout%c_offset(icol)
-         c2 = c1 + nc - 1
-         r1t = layout%r_offset(icol)
-         r2t = r1t + nr_t - 1
-         c1t = layout%c_offset(irow)
-         c2t = c1t + nc_t - 1
-         IF (PRESENT(dense_zeta)) THEN
-            layout%blk(1:nr, 1:nc) = 0.5_dp*( &
-                                     (dense_mat(r1:r2, c1:c2) + zsign*dense_zeta(r1:r2, c1:c2)) + &
-                                     TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t) + zsign*dense_zeta(r1t:r2t, c1t:c2t)))
+      IF (rebuild) THEN
+         IF (ASSOCIATED(dbcsr_mat%matrix)) THEN
+            CALL dbcsr_clear(dbcsr_mat%matrix)
          ELSE
-            layout%blk(1:nr, 1:nc) = 0.5_dp*( &
-                                     dense_mat(r1:r2, c1:c2) + TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t)))
+            CALL dbcsr_init_p(dbcsr_mat%matrix)
+            CALL dbcsr_create(dbcsr_mat%matrix, &
+                              template=template_dbcsr%matrix, &
+                              name="VXC from GauXC (dense)", &
+                              matrix_type=dbcsr_type_symmetric)
          END IF
-         CALL dbcsr_put_block(dbcsr_mat%matrix, irow, icol, layout%blk(1:nr, 1:nc))
-      END DO
-
-      CALL dbcsr_finalize(dbcsr_mat%matrix)
+         CALL dbcsr_work_create(dbcsr_mat%matrix, work_mutable=.TRUE.)
+         DO ib = 1, SIZE(layout%blk_row)
+            irow = layout%blk_row(ib)
+            icol = layout%blk_col(ib)
+            nr = layout%row_blk_size(irow)
+            nc = layout%col_blk_size(icol)
+            nr_t = layout%row_blk_size(icol)
+            nc_t = layout%col_blk_size(irow)
+            r1 = layout%r_offset(irow)
+            r2 = r1 + nr - 1
+            c1 = layout%c_offset(icol)
+            c2 = c1 + nc - 1
+            r1t = layout%r_offset(icol)
+            r2t = r1t + nr_t - 1
+            c1t = layout%c_offset(irow)
+            c2t = c1t + nc_t - 1
+            IF (PRESENT(dense_zeta)) THEN
+               layout%blk(1:nr, 1:nc) = 0.5_dp*( &
+                                        (dense_mat(r1:r2, c1:c2) + zsign*dense_zeta(r1:r2, c1:c2)) + &
+                                        TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t) + zsign*dense_zeta(r1t:r2t, c1t:c2t)))
+            ELSE
+               layout%blk(1:nr, 1:nc) = 0.5_dp*( &
+                                        dense_mat(r1:r2, c1:c2) + TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t)))
+            END IF
+            CALL dbcsr_put_block(dbcsr_mat%matrix, irow, icol, layout%blk(1:nr, 1:nc))
+         END DO
+         CALL dbcsr_finalize(dbcsr_mat%matrix)
+      ELSE
+         CALL dbcsr_iterator_start(iter, dbcsr_mat%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, irow, icol, block_ptr, transposed=transposed, &
+                                           row_size=nr, col_size=nc, row_offset=r1, col_offset=c1)
+            r2 = r1 + nr - 1
+            c2 = c1 + nc - 1
+            r1t = layout%r_offset(icol)
+            r2t = r1t + layout%row_blk_size(icol) - 1
+            c1t = layout%c_offset(irow)
+            c2t = c1t + layout%col_blk_size(irow) - 1
+            IF (PRESENT(dense_zeta)) THEN
+               layout%blk(1:nr, 1:nc) = 0.5_dp*( &
+                                        (dense_mat(r1:r2, c1:c2) + zsign*dense_zeta(r1:r2, c1:c2)) + &
+                                        TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t) + zsign*dense_zeta(r1t:r2t, c1t:c2t)))
+            ELSE
+               layout%blk(1:nr, 1:nc) = 0.5_dp*( &
+                                        dense_mat(r1:r2, c1:c2) + TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t)))
+            END IF
+            IF (transposed) THEN
+               block_ptr(1:nc, 1:nr) = TRANSPOSE(layout%blk(1:nr, 1:nc))
+            ELSE
+               block_ptr(1:nr, 1:nc) = layout%blk(1:nr, 1:nc)
+            END IF
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+      END IF
    END SUBROUTINE dense_to_dbcsr_into
 
 ! **************************************************************************************************
