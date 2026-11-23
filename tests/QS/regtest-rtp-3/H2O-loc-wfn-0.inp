@@ -1,5 +1,5 @@
 ! SCF with a localization of the occupied orbitals (Jacobi), written to the standard
-! wavefunction restart file H2O-loc-wfn-LOC-RESTART.wfn by LOCALIZE%PRINT%WFN_RESTART
+! wavefunction restart file H2O-loc-wfn-LOCALIZED-RESTART.wfn by LOCALIZE%PRINT%WFN_RESTART
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT H2O-loc-wfn
