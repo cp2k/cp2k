@@ -58,13 +58,15 @@ CONTAINS
 !> \brief Build explicit-cell AO values and periodic RI-RS coefficients Z_lP(q).
 !> \param bs_env Band-structure environment.
 !> \param grid_points Reference-cell RI-RS points r_l.
-!> \param Z_lP_q Gaussian RI-RS coefficients on the shifted SCF mesh.
+!> \param q_slot Compact owner-local index of each retained q, zero for omitted points.
+!> \param Z_lP_q Gaussian RI-RS coefficients at the retained q points.
 !> \param Z_lP_zero ...
 ! **************************************************************************************************
-   SUBROUTINE compute_Z_lP_q(bs_env, grid_points, &
+   SUBROUTINE compute_Z_lP_q(bs_env, grid_points, q_slot, &
                              Z_lP_q, Z_lP_zero)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: grid_points
+      INTEGER, INTENT(IN)                                :: q_slot(:)
       COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: Z_lP_q(:, :, :), Z_lP_zero(:, :, :)
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Z_lP_q'
@@ -109,9 +111,9 @@ CONTAINS
       CALL mp_print_mem_per_rank(bs_env%para_env, bs_env%unit_nr, 'After RI-RS three-center projection d_lP^R')
 
       CALL solve_for_Z_lP_q(bs_env, cells_R_D_llp, cells_R_d_lP, D_llp_R, d_lP_R, first_l, last_l, qpoints_scf, &
-                            Z_lP_q, distributed=.TRUE.)
+                            q_slot, Z_lP_q, distributed=.TRUE.)
       CALL solve_for_Z_lP_q(bs_env, cells_R_D_llp, cells_R_d_lP, D_llp_R, d_lP_R, first_l, last_l, &
-                            qpoints_head, Z_lP_zero, distributed=.FALSE., charge_lq=charge_lq)
+                            qpoints_head, [1], Z_lP_zero, distributed=.FALSE., charge_lq=charge_lq)
 
       DEALLOCATE (cells_R_d_lP, cells_R_D_llp, D_llp_R, qpoints_scf, d_lP_R)
       DEALLOCATE (qpoints_head)
@@ -186,17 +188,19 @@ CONTAINS
 !> \param first_l ...
 !> \param last_l ...
 !> \param qpoints ...
+!> \param q_slot compact local indices; zero omits a q point
 !> \param Z_lP_q ...
 !> \param distributed ...
 !> \param charge_lq ...
 ! **************************************************************************************************
    SUBROUTINE solve_for_Z_lP_q(bs_env, cells_R_D_llp, cells_R_d_lP, D_llp_R, d_lP_R, first_l, last_l, qpoints, &
-                               Z_lP_q, distributed, charge_lq)
+                               q_slot, Z_lP_q, distributed, charge_lq)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: cells_R_D_llp, cells_R_d_lP
       REAL(KIND=dp), CONTIGUOUS, INTENT(IN)              :: D_llp_R(:, :, :), d_lP_R(:, :, :)
       INTEGER, INTENT(IN)                                :: first_l, last_l
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: qpoints
+      INTEGER, INTENT(IN)                                :: q_slot(:)
       COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: Z_lP_q(:, :, :)
       LOGICAL, INTENT(IN)                                :: distributed
       COMPLEX(KIND=dp), INTENT(IN), OPTIONAL             :: charge_lq(:, :)
@@ -207,10 +211,10 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE                      :: D_llp_q(:, :), D_llp_q_batch(:, :, :), &
                                                             D_llp_q_local(:, :), d_lP_q(:, :)
       INTEGER :: backend, first_l_rank, first_q, handle, i_batch, i_rank, info, iq, iq_batch, &
-         iq_local, iq_store, l, last_l_rank, last_q, lp, n_grid, n_q, n_q_local, n_RI, n_RI_solve, &
-         n_sub, next_progress
+         iq_store, l, last_l_rank, last_q, lp, n_active, n_grid, n_q, n_q_local, n_rank, n_RI, &
+         n_RI_solve, n_sub, next_progress
       INTEGER(KIND=int_8)                                :: n_done, n_local
-      INTEGER, ALLOCATABLE                               :: displs(:), recvcounts(:)
+      INTEGER, ALLOCATABLE                               :: displs(:), q_batch(:), recvcounts(:)
       LOGICAL, ALLOCATABLE                               :: active_grid_point(:)
       REAL(KIND=dp)                                      :: max_scale, metric_head, progress_start, &
                                                             volume
@@ -228,14 +232,15 @@ CONTAINS
          n_RI_solve = n_RI + 1
       END IF
       n_q = SIZE(qpoints, 2)
+      n_rank = bs_env%para_env%num_pe
+      CPASSERT(SIZE(q_slot) == n_q)
       backend = MERGE(bs_env%kpoints_scf_desymm%rskp_transform, rskp_backend_gemm, distributed)
       ! q points are cyclic: rank MOD(q,P) for the SCF mesh, MOD(q-1,P) otherwise.
-      iq = MODULO(bs_env%para_env%mepos - MERGE(1, 0, distributed), bs_env%para_env%num_pe) + 1
-      n_q_local = n_q
-      IF (distributed) n_q_local = (n_q + bs_env%para_env%num_pe - iq)/bs_env%para_env%num_pe
-      ALLOCATE (Z_lP_q(n_grid, n_RI_solve, n_q_local))
+      iq = MODULO(bs_env%para_env%mepos - MERGE(1, 0, distributed), n_rank) + 1
+      n_q_local = COUNT(q_slot(iq:n_q:n_rank) > 0)
+      ALLOCATE (Z_lP_q(n_grid, n_RI_solve, MERGE(n_q_local, n_q, distributed)))
       ! Only ranks solving a q point need a complete D(q).
-      IF (iq <= n_q) THEN
+      IF (n_q_local > 0) THEN
          ALLOCATE (D_llp_q(n_grid, n_grid))
       ELSE
          ALLOCATE (D_llp_q(0, 0))
@@ -246,7 +251,7 @@ CONTAINS
       ALLOCATE (D_llp_q_local(n_grid, last_l - first_l + 1), &
                 D_llp_q_batch(last_l - first_l + 1, n_grid, n_sub), &
                 recvcounts(bs_env%para_env%num_pe), displs(bs_env%para_env%num_pe), &
-                d_lP_q(n_grid, n_RI_solve))
+                d_lP_q(n_grid, n_RI_solve), q_batch(n_rank))
       DO i_rank = 0, bs_env%para_env%num_pe - 1
          CALL get_local_l_range(n_grid, bs_env%para_env%num_pe, i_rank, first_l_rank, last_l_rank)
          recvcounts(i_rank + 1) = (last_l_rank - first_l_rank + 1)*n_grid
@@ -258,27 +263,25 @@ CONTAINS
       progress_start = m_walltime()
       next_progress = 1
       n_done = 0_int_8
-      n_local = 0_int_8
-      IF (bs_env%para_env%mepos == 0) THEN
-         DO iq = MERGE(bs_env%para_env%num_pe, 1, distributed), n_q, bs_env%para_env%num_pe
-            n_local = n_local + 1_int_8
+      n_local = INT(n_q_local, int_8)
+      DO i_batch = 0, (n_q - 1)/n_rank
+         n_active = 0
+         DO iq_batch = i_batch*n_rank + 1, MIN(n_q, (i_batch + 1)*n_rank)
+            IF (q_slot(iq_batch) == 0) CYCLE
+            n_active = n_active + 1
+            q_batch(n_active) = iq_batch
          END DO
-      END IF
-      iq_local = 0
-      DO i_batch = 0, (n_q - 1)/bs_env%para_env%num_pe
-         ! D_ll'(q) = sum_A exp(i q.A) D_ll'^A; gather only on the q rank.
-         DO first_q = i_batch*bs_env%para_env%num_pe + 1, &
-            MIN(n_q, (i_batch + 1)*bs_env%para_env%num_pe), n_sub
-            last_q = MIN(first_q + n_sub - 1, n_q, (i_batch + 1)*bs_env%para_env%num_pe)
-            CALL cell_to_k_transform(D_llp_R, cells_R_D_llp, -qpoints(:, first_q:last_q), &
+         IF (n_active == 0) CYCLE
+         ! D_ll'(q) = sum_A exp(i q.A) D_ll'^A; gather only retained q points.
+         DO first_q = 1, n_active, n_sub
+            last_q = MIN(first_q + n_sub - 1, n_active)
+            CALL cell_to_k_transform(D_llp_R, cells_R_D_llp, -qpoints(:, q_batch(first_q:last_q)), &
                                      bs_env%kpoints_scf_desymm%nkp_grid, &
                                      D_llp_q_batch(:, :, 1:last_q - first_q + 1), backend, &
                                      profile_fft=fft_profile_enabled, profile_label='RI-RS D_R -> D_q')
             DO iq_batch = first_q, last_q
                D_llp_q_local(:, :) = TRANSPOSE(D_llp_q_batch(:, :, iq_batch - first_q + 1))
-               i_rank = MODULO(iq_batch - 1, bs_env%para_env%num_pe)
-               IF (distributed) i_rank = MODULO(iq_batch, bs_env%para_env%num_pe)
-               ! Gather conjugate-transposed row blocks directly into contiguous columns.
+               i_rank = MODULO(q_batch(iq_batch) - 1 + MERGE(1, 0, distributed), n_rank)
                IF (bs_env%para_env%mepos == i_rank) THEN
                   CALL bs_env%para_env%gatherv(D_llp_q_local, D_llp_q, recvcounts, displs, i_rank)
                ELSE
@@ -288,18 +291,14 @@ CONTAINS
          END DO
          IF (PRESENT(charge_lq)) THEN
             CALL fourier_transform_d_lP_R_to_q(bs_env, cells_R_d_lP, d_lP_R, qpoints, i_batch, &
-                                               distributed, d_lP_q(:, 2:), iq)
+                                               distributed, q_slot, d_lP_q(:, 2:), iq)
          ELSE
             CALL fourier_transform_d_lP_R_to_q(bs_env, cells_R_d_lP, d_lP_R, qpoints, i_batch, &
-                                               distributed, d_lP_q, iq)
+                                               distributed, q_slot, d_lP_q, iq)
          END IF
          IF (iq > n_q) CYCLE
-         iq_local = iq_local + 1
-         IF (distributed) THEN
-            iq_store = iq_local
-         ELSE
-            iq_store = iq
-         END IF
+         iq_store = q_slot(iq)
+         IF (iq_store == 0) CYCLE
          IF (PRESENT(charge_lq)) THEN
             ! The Gamma-correction scalar head is separate. Keep the full Gaussian RI.
             volume = bs_env%ri_rs%cell%deth
@@ -373,9 +372,6 @@ CONTAINS
                                       n_done, n_local, next_progress, progress_start)
          END IF
       END DO
-      IF (distributed) THEN
-         CPASSERT(iq_local == n_q_local)
-      END IF
       IF (.NOT. distributed) CALL bs_env%para_env%sum(Z_lP_q)
       DEALLOCATE (D_llp_q, D_llp_q_batch, D_llp_q_local, recvcounts, displs, d_lP_q, scale, active_grid_point)
 
@@ -647,17 +643,19 @@ CONTAINS
 !> \param qpoints ...
 !> \param i_batch ...
 !> \param distributed ...
+!> \param q_slot compact local indices; zero omits a q point
 !> \param d_lP_q ...
 !> \param iq ...
 ! **************************************************************************************************
    SUBROUTINE fourier_transform_d_lP_R_to_q(bs_env, cells_R_d_lP, d_lP_R, qpoints, i_batch, distributed, &
-                                            d_lP_q, iq)
+                                            q_slot, d_lP_q, iq)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, INTENT(IN)                                :: cells_R_d_lP(:, :)
       REAL(dp), CONTIGUOUS, INTENT(IN)                   :: d_lP_R(:, :, :)
       REAL(dp), INTENT(IN)                               :: qpoints(:, :)
       INTEGER, INTENT(IN)                                :: i_batch
       LOGICAL, INTENT(IN)                                :: distributed
+      INTEGER, INTENT(IN)                                :: q_slot(:)
       COMPLEX(dp), ASYNCHRONOUS, CONTIGUOUS, INTENT(OUT) :: d_lP_q(:, :)
       INTEGER, INTENT(OUT)                               :: iq
 
@@ -690,6 +688,7 @@ CONTAINS
       d_lP_q = z_zero
       n_recv = 0
       receiving = iq <= SIZE(qpoints, 2)
+      IF (receiving) receiving = q_slot(iq) > 0
       IF (receiving) THEN
          ! Packed rank blocks: offset=(first_l-1)*n_P, followed by local (l,P) order.
          ! Receive into contiguous storage before assigning the noncontiguous output rows.
@@ -708,6 +707,7 @@ CONTAINS
       DO i_dest = 0, n_ranks - 1
          i_q = i_batch*n_ranks + MODULO(i_dest - q_offset, n_ranks) + 1
          IF (i_q > SIZE(qpoints, 2)) CYCLE
+         IF (q_slot(i_q) == 0) CYCLE
          n_active_q = n_active_q + 1
          q_indices(n_active_q) = i_q
          q_dest(n_active_q) = i_dest

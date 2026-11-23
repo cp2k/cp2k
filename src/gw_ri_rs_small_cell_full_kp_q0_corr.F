@@ -368,7 +368,7 @@ CONTAINS
       ELSE
          CPASSERT(PRESENT(metric_ref_zero))
          IF (n_local == 1) V_owned(:, :, 1) = metric_ref_zero
-         CALL add_ewald_reciprocal(V_owned, qs_env, gamma_kp, 'RI_AUX', bs_env%ri_metric%omega, 1, 1)
+         CALL add_ewald_reciprocal(V_owned, qs_env, gamma_kp%xkp(:, :n_local), 'RI_AUX', bs_env%ri_metric%omega)
       END IF
       V_zero(:, :) = z_zero
       IF (n_local == 1) V_zero(:, :) = V_owned(:, :, 1)

@@ -37,7 +37,7 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
                                               fft_deallocate
    USE gw_ri_rs_small_cell_full_kp_lattice,ONLY: &
         assemble_AA_contraction, block_range, build_full_cell_grid, build_ri_2c_lattice, &
-        complex_bytes, gamma_auxiliary_charges, grid_pair_gemm, grid_pair_indices, &
+        complex_bytes, gamma_auxiliary_charges, grid_pair_gemm_panel, grid_pair_indices, &
         grid_pair_panel_cols, grid_pair_shift, grid_pair_stencil_denominator, &
         grid_pair_stencil_weight, grid_pair_upper_multiply, image_weight, owned_mo_coefficients, &
         real_bytes, ri_2c_lattice_to_kp, ri_metric_head_zero
@@ -46,9 +46,11 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
                                               q_mesh_and_gamma_shell_average,&
                                               singular_head_cell_factors
    USE gw_ri_rs_small_cell_full_kp_types,ONLY: gwkp_type,&
-                                              ri_q_matrix_block_type
+                                              ri_q_matrix_block_type,&
+                                              sigma_projection_type
    USE gw_utils_fm,                     ONLY: local_complex_power
-   USE input_constants,                 ONLY: evGW0
+   USE input_constants,                 ONLY: G0W0,&
+                                              evGW0
    USE kinds,                           ONLY: dp,&
                                               int_1,&
                                               int_1_size,&
@@ -101,7 +103,7 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
 
    ! Blocking limits and named slots in the six existing CP2K matrix workspaces.
    INTEGER, PARAMETER :: column_block_cols = 32
-   INTEGER, PARAMETER :: band_kpoints_per_pass = 64, pair_batch_size = 256
+   INTEGER, PARAMETER :: band_kpoints_per_pass = 512, pair_batch_size = 256, sigma_rhs_cols = 64
    INTEGER, PARAMETER :: w_chi = 1, w_metric = 2, w_tmp = 3, w_dielectric = 4, &
                          w_output = 5, n_w_matrices = 5
 
@@ -111,7 +113,7 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
    ! data alive reserve reserve_share of it (at least min_reserve_GB) and add library_bytes.
    REAL(KIND=dp), PARAMETER :: stage_memory_share = 0.5_dp, reserve_share = 0.1_dp, &
                                min_reserve_GB = 1.0_dp, library_bytes = 256.0_dp*bytes_per_MiB
-   ! Fixed workspace of band projection, received chi batches, and Σ(k) of one projection round.
+   ! Workspace limits for AO-image panels, received chi batches, and Σ(k) exchange rounds.
    REAL(KIND=dp), PARAMETER :: projection_workspace = 64.0_dp*bytes_per_MiB, &
                                projection_round_bytes = 512.0_dp*bytes_per_MiB
    INTEGER(KIND=int_8), PARAMETER :: fft_panel_bytes = 32_int_8*1024_int_8**2
@@ -122,14 +124,20 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER :: input(:) => NULL()
    END TYPE gw_pair_fft_batch_type
 
+   TYPE pair_segment_type
+      INTEGER :: rank = -1, first_row = 0, last_row = 0, displacement = 0
+   END TYPE pair_segment_type
+
    TYPE gw_pair_fft_work_type
       PRIVATE
-      INTEGER :: n_pairs = 0, width = 0, k_batch = 0, nmesh(3) = 0
+      INTEGER :: n_pairs = 0, width = 0, k_batch = 0, green_reuses = 0, nmesh(3) = 0
       INTEGER(KIND=int_8) :: nfft_grid = 0_int_8, spectrum_columns = 0_int_8
       LOGICAL :: cache_hit = .FALSE.
       COMPLEX(KIND=dp), ALLOCATABLE :: product_phase(:)
       INTEGER, ALLOCATABLE :: grid_linear(:), partner_linear(:), extract_q(:), extract_partner(:), mirror_cell(:)
-      INTEGER, ALLOCATABLE :: input_to_native(:)
+      INTEGER, ALLOCATABLE :: input_to_native(:), green_source(:), pair_counts(:), pair_displs(:), column_segments(:)
+      INTEGER, ALLOCATABLE :: q_source(:), q_slot(:)
+      TYPE(pair_segment_type), ALLOCATABLE :: segments(:)
       LOGICAL, ALLOCATABLE :: diagonal(:)
       TYPE(k_grid_to_cell_work_type) :: inverse
       TYPE(gw_pair_fft_batch_type), ALLOCATABLE :: batches(:)
@@ -146,10 +154,6 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
    CONTAINS
       PROCEDURE :: consume => extract_grid_pairs
    END TYPE gw_pair_extraction_type
-
-   TYPE pair_segment_type
-      INTEGER :: rank = -1, first_row = 0, last_row = 0, displacement = 0
-   END TYPE pair_segment_type
 
 CONTAINS
 
@@ -168,11 +172,14 @@ CONTAINS
             IF (ASSOCIATED(work%batches(ibatch)%input)) CALL fft_deallocate(work%batches(ibatch)%input)
          END DO
          DEALLOCATE (work%batches, work%product_phase, work%grid_linear, work%partner_linear, &
-                     work%extract_q, work%extract_partner, work%mirror_cell, work%diagonal, work%input_to_native)
+                     work%extract_q, work%extract_partner, work%mirror_cell, work%diagonal, work%input_to_native, &
+                     work%green_source, work%pair_counts, work%pair_displs, work%column_segments, work%segments)
       END IF
+      IF (ALLOCATED(work%q_source)) DEALLOCATE (work%q_source, work%q_slot)
       work%profile = lattice_fft_profile_type()
       work%setup_seconds = 0.0_dp
       work%cache_hit = .FALSE.
+      work%green_reuses = 0
    END SUBROUTINE release_pair_fft
 
 ! **************************************************************************************************
@@ -368,7 +375,9 @@ CONTAINS
       CALL precompute_ri_rs_radii(bs_env%ri_rs, bs_env%basis_set_AO, bs_env%basis_set_RI, &
                                   bs_env%eps_filter, bs_env%unit_nr)
       CALL setup_ri_rs_grid(bs_env, bs_env%ri_rs%grid_points)
-      CALL compute_Z_lP_q(bs_env, bs_env%ri_rs%grid_points, &
+      CALL minus_q_partners(bs_env%kpoints_chi_eps_W%xkp(:, :bs_env%nkp_scf_desymm), gwkp_env%q_partner)
+      CALL compact_q_slots(gwkp_env%q_partner, bs_env%para_env%num_pe, gwkp_env%q_slot)
+      CALL compute_Z_lP_q(bs_env, bs_env%ri_rs%grid_points, gwkp_env%q_slot, &
                           Z_lP_q=gwkp_env%Z_lP_q, Z_lP_zero=gwkp_env%Z_lP_zero)
       CALL build_all_phi_k(bs_env, phi_lmu_k)
       CALL build_all_psi_k(bs_env, phi_lmu_k, gwkp_env%psi_lm_k)
@@ -433,9 +442,7 @@ CONTAINS
                                                             ikp_local, j_w, my_qgroup, n_qgroups, &
                                                             n_RI, nkp, nkp_local, q_group, &
                                                             q_owner, q_root
-      INTEGER, ALLOCATABLE                               :: group_load(:), q_batch(:, :), &
-                                                            q_partner(:), q_roots(:)
-      LOGICAL, ALLOCATABLE                               :: solves_q(:)
+      INTEGER, ALLOCATABLE                               :: group_load(:), q_batch(:, :), q_roots(:)
       REAL(KIND=dp)                                      :: available_GB, required_bytes, step_start
       REAL(KIND=dp), ALLOCATABLE                         :: frequency_elapsed(:)
       TYPE(cp_blacs_env_type), POINTER                   :: w_blacs
@@ -457,7 +464,7 @@ CONTAINS
               bs_env%kpoints_scf_desymm%nkp_grid)) THEN
          CPABORT("Periodic RI-RS GW requires the SCF mesh dimensions for W")
       END IF
-      nkp_local = SIZE(gwkp_env%metric_coulomb_factor, 3)
+      nkp_local = SIZE(gwkp_env%metric_coulomb_factor)
       ! Distributed solver matrices plus equal workspace reserve; owner buffers remain local.
       ! Select the smallest feasible divisor, independently of the number of q points.
       CALL mp_mem_avail_per_rank_GB(bs_env%para_env, available_GB)
@@ -473,19 +480,16 @@ CONTAINS
       END IF
       n_qgroups = bs_env%para_env%num_pe/i_group_size
       CALL grouped_w_partition(bs_env%para_env, n_qgroups, my_qgroup, q_roots)
-      ! Time reversal gives W(-q) = W(q)*: compute_chi provides χ for the first q of each ±q pair,
-      ! and the owner of -q receives the conjugate block after the last batch.
-      CALL minus_q_partners(bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nkp), q_partner)
-      ALLOCATE (solves_q(nkp))
-      solves_q(:) = [(q_partner(ikp) >= ikp, ikp=1, nkp)]
+      ! Store W only at the first q of each inversion pair. Its conjugate is
+      ! reconstructed after projecting to grid pairs in the correlation step.
       ALLOCATE (group_load(0:n_qgroups - 1), SOURCE=0)
       DO ikp = 1, nkp
-         IF (solves_q(ikp)) group_load(MODULO(ikp, n_qgroups)) = group_load(MODULO(ikp, n_qgroups)) + 1
+         IF (gwkp_env%q_slot(ikp) > 0) group_load(MODULO(ikp, n_qgroups)) = group_load(MODULO(ikp, n_qgroups)) + 1
       END DO
       ALLOCATE (q_batch(MAXVAL(group_load), 0:n_qgroups - 1), SOURCE=0)
       group_load(:) = 0
       DO ikp = 1, nkp
-         IF (.NOT. solves_q(ikp)) CYCLE
+         IF (gwkp_env%q_slot(ikp) == 0) CYCLE
          q_group = MODULO(ikp, n_qgroups)
          group_load(q_group) = group_load(q_group) + 1
          q_batch(group_load(q_group), q_group) = ikp
@@ -510,10 +514,10 @@ CONTAINS
             IF (ikp == 0) CYCLE
             q_root = q_roots(q_group + 1)
             q_owner = MODULO(ikp, bs_env%para_env%num_pe)
-            ikp_local = 1 + (ikp - 1)/bs_env%para_env%num_pe
+            ikp_local = gwkp_env%q_slot(ikp)
             IF (bs_env%para_env%mepos == q_owner) THEN
                CALL grouped_w_copy_matrix(bs_env%para_env, n_RI, q_owner, q_root, &
-                                          gwkp_env%metric_coulomb_factor(:, :, ikp_local), chi_k_w)
+                                          gwkp_env%metric_coulomb_factor(ikp_local)%values(:, :, 1), chi_k_w)
                ALLOCATE (gwkp_env%W_PQ_tau(ikp_local)%values( &
                          n_RI, n_RI, bs_env%num_time_freq_points), SOURCE=z_zero)
             ELSE
@@ -529,7 +533,7 @@ CONTAINS
                ikp = q_batch(i_batch, q_group)
                IF (ikp == 0) CYCLE
                q_owner = MODULO(ikp, bs_env%para_env%num_pe)
-               ikp_local = 1 + (ikp - 1)/bs_env%para_env%num_pe
+               ikp_local = gwkp_env%q_slot(ikp)
                IF (bs_env%para_env%mepos == q_owner) THEN
                   MWM_k_w(:, :) = gwkp_env%chi_q_frequency(ikp_local)%values(:, :, j_w)
                   ! The RI fit gives occupied-virtual pair densities a spurious charge m_ia that makes
@@ -555,7 +559,7 @@ CONTAINS
                ikp = q_batch(i_batch, q_group)
                IF (ikp == 0) CYCLE
                q_owner = MODULO(ikp, bs_env%para_env%num_pe)
-               ikp_local = 1 + (ikp - 1)/bs_env%para_env%num_pe
+               ikp_local = gwkp_env%q_slot(ikp)
                CALL grouped_w_copy_matrix(bs_env%para_env, n_RI, q_roots(q_group + 1), q_owner, MWM_k_w, chi_k_w)
                IF (bs_env%para_env%mepos == q_owner) THEN
                   gwkp_env%W_PQ_tau(ikp_local)%values(:, :, j_w) = chi_k_w
@@ -568,12 +572,10 @@ CONTAINS
             ikp = q_batch(i_batch, q_group)
             IF (ikp == 0) CYCLE
             IF (bs_env%para_env%mepos /= MODULO(ikp, bs_env%para_env%num_pe)) CYCLE
-            CALL cosine_transform_ri_q(gwkp_env%W_PQ_tau(1 + (ikp - 1)/bs_env%para_env%num_pe), &
+            CALL cosine_transform_ri_q(gwkp_env%W_PQ_tau(gwkp_env%q_slot(ikp)), &
                                        bs_env%time_frequency_grid%cosine_frequency_to_time)
          END DO
       END DO
-      CALL receive_minus_q_blocks(bs_env%para_env, q_partner, solves_q, n_RI, &
-                                  bs_env%num_time_freq_points, gwkp_env%W_PQ_tau)
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ''
       DO j_w = 1, bs_env%num_time_freq_points
          CALL bs_env%para_env%max(frequency_elapsed(j_w))
@@ -596,7 +598,7 @@ CONTAINS
       CPASSERT(gwkp_env%group_env%num_pe == bs_env%para_env%num_pe)
       CPASSERT(gwkp_env%group_env%mepos == bs_env%para_env%mepos)
 
-      DEALLOCATE (group_load, q_batch, q_partner, solves_q, gwkp_env%leak_e, gwkp_env%leak_x, gwkp_env%leak_l0)
+      DEALLOCATE (group_load, q_batch, gwkp_env%leak_e, gwkp_env%leak_x, gwkp_env%leak_l0)
       IF (ALLOCATED(gwkp_env%chi_q_frequency)) DEALLOCATE (gwkp_env%chi_q_frequency)
 
       CALL timestop(handle)
@@ -619,9 +621,14 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL collect_band_bloch_orbitals(bs_env, gwkp_env%band_orbitals)
+      CALL prepare_sigma_projection(bs_env, bs_env%para_env, gwkp_env%band_orbitals, gwkp_env%sigma_projection)
       CALL compute_Sigma_x_from_V(bs_env, gwkp_env)
       CALL prepare_self_energy_groups(bs_env, gwkp_env)
-      IF (gwkp_env%ngroups > 1) CALL band_orbitals_to_groups(bs_env, gwkp_env)
+      IF (gwkp_env%ngroups > 1) THEN
+         DEALLOCATE (gwkp_env%sigma_projection%partner_orbitals)
+         CALL band_orbitals_to_groups(bs_env, gwkp_env)
+         CALL prepare_sigma_projection(bs_env, gwkp_env%group_env, gwkp_env%band_orbitals, gwkp_env%sigma_projection)
+      END IF
 
       CALL timestop(handle)
 
@@ -631,8 +638,7 @@ CONTAINS
 !> \brief Retain Z and fixed W in the smallest memory-feasible time groups.
 !>
 !> Each group owns τ = group + 1, group + 1 + ngroups, ... . Within a group,
-!> Z and W use owner MOD(q,g). W remains in the auxiliary basis. A single q block is broadcast during this
-!> one-time redistribution; each auxiliary W(q,τ) goes only to its owning rank.
+!> Z and W retain the representative q points, in native order within owner MOD(q,g).
 !> \param bs_env Band-structure settings.
 !> \param gwkp_env Work arrays and their MPI distribution.
 ! **************************************************************************************************
@@ -644,10 +650,10 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: Z_group(:, :, :)
       INTEGER :: handle, i_dest, i_group_size, i_root, i_source, i_tag, iq, iq_local, it, &
-         it_local, n_ao, n_aux, n_grid, n_k, n_local_k, n_local_q, n_local_time, n_spin, &
-         n_stored_q, n_threads, n_time, n_world
+         it_local, n_ao, n_aux, n_grid, n_images, n_jobs, n_k, n_local_k, n_local_q, n_local_time, &
+         n_offmesh, n_q_exchange, n_spin, n_stored_q, n_threads, n_time, n_world
       REAL(KIND=dp) :: available_GB, block_bytes, budget_bytes, grid_bytes, input_bytes, n_pairs, &
-         peak_bytes, persistent_bytes, result_bytes
+         peak_bytes, persistent_bytes, result_bytes, sigma_geometry_bytes
       TYPE(mp_comm_type)                                 :: column_env
       TYPE(ri_q_matrix_block_type), ALLOCATABLE          :: W_group(:)
 
@@ -662,6 +668,9 @@ CONTAINS
       n_aux = bs_env%n_RI
       n_k = bs_env%nkp_scf_desymm
       n_time = bs_env%num_time_freq_points
+      n_jobs = SUM(gwkp_env%sigma_projection%counts)
+      n_offmesh = COUNT(gwkp_env%sigma_projection%mesh_index == 0)
+      n_images = PRODUCT(bs_env%kpoints_scf_desymm%nkp_grid + 2)
       CALL mp_mem_avail_per_rank_GB(bs_env%para_env, available_GB)
       CALL bs_env%para_env%min(available_GB)
       input_bytes = complex_bytes*(REAL(SIZE(gwkp_env%Z_lP_q, KIND=int_8), dp) + &
@@ -678,11 +687,20 @@ CONTAINS
          gwkp_env%ngroups = n_world/i_group_size
          IF (gwkp_env%ngroups > n_time) CYCLE
          n_local_k = (n_k + i_group_size - 1)/i_group_size
+         n_q_exchange = pair_exchange_width(n_grid, n_k, i_group_size)
          n_local_time = (n_time + gwkp_env%ngroups - 1)/gwkp_env%ngroups
-         n_stored_q = (n_k + i_group_size - 1)/i_group_size
+         n_stored_q = 0
+         DO iq = 1, MIN(n_k, i_group_size)
+            n_stored_q = MAX(n_stored_q, COUNT(gwkp_env%q_slot(iq:n_k:i_group_size) > 0))
+         END DO
          persistent_bytes = complex_bytes*(REAL(n_stored_q, dp)*REAL(n_grid, dp)*REAL(n_aux, dp) + &
                                            REAL(n_aux, dp)**2*REAL(n_stored_q*n_local_time, dp))
          n_pairs = REAL(CEILING(REAL(n_grid, dp)*REAL(n_grid + 1, dp)/(2.0_dp*REAL(i_group_size, dp)), KIND=int_8), dp)
+         sigma_geometry_bytes = 0.0_dp
+         IF (n_offmesh > 0) THEN
+            sigma_geometry_bytes = 3.0_dp*n_pairs*(real_bytes + REAL(int_1_size + STORAGE_SIZE(0)/8, dp)) + &
+                                   complex_bytes*REAL(n_offmesh, dp)*REAL(n_images, dp)
+         END IF
          ! G(k), W(R), the retained off-mesh product, and the prepared FFT input coexist.
          ! Count the band orbitals of the owned band k points alongside these panels.
          ! q matrices, band projection, and Green blocks belong to separate stages.
@@ -691,14 +709,15 @@ CONTAINS
                       MAX(REAL(fft_panel_bytes, dp), 3.0_dp*complex_bytes*REAL(n_k, dp)) + &
                       real_bytes*(n_pairs + REAL(n_k, dp)) + &
                       complex_bytes*REAL(n_grid, dp)*REAL(n_ao, dp)*REAL(n_spin, dp)* &
-                      REAL((bs_env%nkp_bs_and_DOS + i_group_size - 1)/i_group_size, dp) + &
+                      REAL((bs_env%nkp_bs_and_DOS + i_group_size - 1)/i_group_size + n_stored_q, dp) + &
                       MAX(complex_bytes*REAL(n_grid, dp)*REAL(n_grid + 1, dp)*REAL(n_local_k, dp)/2.0_dp + &
                           complex_bytes*REAL(n_aux, dp)**2*REAL(n_local_k, dp) + &
                           complex_bytes*REAL(n_threads, dp)*REAL(n_grid, dp)* &
-                          REAL(n_ao + n_aux + MIN(n_grid, grid_pair_panel_cols), dp), &
-                          projection_workspace_bytes(n_grid, i_group_size, &
-                                                     PRODUCT(bs_env%kpoints_scf_desymm%nkp_grid + 2), n_ao, n_threads)) + &
-                      2.0_dp*complex_bytes*REAL(n_threads*n_k, dp) + library_bytes
+                          REAL(n_ao + n_aux + MIN(n_grid, grid_pair_panel_cols), dp) + &
+                          block_bytes*REAL(MAX(0, n_q_exchange - n_threads), dp), &
+                          projection_workspace_bytes(n_grid, i_group_size, bs_env%nkp_bs_and_DOS, &
+                                                     n_jobs, n_offmesh, n_images, n_ao, n_threads)) + &
+                      2.0_dp*complex_bytes*REAL(n_threads*n_k, dp) + sigma_geometry_bytes + library_bytes
          peak_bytes = MAX(persistent_bytes + block_bytes, &
                           persistent_bytes - input_bytes + grid_bytes + result_bytes)
          IF (gwkp_env%ngroups == 1) peak_bytes = grid_bytes + result_bytes
@@ -717,15 +736,15 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
-      n_local_q = COUNT([(MODULO(iq, i_group_size) == gwkp_env%group_env%mepos, iq=1, n_k)])
-      n_local_time = (n_time - gwkp_env%my_group + gwkp_env%ngroups - 1)/gwkp_env%ngroups
-      ALLOCATE (W_group(n_local_q))
-      ! Ranks with the same within-group index need the same k/q slices.
-      ! Communicate only along this column, independently of the other columns.
       CALL column_env%from_split(bs_env%para_env, gwkp_env%group_env%mepos)
       CALL gather_group_columns(bs_env, gwkp_env, column_env, i_group_size, gwkp_env%group_env%mepos, Z_group)
+      CALL MOVE_ALLOC(Z_group, gwkp_env%Z_lP_q)
+      n_local_q = SIZE(gwkp_env%Z_lP_q, 3)
+      n_local_time = (n_time - gwkp_env%my_group + gwkp_env%ngroups - 1)/gwkp_env%ngroups
+      ALLOCATE (W_group(n_local_q))
       iq_local = 0
       DO iq = MODULO(gwkp_env%group_env%mepos - 1, i_group_size) + 1, n_k, i_group_size
+         IF (gwkp_env%q_slot(iq) == 0) CYCLE
          i_root = MODULO(iq, n_world)/i_group_size
          iq_local = iq_local + 1
          ALLOCATE (W_group(iq_local)%values(n_aux, n_aux, n_local_time))
@@ -734,9 +753,9 @@ CONTAINS
             IF (column_env%mepos == i_root) THEN
                IF (i_dest == i_root) THEN
                   it_local = (it - 1)/gwkp_env%ngroups + 1
-                  W_group(iq_local)%values(:, :, it_local) = gwkp_env%W_PQ_tau((iq - 1)/n_world + 1)%values(:, :, it)
+                  W_group(iq_local)%values(:, :, it_local) = gwkp_env%W_PQ_tau(gwkp_env%q_slot(iq))%values(:, :, it)
                ELSE
-                  CALL column_env%send(gwkp_env%W_PQ_tau((iq - 1)/n_world + 1)%values(:, :, it), i_dest, 0)
+                  CALL column_env%send(gwkp_env%W_PQ_tau(gwkp_env%q_slot(iq))%values(:, :, it), i_dest, 0)
                END IF
             ELSE IF (column_env%mepos == i_dest) THEN
                i_source = i_root
@@ -745,10 +764,9 @@ CONTAINS
                CALL column_env%recv(W_group(iq_local)%values(:, :, it_local), i_source, i_tag)
             END IF
          END DO
-         IF (column_env%mepos == i_root) DEALLOCATE (gwkp_env%W_PQ_tau((iq - 1)/n_world + 1)%values)
+         IF (column_env%mepos == i_root) DEALLOCATE (gwkp_env%W_PQ_tau(gwkp_env%q_slot(iq))%values)
       END DO
       CALL column_env%free()
-      CALL MOVE_ALLOC(Z_group, gwkp_env%Z_lP_q)
       CALL MOVE_ALLOC(W_group, gwkp_env%W_PQ_tau)
 
       CALL timestop(handle)
@@ -768,10 +786,8 @@ CONTAINS
 !> \param group_rank Within-group index i.
 !> \param Z_group Z(q) of this group rank, indexed (grid, RI, local q).
 !> \param psi_group ψ(k) of this group rank, indexed (grid, AO, local k, spin).
-!> \param needed q points whose Z(q) is copied; all q if absent.
 ! **************************************************************************************************
-   SUBROUTINE gather_group_columns(bs_env, gwkp_env, column_env, group_size, group_rank, Z_group, psi_group, &
-                                   needed)
+   SUBROUTINE gather_group_columns(bs_env, gwkp_env, column_env, group_size, group_rank, Z_group, psi_group)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(gwkp_type), INTENT(IN)                        :: gwkp_env
       TYPE(mp_comm_type), INTENT(IN)                     :: column_env
@@ -779,22 +795,19 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: Z_group(:, :, :)
       COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT), &
          OPTIONAL                                        :: psi_group(:, :, :, :)
-      LOGICAL, INTENT(IN), OPTIONAL                      :: needed(:)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gather_group_columns'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: psi_block(:, :, :), Z_block(:, :)
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: psi_block(:, :, :)
       INTEGER                                            :: handle, i_root, ik, ik_local, iq, &
-                                                            iq_local, n_grid, n_k, n_world
-      LOGICAL, ALLOCATABLE                               :: copy_q(:)
+                                                            iq_first, iq_local, n_grid, n_k, &
+                                                            n_world
 
       CALL timeset(routineN, handle)
 
       n_world = bs_env%para_env%num_pe
       n_grid = bs_env%ri_rs%n_grid_points
       n_k = bs_env%nkp_scf_desymm
-      ALLOCATE (copy_q(n_k), SOURCE=.TRUE.)
-      IF (PRESENT(needed)) copy_q(:) = needed
       IF (PRESENT(psi_group)) THEN
          ALLOCATE (psi_group(n_grid, bs_env%n_ao, COUNT([(MODULO(ik - 1, group_size) == group_rank, ik=1, n_k)]), &
                              bs_env%n_spin))
@@ -809,19 +822,16 @@ CONTAINS
          END DO
          DEALLOCATE (psi_block)
       END IF
-      ALLOCATE (Z_group(n_grid, bs_env%n_RI, COUNT([(MODULO(iq, group_size) == group_rank .AND. copy_q(iq), &
-                                                     iq=1, n_k)])))
-      ALLOCATE (Z_block(n_grid, bs_env%n_RI))
+      iq_first = MODULO(group_rank - 1, group_size) + 1
+      ALLOCATE (Z_group(n_grid, bs_env%n_RI, COUNT(gwkp_env%q_slot(iq_first:n_k:group_size) > 0)))
       iq_local = 0
-      DO iq = MODULO(group_rank - 1, group_size) + 1, n_k, group_size
-         IF (.NOT. copy_q(iq)) CYCLE
+      DO iq = iq_first, n_k, group_size
+         IF (gwkp_env%q_slot(iq) == 0) CYCLE
          i_root = MODULO(iq, n_world)/group_size
-         IF (column_env%mepos == i_root) Z_block(:, :) = gwkp_env%Z_lP_q(:, :, (iq - 1)/n_world + 1)
-         CALL column_env%bcast(Z_block, i_root)
          iq_local = iq_local + 1
-         Z_group(:, :, iq_local) = Z_block
+         IF (column_env%mepos == i_root) Z_group(:, :, iq_local) = gwkp_env%Z_lP_q(:, :, gwkp_env%q_slot(iq))
+         CALL column_env%bcast(Z_group(:, :, iq_local), i_root)
       END DO
-      DEALLOCATE (copy_q, Z_block)
 
       CALL timestop(handle)
 
@@ -844,15 +854,15 @@ CONTAINS
       COMPLEX(KIND=dp), POINTER                          :: psi_values(:, :, :, :), Z_time(:, :, :)
       INTEGER :: first_pair, handle, i_aux, i_group, i_needed, i_q_world, i_rank, i_root, i_size, &
          i_source, i_t, i_tag, i_time_group, i_time_local, iq, iq_local, ispin, n_aux, n_cells, &
-         n_grid, n_groups, n_local, n_needed_local, n_pairs_local, n_q_local, n_threads, &
-         n_time_local, n_world, q_batch, unit_nr
+         n_grid, n_groups, n_local, n_needed_local, n_pairs_local, n_threads, n_time_local, &
+         n_world, q_batch, unit_nr
       INTEGER(KIND=int_8)                                :: n_pairs_total
-      INTEGER, ALLOCATABLE                               :: full_cells(:, :), needed_local(:), &
-                                                            needed_q(:), q_partner(:)
+      INTEGER, ALLOCATABLE                               :: full_cells(:, :), needed_q(:)
       LOGICAL, ALLOCATABLE                               :: cell_active(:), needed(:)
-      REAL(KIND=dp) :: available_GB, budget, chi_seconds(7), chi_started, input_bytes, live_bytes, &
-         n_pair_max, n_q_max, peak, q_bytes, rows_bytes, stage_started, tau, time_bytes
-      REAL(KIND=dp), ALLOCATABLE                         :: green_norms(:, :), qpoints(:, :)
+      REAL(KIND=dp) :: available_GB, budget, chi_seconds(7), chi_started, green_bytes, &
+         input_bytes, live_bytes, n_pair_max, n_q_max, peak, q_bytes, rows_bytes, stage_started, &
+         tau, time_bytes
+      REAL(KIND=dp), ALLOCATABLE                         :: green_norms(:, :)
       TYPE(gw_pair_fft_work_type)                        :: fft_stencil_work
       TYPE(mp_comm_type)                                 :: column_env
       TYPE(mp_para_env_type), POINTER                    :: chi_env
@@ -866,12 +876,8 @@ CONTAINS
       n_pairs_total = INT(n_grid, int_8)*(n_grid + 1)/2
       n_aux = bs_env%n_RI
       n_world = gwkp_env%group_env%num_pe
-      ALLOCATE (qpoints(3, bs_env%nkp_scf_desymm))
-      qpoints(:, :) = bs_env%kpoints_chi_eps_W%xkp(:, 1:bs_env%nkp_scf_desymm)
-      ! χ(-q) = χ(q)*: compute_W0 solves the first q of every ±q pair and conjugates W for -q.
-      CALL minus_q_partners(qpoints, q_partner)
       ALLOCATE (needed(bs_env%nkp_scf_desymm))
-      needed(:) = [(q_partner(iq) >= iq, iq=1, bs_env%nkp_scf_desymm)]
+      needed(:) = gwkp_env%q_slot > 0
       ALLOCATE (needed_q(COUNT(needed)))
       needed_q(:) = PACK([(iq, iq=1, SIZE(needed))], needed)
       CALL mp_mem_avail_per_rank_GB(gwkp_env%group_env, available_GB)
@@ -907,7 +913,9 @@ CONTAINS
                       real_bytes*(n_pair_max + 1.0_dp)*REAL(n_cells, dp)
          q_bytes = complex_bytes*REAL(n_pairs_total, dp)*MIN(REAL(q_batch, dp), n_q_max)
          ! The pair-local FFT output remains live while a bounded received batch is projected.
-         live_bytes = MAX(rows_bytes + projection_workspace + &
+         green_bytes = complex_bytes*REAL(n_pairs_total, dp)* &
+                       REAL(pair_exchange_width(n_grid, bs_env%nkp_scf_desymm, i_size), dp)
+         live_bytes = MAX(rows_bytes + green_bytes + &
                           complex_bytes*REAL(n_threads, dp)*REAL(n_grid, dp)*REAL(bs_env%n_ao + 32, dp), &
                           real_bytes*(n_pair_max + 1.0_dp)*REAL(n_cells, dp) + &
                           complex_bytes*n_pair_max*REAL(SIZE(needed_q), dp) + q_bytes + &
@@ -931,7 +939,7 @@ CONTAINS
       CALL chi_env%from_split(gwkp_env%group_env, i_group)
       CALL column_env%from_split(gwkp_env%group_env, chi_env%mepos)
       IF (n_groups > 1) THEN
-         CALL gather_group_columns(bs_env, gwkp_env, column_env, i_size, chi_env%mepos, Z_group, psi_time, needed)
+         CALL gather_group_columns(bs_env, gwkp_env, column_env, i_size, chi_env%mepos, Z_group, psi_time)
          psi_values => psi_time
          Z_time => Z_group
       ELSE
@@ -940,16 +948,9 @@ CONTAINS
       END IF
       n_time_local = (bs_env%num_time_freq_points + n_groups - 1 - i_group)/n_groups
       CALL block_range(INT(INT(n_grid, int_8)*(n_grid + 1)/2), chi_env%mepos, chi_env%num_pe, first_pair, n_pairs_local)
-      n_q_local = COUNT([(MODULO(iq, chi_env%num_pe) == chi_env%mepos, iq=1, bs_env%nkp_scf_desymm)])
-      ALLOCATE (needed_local(n_q_local))
-      ALLOCATE (chi_partial(n_q_local))
-      iq_local = 0
-      n_needed_local = 0
-      DO iq = MODULO(chi_env%mepos - 1, i_size) + 1, SIZE(qpoints, 2), i_size
-         iq_local = iq_local + 1
-         IF (.NOT. needed(iq)) CYCLE
-         n_needed_local = n_needed_local + 1
-         needed_local(n_needed_local) = iq_local
+      n_needed_local = SIZE(Z_time, 3)
+      ALLOCATE (chi_partial(n_needed_local))
+      DO iq_local = 1, n_needed_local
          ALLOCATE (chi_partial(iq_local)%values(n_aux, n_aux, n_time_local), SOURCE=z_zero)
       END DO
       ALLOCATE (chi_q(n_aux, n_aux, n_needed_local))
@@ -972,14 +973,14 @@ CONTAINS
             END IF
             ALLOCATE (G_grid_k(n_pairs_local, 1, bs_env%nkp_scf_desymm))
             CALL build_green_pairs(bs_env, psi_values(:, :, :, ispin), chi_env, tau, ispin, &
-                                   .TRUE., fft_stencil_work%k_batch, G_grid_k)
+                                   .TRUE., fft_stencil_work, G_grid_k)
             IF (fft_profile_enabled) chi_seconds(1) = m_walltime() - stage_started
             IF (fft_profile_enabled) stage_started = m_walltime()
             CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, norm_squared=green_norms(:, 1))
             IF (fft_profile_enabled) chi_seconds(2) = m_walltime() - stage_started
             IF (fft_profile_enabled) stage_started = m_walltime()
             CALL build_green_pairs(bs_env, psi_values(:, :, :, ispin), chi_env, tau, ispin, &
-                                   .FALSE., fft_stencil_work%k_batch, G_grid_k)
+                                   .FALSE., fft_stencil_work, G_grid_k)
             IF (fft_profile_enabled) chi_seconds(1) = chi_seconds(1) + m_walltime() - stage_started
             IF (fft_profile_enabled) stage_started = m_walltime()
             CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, norm_squared=green_norms(:, 2), &
@@ -1001,7 +1002,7 @@ CONTAINS
             IF (fft_profile_enabled) chi_seconds(4) = m_walltime() - stage_started
 
             IF (fft_profile_enabled) stage_started = m_walltime()
-            CALL project_fft_pairs_to_chi(chi_grid_q, chi_env, needed, Z_time, n_groups > 1, &
+            CALL project_fft_pairs_to_chi(chi_grid_q, chi_env, needed, Z_time, &
                                           chi_q, q_batch, chi_seconds(6))
             DEALLOCATE (chi_grid_q)
             IF (fft_profile_enabled) chi_seconds(5) = MAX(0.0_dp, m_walltime() - stage_started - chi_seconds(6))
@@ -1022,10 +1023,9 @@ CONTAINS
          END DO
          ! The spin sum lives in the upper triangle. Complete each stored time slice once.
          DO i_needed = 1, n_needed_local
-            iq_local = needed_local(i_needed)
             DO i_aux = 1, n_aux
-               chi_partial(iq_local)%values(:i_aux, i_aux, i_time_local) = chi_q(:i_aux, i_aux, i_needed)
-               chi_partial(iq_local)%values(i_aux + 1:, i_aux, i_time_local) = CONJG(chi_q(i_aux, i_aux + 1:, i_needed))
+               chi_partial(i_needed)%values(:i_aux, i_aux, i_time_local) = chi_q(:i_aux, i_aux, i_needed)
+               chi_partial(i_needed)%values(i_aux + 1:, i_aux, i_time_local) = CONJG(chi_q(i_aux, i_aux + 1:, i_needed))
             END DO
          END DO
       END DO
@@ -1033,14 +1033,14 @@ CONTAINS
       bs_env%gwkp_env%k_points_total = 0
 
       IF (ALLOCATED(psi_time)) DEALLOCATE (psi_time)
-      n_local = COUNT([(MODULO(iq, n_world) == gwkp_env%group_env%mepos, iq=1, bs_env%nkp_scf_desymm)])
+      n_local = SIZE(gwkp_env%Z_lP_q, 3)
       ALLOCATE (gwkp_env%chi_q_frequency(n_local))
       iq_local = 0
       DO iq = MODULO(chi_env%mepos - 1, i_size) + 1, bs_env%nkp_scf_desymm, i_size
-         iq_local = iq_local + 1
          IF (.NOT. needed(iq)) CYCLE
+         iq_local = iq_local + 1
          i_root = MODULO(iq, n_world)/i_size
-         i_q_world = (iq - 1)/n_world + 1
+         i_q_world = gwkp_env%q_slot(iq)
          IF (column_env%mepos == i_root) THEN
             ALLOCATE (gwkp_env%chi_q_frequency(i_q_world)%values(n_aux, n_aux, &
                                                                  bs_env%num_time_freq_points))
@@ -1074,7 +1074,7 @@ CONTAINS
       IF (ALLOCATED(Z_group)) DEALLOCATE (Z_group)
       CALL column_env%free()
       CALL mp_para_env_release(chi_env)
-      DEALLOCATE (chi_q, full_cells, needed, needed_local, needed_q, q_partner, qpoints, green_norms, cell_active)
+      DEALLOCATE (chi_q, full_cells, needed, needed_q, green_norms, cell_active)
 
       CALL timestop(handle)
 
@@ -1100,6 +1100,7 @@ CONTAINS
       INTEGER                                            :: handle, ikp, ilocal, n_ref, n_RI, nkp, &
                                                             nkp_local
       INTEGER, ALLOCATABLE                               :: metric_cells(:, :)
+      REAL(KIND=dp), ALLOCATABLE                         :: local_q(:, :)
       TYPE(cp_fm_type), ALLOCATABLE                      :: fm_metric(:)
 
       CALL timeset(routineN, handle)
@@ -1109,21 +1110,25 @@ CONTAINS
       IF (bs_env%auto_ri%enabled) n_ref = SUM(bs_env%auto_ri%sizes_ref_RI)
       nkp = bs_env%nkp_scf_desymm
       CPASSERT(bs_env%nkp_chi_eps_W_orig == nkp)
-      nkp_local = COUNT([(MODULO(ikp, bs_env%para_env%num_pe) == &
-                          bs_env%para_env%mepos, ikp=1, nkp)])
+      nkp_local = SIZE(gwkp_env%Z_lP_q, 3)
+      ALLOCATE (local_q(3, nkp_local))
+      DO ikp = 1, nkp
+         IF (MODULO(ikp, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
+         ilocal = gwkp_env%q_slot(ikp)
+         IF (ilocal > 0) local_q(:, ilocal) = bs_env%kpoints_chi_eps_W%xkp(:, ikp)
+      END DO
       ALLOCATE (M_ref(n_ref, n_ref, nkp_local), V_ref(n_ref, n_ref, nkp_local), source=z_zero)
-      ALLOCATE (gwkp_env%metric_coulomb_factor(n_RI, n_RI, nkp_local), M_inv(n_RI, n_RI), V_sqrt(n_RI, n_RI))
+      ALLOCATE (gwkp_env%metric_coulomb_factor(nkp_local), M_inv(n_RI, n_RI), V_sqrt(n_RI, n_RI))
       CALL build_ri_2c_lattice(fm_metric, metric_cells, bs_env%ri_metric, &
                                0.0_dp, bs_env, qs_env, reference_basis=bs_env%auto_ri%enabled)
       CALL ri_2c_lattice_to_owned_q(fm_metric, metric_cells, &
                                     bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nkp), &
-                                    bs_env%kpoints_chi_eps_W%nkp_grid, M_ref, &
+                                    bs_env%kpoints_chi_eps_W%nkp_grid, gwkp_env%q_slot, M_ref, &
                                     bs_env%kpoints_chi_eps_W%rskp_transform)
       ! The erfc(omega r)/r metric is the real-space Ewald part of the Coulomb matrix. At q = 0 of an
       ! odd mesh the reciprocal part drops the singular G = 0 term, which the Γ correction integrates.
       V_ref(:, :, :) = M_ref
-      CALL add_ewald_reciprocal(V_ref, qs_env, bs_env%kpoints_chi_eps_W, 'RI_AUX', &
-                                bs_env%ri_metric%omega, 1, nkp)
+      CALL add_ewald_reciprocal(V_ref, qs_env, local_q, 'RI_AUX', bs_env%ri_metric%omega)
       ALLOCATE (M_zero(n_ref, n_ref), charge(n_ref), charge_hat(n_RI))
       CALL ri_2c_lattice_to_kp(fm_metric, metric_cells, [0.0_dp, 0.0_dp, 0.0_dp], M_zero)
       CALL gamma_auxiliary_charges(qs_env, charge)
@@ -1160,7 +1165,8 @@ CONTAINS
          gwkp_env%leak_x(:, :, ilocal) = MATMUL(M_inv, X_coef)
          CALL local_complex_power(M_inv, -1.0_dp, 0.0_dp, relative_eps=bs_env%regularization_RI)
          CALL local_complex_power(V_sqrt, 0.5_dp, 0.0_dp)
-         gwkp_env%metric_coulomb_factor(:, :, ilocal) = MATMUL(M_inv, V_sqrt)
+         ALLOCATE (gwkp_env%metric_coulomb_factor(ilocal)%values(n_RI, n_RI, 1))
+         gwkp_env%metric_coulomb_factor(ilocal)%values(:, :, 1) = MATMUL(M_inv, V_sqrt)
       END DO
       DEALLOCATE (M_ref, V_ref, M_inv, V_sqrt, charge_hat, X_coef)
       IF (ALLOCATED(U_Pp)) DEALLOCATE (U_Pp)
@@ -1268,10 +1274,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Sigma_x_from_V'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: G_grid_k(:, :, :), head_cell_factor(:), &
-                                                            panel(:, :), q_pairs(:, :), ZK(:, :)
-      INTEGER                                            :: first_pair, handle, iq_local, ispin, &
-                                                            n_grid, n_pairs_local, n_q_local, n_RI
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: G_grid_k(:, :, :), head_cell_factor(:)
+      INTEGER                                            :: first_pair, handle, ispin, n_grid, &
+                                                            n_pairs_local
       INTEGER, ALLOCATABLE                               :: full_cells(:, :)
       LOGICAL, ALLOCATABLE                               :: cell_active(:)
       REAL(KIND=dp)                                      :: head_metric_zero
@@ -1285,34 +1290,18 @@ CONTAINS
       ! Same grid-pair distribution as Σc with q owners MOD(q,P).
       CALL block_range(INT(INT(n_grid, int_8)*(n_grid + 1)/2), bs_env%para_env%mepos, &
                        bs_env%para_env%num_pe, first_pair, n_pairs_local)
-      n_q_local = SIZE(gwkp_env%Z_lP_q, 3)
       IF (SIZE(gwkp_env%Z_lP_zero, 2) /= bs_env%n_RI + 1 .OR. SIZE(gwkp_env%Z_lP_zero, 3) /= 1) THEN
          CPABORT("Periodic RI-RS GW requires the direct Gamma auxiliary fit")
       END IF
       CPASSERT(SIZE(gwkp_env%Z_lP_q, 2) == bs_env%n_RI)
       CPASSERT(ALLOCATED(gwkp_env%metric_coulomb_factor))
-      n_RI = bs_env%n_RI
-      ALLOCATE (q_pairs(INT(INT(n_grid, int_8)*(n_grid + 1)/2), n_q_local))
-      ! V_ll'(q) = Z(q) K(q) K(q)† Z(q)† = (ZK)(ZK)† with the metric-Coulomb factor K.
-      !$OMP PARALLEL DEFAULT(NONE) SHARED(gwkp_env, q_pairs, n_q_local, n_grid, n_RI) &
-      !$OMP PRIVATE(iq_local, panel, ZK)
-      ALLOCATE (ZK(n_grid, n_RI), panel(n_grid, MIN(n_grid, grid_pair_panel_cols)))
-      !$OMP DO SCHEDULE(STATIC)
-      DO iq_local = 1, n_q_local
-         CALL zgemm('N', 'N', n_grid, n_RI, n_RI, z_one, gwkp_env%Z_lP_q(:, :, iq_local), n_grid, &
-                    gwkp_env%metric_coulomb_factor(:, :, iq_local), n_RI, z_zero, ZK, n_grid)
-         CALL grid_pair_gemm(n_grid, n_RI, ZK, ZK, q_pairs(:, iq_local), panel)
-      END DO
-      !$OMP END DO
-      DEALLOCATE (ZK, panel)
-      !$OMP END PARALLEL
-      DEALLOCATE (gwkp_env%metric_coulomb_factor)
       CALL build_full_cell_grid(bs_env, full_cells)
       CALL prepare_pair_fft(bs_env, full_cells, first_pair, n_pairs_local, bs_env%para_env%num_pe, &
-                            fft_stencil_work, .FALSE.)
+                            fft_stencil_work, .FALSE., q_partner=gwkp_env%q_partner)
       ALLOCATE (G_grid_k(n_pairs_local, 1, bs_env%nkp_scf_desymm))
-      CALL q_matrices_to_fft_pairs(q_pairs, n_grid, bs_env%para_env, fft_stencil_work%k_batch, G_grid_k)
-      DEALLOCATE (q_pairs)
+      CALL project_auxiliary_q_to_fft_pairs(gwkp_env%Z_lP_q, gwkp_env%metric_coulomb_factor, 1, &
+                                            bs_env%para_env, fft_stencil_work, G_grid_k, factor=.TRUE.)
+      DEALLOCATE (gwkp_env%metric_coulomb_factor)
       CALL q_mesh_and_gamma_shell_average(bs_env, values_q=G_grid_k, q_order=fft_stencil_work%input_to_native)
       ALLOCATE (V_grid_R(n_pairs_local, 1, SIZE(full_cells, 2)))
       CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, values_R=V_grid_R)
@@ -1327,14 +1316,14 @@ CONTAINS
       ALLOCATE (cell_active(SIZE(full_cells, 2)), SOURCE=.TRUE.)
       DO ispin = 1, bs_env%n_spin
          CALL build_green_pairs(bs_env, gwkp_env%band_orbitals(:, :, :, ispin), bs_env%para_env, &
-                                0.0_dp, ispin, .TRUE., fft_stencil_work%k_batch, G_grid_k)
+                                0.0_dp, ispin, .TRUE., fft_stencil_work, G_grid_k)
          CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, values_R=Sigma_grid_R, multiply_R=V_grid_R, product_scale=-1.0_dp)
          CALL execute_pair_fft(fft_stencil_work, G_grid_k, cell_active, &
                                'GW self-energy (K2R extraction feeds R2K input)', Sigma_grid_R)
 
-         CALL self_energy_pairs_to_Bloch(bs_env, G_grid_k, Sigma_grid_R, first_pair, bs_env%para_env, &
-                                         gwkp_env%band_orbitals(:, :, :, ispin), &
-                                         gwkp_env%sigma_x_bands(:, :, ispin), .FALSE.)
+         CALL self_energy_pairs_to_Bloch(bs_env, G_grid_k, Sigma_grid_R, bs_env%para_env, &
+                                         fft_stencil_work, gwkp_env%sigma_projection, gwkp_env%band_orbitals, &
+                                         ispin, gwkp_env%sigma_x_bands(:, :, ispin), .FALSE.)
       END DO
       CALL release_pair_fft(fft_stencil_work)
 
@@ -1382,7 +1371,7 @@ CONTAINS
       ALLOCATE (green_norms(SIZE(full_cells, 2)), cell_active(SIZE(full_cells, 2)))
       CPASSERT(bs_env%n_atom > 0)
       CALL prepare_pair_fft(bs_env, full_cells, first_pair, n_pairs_local, gwkp_env%group_env%num_pe, &
-                            fft_stencil_work, .TRUE.)
+                            fft_stencil_work, .TRUE., q_partner=gwkp_env%q_partner)
       ALLOCATE (sigma_band(bs_env%n_ao, bs_env%nkp_bs_and_DOS))
       ALLOCATE (gwkp_env%sigma_c_bands(bs_env%n_ao, bs_env%nkp_bs_and_DOS, &
                                        bs_env%num_time_freq_points, 2, bs_env%n_spin))
@@ -1394,9 +1383,9 @@ CONTAINS
                                     INT(bs_env%nkp_scf_desymm + bs_env%nkp_bs_and_DOS, int_8))
       DO i_t = gwkp_env%my_group + 1, bs_env%num_time_freq_points, gwkp_env%ngroups
          i_time_local = (i_t - gwkp_env%my_group - 1)/gwkp_env%ngroups + 1
-         CALL project_auxiliary_time_q_to_fft_pairs(gwkp_env%Z_lP_q, &
-                                                    gwkp_env%W_PQ_tau, i_time_local, &
-                                                    gwkp_env%group_env, fft_stencil_work%k_batch, G_grid_k)
+         CALL project_auxiliary_q_to_fft_pairs(gwkp_env%Z_lP_q, &
+                                               gwkp_env%W_PQ_tau, i_time_local, &
+                                               gwkp_env%group_env, fft_stencil_work, G_grid_k, factor=.FALSE.)
          CALL q_mesh_and_gamma_shell_average(bs_env, values_q=G_grid_k, q_order=fft_stencil_work%input_to_native)
          CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, values_R=W_grid_R)
          CALL add_gamma_corr_pairs(bs_env, full_cells, gwkp_env%gamma_correction%head_cell_tau(:, i_t), &
@@ -1406,15 +1395,16 @@ CONTAINS
             ! Preserve the component order: occupied (2, -G W), then virtual (1, +G W).
             DO i_component = 2, 1, -1
                CALL build_green_pairs(bs_env, gwkp_env%band_orbitals(:, :, :, ispin), gwkp_env%group_env, &
-                                      tau, ispin, i_component == 2, fft_stencil_work%k_batch, G_grid_k)
+                                      tau, ispin, i_component == 2, fft_stencil_work, G_grid_k)
                CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, values_R=Sigma_grid_R, multiply_R=W_grid_R, &
                                     product_scale=MERGE(-1.0_dp, 1.0_dp, i_component == 2), norm_squared=green_norms)
                CALL gwkp_env%group_env%sum(green_norms)
                cell_active(:) = .NOT. (SQRT(green_norms)/REAL(bs_env%n_atom, dp)**2 < bs_env%eps_filter)
                CALL execute_pair_fft(fft_stencil_work, G_grid_k, cell_active, &
                                      'GW self-energy (K2R extraction feeds R2K input)', Sigma_grid_R)
-               CALL self_energy_pairs_to_Bloch(bs_env, G_grid_k, Sigma_grid_R, first_pair, gwkp_env%group_env, &
-                                               gwkp_env%band_orbitals(:, :, :, ispin), sigma_band, .TRUE.)
+               CALL self_energy_pairs_to_Bloch(bs_env, G_grid_k, Sigma_grid_R, gwkp_env%group_env, &
+                                               fft_stencil_work, gwkp_env%sigma_projection, gwkp_env%band_orbitals, &
+                                               ispin, sigma_band, .TRUE.)
                IF (gwkp_env%group_env%mepos == 0) gwkp_env%sigma_c_bands(:, :, i_t, i_component, ispin) = sigma_band
             END DO
          END DO
@@ -1498,40 +1488,38 @@ CONTAINS
 !> \brief Form the unordered pairs of G(k,τ)=U(k,τ) U(k,τ)^H and exchange bounded k batches.
 !> Each upper-triangle Gram tile writes directly to its destination's message. No full
 !> grid matrix, conjugate lower triangle, or separate send-packing pass is formed.
+!> The exchange sends each reusable inversion pair once; pair owners restore its partner.
 !> \param bs_env ...
 !> \param orbitals Band Bloch orbitals of one spin at the k points owned in env, MOD(k-1,P).
 !> \param env Ranks that share the grid pairs and the band k points.
 !> \param tau ...
 !> \param ispin ...
 !> \param occupied ...
-!> \param k_batch k points per source rank in one exchange
+!> \param work shared geometry and exchange layout
 !> \param G_pairs unordered pairs in source-rank-major k order within each exchange
 ! **************************************************************************************************
-   SUBROUTINE build_green_pairs(bs_env, orbitals, env, tau, ispin, occupied, k_batch, G_pairs)
+   SUBROUTINE build_green_pairs(bs_env, orbitals, env, tau, ispin, occupied, work, G_pairs)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       COMPLEX(KIND=dp), INTENT(IN)                       :: orbitals(:, :, :)
       TYPE(mp_para_env_type), POINTER                    :: env
       REAL(KIND=dp), INTENT(IN)                          :: tau
       INTEGER, INTENT(IN)                                :: ispin
       LOGICAL, INTENT(IN)                                :: occupied
-      INTEGER, INTENT(IN)                                :: k_batch
+      TYPE(gw_pair_fft_work_type), INTENT(IN)            :: work
       COMPLEX(KIND=dp), CONTIGUOUS, INTENT(OUT), TARGET  :: G_pairs(:, :, :)
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_green_pairs'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: gram(:, :), scaled_coeff(:, :), sent(:)
-      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: received(:)
-      COMPLEX(KIND=dp), TARGET                           :: unused_receive(1)
-      INTEGER :: first_band, handle, i_band, i_batch, i_col, i_first, i_rank, ikp, j_col, &
-         n_active, n_bands, n_cols, n_grid, n_k, n_local, n_owned, n_pairs, n_rank, n_round, &
-         n_segments, n_workers, offset, pair_first, pair_last, rank_end, row_first, row_last, &
-         segment, unit_nr
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: gram(:, :), scaled_coeff(:, :, :), &
+                                                            sent(:)
+      INTEGER :: chunk_first, first_band, handle, i_band, i_batch, i_col, i_first, i_job, ikp, &
+         k_batch, n_active, n_bands, n_chunk, n_cols, n_grid, n_jobs, n_k, n_local, n_owned, &
+         n_pairs, n_rank, n_round, n_scheduled, unit_nr
       INTEGER(KIND=int_8)                                :: active_bands, possible_bands
-      INTEGER, ALLOCATABLE :: column_segments(:), pair_counts(:), pair_displs(:), recv_counts(:), &
-         recv_displs(:), send_counts(:), send_displs(:)
+      INTEGER, ALLOCATABLE                               :: active_columns(:), k_jobs(:), &
+                                                            recv_counts(:), recv_displs(:)
       REAL(KIND=dp)                                      :: seconds(4), started, tau_E, total_started
       TYPE(gwkp_type), POINTER                           :: gwkp_env
-      TYPE(pair_segment_type), ALLOCATABLE               :: segments(:)
 
       CALL timeset(routineN, handle)
       IF (fft_profile_enabled) total_started = m_walltime()
@@ -1557,114 +1545,92 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
-      CALL grid_pair_blocks(n_grid, n_rank, pair_counts, pair_displs)
-      n_pairs = SUM(pair_counts)
-      CPASSERT(k_batch > 0 .AND. n_local == pair_counts(env%mepos))
-      ALLOCATE (sent(MAX(1, n_pairs*k_batch)), &
-                recv_counts(0:n_rank - 1), recv_displs(0:n_rank - 1), &
-                send_counts(0:n_rank - 1), send_displs(0:n_rank - 1))
-      ! Columns and destination blocks partition the same packed triangle. Only a column
-      ! or rank boundary can begin a new segment, so the map is linear in n_grid + n_rank.
-      ALLOCATE (column_segments(n_grid + 1), segments(n_grid + n_rank))
-      i_rank = 0
-      n_segments = 0
-      pair_first = 1
-      DO j_col = 1, n_grid
-         column_segments(j_col) = n_segments + 1
-         pair_last = pair_first + j_col - 1
-         DO WHILE (i_rank < n_rank)
-            rank_end = pair_displs(i_rank) + pair_counts(i_rank)
-            row_first = MAX(pair_first, pair_displs(i_rank) + 1) - pair_first + 1
-            row_last = MIN(pair_last, rank_end) - pair_first + 1
-            IF (row_first <= row_last) THEN
-               n_segments = n_segments + 1
-               segments(n_segments) = pair_segment_type(i_rank, row_first, row_last, &
-                                                        pair_first + (row_first - 1) - pair_displs(i_rank) - 1)
-            END IF
-            IF (rank_end > pair_last) EXIT
-            i_rank = i_rank + 1
-         END DO
-         IF (j_col < n_grid) pair_first = pair_last + 1
-      END DO
-      column_segments(n_grid + 1) = n_segments + 1
-      unused_receive = z_zero
+      k_batch = work%k_batch
+      n_pairs = SUM(work%pair_counts)
+      CPASSERT(n_local == work%pair_counts(env%mepos))
+      n_chunk = 1
+!$    n_chunk = MIN(k_batch, omp_get_max_threads())
+      ALLOCATE (scaled_coeff(n_grid, n_bands, n_chunk), active_columns(n_chunk))
+      ALLOCATE (sent(MAX(1, n_pairs*k_batch)), k_jobs(k_batch), &
+                recv_counts(0:n_rank - 1), recv_displs(0:n_rank - 1))
       IF (fft_profile_enabled) seconds(1) = m_walltime() - total_started
       ! G_ll′(k,τ) = Σ_n [ψ_ln(k) exp(-|τ(ε_nk-ε_F)|/2)]
       !                         [ψ_l′n(k) exp(-|τ(ε_nk-ε_F)|/2)]*.
       DO i_first = 1, n_k, n_rank*k_batch
          n_round = MIN(n_rank*k_batch, n_k - i_first + 1)
-         n_owned = MAX(0, (n_round + n_rank - 1 - env%mepos)/n_rank)
-         send_counts(:) = pair_counts*n_owned
-         send_displs(:) = pair_displs*n_owned
-         n_workers = 1
-!$       n_workers = MIN(omp_get_max_threads(), MAX(1, n_owned))
+         CALL pair_exchange_jobs(work, work%green_source, env, i_first, n_round, 0, &
+                                 k_jobs, n_owned, n_scheduled, recv_counts, recv_displs)
+         IF (n_scheduled == 0) THEN
+            CALL count_time_loop_k_points(bs_env, INT(n_round, int_8))
+            CYCLE
+         END IF
          IF (fft_profile_enabled) started = m_walltime()
-         !$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(n_workers) &
-         !$OMP SHARED(bs_env, env, first_band, gwkp_env, i_first, n_bands, n_grid, n_owned, n_rank) &
-         !$OMP SHARED(orbitals, pair_counts, send_displs, sent, tau, ispin, column_segments, segments) &
-         !$OMP PRIVATE(scaled_coeff, gram, i_band, i_batch, ikp, n_active, tau_E) &
-         !$OMP PRIVATE(i_col, n_cols, j_col, i_rank, row_first, row_last, offset, segment) &
+         ! Scale at most one reciprocal point per worker, then distribute the Gram
+         ! column blocks independently so one owned k point can occupy the whole team.
+         !$OMP PARALLEL DEFAULT(NONE) IF(n_owned > 0) &
+         !$OMP SHARED(bs_env, first_band, gwkp_env, k_jobs, n_bands, n_chunk, n_grid, n_owned, n_rank) &
+         !$OMP SHARED(active_columns, orbitals, scaled_coeff, sent, tau, ispin, work) &
+         !$OMP PRIVATE(chunk_first, gram, i_band, i_batch, i_col, i_job, ikp, n_active, n_cols, n_jobs, tau_E) &
          !$OMP REDUCTION(+:active_bands, possible_bands)
-         ALLOCATE (scaled_coeff(n_grid, n_bands), gram(n_grid, column_block_cols))
-         !$OMP DO SCHEDULE(STATIC)
-         DO i_batch = 1, n_owned
-            ikp = i_first + env%mepos + (i_batch - 1)*n_rank
-            n_active = 0
-            DO i_band = 1, n_bands
-               tau_E = ABS(0.5_dp*tau*(gwkp_env%eigenvalues_G(first_band + i_band - 1, ikp, ispin) - &
-                                       bs_env%e_fermi(ispin)))
-               IF (tau_E < bs_env%stabilize_exp) THEN
-                  n_active = n_active + 1
-                  scaled_coeff(:, n_active) = &
-                     orbitals(:, first_band + i_band - 1, (ikp - 1)/n_rank + 1)*EXP(-tau_E)
+         ALLOCATE (gram(n_grid, MIN(n_grid, column_block_cols)))
+         DO chunk_first = 1, n_owned, n_chunk
+            n_jobs = MIN(n_chunk, n_owned - chunk_first + 1)
+            !$OMP DO SCHEDULE(STATIC)
+            DO i_job = 1, n_jobs
+               ikp = k_jobs(chunk_first + i_job - 1)
+               n_active = 0
+               DO i_band = 1, n_bands
+                  tau_E = ABS(0.5_dp*tau*(gwkp_env%eigenvalues_G(first_band + i_band - 1, ikp, ispin) - &
+                                          bs_env%e_fermi(ispin)))
+                  IF (tau_E < bs_env%stabilize_exp) THEN
+                     n_active = n_active + 1
+                     scaled_coeff(:, n_active, i_job) = &
+                        orbitals(:, first_band + i_band - 1, (ikp - 1)/n_rank + 1)*EXP(-tau_E)
+                  END IF
+               END DO
+               active_columns(i_job) = n_active
+               IF (fft_profile_enabled) THEN
+                  active_bands = active_bands + INT(n_active, int_8)
+                  possible_bands = possible_bands + INT(n_bands, int_8)
                END IF
             END DO
-            IF (fft_profile_enabled) THEN
-               active_bands = active_bands + INT(n_active, int_8)
-               possible_bands = possible_bands + INT(n_bands, int_8)
-            END IF
-            DO i_col = 1, n_grid, column_block_cols
-               n_cols = MIN(column_block_cols, n_grid - i_col + 1)
-               IF (n_active == 0) THEN
-                  gram = z_zero
-               ELSE
-                  CALL zherk('U', 'N', n_cols, n_active, 1.0_dp, scaled_coeff(i_col, 1), n_grid, &
-                             0.0_dp, gram(i_col, 1), n_grid)
-                  IF (i_col > 1) THEN
-                     CALL zgemm('N', 'C', i_col - 1, n_cols, n_active, z_one, scaled_coeff, n_grid, &
-                                scaled_coeff(i_col, 1), n_grid, z_zero, gram, n_grid)
+            !$OMP END DO
+            ! Successive column tiles grow in cost. Interleave them among workers.
+            !$OMP DO COLLAPSE(2) SCHEDULE(STATIC, 1)
+            DO i_job = 1, n_jobs
+               DO i_col = 1, n_grid, column_block_cols
+                  i_batch = chunk_first + i_job - 1
+                  n_cols = MIN(column_block_cols, n_grid - i_col + 1)
+                  n_active = active_columns(i_job)
+                  IF (n_active == 0) THEN
+                     gram(:, :) = z_zero
+                  ELSE
+                     CALL zherk('U', 'N', n_cols, n_active, 1.0_dp, scaled_coeff(i_col, 1, i_job), n_grid, &
+                                0.0_dp, gram(i_col, 1), n_grid)
+                     IF (i_col > 1) THEN
+                        CALL zgemm('N', 'C', i_col - 1, n_cols, n_active, z_one, scaled_coeff(:, :, i_job), n_grid, &
+                                   scaled_coeff(i_col, 1, i_job), n_grid, z_zero, gram, n_grid)
+                     END IF
                   END IF
-               END IF
-               DO j_col = i_col, i_col + n_cols - 1
-                  DO segment = column_segments(j_col), column_segments(j_col + 1) - 1
-                     i_rank = segments(segment)%rank
-                     row_first = segments(segment)%first_row
-                     row_last = segments(segment)%last_row
-                     offset = send_displs(i_rank) + (i_batch - 1)*pair_counts(i_rank) + segments(segment)%displacement
-                     sent(offset + 1:offset + (row_last - row_first + 1)) = gram(row_first:row_last, j_col - i_col + 1)
-                  END DO
+                  CALL pack_grid_pair_panel(work, i_col, n_cols, gram, n_owned, i_batch, sent)
                END DO
             END DO
+            !$OMP END DO
          END DO
-         !$OMP END DO
-         DEALLOCATE (scaled_coeff, gram)
+         DEALLOCATE (gram)
          !$OMP END PARALLEL
-         ! Scaling and Gram construction overlap between k jobs; time their shared wall interval.
          IF (fft_profile_enabled) seconds(2) = seconds(2) + m_walltime() - started
-         offset = 0
-         DO i_rank = 0, n_rank - 1
-            recv_counts(i_rank) = n_local*MAX(0, (n_round + n_rank - 1 - i_rank)/n_rank)
-            recv_displs(i_rank) = offset
-            offset = offset + recv_counts(i_rank)
-         END DO
-         CPASSERT(offset == n_local*n_round)
-         received => unused_receive
-         IF (n_local > 0) received(1:n_local*n_round) => G_pairs(:, :, i_first:i_first + n_round - 1)
          IF (fft_profile_enabled) started = m_walltime()
-         CALL env%alltoall(sent, send_counts, send_displs, received, recv_counts, recv_displs)
+         CALL exchange_pair_round(work, work%green_source, env, i_first, n_round, 0, &
+                                  n_owned, sent, recv_counts, recv_displs, G_pairs)
          IF (fft_profile_enabled) seconds(3) = seconds(3) + m_walltime() - started
          CALL count_time_loop_k_points(bs_env, INT(n_round, int_8))
       END DO
+      IF (work%green_reuses > 0) THEN
+         IF (fft_profile_enabled) started = m_walltime()
+         CALL restore_pair_conjugates(work%green_source, G_pairs)
+         IF (fft_profile_enabled) seconds(3) = seconds(3) + m_walltime() - started
+      END IF
       IF (fft_profile_enabled) seconds(4) = m_walltime() - total_started
       unit_nr = 0
       IF (fft_profile_enabled) unit_nr = cp_logger_get_default_io_unit()
@@ -1673,12 +1639,135 @@ CONTAINS
          WRITE (unit_nr, '(T2,A,L2,2I12)') 'GW_GREEN_PROFILE| occupied / k points / local pairs: ', occupied, n_k, n_local
          WRITE (unit_nr, '(T2,A,2I16)') 'GW_GREEN_PROFILE| active / possible local band columns: ', active_bands, possible_bands
          WRITE (unit_nr, '(T2,A,I12)') 'GW_GREEN_PROFILE| k points per rank / exchange: ', k_batch
+         WRITE (unit_nr, '(T2,A,I12)') 'GW_GREEN_PROFILE| conjugate k points reused: ', work%green_reuses
          WRITE (unit_nr, '(T2,A,4F12.6)') 'GW_GREEN_PROFILE| setup/build/transfer/total: ', seconds
       END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE build_green_pairs
+
+! **************************************************************************************************
+!> \brief Schedule only the representatives in one rank-blocked reciprocal batch.
+!> \param work FFT input order and pair ownership
+!> \param source representative slot for every FFT input column
+!> \param env pair and reciprocal point owners
+!> \param first first FFT input column of the batch
+!> \param n_round number of FFT input columns of the batch
+!> \param owner_shift shift of cyclic source ownership (zero for k, one for q)
+!> \param jobs native reciprocal indices to compute on this rank
+!> \param n_owned number of local jobs
+!> \param n_scheduled number of jobs over all ranks
+!> \param recv_counts ...
+!> \param recv_displs ...
+! **************************************************************************************************
+   SUBROUTINE pair_exchange_jobs(work, source, env, first, n_round, owner_shift, &
+                                 jobs, n_owned, n_scheduled, recv_counts, recv_displs)
+      TYPE(gw_pair_fft_work_type), INTENT(IN)            :: work
+      INTEGER, INTENT(IN)                                :: source(:)
+      TYPE(mp_para_env_type), INTENT(IN)                 :: env
+      INTEGER, INTENT(IN)                                :: first, n_round, owner_shift
+      INTEGER, INTENT(OUT)                               :: jobs(:), n_owned, n_scheduled, &
+                                                            recv_counts(0:), recv_displs(0:)
+
+      INTEGER                                            :: block_first, block_size, i_input, &
+                                                            i_rank, n_local, n_rank, packed, sender
+
+      n_rank = env%num_pe
+      n_local = work%pair_counts(env%mepos)
+      n_owned = 0
+      n_scheduled = 0
+      block_first = first
+      DO i_rank = 0, n_rank - 1
+         sender = MODULO(i_rank + owner_shift, n_rank)
+         block_size = (n_round + n_rank - 1 - i_rank)/n_rank
+         packed = 0
+         DO i_input = block_first, block_first + block_size - 1
+            IF (source(i_input) /= i_input) CYCLE
+            packed = packed + 1
+            IF (sender == env%mepos) jobs(packed) = work%input_to_native(i_input)
+         END DO
+         recv_counts(sender) = n_local*packed
+         recv_displs(sender) = n_local*(block_first - first)
+         IF (sender == env%mepos) n_owned = packed
+         n_scheduled = n_scheduled + packed
+         block_first = block_first + block_size
+      END DO
+   END SUBROUTINE pair_exchange_jobs
+
+! **************************************************************************************************
+!> \brief Receive one batch directly into its FFT input and expand the packed source blocks in place.
+!> \param work FFT input order and pair ownership
+!> \param source representative slot for every FFT input column
+!> \param env pair and reciprocal point owners
+!> \param first first FFT input column of the batch
+!> \param n_round number of FFT input columns of the batch
+!> \param owner_shift shift of cyclic source ownership (zero for k, one for q)
+!> \param n_owned number of local jobs
+!> \param sent grid pairs packed by destination rank
+!> \param recv_counts ...
+!> \param recv_displs ...
+!> \param pairs partially filled inverse FFT input
+! **************************************************************************************************
+   SUBROUTINE exchange_pair_round(work, source, env, first, n_round, owner_shift, &
+                                  n_owned, sent, recv_counts, recv_displs, pairs)
+      TYPE(gw_pair_fft_work_type), INTENT(IN)            :: work
+      INTEGER, INTENT(IN)                                :: source(:)
+      TYPE(mp_para_env_type), INTENT(IN)                 :: env
+      INTEGER, INTENT(IN)                                :: first, n_round, owner_shift, n_owned
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN)           :: sent(:)
+      INTEGER, CONTIGUOUS, INTENT(IN)                    :: recv_counts(0:), recv_displs(0:)
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(INOUT), &
+         TARGET                                          :: pairs(:, :, :)
+
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: received(:)
+      COMPLEX(KIND=dp), TARGET                           :: unused_receive(1)
+      INTEGER :: block_first, block_size, i_input, i_rank, n_local, n_rank, packed, sender, &
+         send_displs(0:env%num_pe - 1), send_counts(0:env%num_pe - 1)
+
+      n_rank = env%num_pe
+      n_local = SIZE(pairs, 1)
+      send_counts(:) = work%pair_counts*n_owned
+      send_displs(:) = work%pair_displs*n_owned
+      unused_receive = z_zero
+      received => unused_receive
+      IF (n_local > 0) received(1:n_local*n_round) => pairs(:, :, first:first + n_round - 1)
+      CALL env%alltoall(sent, send_counts, send_displs, received, recv_counts, recv_displs)
+      IF (n_local == 0) RETURN
+
+      ! Expand from the last column to preserve data still to be read.
+      DO i_rank = 0, n_rank - 1
+         sender = MODULO(i_rank + owner_shift, n_rank)
+         block_first = first + recv_displs(sender)/n_local
+         block_size = (n_round + n_rank - 1 - i_rank)/n_rank
+         packed = block_first + recv_counts(sender)/n_local - 1
+         DO i_input = block_first + block_size - 1, block_first, -1
+            IF (source(i_input) /= i_input) CYCLE
+            IF (i_input /= packed) pairs(:, 1, i_input) = pairs(:, 1, packed)
+            packed = packed - 1
+         END DO
+      END DO
+   END SUBROUTINE exchange_pair_round
+
+! **************************************************************************************************
+!> \brief Complete the inverse FFT input after all representatives have been exchanged.
+!> \param source representative slot for every FFT input column
+!> \param pairs partially filled inverse FFT input
+! **************************************************************************************************
+   SUBROUTINE restore_pair_conjugates(source, pairs)
+      INTEGER, INTENT(IN)                                :: source(:)
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(INOUT)        :: pairs(:, :, :)
+
+      INTEGER                                            :: i_input
+
+      IF (SIZE(pairs, 1) == 0) RETURN
+      !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) IF(SIZE(pairs, 1) > 256) &
+      !$OMP SHARED(pairs, source) PRIVATE(i_input)
+      DO i_input = 1, SIZE(source)
+         IF (source(i_input) /= i_input) pairs(:, 1, i_input) = CONJG(pairs(:, 1, source(i_input)))
+      END DO
+      !$OMP END PARALLEL DO
+   END SUBROUTINE restore_pair_conjugates
 
 ! **************************************************************************************************
 !> \brief Packed unordered grid-pair blocks of all ranks, as assigned by block_range.
@@ -1701,6 +1790,57 @@ CONTAINS
       displs(:) = displs - 1
 
    END SUBROUTINE grid_pair_blocks
+
+! **************************************************************************************************
+!> \brief Bound one exchange by its send buffer and the MPI wrapper's byte counter.
+!> \param n_grid ...
+!> \param n_k ...
+!> \param n_rank ...
+!> \return source k points per rank
+! **************************************************************************************************
+   PURE INTEGER FUNCTION pair_exchange_width(n_grid, n_k, n_rank) RESULT(width)
+      INTEGER, INTENT(IN)                                :: n_grid, n_k, n_rank
+
+      REAL(KIND=dp)                                      :: pair_elements, recv_elements
+
+      pair_elements = REAL(n_grid, dp)*REAL(n_grid + 1, dp)/2.0_dp
+      recv_elements = REAL(CEILING(pair_elements/REAL(n_rank, dp)), dp)*REAL(n_rank, dp)
+      width = MAX(1, MIN((n_k + n_rank - 1)/n_rank, INT(projection_round_bytes/(complex_bytes*pair_elements)), &
+                         INT(REAL(HUGE(0), dp)/(complex_bytes*(pair_elements + recv_elements)))))
+   END FUNCTION pair_exchange_width
+
+! **************************************************************************************************
+!> \brief Write each upper-triangular column segment directly into its rank's message.
+!> \param work ...
+!> \param first_col ...
+!> \param n_cols ...
+!> \param panel ...
+!> \param n_owned source points in this batch
+!> \param i_batch point within the batch
+!> \param sent destination-rank-major send buffer
+! **************************************************************************************************
+   SUBROUTINE pack_grid_pair_panel(work, first_col, n_cols, panel, n_owned, i_batch, sent)
+      TYPE(gw_pair_fft_work_type), INTENT(IN)            :: work
+      INTEGER, INTENT(IN)                                :: first_col, n_cols
+      COMPLEX(KIND=dp), INTENT(IN)                       :: panel(:, :)
+      INTEGER, INTENT(IN)                                :: n_owned, i_batch
+      COMPLEX(KIND=dp), INTENT(INOUT)                    :: sent(:)
+
+      INTEGER                                            :: col, i_rank, j_col, offset, row_first, &
+                                                            row_last, segment
+
+      DO col = 1, n_cols
+         j_col = first_col + col - 1
+         DO segment = work%column_segments(j_col), work%column_segments(j_col + 1) - 1
+            i_rank = work%segments(segment)%rank
+            row_first = work%segments(segment)%first_row
+            row_last = work%segments(segment)%last_row
+            offset = work%pair_displs(i_rank)*n_owned + (i_batch - 1)*work%pair_counts(i_rank) + &
+                     work%segments(segment)%displacement
+            sent(offset + 1:offset + row_last - row_first + 1) = panel(row_first:row_last, col)
+         END DO
+      END DO
+   END SUBROUTINE pack_grid_pair_panel
 
 ! **************************************************************************************************
 !> \brief Cache grid values of every Bloch molecular orbital without replicating all MO matrices.
@@ -1785,19 +1925,20 @@ CONTAINS
 !> \brief Fourier transform distributed real RI lattice blocks to cyclic q owners in one exchange.
 !>
 !> I_PQ(q) = Σ_R exp(2πiq·R) I_PQ(R).  Each sender transforms its own matrix block
-!> for every q with the selected RSKP backend and sends the blocks to their q owners, iq mod P.
+!> for the retained q points with the selected RSKP backend and sends the blocks to their q owners, iq mod P.
 !> \param fm_R ...
 !> \param cells ...
 !> \param qpoints ...
 !> \param nkp_grid regular q mesh of qpoints
+!> \param q_slot compact owner-local indices; zero omits a q point
 !> \param matrices_q ...
 !> \param backend GEMM or FFT
 ! **************************************************************************************************
-   SUBROUTINE ri_2c_lattice_to_owned_q(fm_R, cells, qpoints, nkp_grid, matrices_q, backend)
+   SUBROUTINE ri_2c_lattice_to_owned_q(fm_R, cells, qpoints, nkp_grid, q_slot, matrices_q, backend)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_R(:)
       INTEGER, INTENT(IN)                                :: cells(:, :)
       REAL(KIND=dp), INTENT(IN)                          :: qpoints(:, :)
-      INTEGER, INTENT(IN)                                :: nkp_grid(3)
+      INTEGER, INTENT(IN)                                :: nkp_grid(3), q_slot(:)
       COMPLEX(KIND=dp), INTENT(OUT)                      :: matrices_q(:, :, :)
       INTEGER, INTENT(IN)                                :: backend
 
@@ -1807,9 +1948,9 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: send_buffer(:)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: values_q(:, :, :)
       INTEGER                                            :: dest, handle, icell, icol, iq, iq_local, &
-                                                            irow, n_q, n_q_local, n_RI, ncols, &
-                                                            nprocs, nrecv, nrows, nsend, pos, &
-                                                            source
+                                                            irow, n_q, n_q_local, n_RI, &
+                                                            n_selected, ncols, nprocs, nrecv, &
+                                                            nrows, nsend, pos, source
       INTEGER, ALLOCATABLE :: block_metadata(:), q_order(:), recv_counts(:), recv_displs(:), &
          send_counts(:), send_displs(:), source_cols(:, :), source_rows(:, :), source_sizes(:, :)
       INTEGER, POINTER                                   :: cols(:), rows(:)
@@ -1826,7 +1967,8 @@ CONTAINS
       CPASSERT(SIZE(matrices_q, 2) == n_RI)
       para_env => fm_R(1)%matrix_struct%para_env
       nprocs = para_env%num_pe
-      n_q_local = COUNT([(MODULO(iq, nprocs) == para_env%mepos, iq=1, n_q)])
+      n_q_local = COUNT(q_slot(MODULO(para_env%mepos - 1, nprocs) + 1:n_q:nprocs) > 0)
+      n_selected = COUNT(q_slot > 0)
       CPASSERT(SIZE(matrices_q, 3) == n_q_local)
       CALL cp_fm_get_info(fm_R(1), nrow_local=nrows, ncol_local=ncols, &
                           row_indices=rows, col_indices=cols)
@@ -1847,19 +1989,19 @@ CONTAINS
       END DO
 
       ! The q points sorted by owner make the transformed blocks the send buffer itself.
-      ALLOCATE (q_order(n_q), send_counts(0:nprocs - 1), recv_counts(0:nprocs - 1), &
+      ALLOCATE (q_order(n_selected), send_counts(0:nprocs - 1), recv_counts(0:nprocs - 1), &
                 send_displs(0:nprocs - 1), recv_displs(0:nprocs - 1))
       pos = 0
       DO dest = 0, nprocs - 1
          send_displs(dest) = pos*nrows*ncols
          DO iq = 1, n_q
-            IF (MODULO(iq, nprocs) /= dest) CYCLE
+            IF (q_slot(iq) == 0 .OR. MODULO(iq, nprocs) /= dest) CYCLE
             pos = pos + 1
             q_order(pos) = iq
          END DO
          send_counts(dest) = pos*nrows*ncols - send_displs(dest)
       END DO
-      nsend = n_q*nrows*ncols
+      nsend = n_selected*nrows*ncols
       CALL para_env%alltoall(send_counts, recv_counts, 1)
       recv_displs(0) = 0
       DO source = 1, nprocs - 1
@@ -1872,7 +2014,7 @@ CONTAINS
          DO icell = 1, SIZE(fm_R)
             values_R(:, :, icell) = fm_R(icell)%local_data(1:nrows, 1:ncols)
          END DO
-         values_q(1:nrows, 1:ncols, 1:n_q) => send_buffer(1:nsend)
+         values_q(1:nrows, 1:ncols, 1:n_selected) => send_buffer(1:nsend)
          CALL cell_to_k_transform(values_R, cells, qpoints(:, q_order), nkp_grid, values_q, backend, &
                                   profile_fft=fft_profile_enabled)
          DEALLOCATE (values_R)
@@ -1914,7 +2056,7 @@ CONTAINS
 
       COMPLEX(dp), ALLOCATABLE                           :: coefficients(:, :, :, :), phi_k(:, :)
       INTEGER                                            :: handle, i_kp, i_local, i_R, ispin, &
-                                                            n_grid, n_own
+                                                            n_grid, n_own, n_partner
       REAL(dp)                                           :: available_GB, orbital_bytes
       REAL(dp), ALLOCATABLE                              :: phi_R(:, :)
       TYPE(mp_para_env_type), POINTER                    :: env
@@ -1923,10 +2065,14 @@ CONTAINS
 
       env => bs_env%para_env
       n_grid = bs_env%ri_rs%n_grid_points
-      n_own = (bs_env%nkp_bs_and_DOS - env%mepos + env%num_pe - 1)/env%num_pe
-      CALL collect_band_mo_coefficients(bs_env, coefficients)
+      CALL owned_mo_coefficients(bs_env, bs_env%cfm_mo_coeff_kp, coefficients)
+      n_own = SIZE(coefficients, 3)
+      n_partner = 0
+      DO i_kp = env%mepos + 1, bs_env%nkp_scf_desymm, env%num_pe
+         IF (bs_env%gwkp_env%q_partner(i_kp) > i_kp) n_partner = n_partner + 1
+      END DO
       orbital_bytes = REAL(n_grid, dp)*REAL(bs_env%n_ao, dp)* &
-                      (complex_bytes*REAL(n_own*bs_env%n_spin, dp) + complex_bytes + real_bytes)
+                      (complex_bytes*REAL((n_own + n_partner)*bs_env%n_spin, dp) + complex_bytes + real_bytes)
       CALL mp_mem_avail_per_rank_GB(env, available_GB)
       CALL env%min(available_GB)
       CALL env%max(orbital_bytes)
@@ -2040,154 +2186,317 @@ CONTAINS
    END FUNCTION native_q_index
 
 ! **************************************************************************************************
-!> \brief MO coefficients of the band k points owned by this rank, MOD(k-1,P).
+!> \brief Schedule one Σ matrix per native inversion pair and cache the actual partner orbitals.
 !> \param bs_env ...
-!> \param band_coefficients ...
+!> \param env ...
+!> \param orbitals Orbitals with cyclic ownership, MOD(k-1,P).
+!> \param plan Destination-rank job lists and conjugated partner orbitals.
 ! **************************************************************************************************
-   SUBROUTINE collect_band_mo_coefficients(bs_env, band_coefficients)
+   SUBROUTINE prepare_sigma_projection(bs_env, env, orbitals, plan)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: band_coefficients(:, :, :, :)
+      TYPE(mp_para_env_type), INTENT(IN)                 :: env
+      COMPLEX(KIND=dp), ASYNCHRONOUS, CONTIGUOUS, &
+         INTENT(IN)                                      :: orbitals(:, :, :, :)
+      TYPE(sigma_projection_type), ASYNCHRONOUS, &
+         INTENT(OUT)                                     :: plan
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'collect_band_mo_coefficients'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_sigma_projection'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: coefficients(:, :)
-      INTEGER                                            :: handle, i_kp_eval, ispin
-      TYPE(mp_para_env_type), POINTER                    :: env
+      COMPLEX(KIND=dp)                                   :: phase
+      INTEGER :: c1, c2, c3, first_pair, handle, i_dim, i_image, i_kp, i_local, i_pair, i_partner, &
+         i_rank, i_slot, il, ilp, ispin, n_cells, n_grid, n_kp, n_mesh, n_off, n_pairs, n_partner, &
+         n_rank, n_requests, nmesh(3), partner_rank, tied
+      LOGICAL                                            :: tie(3)
+      REAL(KIND=dp)                                      :: angle, boundary(3), xk(3)
+      REAL(KIND=dp), ALLOCATABLE                         :: fractional_grid(:, :)
+      TYPE(mp_request_type), ALLOCATABLE                 :: requests(:)
 
       CALL timeset(routineN, handle)
-
-      env => bs_env%para_env
-      ALLOCATE (coefficients(bs_env%n_ao, bs_env%n_ao))
-      ALLOCATE (band_coefficients(bs_env%n_ao, bs_env%n_ao, &
-                                  (bs_env%nkp_bs_and_DOS - env%mepos + env%num_pe - 1)/env%num_pe, &
-                                  bs_env%n_spin))
-      DO ispin = 1, bs_env%n_spin
-         DO i_kp_eval = 1, bs_env%nkp_bs_and_DOS
-            CALL cp_cfm_get_submatrix(bs_env%cfm_mo_coeff_kp(i_kp_eval, ispin), coefficients)
-            IF (MODULO(i_kp_eval - 1, env%num_pe) == env%mepos) THEN
-               band_coefficients(:, :, (i_kp_eval - 1)/env%num_pe + 1, ispin) = coefficients
+      n_kp = bs_env%nkp_bs_and_DOS
+      n_mesh = bs_env%nkp_scf_desymm
+      n_rank = env%num_pe
+      ALLOCATE (plan%counts(0:n_rank - 1), plan%mesh_index(n_kp), plan%partner(n_kp), plan%partner_slot(n_kp))
+      ALLOCATE (plan%jobs((n_kp + n_rank - 1)/n_rank, 0:n_rank - 1))
+      plan%counts(:) = 0
+      plan%partner(:) = 0
+      plan%partner_slot(:) = 0
+      DO i_kp = 1, n_kp
+         plan%mesh_index(i_kp) = native_q_index(bs_env, i_kp)
+      END DO
+      n_partner = 0
+      DO i_kp = 1, n_kp
+         IF (i_kp <= n_mesh) THEN
+            i_partner = bs_env%gwkp_env%q_partner(i_kp)
+            ! Σ comes from the real-output K2R and a real-space product. Its R2K
+            ! conjugacy also holds when evGW0 constructs both Green spectra separately.
+            ! Keep independent band-path targets even when they land on the mesh.
+            IF (i_kp /= i_partner .AND. plan%mesh_index(i_kp) == i_kp .AND. &
+                plan%mesh_index(i_partner) == i_partner) THEN
+               IF (i_partner < i_kp) CYCLE
+               plan%partner(i_kp) = i_partner
+            END IF
+         END IF
+         i_rank = MODULO(i_kp - 1, n_rank)
+         plan%counts(i_rank) = plan%counts(i_rank) + 1
+         plan%jobs(plan%counts(i_rank), i_rank) = i_kp
+         IF (i_rank /= env%mepos .OR. plan%partner(i_kp) == 0) CYCLE
+         n_partner = n_partner + 1
+         plan%partner_slot(i_kp) = n_partner
+      END DO
+      ALLOCATE (plan%partner_orbitals(SIZE(orbitals, 1), SIZE(orbitals, 2), n_partner, SIZE(orbitals, 4)))
+      ALLOCATE (requests((n_partner + SIZE(orbitals, 3))*SIZE(orbitals, 4)))
+      n_requests = 0
+      ! MPI preserves message order between each pair of ranks. Both peers visit
+      ! the representatives and spin channels in the same order.
+      DO i_kp = 1, n_mesh
+         i_partner = plan%partner(i_kp)
+         IF (i_partner == 0) CYCLE
+         i_rank = MODULO(i_kp - 1, n_rank)
+         partner_rank = MODULO(i_partner - 1, n_rank)
+         i_local = (i_partner - 1)/n_rank + 1
+         i_slot = plan%partner_slot(i_kp)
+         DO ispin = 1, SIZE(orbitals, 4)
+            IF (env%mepos == i_rank) THEN
+               IF (i_rank == partner_rank) THEN
+                  plan%partner_orbitals(:, :, i_slot, ispin) = orbitals(:, :, i_local, ispin)
+               ELSE
+                  n_requests = n_requests + 1
+                  CALL env%irecv(plan%partner_orbitals(:, :, i_slot, ispin), partner_rank, requests(n_requests), tag=0)
+               END IF
+            ELSE IF (env%mepos == partner_rank) THEN
+               n_requests = n_requests + 1
+               CALL env%isend(orbitals(:, :, i_local, ispin), i_rank, requests(n_requests), tag=0)
             END IF
          END DO
       END DO
+      CALL mp_waitall(requests(:n_requests))
+      !$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SCHEDULE(STATIC) IF(n_partner > 1) &
+      !$OMP SHARED(plan, n_partner, orbitals) PRIVATE(ispin, i_slot)
+      DO ispin = 1, SIZE(orbitals, 4)
+         DO i_slot = 1, n_partner
+            plan%partner_orbitals(:, :, i_slot, ispin) = CONJG(plan%partner_orbitals(:, :, i_slot, ispin))
+         END DO
+      END DO
+      !$OMP END PARALLEL DO
+      ! The image geometry and off-mesh phases are common to Σx and every Σc time slice.
+      n_off = COUNT(plan%mesh_index == 0)
+      n_grid = SIZE(orbitals, 1)
+      CALL block_range(INT(INT(n_grid, int_8)*(n_grid + 1)/2), env%mepos, n_rank, first_pair, n_pairs)
+      IF (n_off > 0 .AND. n_pairs > 0) THEN
+         ALLOCATE (plan%image_shift(3, n_pairs), plan%image_tie(3, n_pairs), plan%displacement(3, n_pairs))
+         ALLOCATE (fractional_grid(3, n_grid))
+         fractional_grid(:, :) = MATMUL(bs_env%ri_rs%cell%h_inv, bs_env%ri_rs%grid_points)
+         DO i_dim = 1, 3
+            IF (bs_env%periodic(i_dim) == 0) fractional_grid(i_dim, :) = 0.0_dp
+         END DO
+         !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+         !$OMP SHARED(bs_env, first_pair, fractional_grid, n_pairs, plan) PRIVATE(i_pair, il, ilp, tie)
+         DO i_pair = 1, n_pairs
+            CALL grid_pair_indices(first_pair + i_pair - 1, il, ilp)
+            CALL grid_pair_shift(il, ilp, fractional_grid, plan%image_shift(:, i_pair), tie)
+            plan%image_tie(:, i_pair) = MERGE(1_int_1, 0_int_1, tie)
+            plan%displacement(:, i_pair) = bs_env%ri_rs%grid_points(:, il) - bs_env%ri_rs%grid_points(:, ilp)
+         END DO
+         !$OMP END PARALLEL DO
+         DEALLOCATE (fractional_grid)
 
+         nmesh = bs_env%kpoints_scf_desymm%nkp_grid
+         boundary = 0.25_dp*(1.0_dp + COS(twopi*bs_env%kpoints_scf_desymm%xkp(:, 1)*nmesh))
+         ! Omit endpoints with zero weight for both pair-center choices from the GEMM dimension.
+         plan%first_image = -nmesh/2
+         DO i_dim = 1, 3
+            IF (image_weight(plan%first_image(i_dim), nmesh(i_dim), .FALSE., boundary(i_dim)) == 0.0_dp) THEN
+               plan%first_image(i_dim) = plan%first_image(i_dim) + 1
+            END IF
+         END DO
+         plan%last_image = -plan%first_image + MERGE(1, 0, ANY(plan%image_tie /= 0_int_1, DIM=2))
+         n_cells = PRODUCT(plan%last_image - plan%first_image + 1)
+         ALLOCATE (plan%image_weights(MAXVAL(plan%last_image - plan%first_image + 1), 3, 0:1))
+         DO tied = 0, 1
+            DO i_dim = 1, 3
+               DO i_image = plan%first_image(i_dim), plan%last_image(i_dim)
+                  plan%image_weights(i_image - plan%first_image(i_dim) + 1, i_dim, tied) = &
+                     image_weight(i_image, nmesh(i_dim), tied == 1, boundary(i_dim))
+               END DO
+            END DO
+         END DO
+         ALLOCATE (plan%offmesh_slot(n_kp), plan%phase_cos(n_cells, n_off), plan%phase_sin(n_cells, n_off))
+         plan%offmesh_slot(:) = 0
+         n_off = 0
+         DO i_kp = 1, n_kp
+            IF (plan%mesh_index(i_kp) /= 0) CYCLE
+            n_off = n_off + 1
+            plan%offmesh_slot(i_kp) = n_off
+         END DO
+         !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+         !$OMP SHARED(bs_env, n_kp, plan) PRIVATE(angle, c1, c2, c3, i_image, i_kp, i_slot, phase, xk)
+         DO i_kp = 1, n_kp
+            i_slot = plan%offmesh_slot(i_kp)
+            IF (i_slot == 0) CYCLE
+            xk = bs_env%kpoints_DOS%xkp(:, i_kp)
+            i_image = 0
+            DO c3 = plan%first_image(3), plan%last_image(3)
+               DO c2 = plan%first_image(2), plan%last_image(2)
+                  DO c1 = plan%first_image(1), plan%last_image(1)
+                     i_image = i_image + 1
+                     angle = twopi*(xk(1)*c1 + xk(2)*c2 + xk(3)*c3)
+                     phase = EXP(CMPLX(0.0_dp, angle, KIND=dp))
+                     plan%phase_cos(i_image, i_slot) = REAL(phase, KIND=dp)
+                     plan%phase_sin(i_image, i_slot) = AIMAG(phase)
+                  END DO
+               END DO
+            END DO
+         END DO
+         !$OMP END PARALLEL DO
+      END IF
       CALL timestop(handle)
-
-   END SUBROUTINE collect_band_mo_coefficients
+   END SUBROUTINE prepare_sigma_projection
 
 ! **************************************************************************************************
-!> \brief Project Σ_ll′(k) onto the band Bloch orbitals, Σ_n(k) = Re[ψ_n(k)† Σ(k) ψ_n(k)].
-!>
-!> The pair owners evaluate Σ_ll′(k) = Σ_R exp(2πik·R) Σ_ll′(R) at the band k points. Every k
-!> owner, MOD(k-1,P), receives complete packed upper triangles for Hermitian contractions. A
-!> round covers m k points per rank, so that one pass over Σ(R) serves up to
-!> band_kpoints_per_pass k points.
+!> \brief Exchange batched Σ matrices and contract the packed panels with the actual target orbitals.
 !> \param bs_env ...
-!> \param sigma_mesh Σ on the native k mesh for the unordered grid pairs of this rank.
-!> \param sigma_R Σ in the cells of the native mesh for the same pairs.
-!> \param first_pair First locally owned unordered grid pair.
-!> \param env Ranks that share the grid pairs and the band k points.
-!> \param orbitals Band Bloch orbitals of one spin at the k points owned in env.
-!> \param sigma_band ...
-!> \param apply_cutoff use the W distance cutoff in off-mesh image sums
+!> \param sigma_mesh Native Σ(k) for the local pairs.
+!> \param sigma_R Real-space Σ for the local pairs.
+!> \param env Pair and band owners.
+!> \param fft FFT pair partition.
+!> \param plan Projection jobs and conjugated partner orbitals.
+!> \param orbitals Local band orbitals.
+!> \param ispin Spin channel.
+!> \param sigma_band Diagonals in the original band-point order.
+!> \param apply_cutoff Use the W distance cutoff in off-mesh image sums.
 ! **************************************************************************************************
-   SUBROUTINE self_energy_pairs_to_Bloch(bs_env, sigma_mesh, sigma_R, first_pair, env, orbitals, sigma_band, apply_cutoff)
+   SUBROUTINE self_energy_pairs_to_Bloch(bs_env, sigma_mesh, sigma_R, env, fft, plan, orbitals, &
+                                         ispin, sigma_band, apply_cutoff)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN), TARGET   :: sigma_mesh(:, :, :)
+      COMPLEX(KIND=dp), INTENT(IN)                       :: sigma_mesh(:, :, :)
       REAL(KIND=dp), INTENT(IN)                          :: sigma_R(:, :, :)
-      INTEGER, INTENT(IN)                                :: first_pair
-      TYPE(mp_para_env_type), POINTER                    :: env
-      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN)           :: orbitals(:, :, :)
+      TYPE(mp_para_env_type), INTENT(IN)                 :: env
+      TYPE(gw_pair_fft_work_type), INTENT(IN)            :: fft
+      TYPE(sigma_projection_type), INTENT(IN), TARGET    :: plan
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN), TARGET   :: orbitals(:, :, :, :)
+      INTEGER, INTENT(IN)                                :: ispin
       REAL(KIND=dp), INTENT(OUT)                         :: sigma_band(:, :)
       LOGICAL, INTENT(IN)                                :: apply_cutoff
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'self_energy_pairs_to_Bloch'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :), sigma_k(:, :), work(:, :)
-      COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: send_buffer(:)
-      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: sent(:), sigma_columns(:, :)
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :), received(:), work(:, :)
+      COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: send_buffer(:, :)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: psi(:, :), sent(:)
       COMPLEX(KIND=dp), TARGET                           :: unused_send(1)
-      INTEGER                                            :: handle, i_band, i_batch, i_col, i_first, &
-                                                            i_kp, i_rank, j, m, n_batch, n_grid, &
-                                                            n_kp, n_local, n_rank, n_round, n_send
-      INTEGER, ALLOCATABLE                               :: pair_counts(:), pair_displs(:), &
-                                                            recv_counts(:), send_counts(:), &
-                                                            send_displs(:)
-      LOGICAL                                            :: native_round
+      INTEGER :: first_col, handle, i_band, i_batch, i_col, i_first, i_job, i_kp, i_local, &
+         i_orbital, i_panel, i_rank, i_slot, i_target, last_col, m, n_ao, n_batch, n_cols, n_done, &
+         n_grid, n_kp, n_local, n_recv, n_rhs, n_round, n_send, offset, row_first, row_last, &
+         segment
+      INTEGER, ALLOCATABLE                               :: jobs(:), recv_counts(:), recv_displs(:), &
+                                                            send_counts(:), send_displs(:)
 
       CALL timeset(routineN, handle)
 
       n_grid = bs_env%ri_rs%n_grid_points
+      n_ao = bs_env%n_ao
       n_kp = bs_env%nkp_bs_and_DOS
       n_local = SIZE(sigma_mesh, 1)
-      n_rank = env%num_pe
-      n_batch = MIN(16, bs_env%n_ao)
-      m = projection_round_kpoints(n_grid, n_rank)
-      CALL grid_pair_blocks(n_grid, n_rank, pair_counts, pair_displs)
-      ALLOCATE (sigma_k(INT(INT(n_grid, int_8)*(n_grid + 1)/2), m), recv_counts(0:n_rank - 1), &
-                send_counts(0:n_rank - 1), send_displs(0:n_rank - 1))
+      n_batch = MIN(sigma_rhs_cols, n_ao)
+      m = projection_round_kpoints(n_grid, n_kp, env%num_pe)
+      n_round = SUM(MIN(m, plan%counts))
+      n_recv = MIN(m, plan%counts(env%mepos))
+      ALLOCATE (received(MAX(1, SUM(fft%pair_counts)*n_recv)), &
+                send_buffer(n_local, n_round), jobs(n_round))
+      ALLOCATE (recv_counts(0:env%num_pe - 1), recv_displs(0:env%num_pe - 1), &
+                send_counts(0:env%num_pe - 1), send_displs(0:env%num_pe - 1))
       unused_send = z_zero
-      send_displs(:) = [(i_rank*n_local, i_rank=0, n_rank - 1)]
-      sigma_band = 0.0_dp
-      ! Column i_col of a round holds the band k point i_first+i_col-1, owned by MOD(i_col-1,P).
-      DO i_first = 1, n_kp, n_rank*m
-         n_round = MIN(n_rank*m, n_kp - i_first + 1)
-         native_round = i_first + n_round - 1 <= SIZE(sigma_mesh, 3)
-         IF (native_round) THEN
-            DO i_col = 1, n_round
-               IF (native_q_index(bs_env, i_first + i_col - 1) /= i_first + i_col - 1) THEN
-                  native_round = .FALSE.
-                  EXIT
-               END IF
-            END DO
-         END IF
-         IF (.NOT. native_round) THEN
-            IF (.NOT. ALLOCATED(send_buffer)) THEN
-               ALLOCATE (send_buffer(n_local*n_rank*m))
-               sigma_columns(1:n_local, 1:n_rank*m) => send_buffer
+      sigma_band(:, :) = 0.0_dp
+
+      DO i_first = 1, MAXVAL(plan%counts), m
+         ! The send buffer is destination-major, with consecutive k columns per destination.
+         n_round = 0
+         DO i_rank = 0, env%num_pe - 1
+            n_send = MAX(0, MIN(m, plan%counts(i_rank) - i_first + 1))
+            send_displs(i_rank) = n_local*n_round
+            send_counts(i_rank) = n_local*n_send
+            IF (n_send > 0) THEN
+               jobs(n_round + 1:n_round + n_send) = plan%jobs(i_first:i_first + n_send - 1, i_rank)
             END IF
-            CALL band_self_energy(bs_env, sigma_mesh, sigma_R, first_pair, i_first, &
-                                  sigma_columns(:, 1:n_round), apply_cutoff)
-         END IF
-         DO j = 1, m
-            DO i_rank = 0, n_rank - 1
-               send_counts(i_rank) = MERGE(n_local, 0, (j - 1)*n_rank + i_rank < n_round)
-            END DO
-            i_kp = i_first + (j - 1)*n_rank + env%mepos
-            recv_counts(:) = MERGE(pair_counts, 0, i_kp <= n_kp)
-            sent => unused_send
-            n_send = MIN(n_rank, MAX(0, n_round - (j - 1)*n_rank))
-            IF (n_local > 0 .AND. n_send > 0) THEN
-               IF (native_round) THEN
-                  sent(1:n_local*n_send) => sigma_mesh(:, :, &
-                                                       i_first + (j - 1)*n_rank:i_first + (j - 1)*n_rank + n_send - 1)
-               ELSE
-                  sent => send_buffer((j - 1)*n_rank*n_local + 1:((j - 1)*n_rank + n_send)*n_local)
-               END IF
-            END IF
-            CALL env%alltoall(sent, send_counts, send_displs, sigma_k(:, j), recv_counts, pair_displs)
+            n_round = n_round + n_send
          END DO
-         !$OMP PARALLEL DEFAULT(NONE) &
-         !$OMP SHARED(bs_env, env, i_first, m, n_batch, n_grid, n_kp, n_rank, orbitals, sigma_band, sigma_k) &
-         !$OMP PRIVATE(i_band, i_batch, i_kp, j, panel, work)
-         ALLOCATE (work(n_grid, n_batch), panel(n_grid, MIN(n_grid, grid_pair_panel_cols)))
-         !$OMP DO COLLAPSE(2) SCHEDULE(DYNAMIC)
-         DO j = 1, m
-            DO i_batch = 1, bs_env%n_ao, n_batch
-               i_kp = i_first + (j - 1)*n_rank + env%mepos
-               IF (i_kp > n_kp) CYCLE
-               CALL grid_pair_upper_multiply(n_grid, MIN(n_batch, bs_env%n_ao - i_batch + 1), sigma_k(:, j), &
-                                             orbitals(:, i_batch:MIN(i_batch + n_batch - 1, bs_env%n_ao), (i_kp - 1)/n_rank + 1), &
-                                             work(:, 1:MIN(n_batch, bs_env%n_ao - i_batch + 1)), panel)
-               DO i_band = i_batch, MIN(i_batch + n_batch - 1, bs_env%n_ao)
-                  sigma_band(i_band, i_kp) = 2.0_dp*REAL(SUM(CONJG(orbitals(:, i_band, (i_kp - 1)/n_rank + 1))* &
-                                                             work(:, i_band - i_batch + 1)), dp)
+         sent => unused_send
+         IF (n_local > 0) THEN
+            CALL band_self_energy(bs_env, sigma_mesh, sigma_R, jobs(:n_round), plan, &
+                                  send_buffer(:, :n_round), apply_cutoff)
+            sent(1:n_local*n_round) => send_buffer(:, :n_round)
+         END IF
+         n_recv = MAX(0, MIN(m, plan%counts(env%mepos) - i_first + 1))
+         recv_counts(:) = fft%pair_counts*n_recv
+         recv_displs(:) = fft%pair_displs*n_recv
+         CALL env%alltoall(sent, send_counts, send_displs, received, recv_counts, recv_displs)
+
+         IF (n_recv > 0) THEN
+            BLOCK
+               REAL(KIND=dp) :: diagonal(n_ao, 2, n_recv)
+
+               diagonal(:, :, :) = 0.0_dp
+               !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:diagonal) &
+               !$OMP SHARED(env, fft, i_first, ispin, n_ao, n_batch, n_grid, n_recv, orbitals, plan, received, recv_displs) &
+               !$OMP PRIVATE(first_col, i_band, i_batch, i_col, i_job, i_kp, i_local, i_orbital, i_panel, i_rank, i_slot, &
+               !$OMP         i_target, last_col, n_cols, n_rhs, offset, panel, psi, row_first, row_last, segment, work)
+               ALLOCATE (panel(n_grid, MIN(n_grid, grid_pair_panel_cols)), &
+                         work(n_batch, MIN(n_grid, grid_pair_panel_cols)))
+               !$OMP DO COLLAPSE(2) SCHEDULE(STATIC, 1)
+               DO i_job = 1, n_recv
+                  DO first_col = 1, n_grid, grid_pair_panel_cols
+                     last_col = MIN(first_col + grid_pair_panel_cols - 1, n_grid)
+                     n_cols = last_col - first_col + 1
+                     ! Each column may span multiple MPI sources. Read their intersections
+                     ! directly from the receive buffer and form U with half the diagonal.
+                     DO i_col = first_col, last_col
+                        i_panel = i_col - first_col + 1
+                        DO segment = fft%column_segments(i_col), fft%column_segments(i_col + 1) - 1
+                           i_rank = fft%segments(segment)%rank
+                           row_first = fft%segments(segment)%first_row
+                           row_last = fft%segments(segment)%last_row
+                           offset = recv_displs(i_rank) + (i_job - 1)*fft%pair_counts(i_rank) + &
+                                    fft%segments(segment)%displacement
+                           panel(row_first:row_last, i_panel) = received(offset + 1:offset + row_last - row_first + 1)
+                        END DO
+                        panel(i_col, i_panel) = CMPLX(0.5_dp*REAL(panel(i_col, i_panel), dp), 0.0_dp, dp)
+                        panel(i_col + 1:last_col, i_panel) = z_zero
+                     END DO
+                     i_kp = plan%jobs(i_first + i_job - 1, env%mepos)
+                     i_local = (i_kp - 1)/env%num_pe + 1
+                     i_slot = plan%partner_slot(i_kp)
+                     ! Contract Psi^H U_panel first so the result has only one column per panel column.
+                     DO i_target = 1, MERGE(2, 1, i_slot > 0)
+                        IF (i_target == 1) THEN
+                           psi => orbitals(:, :, i_local, ispin)
+                        ELSE
+                           psi => plan%partner_orbitals(:, :, i_slot, ispin)
+                        END IF
+                        DO i_batch = 1, n_ao, n_batch
+                           n_rhs = MIN(n_batch, n_ao - i_batch + 1)
+                           CALL zgemm('C', 'N', n_rhs, n_cols, last_col, z_one, psi(:, i_batch:i_batch + n_rhs - 1), &
+                                      n_grid, panel, n_grid, z_zero, work, n_batch)
+                           DO i_band = 1, n_rhs
+                              i_orbital = i_batch + i_band - 1
+                              diagonal(i_orbital, i_target, i_job) = diagonal(i_orbital, i_target, i_job) + &
+                                                             REAL(SUM(work(i_band, :n_cols)*psi(first_col:last_col, i_orbital)), dp)
+                           END DO
+                        END DO
+                     END DO
+                  END DO
                END DO
-            END DO
-         END DO
-         !$OMP END DO
-         DEALLOCATE (work, panel)
-         !$OMP END PARALLEL
-         CALL count_time_loop_k_points(bs_env, INT(n_round, int_8))
+               !$OMP END DO NOWAIT
+               DEALLOCATE (panel, work)
+               !$OMP END PARALLEL
+               DO i_job = 1, n_recv
+                  i_kp = plan%jobs(i_first + i_job - 1, env%mepos)
+                  sigma_band(:, i_kp) = 2.0_dp*diagonal(:, 1, i_job)
+                  IF (plan%partner(i_kp) > 0) sigma_band(:, plan%partner(i_kp)) = 2.0_dp*diagonal(:, 2, i_job)
+               END DO
+            END BLOCK
+         END IF
+         n_done = n_round + COUNT(plan%partner(jobs(:n_round)) > 0)
+         CALL count_time_loop_k_points(bs_env, INT(n_done, int_8))
       END DO
       CALL env%sum(sigma_band)
 
@@ -2196,47 +2505,59 @@ CONTAINS
    END SUBROUTINE self_energy_pairs_to_Bloch
 
 ! **************************************************************************************************
-!> \brief Bound the band-projection and Green-function workspaces of one rank in bytes.
-!> The projection holds the Σ(k) columns of one round, the complete Σ(k) of the owned k points,
-!> the shared lattice phases, thread-private image, sum and output blocks, and the 64 MiB copy of
-!> the mesh transform. The Green function holds bounded k-batch messages, received pair blocks,
-!> thread-private Gram panels and the scaled orbitals.
+!> \brief Bound the peak per-rank workspace for the Σ(k) exchange and projection.
 !> \param n_grid ...
 !> \param n_rank ...
+!> \param n_kp Total band targets.
+!> \param n_jobs Targets exchanged after pairing conjugate matrices.
+!> \param n_offmesh Targets requiring real-space interpolation.
 !> \param n_images Bound of the image cells summed per pair.
 !> \param n_ao ...
 !> \param n_threads ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION projection_workspace_bytes(n_grid, n_rank, n_images, n_ao, n_threads) RESULT(bytes)
-      INTEGER, INTENT(IN)                                :: n_grid, n_rank, n_images, n_ao, n_threads
+   FUNCTION projection_workspace_bytes(n_grid, n_rank, n_kp, n_jobs, n_offmesh, n_images, n_ao, n_threads) RESULT(bytes)
+      INTEGER, INTENT(IN)                                :: n_grid, n_rank, n_kp, n_jobs, n_offmesh, &
+                                                            n_images, n_ao, n_threads
       REAL(dp)                                           :: bytes
 
-      REAL(dp)                                           :: m, n_round
+      REAL(dp), PARAMETER :: integer_bytes = REAL(STORAGE_SIZE(0)/8, dp)
 
-      m = REAL(projection_round_kpoints(n_grid, n_rank), dp)
-      n_round = m*REAL(n_rank, dp)
-      bytes = complex_bytes*m*REAL(n_grid, dp)*REAL(n_grid + 1, dp) + complex_bytes*n_round*REAL(n_images, dp) + &
-              projection_workspace + &
-              REAL(n_threads, dp)*(complex_bytes*REAL(n_grid, dp)*REAL(MIN(16, n_ao) + MIN(n_grid, grid_pair_panel_cols), dp) + &
-                                   real_bytes*REAL(pair_batch_size, dp)*REAL(n_images, dp) + &
-                                   complex_bytes*REAL(pair_batch_size, dp)*n_round)
-      bytes = MAX(bytes, projection_workspace + &
-                  complex_bytes*REAL(n_threads, dp)*REAL(n_grid, dp)*REAL(n_ao + 32, dp))
+      REAL(dp)                                           :: contraction_bytes, exchange_bytes, &
+                                                            interpolation_bytes, m, n_c, n_off, &
+                                                            n_pairs, n_round
+
+      m = REAL(MIN(n_jobs, projection_round_kpoints(n_grid, n_kp, n_rank)), dp)
+      n_round = MIN(m*REAL(n_rank, dp), REAL(n_jobs, dp))
+      n_pairs = REAL(n_grid, dp)*REAL(n_grid + 1, dp)/2.0_dp
+      exchange_bytes = complex_bytes*(REAL(CEILING(n_pairs/REAL(n_rank, dp), KIND=int_8), dp)*n_round + n_pairs*m + 2.0_dp) + &
+                       integer_bytes*(n_round + 4.0_dp*REAL(n_rank, dp))
+      n_off = MIN(n_round, REAL(n_offmesh, dp))
+      interpolation_bytes = integer_bytes*n_round
+      IF (n_off > 0.0_dp) THEN
+         n_c = REAL(n_images, dp)
+         interpolation_bytes = interpolation_bytes + real_bytes*((2.0_dp*n_c + 3.0_dp)*n_off + &
+                                                                 REAL(n_threads*pair_batch_size, dp)*(n_c + 2.0_dp*n_off))
+      END IF
+      contraction_bytes = REAL(n_threads, dp)*complex_bytes*REAL(MIN(n_grid, grid_pair_panel_cols), dp)* &
+                          REAL(n_grid + MIN(sigma_rhs_cols, n_ao), dp) + &
+                          2.0_dp*real_bytes*REAL(n_ao, dp)*m*REAL(n_threads + 1, dp)
+      ! The interpolation temporaries are released before the panel contraction allocates its work arrays.
+      bytes = exchange_bytes + MAX(interpolation_bytes, contraction_bytes)
    END FUNCTION projection_workspace_bytes
 
 ! **************************************************************************************************
 !> \brief Band k points per rank and projection round: a round evaluates up to
-!> band_kpoints_per_pass k points, while the complete Σ(k) of a round stay below 512 MiB.
+!> band_kpoints_per_pass k points, with the exchange width bounded as for Green and W.
 !> \param n_grid ...
+!> \param n_kp ...
 !> \param n_rank ...
 !> \return ...
 ! **************************************************************************************************
-   PURE INTEGER FUNCTION projection_round_kpoints(n_grid, n_rank) RESULT(m)
-      INTEGER, INTENT(IN)                                :: n_grid, n_rank
+   PURE INTEGER FUNCTION projection_round_kpoints(n_grid, n_kp, n_rank) RESULT(m)
+      INTEGER, INTENT(IN)                                :: n_grid, n_kp, n_rank
 
-      m = MAX(1, MIN(band_kpoints_per_pass/n_rank, &
-                     INT(projection_round_bytes/(complex_bytes*REAL(n_grid, dp)*REAL(n_grid + 1, dp)))))
+      m = MAX(1, MIN(band_kpoints_per_pass/n_rank, pair_exchange_width(n_grid, n_kp, n_rank)))
    END FUNCTION projection_round_kpoints
 
 ! **************************************************************************************************
@@ -2262,124 +2583,93 @@ CONTAINS
 !> \param bs_env ...
 !> \param sigma_mesh ...
 !> \param sigma_R ...
-!> \param first_pair ...
-!> \param first_kp_eval Band k point of the first column of sigma_k.
+!> \param k_targets band k points in send-buffer order
+!> \param plan cached native indices, image geometry, and off-mesh phases
 !> \param sigma_k ...
 !> \param apply_cutoff use the W distance cutoff on the same centered images as the native FFT
 ! **************************************************************************************************
-   SUBROUTINE band_self_energy(bs_env, sigma_mesh, sigma_R, first_pair, first_kp_eval, sigma_k, apply_cutoff)
+   SUBROUTINE band_self_energy(bs_env, sigma_mesh, sigma_R, k_targets, plan, sigma_k, apply_cutoff)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       COMPLEX(KIND=dp), INTENT(IN)                       :: sigma_mesh(:, :, :)
       REAL(KIND=dp), INTENT(IN)                          :: sigma_R(:, :, :)
-      INTEGER, INTENT(IN)                                :: first_pair, first_kp_eval
+      INTEGER, INTENT(IN)                                :: k_targets(:)
+      TYPE(sigma_projection_type), INTENT(IN)            :: plan
       COMPLEX(KIND=dp), INTENT(OUT)                      :: sigma_k(:, :)
       LOGICAL, INTENT(IN)                                :: apply_cutoff
 
-      COMPLEX(KIND=dp)                                   :: phase
-      INTEGER :: c1, c2, c3, first_c(3), i_c, i_col, i_first, i_local, i_off, i_pair, il, ilp, &
-         last_c(3), lower(3), n_c, n_grid, n_off, n_pairs, native_iq, nmesh(3), shift(3), &
+      INTEGER :: c1, c2, c3, first_c(3), i_c, i_col, i_first, i_local, i_off, i_pair, i_slot, &
+         last_c(3), lower(3), n_c, n_off, n_pairs, native_iq, nmesh(3), shift(3), tied(3), &
          wrapped(3)
-      INTEGER, ALLOCATABLE                               :: offmesh_col(:), pair_shift(:, :)
-      LOGICAL                                            :: any_tie(3), tie(3)
-      REAL(KIND=dp)                                      :: angle, boundary(3), cutoff_squared, &
-                                                            displacement(3), distance(3)
-      REAL(KIND=dp), ALLOCATABLE :: cos_c(:, :), fractional_grid(:, :), images(:, :), sin_c(:, :), &
-         sum_im(:, :), sum_re(:, :), weight_1(:), weight_2(:), weight_3(:), xk(:, :)
+      INTEGER, ALLOCATABLE                               :: offmesh_col(:)
+      REAL(KIND=dp)                                      :: angle, cutoff_squared, distance(3), &
+                                                            weight
+      REAL(KIND=dp), ALLOCATABLE                         :: cos_c(:, :), images(:, :), sin_c(:, :), &
+                                                            sum_im(:, :), sum_re(:, :), xk(:, :)
 
       ALLOCATE (offmesh_col(SIZE(sigma_k, 2)))
       n_off = 0
+      !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+      !$OMP SHARED(k_targets, plan, sigma_k, sigma_mesh) PRIVATE(i_col, native_iq)
       DO i_col = 1, SIZE(sigma_k, 2)
-         native_iq = native_q_index(bs_env, first_kp_eval + i_col - 1)
-         IF (native_iq > 0) THEN
-            sigma_k(:, i_col) = sigma_mesh(:, 1, native_iq)
-         ELSE
-            n_off = n_off + 1
-            offmesh_col(n_off) = i_col
-         END IF
+         native_iq = plan%mesh_index(k_targets(i_col))
+         IF (native_iq > 0) sigma_k(:, i_col) = sigma_mesh(:, 1, native_iq)
+      END DO
+      !$OMP END PARALLEL DO
+      DO i_col = 1, SIZE(sigma_k, 2)
+         IF (plan%mesh_index(k_targets(i_col)) > 0) CYCLE
+         n_off = n_off + 1
+         offmesh_col(n_off) = i_col
       END DO
       IF (n_off == 0) RETURN
 
-      n_grid = bs_env%ri_rs%n_grid_points
       nmesh = bs_env%kpoints_scf_desymm%nkp_grid
       lower = -nmesh/2
-      ALLOCATE (fractional_grid(3, n_grid))
-      fractional_grid(:, :) = MATMUL(bs_env%ri_rs%cell%h_inv, bs_env%ri_rs%grid_points)
-      DO i_c = 1, 3
-         IF (bs_env%periodic(i_c) == 0) fractional_grid(i_c, :) = 0.0_dp
-      END DO
-      any_tie = .FALSE.
-      DO i_local = 1, SIZE(sigma_R, 1)
-         CALL grid_pair_indices(first_pair + i_local - 1, il, ilp)
-         CALL grid_pair_shift(il, ilp, fractional_grid, shift, tie)
-         any_tie = any_tie .OR. tie
-      END DO
-      boundary = 0.25_dp*(1.0_dp + COS(twopi*bs_env%kpoints_scf_desymm%xkp(:, 1)*nmesh))
       cutoff_squared = -1.0_dp
       IF (apply_cutoff .AND. bs_env%ri_rs%cutoff_radius_v_w > 0.0_dp) THEN
          cutoff_squared = bs_env%ri_rs%cutoff_radius_v_w**2
       END IF
-      first_c = lower
-      last_c = nmesh/2 + MERGE(1, 0, any_tie)
-      n_c = PRODUCT(last_c - first_c + 1)
+      first_c = plan%first_image
+      last_c = plan%last_image
+      n_c = SIZE(plan%phase_cos, 1)
       ALLOCATE (xk(3, n_off), cos_c(n_c, n_off), sin_c(n_c, n_off))
       DO i_off = 1, n_off
-         xk(:, i_off) = bs_env%kpoints_DOS%xkp(:, first_kp_eval + offmesh_col(i_off) - 1)
+         i_col = k_targets(offmesh_col(i_off))
+         i_slot = plan%offmesh_slot(i_col)
+         xk(:, i_off) = bs_env%kpoints_DOS%xkp(:, i_col)
+         cos_c(:, i_off) = plan%phase_cos(:, i_slot)
+         sin_c(:, i_off) = plan%phase_sin(:, i_slot)
       END DO
-      ! Image c of every pair is column i_c of the shared phases, c1 running fastest.
-      !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-      !$OMP SHARED(cos_c, first_c, last_c, n_off, sin_c, xk) PRIVATE(c1, c2, c3, i_c, i_off, phase)
-      DO i_off = 1, n_off
-         i_c = 0
-         DO c3 = first_c(3), last_c(3)
-            DO c2 = first_c(2), last_c(2)
-               DO c1 = first_c(1), last_c(1)
-                  i_c = i_c + 1
-                  phase = EXP(CMPLX(0.0_dp, twopi*(xk(1, i_off)*c1 + xk(2, i_off)*c2 + xk(3, i_off)*c3), KIND=dp))
-                  cos_c(i_c, i_off) = REAL(phase, KIND=dp)
-                  sin_c(i_c, i_off) = AIMAG(phase)
-               END DO
-            END DO
-         END DO
-      END DO
-      !$OMP END PARALLEL DO
 
       !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP SHARED(bs_env, cutoff_squared, boundary, cos_c, first_c, first_pair, fractional_grid, last_c, lower, n_c, n_grid) &
-      !$OMP SHARED(n_off, nmesh, offmesh_col, sigma_k, sigma_R, sin_c, xk) &
-      !$OMP PRIVATE(angle, c1, c2, c3, i_c, i_first, i_off, i_pair, images, n_pairs, pair_shift, shift, &
-      !$OMP         sum_im, sum_re, tie, weight_1, weight_2, weight_3, wrapped, il, ilp, displacement, distance)
-      ALLOCATE (images(n_c, pair_batch_size), pair_shift(3, pair_batch_size), &
-                sum_re(pair_batch_size, n_off), sum_im(pair_batch_size, n_off), &
-                weight_1(first_c(1):last_c(1)), weight_2(first_c(2):last_c(2)), weight_3(first_c(3):last_c(3)))
+      !$OMP SHARED(bs_env, cutoff_squared, cos_c, first_c, last_c, lower, n_c, n_off, nmesh) &
+      !$OMP SHARED(offmesh_col, plan, sigma_k, sigma_R, sin_c, xk) &
+      !$OMP PRIVATE(angle, c1, c2, c3, distance, i_c, i_first, i_local, i_off, i_pair, images, n_pairs, shift, &
+      !$OMP         sum_im, sum_re, tied, weight, wrapped)
+      ALLOCATE (images(n_c, pair_batch_size), sum_re(pair_batch_size, n_off), sum_im(pair_batch_size, n_off))
       !$OMP DO SCHEDULE(DYNAMIC)
       DO i_first = 1, SIZE(sigma_R, 1), pair_batch_size
          n_pairs = MIN(pair_batch_size, SIZE(sigma_R, 1) - i_first + 1)
          DO i_pair = 1, n_pairs
-            CALL grid_pair_indices(first_pair + i_first + i_pair - 2, il, ilp)
-            CALL grid_pair_shift(il, ilp, fractional_grid, shift, tie)
-            displacement = bs_env%ri_rs%grid_points(:, il) - bs_env%ri_rs%grid_points(:, ilp)
-            pair_shift(:, i_pair) = shift
-            weight_1(:) = [(image_weight(c1, nmesh(1), tie(1), boundary(1)), c1=first_c(1), last_c(1))]
-            weight_2(:) = [(image_weight(c2, nmesh(2), tie(2), boundary(2)), c2=first_c(2), last_c(2))]
-            weight_3(:) = [(image_weight(c3, nmesh(3), tie(3), boundary(3)), c3=first_c(3), last_c(3))]
+            i_local = i_first + i_pair - 1
+            shift = plan%image_shift(:, i_local)
+            tied = INT(plan%image_tie(:, i_local))
             i_c = 0
             DO c3 = first_c(3), last_c(3)
                DO c2 = first_c(2), last_c(2)
                   DO c1 = first_c(1), last_c(1)
                      i_c = i_c + 1
                      images(i_c, i_pair) = 0.0_dp
+                     weight = plan%image_weights(c1 - first_c(1) + 1, 1, tied(1))* &
+                              plan%image_weights(c2 - first_c(2) + 1, 2, tied(2))* &
+                              plan%image_weights(c3 - first_c(3) + 1, 3, tied(3))
+                     IF (weight == 0.0_dp) CYCLE
                      IF (cutoff_squared > 0.0_dp) THEN
-                        distance = displacement - MATMUL(bs_env%hmat, REAL(shift + [c1, c2, c3], dp))
+                        distance = plan%displacement(:, i_local) - MATMUL(bs_env%hmat, REAL(shift + [c1, c2, c3], dp))
                         IF (SUM(distance**2) > cutoff_squared) CYCLE
                      END IF
-                     IF (weight_1(c1)*weight_2(c2)*weight_3(c3) == 0.0_dp) THEN
-                        images(i_c, i_pair) = 0.0_dp
-                     ELSE
-                        wrapped = MODULO(shift + [c1, c2, c3] - lower, nmesh) + lower
-                        images(i_c, i_pair) = weight_1(c1)*weight_2(c2)*weight_3(c3)* &
-                                              sigma_R(i_first + i_pair - 1, 1, 1 + wrapped(3) - lower(3) + &
-                                                      nmesh(3)*(wrapped(2) - lower(2) + nmesh(2)*(wrapped(1) - lower(1))))
-                     END IF
+                     wrapped = MODULO(shift + [c1, c2, c3] - lower, nmesh) + lower
+                     images(i_c, i_pair) = weight*sigma_R(i_local, 1, 1 + wrapped(3) - lower(3) + &
+                                                          nmesh(3)*(wrapped(2) - lower(2) + nmesh(2)*(wrapped(1) - lower(1))))
                   END DO
                END DO
             END DO
@@ -2388,16 +2678,16 @@ CONTAINS
          CALL dgemm('T', 'N', n_pairs, n_off, n_c, 1.0_dp, images, n_c, sin_c, n_c, 0.0_dp, sum_im, pair_batch_size)
          DO i_off = 1, n_off
             DO i_pair = 1, n_pairs
-               angle = twopi*DOT_PRODUCT(xk(:, i_off), REAL(pair_shift(:, i_pair), dp))
+               angle = twopi*DOT_PRODUCT(xk(:, i_off), REAL(plan%image_shift(:, i_first + i_pair - 1), dp))
                sigma_k(i_first + i_pair - 1, offmesh_col(i_off)) = &
                   EXP(CMPLX(0.0_dp, angle, KIND=dp))*CMPLX(sum_re(i_pair, i_off), sum_im(i_pair, i_off), KIND=dp)
             END DO
          END DO
       END DO
       !$OMP END DO
-      DEALLOCATE (images, pair_shift, sum_re, sum_im, weight_1, weight_2, weight_3)
+      DEALLOCATE (images, sum_re, sum_im)
       !$OMP END PARALLEL
-      DEALLOCATE (cos_c, fractional_grid, offmesh_col, sin_c, xk)
+      DEALLOCATE (cos_c, offmesh_col, sin_c, xk)
    END SUBROUTINE band_self_energy
 
 ! **************************************************************************************************
@@ -2412,23 +2702,26 @@ CONTAINS
 !> \param plan cached geometry, coefficients, and next-FFT input
 !> \param apply_cutoff apply the configured W distance cutoff to the centered product images
 !> \param q_indices requested output q points
+!> \param q_partner inversion partners in the native W mesh
 ! **************************************************************************************************
-   SUBROUTINE prepare_pair_fft(bs_env, cells, first_pair, n_pairs, n_rank, plan, apply_cutoff, q_indices)
+   SUBROUTINE prepare_pair_fft(bs_env, cells, first_pair, n_pairs, n_rank, plan, apply_cutoff, q_indices, q_partner)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, INTENT(IN)                                :: cells(:, :), first_pair, n_pairs, n_rank
       TYPE(gw_pair_fft_work_type), INTENT(INOUT), TARGET :: plan
       LOGICAL, INTENT(IN)                                :: apply_cutoff
-      INTEGER, INTENT(IN), OPTIONAL                      :: q_indices(:)
+      INTEGER, INTENT(IN), OPTIONAL                      :: q_indices(:), q_partner(:)
 
-      INTEGER :: count, fft_count, first, half_shift(3), i, i_extract, i_first, i_rank, ibatch, &
-         icell, idir, ik, il, ilp, iq, isource, lower(3), n_extract, n_k, n_round, ngrid, &
-         nmesh(3), partner_output, reflected(3), shift(3), width
+      INTEGER :: count, fft_count, first, half_shift(3), i, i_col, i_extract, i_first, i_rank, &
+         i_time, ibatch, icell, idir, ik, il, ilp, iq, isource, lower(3), n_extract, n_k, n_occ, &
+         n_round, n_segments, ngrid, nmesh(3), pair_first, pair_last, partner, partner_native, &
+         partner_output, rank_end, reflected(3), row_first, row_last, shift(3), width
       INTEGER(KIND=int_8)                                :: nfft_grid, spectrum_columns
       INTEGER, ALLOCATABLE :: extract_partner(:), extract_q(:), grid_linear(:), &
          input_to_native(:), native_to_input(:), partner_linear(:), q_position(:)
       LOGICAL                                            :: tie(3)
       REAL(KIND=dp)                                      :: cutoff_squared, displacement(3), &
-                                                            started, total_started
+                                                            energy_tolerance, half_tau, started, &
+                                                            total_started
       REAL(KIND=dp), ALLOCATABLE                         :: fractional_grid(:, :)
       TYPE(gw_pair_fft_batch_type), POINTER              :: batch
 
@@ -2442,10 +2735,34 @@ CONTAINS
          CPABORT('GW lattice transforms require one native reciprocal mesh')
       END IF
       n_k = bs_env%nkp_scf_desymm
-      plan%k_batch = MAX(1, MIN((n_k + n_rank - 1)/n_rank, &
-                                INT(projection_workspace/(complex_bytes* &
-                                                          (REAL(ngrid, dp)*REAL(ngrid + 1, dp)/2.0_dp + REAL(n_rank, dp))))))
-      ALLOCATE (input_to_native(n_k), native_to_input(n_k))
+
+      plan%k_batch = pair_exchange_width(ngrid, n_k, n_rank)
+      CALL grid_pair_blocks(ngrid, n_rank, plan%pair_counts, plan%pair_displs)
+      ! Columns and destination blocks partition the same packed triangle. Only a column
+      ! or rank boundary can begin a new segment, so the map is linear in ngrid + n_rank.
+      ALLOCATE (plan%column_segments(ngrid + 1), plan%segments(ngrid + n_rank))
+      i_rank = 0
+      n_segments = 0
+      pair_first = 1
+      DO i_col = 1, ngrid
+         plan%column_segments(i_col) = n_segments + 1
+         pair_last = pair_first + i_col - 1
+         DO WHILE (i_rank < n_rank)
+            rank_end = plan%pair_displs(i_rank) + plan%pair_counts(i_rank)
+            row_first = MAX(pair_first, plan%pair_displs(i_rank) + 1) - pair_first + 1
+            row_last = MIN(pair_last, rank_end) - pair_first + 1
+            IF (row_first <= row_last) THEN
+               n_segments = n_segments + 1
+               plan%segments(n_segments) = pair_segment_type(i_rank, row_first, row_last, &
+                                                             pair_first + (row_first - 1) - plan%pair_displs(i_rank) - 1)
+            END IF
+            IF (rank_end > pair_last) EXIT
+            i_rank = i_rank + 1
+         END DO
+         IF (i_col < ngrid) pair_first = pair_last + 1
+      END DO
+      plan%column_segments(ngrid + 1) = n_segments + 1
+      ALLOCATE (input_to_native(n_k), native_to_input(n_k), plan%green_source(n_k))
       i_extract = 0
       ! Receive contiguous source-rank blocks; the inverse FFT owns the resulting k permutation.
       DO i_first = 1, n_k, n_rank*plan%k_batch
@@ -2455,6 +2772,7 @@ CONTAINS
                i_extract = i_extract + 1
                input_to_native(i_extract) = ik
                native_to_input(ik) = i_extract
+               plan%green_source(i_extract) = i_extract
             END DO
          END DO
       END DO
@@ -2464,6 +2782,43 @@ CONTAINS
                                   cell_phase_forward=plan%product_phase)
       CPASSERT(ALL(plan%inverse%nfft == nmesh([3, 2, 1])))
       CPASSERT(ALLOCATED(plan%inverse%k_partner))
+      IF (PRESENT(q_partner)) THEN
+         ALLOCATE (plan%q_source(n_k))
+         CALL compact_q_slots(q_partner, n_rank, plan%q_slot)
+         DO isource = 1, n_k
+            ik = input_to_native(isource)
+            plan%q_source(isource) = native_to_input(MIN(ik, q_partner(ik)))
+         END DO
+      END IF
+      ! For the scalar KS problem H(-k)=H(k)* and S(-k)=S(k)*. Its spectral
+      ! projectors give G(-k,τ)=G(k,τ)* when the weights and selected subspaces
+      ! agree. Eigenvalue updates in evGW0 may give the two points different weights.
+      IF (bs_env%gw_flavour == G0W0 .AND. bs_env%n_spin == 1 .AND. .NOT. bs_env%do_soc) THEN
+         n_occ = bs_env%n_occ(1)
+         ASSOCIATE (energies => bs_env%gwkp_env%eigenvalues_G(:, :, 1))
+            DO isource = 1, n_k
+               partner = plan%inverse%k_partner(isource)
+               IF (partner <= isource) CYCLE
+               ik = input_to_native(isource)
+               partner_native = input_to_native(partner)
+               energy_tolerance = 1024.0_dp*EPSILON(1.0_dp)* &
+                                  MAX(1.0_dp, MAXVAL(ABS(energies(:, ik))), MAXVAL(ABS(energies(:, partner_native))))
+               IF (MAXVAL(ABS(energies(:, ik) - energies(:, partner_native))) > energy_tolerance) CYCLE
+               IF (n_occ > 0 .AND. n_occ < SIZE(energies, 1)) THEN
+                  ! A projector cannot select part of a degenerate eigenspace.
+                  IF (energies(n_occ + 1, ik) - energies(n_occ, ik) <= 2.0_dp*energy_tolerance) CYCLE
+               END IF
+               DO i_time = 1, bs_env%num_time_freq_points
+                  half_tau = 0.5_dp*ABS(bs_env%time_frequency_grid%imaginary_time(i_time))
+                  IF (ANY(ABS(ABS(half_tau*(energies(:, ik) - bs_env%e_fermi(1))) - bs_env%stabilize_exp) <= &
+                          half_tau*energy_tolerance)) EXIT
+               END DO
+               IF (i_time <= bs_env%num_time_freq_points) CYCLE
+               plan%green_source(partner) = isource
+               plan%green_reuses = plan%green_reuses + 1
+            END DO
+         END ASSOCIATE
+      END IF
       ! The packed forward transform keeps its factor of 1/2 for the two-real unpacking.
       plan%product_phase(:) = plan%product_phase/(2.0_dp*grid_pair_stencil_denominator)
       half_shift = MODULO(NINT(2.0_dp*REAL(nmesh, dp)*bs_env%kpoints_scf_desymm%xkp(:, 1)), 2)
@@ -2703,7 +3058,7 @@ CONTAINS
                ! The lone transform is also half-scaled; preserve its complex roundoff.
                values_k(first + count - 1, 1, ik) = 2.0_dp*output(fft_count, grid_linear(ik))
                IF (partner_output > 0) THEN
-                  values_k(first + count - 1, 1, partner_output) = 2.0_dp*output(fft_count, partner_linear(ik))
+                  values_k(first + count - 1, 1, partner_output) = CONJG(values_k(first + count - 1, 1, ik))
                END IF
             END IF
          END DO
@@ -2711,7 +3066,7 @@ CONTAINS
          IF (fft_profile_enabled) THEN
             profile%seconds(8) = profile%seconds(8) + m_walltime() - started
             extract_reads = extract_reads + INT(count/2, int_8)*spectrum_columns + &
-                            INT(MODULO(count, 2), int_8)*SIZE(grid_linear, KIND=int_8)
+                            INT(MODULO(count, 2), int_8)*INT(n_extract, int_8)
          END IF
       END DO
 
@@ -2809,95 +3164,21 @@ CONTAINS
    END FUNCTION ri_q_storage_elements
 
 ! **************************************************************************************************
-!> \brief Transfer q-local unordered pairs directly to the FFT pair owners.
-!> Ranks own q points cyclically, MOD(q,P), and packed grid pairs as contiguous blocks. Round r
-!> moves q = (r-1)P+1, ..., rP, the r-th local q of every rank, with one alltoall.
-!> Receive displacements place each column directly in the inverse FFT's rank-blocked k batch.
-!> \param q_pairs packed upper triangles
-!> \param n_grid ...
-!> \param para_env ...
-!> \param k_batch source-rank block width of the prepared inverse FFT input
-!> \param fft_pairs unordered pairs in the prepared inverse FFT input order
-! **************************************************************************************************
-   SUBROUTINE q_matrices_to_fft_pairs(q_pairs, n_grid, para_env, k_batch, fft_pairs)
-      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN), TARGET   :: q_pairs(:, :)
-      INTEGER, INTENT(IN)                                :: n_grid
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: k_batch
-      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(OUT), TARGET  :: fft_pairs(:, :, :)
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'q_matrices_to_fft_pairs'
-
-      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: received(:), sent(:)
-      COMPLEX(KIND=dp), TARGET                           :: unused_receive(1), unused_send(1)
-      INTEGER :: batch_first, batch_round, batch_size, handle, i_first, i_rank, i_round, i_source, &
-         n_local, n_owned, n_q, n_rank, n_round, offset
-      INTEGER, ALLOCATABLE                               :: pair_counts(:), pair_displs(:), &
-                                                            recv_counts(:), recv_displs(:), &
-                                                            send_counts(:)
-
-      CALL timeset(routineN, handle)
-
-      n_rank = para_env%num_pe
-      n_local = SIZE(fft_pairs, 1)
-      n_q = SIZE(fft_pairs, 3)
-      CPASSERT(SIZE(fft_pairs, 2) == 1 .AND. k_batch > 0)
-      CALL grid_pair_blocks(n_grid, n_rank, pair_counts, pair_displs)
-      CPASSERT(SIZE(q_pairs, 1) == SUM(pair_counts))
-      ALLOCATE (recv_counts(0:n_rank - 1), &
-                recv_displs(0:n_rank - 1), send_counts(0:n_rank - 1))
-      unused_send = z_zero
-      unused_receive = z_zero
-      DO i_round = 1, (n_q + n_rank - 1)/n_rank
-         i_first = (i_round - 1)*n_rank
-         n_round = MIN(n_rank, n_q - i_first)
-         batch_first = ((i_round - 1)/k_batch)*n_rank*k_batch
-         batch_round = MODULO(i_round - 1, k_batch)
-         batch_size = MIN(n_rank*k_batch, n_q - batch_first)
-         offset = 0
-         DO i_rank = 0, n_rank - 1
-            ! q ownership is rotated by one rank relative to Green k ownership.
-            i_source = MODULO(i_rank + 1, n_rank)
-            n_owned = MAX(0, (batch_size + n_rank - 1 - i_rank)/n_rank)
-            recv_counts(i_source) = MERGE(n_local, 0, batch_round < n_owned)
-            recv_displs(i_source) = n_local*(offset + MIN(batch_round, n_owned))
-            offset = offset + n_owned
-         END DO
-         send_counts(:) = 0
-         sent => unused_send
-         IF (MODULO(para_env%mepos - 1, n_rank) < n_round) THEN
-            sent => q_pairs(:, i_round)
-            send_counts(:) = pair_counts
-         END IF
-         received => unused_receive
-         IF (n_local > 0) THEN
-            received(1:n_local*batch_size) => fft_pairs(:, :, batch_first + 1:batch_first + batch_size)
-         END IF
-         CALL para_env%alltoall(sent, send_counts, pair_displs, received, recv_counts, recv_displs)
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE q_matrices_to_fft_pairs
-
-! **************************************************************************************************
 !> \brief Transfer unordered grid pairs into bounded q batches and consume the Hermitian
 !>        panels as Z(q)^H chi(q) Z(q), without expanding a full grid matrix.
 !> \param fft_pairs compact needed-q columns, ordered by ascending original q index
 !> \param para_env ...
 !> \param needed q points to transfer
 !> \param Z_q interpolation matrices at the q points owned by this rank, MOD(q,P)
-!> \param compact_z whether Z_q contains only needed q points
 !> \param chi_q accumulate projected matrices in compact local q order
 !> \param batch_rounds common maximum number of communication rounds per projection batch
 !> \param projection_seconds logger-rank projection wall time, excluding transfers
 ! **************************************************************************************************
-   SUBROUTINE project_fft_pairs_to_chi(fft_pairs, para_env, needed, Z_q, compact_z, chi_q, batch_rounds, projection_seconds)
+   SUBROUTINE project_fft_pairs_to_chi(fft_pairs, para_env, needed, Z_q, chi_q, batch_rounds, projection_seconds)
       COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN), TARGET   :: fft_pairs(:, :, :)
       TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: needed(:)
       COMPLEX(KIND=dp), INTENT(IN)                       :: Z_q(:, :, :)
-      LOGICAL, INTENT(IN)                                :: compact_z
       COMPLEX(KIND=dp), INTENT(INOUT)                    :: chi_q(:, :, :)
       INTEGER, INTENT(IN)                                :: batch_rounds
       REAL(KIND=dp), INTENT(OUT)                         :: projection_seconds
@@ -2909,11 +3190,11 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: received(:), sent(:)
       COMPLEX(KIND=dp), TARGET                           :: unused_receive(1), unused_send(1)
       INTEGER :: capacity, first_round, handle, i_buffer, i_column, i_first, i_local, i_needed, &
-         i_rank, i_round, i_thread, i_z, iq, n_aux, n_buffer, n_grid, n_local, n_needed_local, &
-         n_q, n_rank, n_round, n_selected, n_workers
-      INTEGER, ALLOCATABLE                               :: local_q(:), pair_counts(:), &
-                                                            pair_displs(:), recv_counts(:), &
-                                                            send_counts(:), send_displs(:)
+         i_rank, i_round, i_thread, iq, n_aux, n_buffer, n_grid, n_local, n_needed_local, n_q, &
+         n_rank, n_round, n_selected, n_workers
+      INTEGER, ALLOCATABLE                               :: pair_counts(:), pair_displs(:), &
+                                                            recv_counts(:), send_counts(:), &
+                                                            send_displs(:)
       LOGICAL                                            :: receiving
       REAL(KIND=dp)                                      :: started
 
@@ -2935,7 +3216,7 @@ CONTAINS
       n_workers = MAX(1, MIN(n_workers, capacity))
       CALL grid_pair_blocks(n_grid, n_rank, pair_counts, pair_displs)
       ALLOCATE (recv_counts(0:n_rank - 1), &
-                send_counts(0:n_rank - 1), send_displs(0:n_rank - 1), local_q(capacity), &
+                send_counts(0:n_rank - 1), send_displs(0:n_rank - 1), &
                 q_pairs(INT(INT(n_grid, int_8)*(n_grid + 1)/2), capacity), work(n_grid, n_aux, n_workers), &
                 panel(n_grid, MIN(n_grid, grid_pair_panel_cols), n_workers))
       unused_receive = z_zero
@@ -2975,7 +3256,6 @@ CONTAINS
                i_local = i_local + 1
                n_buffer = n_buffer + 1
                CPASSERT(n_buffer <= capacity)
-               local_q(n_buffer) = (iq - 1)/n_rank + 1
                received => q_pairs(:, n_buffer)
             END IF
             CALL para_env%alltoall(sent, send_counts, send_displs, received, recv_counts, pair_displs)
@@ -2984,17 +3264,16 @@ CONTAINS
          IF (fft_profile_enabled) started = m_walltime()
          ! Distinct q matrices remain independent; each thread reuses its GEMM workspace.
          !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) IF(n_buffer > 1) NUM_THREADS(n_workers) &
-         !$OMP SHARED(n_buffer, n_grid, n_aux, q_pairs, local_q, Z_q, chi_q, panel, work, i_local, compact_z) &
-         !$OMP PRIVATE(i_buffer, i_thread, i_needed, i_z)
+         !$OMP SHARED(n_buffer, n_grid, n_aux, q_pairs, Z_q, chi_q, panel, work, i_local) &
+         !$OMP PRIVATE(i_buffer, i_thread, i_needed)
          DO i_buffer = 1, n_buffer
             i_thread = 1
 !$          i_thread = omp_get_thread_num() + 1
             i_needed = i_local - n_buffer + i_buffer
-            i_z = MERGE(i_needed, local_q(i_buffer), compact_z)
-            CALL grid_pair_upper_multiply(n_grid, n_aux, q_pairs(:, i_buffer), Z_q(:, :, i_z), &
+            CALL grid_pair_upper_multiply(n_grid, n_aux, q_pairs(:, i_buffer), Z_q(:, :, i_needed), &
                                           work(:, :, i_thread), panel(:, :, i_thread))
             ! Z^H H Z = Z^H (U Z) + (U Z)^H Z; accumulate only the Hermitian upper triangle.
-            CALL zher2k('U', 'C', n_aux, n_grid, z_one, Z_q(:, :, i_z), n_grid, &
+            CALL zher2k('U', 'C', n_aux, n_grid, z_one, Z_q(:, :, i_needed), n_grid, &
                         work(:, :, i_thread), n_grid, 1.0_dp, chi_q(:, :, i_needed), n_aux)
          END DO
          !$OMP END PARALLEL DO
@@ -3008,52 +3287,95 @@ CONTAINS
    END SUBROUTINE project_fft_pairs_to_chi
 
 ! **************************************************************************************************
-!> \brief Form W_ll'(q,iτ) = Σ_PQ Z_lP(q) W_PQ(q,iτ) Z_l'Q(q)* and transfer FFT pairs.
+!> \brief Project W as Z W Z^H or the bare interaction as (ZK)(ZK)^H, then exchange its panels.
+!> D(q) and d(q) come from real-space real coefficients, so the RI fit obeys Z(-q)=Z(q)*.
+!> Apply the same conjugation to the projected W after exchanging it with the grid-pair owners.
 !> \param Z_q ...
-!> \param interaction_q W_PQ(q,iτ) of the locally owned q
+!> \param interaction_q Compact local W(q,iτ) matrices or one K(q) factor per q
 !> \param itime ...
 !> \param para_env ...
-!> \param k_batch source-rank block width of the prepared inverse FFT input
+!> \param work shared geometry and exchange layout
 !> \param fft_pairs ...
+!> \param factor whether interaction_q contains Coulomb factors
 ! **************************************************************************************************
-   SUBROUTINE project_auxiliary_time_q_to_fft_pairs(Z_q, interaction_q, itime, para_env, k_batch, fft_pairs)
-      COMPLEX(KIND=dp), INTENT(IN)                       :: Z_q(:, :, :)
+   SUBROUTINE project_auxiliary_q_to_fft_pairs(Z_q, interaction_q, itime, para_env, work, fft_pairs, factor)
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN), TARGET   :: Z_q(:, :, :)
       TYPE(ri_q_matrix_block_type), INTENT(IN)           :: interaction_q(:)
       INTEGER, INTENT(IN)                                :: itime
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: k_batch
+      TYPE(gw_pair_fft_work_type), INTENT(IN)            :: work
       COMPLEX(KIND=dp), CONTIGUOUS, INTENT(OUT), TARGET  :: fft_pairs(:, :, :)
+      LOGICAL, INTENT(IN)                                :: factor
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'project_auxiliary_time_q_to_fft_pairs'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'project_auxiliary_q_to_fft_pairs'
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :), q_pairs(:, :), ZW(:, :)
-      INTEGER                                            :: handle, i_q_local, n_grid, n_q_local, &
-                                                            n_RI
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :), sent(:)
+      COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: ZW(:, :, :)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: right(:, :)
+      INTEGER :: first_col, handle, i_first, i_q, i_z, n_aux_cols, n_cols, n_grid, n_owned, &
+         n_pairs, n_q, n_q_local, n_rank, n_RI, n_round, n_scheduled, n_threads, ri_block
+      INTEGER, ALLOCATABLE                               :: jobs(:), recv_counts(:), recv_displs(:)
 
       CALL timeset(routineN, handle)
 
       n_grid = SIZE(Z_q, 1)
       n_RI = SIZE(Z_q, 2)
       n_q_local = SIZE(Z_q, 3)
+      n_q = SIZE(fft_pairs, 3)
+      n_rank = para_env%num_pe
+      n_pairs = SUM(work%pair_counts)
+      CPASSERT(SIZE(fft_pairs, 1) == work%pair_counts(para_env%mepos))
+      CPASSERT(ALLOCATED(work%q_source))
       CPASSERT(SIZE(interaction_q) == n_q_local)
-      ALLOCATE (q_pairs(INT(INT(n_grid, int_8)*(n_grid + 1)/2), n_q_local))
-      !$OMP PARALLEL DEFAULT(NONE) SHARED(Z_q, interaction_q, itime, q_pairs, n_q_local, n_grid, n_RI) &
-      !$OMP PRIVATE(i_q_local, panel, ZW)
-      ALLOCATE (ZW(n_grid, n_RI), panel(n_grid, MIN(n_grid, grid_pair_panel_cols)))
-      !$OMP DO SCHEDULE(STATIC)
-      DO i_q_local = 1, n_q_local
-         CALL zgemm('N', 'N', n_grid, n_RI, n_RI, z_one, Z_q(:, :, i_q_local), n_grid, &
-                    interaction_q(i_q_local)%values(:, :, itime), n_RI, z_zero, ZW, n_grid)
-         CALL grid_pair_gemm(n_grid, n_RI, ZW, Z_q(:, :, i_q_local), q_pairs(:, i_q_local), panel)
+      ALLOCATE (sent(MAX(1, n_pairs*MIN(n_q_local, work%k_batch))), ZW(n_grid, n_RI, MIN(n_q_local, work%k_batch)), &
+                jobs(work%k_batch), recv_counts(0:n_rank - 1), recv_displs(0:n_rank - 1))
+      n_threads = 1
+!$    n_threads = omp_get_max_threads()
+      ri_block = MAX(64, (n_RI + n_threads - 1)/n_threads)
+
+      DO i_first = 1, n_q, n_rank*work%k_batch
+         n_round = MIN(n_rank*work%k_batch, n_q - i_first + 1)
+         CALL pair_exchange_jobs(work, work%q_source, para_env, i_first, n_round, 1, &
+                                 jobs, n_owned, n_scheduled, recv_counts, recv_displs)
+         IF (n_scheduled == 0) CYCLE
+
+         !$OMP PARALLEL DEFAULT(NONE) IF(n_owned > 0) &
+         !$OMP SHARED(Z_q, ZW, interaction_q, itime, work, sent, jobs, n_owned, n_grid, n_RI, ri_block, factor) &
+         !$OMP PRIVATE(first_col, i_q, i_z, n_aux_cols, n_cols, panel, right)
+         ALLOCATE (panel(n_grid, MIN(n_grid, grid_pair_panel_cols)))
+         !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
+         DO i_q = 1, n_owned
+            DO first_col = 1, n_RI, ri_block
+               i_z = work%q_slot(jobs(i_q))
+               n_aux_cols = MIN(ri_block, n_RI - first_col + 1)
+               CALL zgemm('N', 'N', n_grid, n_aux_cols, n_RI, z_one, Z_q(:, :, i_z), n_grid, &
+                          interaction_q(i_z)%values(1, first_col, itime), n_RI, z_zero, ZW(1, first_col, i_q), n_grid)
+            END DO
+         END DO
+         !$OMP END DO
+         !$OMP DO COLLAPSE(2) SCHEDULE(STATIC, 1)
+         DO i_q = 1, n_owned
+            DO first_col = 1, n_grid, grid_pair_panel_cols
+               i_z = work%q_slot(jobs(i_q))
+               n_cols = MIN(grid_pair_panel_cols, n_grid - first_col + 1)
+               right => Z_q(:, :, i_z)
+               IF (factor) right => ZW(:, :, i_q)
+               CALL grid_pair_gemm_panel(n_grid, n_RI, first_col, n_cols, ZW(:, :, i_q), right, panel)
+               CALL pack_grid_pair_panel(work, first_col, n_cols, panel, n_owned, i_q, sent)
+            END DO
+         END DO
+         !$OMP END DO
+         DEALLOCATE (panel)
+         !$OMP END PARALLEL
+
+         CALL exchange_pair_round(work, work%q_source, para_env, i_first, n_round, 1, &
+                                  n_owned, sent, recv_counts, recv_displs, fft_pairs)
       END DO
-      !$OMP END DO
-      DEALLOCATE (ZW, panel)
-      !$OMP END PARALLEL
-      CALL q_matrices_to_fft_pairs(q_pairs, n_grid, para_env, k_batch, fft_pairs)
+      CALL restore_pair_conjugates(work%q_source, fft_pairs)
 
       CALL timestop(handle)
 
-   END SUBROUTINE project_auxiliary_time_q_to_fft_pairs
+   END SUBROUTINE project_auxiliary_q_to_fft_pairs
 
 ! **************************************************************************************************
 !> \brief ...
@@ -3117,6 +3439,28 @@ CONTAINS
    END SUBROUTINE get_owner_matrix
 
 ! **************************************************************************************************
+!> \brief Number representative q points in native order within each cyclic owner.
+!> \param q_partner ...
+!> \param n_rank ...
+!> \param q_slot local slot for each q, with zero for its omitted partner
+! **************************************************************************************************
+   SUBROUTINE compact_q_slots(q_partner, n_rank, q_slot)
+      INTEGER, INTENT(IN)                                :: q_partner(:), n_rank
+      INTEGER, ALLOCATABLE, INTENT(OUT)                  :: q_slot(:)
+
+      INTEGER                                            :: iq, owner, counts(0:n_rank - 1)
+
+      ALLOCATE (q_slot(SIZE(q_partner)), SOURCE=0)
+      counts(:) = 0
+      DO iq = 1, SIZE(q_partner)
+         IF (q_partner(iq) < iq) CYCLE
+         owner = MODULO(iq, n_rank)
+         counts(owner) = counts(owner) + 1
+         q_slot(iq) = counts(owner)
+      END DO
+   END SUBROUTINE compact_q_slots
+
+! **************************************************************************************************
 !> \brief Find -q in the same mesh for every q; q is its own partner where -q ≡ q.
 !> \param xkp q points in fractional coordinates
 !> \param q_partner index of -q for every q
@@ -3140,58 +3484,6 @@ CONTAINS
          CPASSERT(q_partner(ikp) > 0)
       END DO
    END SUBROUTINE minus_q_partners
-
-! **************************************************************************************************
-!> \brief Give the owner of every unsolved q the block of its partner, W(q,τ) = W(-q,τ)*.
-!> \param para_env ...
-!> \param q_partner index of -q for every q
-!> \param solves_q whether W(q) was solved; then the owner of q holds its block
-!> \param n_RI ...
-!> \param n_time ...
-!> \param blocks W(q,τ) of the q points owned by this rank
-! **************************************************************************************************
-   SUBROUTINE receive_minus_q_blocks(para_env, q_partner, solves_q, n_RI, n_time, blocks)
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: q_partner(:)
-      LOGICAL, INTENT(IN)                                :: solves_q(:)
-      INTEGER, INTENT(IN)                                :: n_RI, n_time
-      TYPE(ri_q_matrix_block_type), INTENT(INOUT)        :: blocks(:)
-
-      INTEGER                                            :: destination, ikp, n_requests, &
-                                                            partner_local, q_local, source
-      TYPE(mp_request_type), ALLOCATABLE                 :: requests(:)
-
-      ! A rank sends at most its solved and receives at most its unsolved blocks.
-      ALLOCATE (requests(SIZE(blocks)))
-      n_requests = 0
-      DO ikp = 1, SIZE(q_partner)
-         IF (.NOT. solves_q(ikp) .OR. q_partner(ikp) == ikp) CYCLE
-         source = MODULO(ikp, para_env%num_pe)
-         destination = MODULO(q_partner(ikp), para_env%num_pe)
-         q_local = 1 + (ikp - 1)/para_env%num_pe
-         partner_local = 1 + (q_partner(ikp) - 1)/para_env%num_pe
-         IF (para_env%mepos == destination) THEN
-            ALLOCATE (blocks(partner_local)%values(n_RI, n_RI, n_time))
-            IF (source == destination) THEN
-               blocks(partner_local)%values(:, :, :) = blocks(q_local)%values
-            ELSE
-               n_requests = n_requests + 1
-               CALL para_env%irecv(blocks(partner_local)%values, source, requests(n_requests), tag=q_local)
-            END IF
-         ELSE IF (para_env%mepos == source) THEN
-            n_requests = n_requests + 1
-            CALL para_env%isend(blocks(q_local)%values, destination, requests(n_requests), tag=q_local)
-         END IF
-      END DO
-      CALL mp_waitall(requests(1:n_requests))
-      DO ikp = para_env%mepos, SIZE(q_partner), para_env%num_pe
-         IF (ikp == 0) CYCLE
-         IF (.NOT. solves_q(ikp)) THEN
-            q_local = 1 + (ikp - 1)/para_env%num_pe
-            blocks(q_local)%values(:, :, :) = CONJG(blocks(q_local)%values)
-         END IF
-      END DO
-   END SUBROUTINE receive_minus_q_blocks
 
 ! **************************************************************************************************
 !> \brief Partition MPI ranks into balanced contiguous q groups.
