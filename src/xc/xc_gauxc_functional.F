@@ -192,6 +192,8 @@ CONTAINS
 !> \param dbcsr_mat ...
 !> \param dense_mat ...
 !> \param para_env ...
+!> \param replicated ...
+!> \param fill_replicated ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat, para_env, replicated, fill_replicated)
       USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
@@ -239,8 +241,9 @@ CONTAINS
       ! Replicated DBCSR blocks must enter a following MPI sum exactly once. If the
       ! caller requests fill_replicated, every rank fills its own copy locally so the
       ! collective can be skipped entirely.
-      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0 .AND. .NOT. fill_local) &
-         RETURN
+      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0 .AND. .NOT. fill_local) then
+        RETURN
+      end if
 
       ! Stored blocks and their symmetry mirrors occupy disjoint dense slices.
 !$OMP PARALLEL DEFAULT(NONE) SHARED(dbcsr_mat, dense_mat, has_symmetry, symmetry_sign, ncols) &
@@ -270,6 +273,8 @@ CONTAINS
 !> \param dbcsr_b ...
 !> \param dense_b ...
 !> \param para_env ...
+!> \param replicated ...
+!> \param fill_replicated ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_to_dense_pair(dbcsr_a, dense_a, dbcsr_b, dense_b, para_env, replicated, &
                                   fill_replicated)
@@ -289,10 +294,11 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: fill_replicated
 
       CHARACTER                                          :: matrix_type_a, matrix_type_b
-      INTEGER :: col_start, col_start_b, icol, icol_b, irow, irow_b, izero, ncol, ncol_b, &
-         ncols, nrow, nrow_b, nrows, numnodes, row_start, row_start_b
-      LOGICAL                                            :: fill_local, has_symmetry_a, has_symmetry_b, &
-                                                            transposed_a, transposed_b
+      INTEGER :: col_start, col_start_b, icol, icol_b, irow, irow_b, izero, ncol, ncol_b, ncols, &
+         nrow, nrow_b, nrows, numnodes, row_start, row_start_b
+      LOGICAL                                            :: fill_local, has_symmetry_a, &
+                                                            has_symmetry_b, transposed_a, &
+                                                            transposed_b
       REAL(c_double), POINTER                            :: block_a(:, :), block_b(:, :)
       REAL(KIND=dp)                                      :: symmetry_sign_a, symmetry_sign_b
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -325,8 +331,9 @@ CONTAINS
          DEALLOCATE (dense_b)
          ALLOCATE (dense_b(nrows, ncols))
       END IF
-      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0 .AND. .NOT. fill_local) &
-         RETURN
+      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0 .AND. .NOT. fill_local) then
+        RETURN
+      end if
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED(dbcsr_a, dbcsr_b, dense_a, dense_b, has_symmetry_a, has_symmetry_b, ncols, &
@@ -506,20 +513,20 @@ CONTAINS
             IF (transposed) THEN
                IF (PRESENT(dense_zeta)) THEN
                   block_ptr(1:nc, 1:nr) = 0.5_dp*( &
-                     (dense_mat(r1t:r2t, c1t:c2t) + zsign*dense_zeta(r1t:r2t, c1t:c2t)) + &
-                     TRANSPOSE(dense_mat(r1:r2, c1:c2) + zsign*dense_zeta(r1:r2, c1:c2)))
+                                          (dense_mat(r1t:r2t, c1t:c2t) + zsign*dense_zeta(r1t:r2t, c1t:c2t)) + &
+                                          TRANSPOSE(dense_mat(r1:r2, c1:c2) + zsign*dense_zeta(r1:r2, c1:c2)))
                ELSE
                   block_ptr(1:nc, 1:nr) = 0.5_dp*( &
-                     dense_mat(r1t:r2t, c1t:c2t) + TRANSPOSE(dense_mat(r1:r2, c1:c2)))
+                                          dense_mat(r1t:r2t, c1t:c2t) + TRANSPOSE(dense_mat(r1:r2, c1:c2)))
                END IF
             ELSE
                IF (PRESENT(dense_zeta)) THEN
                   block_ptr(1:nr, 1:nc) = 0.5_dp*( &
-                     (dense_mat(r1:r2, c1:c2) + zsign*dense_zeta(r1:r2, c1:c2)) + &
-                     TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t) + zsign*dense_zeta(r1t:r2t, c1t:c2t)))
+                                          (dense_mat(r1:r2, c1:c2) + zsign*dense_zeta(r1:r2, c1:c2)) + &
+                                          TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t) + zsign*dense_zeta(r1t:r2t, c1t:c2t)))
                ELSE
                   block_ptr(1:nr, 1:nc) = 0.5_dp*( &
-                     dense_mat(r1:r2, c1:c2) + TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t)))
+                                          dense_mat(r1:r2, c1:c2) + TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t)))
                END IF
             END IF
          END DO
@@ -1513,8 +1520,8 @@ CONTAINS
       LOGICAL :: backend_has_gpu, do_kpoints, external_density, gapw_method, &
          gapw_paw_pseudopotentials, gapw_pseudopotentials, grid_explicit, have_zeta, &
          int_space_explicit, is_periodic, lb_space_explicit, low_spin_scope, molecular_virial, &
-         molecular_virial_debug, need_xc_gradient, periodic_reference, pruning_explicit, replicated, &
-         replicated_fill, use_cuda, use_skala_model, write_hdf5_output
+         molecular_virial_debug, need_xc_gradient, periodic_reference, pruning_explicit, &
+         replicated, replicated_fill, use_cuda, use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: exc_value, force_numerical_gradient_dx, &
                                                             molecular_virial_debug_dx
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set

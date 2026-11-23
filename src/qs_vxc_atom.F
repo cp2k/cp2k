@@ -275,23 +275,21 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom'
 
       INTEGER :: adjoint_handle, adjoint_nchannels, atom_composite_components, bo(2), &
-         composite_image_periodicity(3), composite_local_atom, composite_local_natom, &
-         composite_nflat, composite_partition_target_image, composite_row, force_handle, &
-         gapw_density_partition, gapw_representation, gather_handle, handle, ia, iat, iatom, &
-         icomponent, idir, ikind, image_i1, image_i2, image_i3, image_lower(3), image_shell(3), &
-         image_shift(3), image_upper(3), inode_x, inode_y, inode_z, interp_handle, ir, ispin, iw, &
-         jdir, local_partition_target_image, myfun, na, natom, ngl, nr, nspins, num_pe, on, pos, &
-         source_atom
-      INTEGER :: target_atom, xc_deriv_method_id, xc_rho_smooth_id, zatom
-      INTEGER :: chunk_end_row, chunk_start_row, ichunk, itask, nchunks_per_atom, ntasks, &
-         nrows_chunk
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: chunk_atom, chunk_begin, chunk_end
+         chunk_end_row, chunk_start_row, composite_image_periodicity(3), composite_local_atom, &
+         composite_local_natom, composite_nflat, composite_partition_target_image, composite_row, &
+         force_handle, gapw_density_partition, gapw_representation, gather_handle, handle, ia, &
+         iat, iatom, ichunk, icomponent, idir, ikind, image_i1, image_i2, image_i3, &
+         image_lower(3), image_shell(3), image_shift(3), image_upper(3), inode_x, inode_y, &
+         inode_z, interp_handle, ir, ispin, itask, iw, jdir, local_partition_target_image, myfun, &
+         na, natom
+      INTEGER :: nchunks_per_atom, ngl, nr, nrows_chunk, nspins, ntasks, num_pe, on, pos, &
+         source_atom, target_atom, xc_deriv_method_id, xc_rho_smooth_id, zatom
       INTEGER(int_8)                                     :: lin
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: composite_atomic_grid_sizes, &
                                                             composite_local_grid_sizes
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: composite_atom_end, composite_atom_kind, &
-         composite_atom_kind_index, composite_atom_start, composite_grid_atom, &
-         composite_local_atoms
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: chunk_atom, chunk_begin, chunk_end, &
+         composite_atom_end, composite_atom_kind, composite_atom_kind_index, composite_atom_start, &
+         composite_grid_atom, composite_local_atoms
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL :: accint, atom_composite_active, atom_composite_diagnostic, &
@@ -321,15 +319,15 @@ CONTAINS
          composite_atom_coord_grad, composite_atom_coords, composite_cross_density, &
          composite_cross_force, composite_cross_force_local, composite_cross_kin, &
          composite_density, composite_density_grad, composite_explicit_force, &
-         composite_grid_coord_force, composite_grid_coord_grad, composite_grid_coords, &
-         composite_kin, composite_kin_grad, composite_local_atom_coords, &
-         composite_model_atom_force, composite_moving_smooth_force, composite_nlcc_center_force, &
-         composite_nlcc_center_force_local, composite_nlcc_target_force, &
-         composite_grid_coord_force_local, composite_moving_smooth_force_local, &
-         composite_nlcc_target_force_local
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_partition_force, &
-         composite_partition_force_local, composite_smooth_density_cache, &
-         composite_smooth_kin_cache, local_partition_datom, thread_adj
+         composite_grid_coord_force, composite_grid_coord_force_local, composite_grid_coord_grad, &
+         composite_grid_coords, composite_kin, composite_kin_grad, composite_local_atom_coords, &
+         composite_model_atom_force, composite_moving_smooth_force, &
+         composite_moving_smooth_force_local, composite_nlcc_center_force
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_nlcc_center_force_local, &
+         composite_nlcc_target_force, composite_nlcc_target_force_local, &
+         composite_partition_force, composite_partition_force_local, &
+         composite_smooth_density_cache, composite_smooth_kin_cache, local_partition_datom, &
+         thread_adj
       REAL(dp), ALLOCATABLE, DIMENSION(:, :), TARGET     :: smooth_density_adjoint_storage, &
                                                             smooth_kin_adjoint_storage
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :) :: composite_cross_grad, composite_grad, &
@@ -711,9 +709,9 @@ CONTAINS
                comp_geometry_valid = .FALSE.
             END IF
             IF (comp_geometry_valid) THEN
-               composite_grid_coords = native_comp_coords
-               composite_base_grid_weights = native_comp_base_w
-               composite_grid_weights = native_comp_grid_w
+               composite_grid_coords(:, :) = native_comp_coords
+               composite_base_grid_weights(:) = native_comp_base_w
+               composite_grid_weights(:) = native_comp_grid_w
             ELSE
                IF (ALLOCATED(native_comp_atoms)) THEN
                   DEALLOCATE (native_comp_atoms, native_comp_coords, native_comp_base_w, &
@@ -759,10 +757,10 @@ CONTAINS
                   END DO
                END DO
 !$OMP END PARALLEL DO
-               native_comp_coords = composite_grid_coords
-               native_comp_base_w = composite_base_grid_weights
-               native_comp_grid_w = composite_grid_weights
-               native_comp_atoms = composite_atom_coords
+               native_comp_coords(:, :) = composite_grid_coords
+               native_comp_base_w(:) = composite_base_grid_weights
+               native_comp_grid_w(:) = composite_grid_weights
+               native_comp_atoms(:, :) = composite_atom_coords
                native_comp_hmat = cell%hmat
                native_comp_perd = cell%perd
                native_comp_nrows = composite_nflat
@@ -2109,7 +2107,7 @@ CONTAINS
             END DO
 !$OMP END DO
 !$OMP CRITICAL(skala_atom_composite_adjoint_compact)
-            adjoint_compact = adjoint_compact + thread_adj
+            adjoint_compact(:, :) = adjoint_compact(:, :) + thread_adj
 !$OMP END CRITICAL(skala_atom_composite_adjoint_compact)
             DEALLOCATE (thread_adj)
 !$OMP END PARALLEL
@@ -3211,11 +3209,11 @@ CONTAINS
          native_need_scount(1) = nneed
          native_need_sdispl(1) = 0
          ALLOCATE (native_need_rcount(npe), native_need_rdispl(npe))
-         native_need_rcount = native_need_scount
-         native_need_rdispl = native_need_sdispl
+         native_need_rcount(:) = native_need_scount
+         native_need_rdispl(:) = native_need_sdispl
          ALLOCATE (native_need_sidx(MAX(nneed, 1)), native_need_ridx(MAX(nneed, 1)))
-         native_need_sidx = native_need_local
-         native_need_ridx = native_need_local
+         native_need_sidx(:) = native_need_local
+         native_need_ridx(:) = native_need_local
       ELSE
          ALLOCATE (cand_owner(MAX(nneed, 1)), cand_local(MAX(nneed, 1)))
          DO ip = 1, nneed
@@ -3275,7 +3273,7 @@ CONTAINS
       DO b = 1, native_need_nbucket
          native_need_bucket_start(b + 1) = native_need_bucket_start(b) + bucket_count(b)
       END DO
-      bucket_count = native_need_bucket_start(1:native_need_nbucket)
+      bucket_count(:) = native_need_bucket_start(1:native_need_nbucket)
       DO pos = 1, nneed
          b = native_need_bucket(native_need_lin(pos), native_need_nbucket)
          native_need_bucket_entry(bucket_count(b))%lin = native_need_lin(pos)
@@ -3284,8 +3282,8 @@ CONTAINS
       END DO
       DEALLOCATE (bucket_count, cand, native_need_lin)
 
-      native_need_base = work_base
-      native_need_atoms = atom_coords
+      native_need_base(:, :) = work_base
+      native_need_atoms(:, :) = atom_coords
       DEALLOCATE (work_base)
       native_need_dh_inv = grid%dh_inv
       native_need_hmat = cell%hmat
