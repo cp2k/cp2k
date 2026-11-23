@@ -17,6 +17,7 @@ MODULE four_center_integral_methods
    USE four_center_integral_preparation,ONLY: min_image_gap_sq,&
                                               prepare_eri4_pair
    USE four_center_integral_types,      ONLY: eri4_cell_type,&
+                                              eri4_contraction_type,&
                                               eri4_pgf_pair_type,&
                                               eri4_screen_coeff_type
    USE integral_library_types,          ONLY: coulomb_operator_type
@@ -182,18 +183,6 @@ CONTAINS
 !> \param nsgfb ...
 !> \param nsgfc ...
 !> \param nsgfd ...
-!> \param sphi_a_u1 ...
-!> \param sphi_a_u2 ...
-!> \param sphi_a_u3 ...
-!> \param sphi_b_u1 ...
-!> \param sphi_b_u2 ...
-!> \param sphi_b_u3 ...
-!> \param sphi_c_u1 ...
-!> \param sphi_c_u2 ...
-!> \param sphi_c_u3 ...
-!> \param sphi_d_u1 ...
-!> \param sphi_d_u2 ...
-!> \param sphi_d_u3 ...
 !> \param zeta ...
 !> \param zetb ...
 !> \param zetc ...
@@ -216,18 +205,13 @@ CONTAINS
 !> \param pgf2 schwarz coefficients pgf basid
 !> \param pgf_list_ij ...
 !> \param pgf_list_kl ...
-!> \param nsgfl_a ...
-!> \param nsgfl_b ...
-!> \param nsgfl_c ...
-!> \param nsgfl_d ...
-!> \param sphi_a_ext ...
-!> \param sphi_b_ext ...
-!> \param sphi_c_ext ...
-!> \param sphi_d_ext ...
+!> \param contraction_a angular transforms and radial weights for the shell set on A
+!> \param contraction_b angular transforms and radial weights for the shell set on B
+!> \param contraction_c angular transforms and radial weights for the shell set on C
+!> \param contraction_d angular transforms and radial weights for the shell set on D
 !> \param ee_work2 ...
 !> \param ee_buffer1 ...
 !> \param ee_buffer2 ...
-!> \param ee_primitives_tmp ...
 !> \param nimages ...
 !> \param do_periodic ...
 !> \par History
@@ -238,10 +222,6 @@ CONTAINS
    SUBROUTINE coulomb4(context, ra, rb, rc, rd, npgfa, npgfb, npgfc, npgfd, &
                        la_min, la_max, lb_min, lb_max, &
                        lc_min, lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, &
-                       sphi_a_u1, sphi_a_u2, sphi_a_u3, &
-                       sphi_b_u1, sphi_b_u2, sphi_b_u3, &
-                       sphi_c_u1, sphi_c_u2, sphi_c_u3, &
-                       sphi_d_u1, sphi_d_u2, sphi_d_u3, &
                        zeta, zetb, zetc, zetd, &
                        primitive_integrals, &
                        potential_parameter, neighbor_cells, &
@@ -249,19 +229,17 @@ CONTAINS
                        cart_estimate, cell, neris_tmp, log10_pmax, &
                        log10_eps_schwarz, R1_pgf, R2_pgf, pgf1, pgf2, &
                        pgf_list_ij, pgf_list_kl, &
-                       nsgfl_a, nsgfl_b, nsgfl_c, &
-                       nsgfl_d, &
-                       sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext, &
-                       ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
+                       contraction_a, contraction_b, contraction_c, contraction_d, &
+                       ee_work2, ee_buffer1, ee_buffer2, &
                        nimages, do_periodic)
 
       TYPE(four_center_integral_context_type), &
          INTENT(INOUT)                                   :: context
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
-      INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
-         lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &
-         sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, &
-         sphi_d_u3
+      INTEGER, INTENT(IN)                                :: npgfa, npgfb, npgfc, npgfd, la_min, &
+                                                            la_max, lb_min, lb_max, lc_min, &
+                                                            lc_max, ld_min, ld_max, nsgfa, nsgfb, &
+                                                            nsgfc, nsgfd
       REAL(dp), DIMENSION(1:npgfa), INTENT(IN)           :: zeta
       REAL(dp), DIMENSION(1:npgfb), INTENT(IN)           :: zetb
       REAL(dp), DIMENSION(1:npgfc), INTENT(IN)           :: zetc
@@ -278,12 +256,9 @@ CONTAINS
       TYPE(eri4_screen_coeff_type), DIMENSION(:, :), &
          POINTER                                         :: R1_pgf, R2_pgf, pgf1, pgf2
       TYPE(eri4_pgf_pair_type), DIMENSION(*)             :: pgf_list_ij, pgf_list_kl
-      INTEGER, DIMENSION(0:), INTENT(IN)                 :: nsgfl_a, nsgfl_b, nsgfl_c, nsgfl_d
-      REAL(dp), INTENT(IN) :: sphi_a_ext(sphi_a_u1, sphi_a_u2, sphi_a_u3), &
-         sphi_b_ext(sphi_b_u1, sphi_b_u2, sphi_b_u3), sphi_c_ext(sphi_c_u1, sphi_c_u2, sphi_c_u3), &
-         sphi_d_ext(sphi_d_u1, sphi_d_u2, sphi_d_u3)
-      REAL(dp), DIMENSION(*)                             :: ee_work2, ee_buffer1, ee_buffer2, &
-                                                            ee_primitives_tmp
+      TYPE(eri4_contraction_type), INTENT(IN)            :: contraction_a(0:), contraction_b(0:), &
+                                                            contraction_c(0:), contraction_d(0:)
+      REAL(dp), DIMENSION(*)                             :: ee_work2, ee_buffer1, ee_buffer2
       INTEGER, DIMENSION(*)                              :: nimages
       LOGICAL, INTENT(IN)                                :: do_periodic
 
@@ -319,31 +294,31 @@ CONTAINS
 
             CALL prepare_four_center_batch(context, pgf_list_ij(list_ij), pgf_list_kl(list_kl), &
                                            nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
-                                           potential_parameter, max_l, do_periodic)
+                                           potential_parameter, max_l, do_periodic, group_images=.TRUE.)
             IF (nproducts == 0) CYCLE
 
             s_offset_a = 0
             DO la = la_min, la_max
                s_offset_b = 0
                ncoa = nco(la)
-               nsgfla = nsgfl_a(la)
+               nsgfla = SIZE(contraction_a(la)%weights, 1)
                nsoa = nso(la)
 
                DO lb = lb_min, lb_max
                   s_offset_c = 0
                   ncob = nco(lb)
-                  nsgflb = nsgfl_b(lb)
+                  nsgflb = SIZE(contraction_b(lb)%weights, 1)
                   nsob = nso(lb)
 
                   DO lc = lc_min, lc_max
                      s_offset_d = 0
                      ncoc = nco(lc)
-                     nsgflc = nsgfl_c(lc)
+                     nsgflc = SIZE(contraction_c(lc)%weights, 1)
                      nsoc = nso(lc)
 
                      DO ld = ld_min, ld_max
                         ncod = nco(ld)
-                        nsgfld = nsgfl_d(ld)
+                        nsgfld = SIZE(contraction_d(ld)%weights, 1)
                         nsod = nso(ld)
 
                         tmp_max = 0.0_dp
@@ -356,11 +331,11 @@ CONTAINS
                                           neris_tmp, &
                                           s_offset_a, s_offset_b, s_offset_c, s_offset_d, &
                                           nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, &
-                                          sphi_a_ext(1, la + 1, ipgf), &
-                                          sphi_b_ext(1, lb + 1, jpgf), &
-                                          sphi_c_ext(1, lc + 1, kpgf), &
-                                          sphi_d_ext(1, ld + 1, lpgf), &
-                                          ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
+                                          contraction_a(la)%angular, contraction_b(lb)%angular, &
+                                          contraction_c(lc)%angular, contraction_d(ld)%angular, &
+                                          contraction_a(la)%weights(:, ipgf), contraction_b(lb)%weights(:, jpgf), &
+                                          contraction_c(lc)%weights(:, kpgf), contraction_d(ld)%weights(:, lpgf), &
+                                          ee_work2, ee_buffer1, ee_buffer2)
                         cart_estimate = MAX(tmp_max, cart_estimate)
                         s_offset_d = s_offset_d + nsod*nsgfld
                      END DO !ld
@@ -398,18 +373,6 @@ CONTAINS
 !> \param nsgfb ...
 !> \param nsgfc ...
 !> \param nsgfd ...
-!> \param sphi_a_u1 ...
-!> \param sphi_a_u2 ...
-!> \param sphi_a_u3 ...
-!> \param sphi_b_u1 ...
-!> \param sphi_b_u2 ...
-!> \param sphi_b_u3 ...
-!> \param sphi_c_u1 ...
-!> \param sphi_c_u2 ...
-!> \param sphi_c_u3 ...
-!> \param sphi_d_u1 ...
-!> \param sphi_d_u2 ...
-!> \param sphi_d_u3 ...
 !> \param zeta ...
 !> \param zetb ...
 !> \param zetc ...
@@ -432,36 +395,26 @@ CONTAINS
 !> \param pgf2 ...
 !> \param pgf_list_ij ...
 !> \param pgf_list_kl ...
-!> \param nsgfl_a ...
-!> \param nsgfl_b ...
-!> \param nsgfl_c ...
-!> \param nsgfl_d ...
-!> \param sphi_a_ext ...
-!> \param sphi_b_ext ...
-!> \param sphi_c_ext ...
-!> \param sphi_d_ext ...
+!> \param contraction_a angular transforms and radial weights for the shell set on A
+!> \param contraction_b angular transforms and radial weights for the shell set on B
+!> \param contraction_c angular transforms and radial weights for the shell set on C
+!> \param contraction_d angular transforms and radial weights for the shell set on D
 !> \param ede_work ...
 !> \param ede_work2 ...
 !> \param ede_work_forces ...
 !> \param ede_buffer1 ...
 !> \param ede_buffer2 ...
-!> \param ede_primitives_tmp ...
 !> \param nimages ...
 !> \param do_periodic ...
 !> \param use_virial ...
 !> \param ede_work_virial ...
 !> \param ede_work2_virial ...
-!> \param ede_primitives_tmp_virial ...
 !> \param primitive_integrals_virial ...
 !> \param cart_estimate_virial ...
 ! **************************************************************************************************
    SUBROUTINE forces4(context, ra, rb, rc, rd, npgfa, npgfb, npgfc, npgfd, &
                       la_min, la_max, lb_min, lb_max, &
                       lc_min, lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, &
-                      sphi_a_u1, sphi_a_u2, sphi_a_u3, &
-                      sphi_b_u1, sphi_b_u2, sphi_b_u3, &
-                      sphi_c_u1, sphi_c_u2, sphi_c_u3, &
-                      sphi_d_u1, sphi_d_u2, sphi_d_u3, &
                       zeta, zetb, zetc, zetd, &
                       primitive_integrals, &
                       potential_parameter, neighbor_cells, &
@@ -469,22 +422,20 @@ CONTAINS
                       cart_estimate, cell, neris_tmp, log10_pmax, &
                       log10_eps_schwarz, R1_pgf, R2_pgf, pgf1, pgf2, &
                       pgf_list_ij, pgf_list_kl, &
-                      nsgfl_a, nsgfl_b, nsgfl_c, &
-                      nsgfl_d, &
-                      sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext, &
+                      contraction_a, contraction_b, contraction_c, contraction_d, &
                       ede_work, ede_work2, ede_work_forces, &
-                      ede_buffer1, ede_buffer2, ede_primitives_tmp, &
+                      ede_buffer1, ede_buffer2, &
                       nimages, do_periodic, use_virial, ede_work_virial, &
-                      ede_work2_virial, ede_primitives_tmp_virial, primitive_integrals_virial, &
+                      ede_work2_virial, primitive_integrals_virial, &
                       cart_estimate_virial)
 
       TYPE(four_center_integral_context_type), &
          INTENT(INOUT)                                   :: context
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
-      INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
-         lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &
-         sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, &
-         sphi_d_u3
+      INTEGER, INTENT(IN)                                :: npgfa, npgfb, npgfc, npgfd, la_min, &
+                                                            la_max, lb_min, lb_max, lc_min, &
+                                                            lc_max, ld_min, ld_max, nsgfa, nsgfb, &
+                                                            nsgfc, nsgfd
       REAL(dp), DIMENSION(1:npgfa), INTENT(IN)           :: zeta
       REAL(dp), DIMENSION(1:npgfb), INTENT(IN)           :: zetb
       REAL(dp), DIMENSION(1:npgfc), INTENT(IN)           :: zetc
@@ -502,17 +453,13 @@ CONTAINS
       TYPE(eri4_screen_coeff_type), DIMENSION(:, :), &
          POINTER                                         :: R1_pgf, R2_pgf, pgf1, pgf2
       TYPE(eri4_pgf_pair_type), DIMENSION(*)             :: pgf_list_ij, pgf_list_kl
-      INTEGER, DIMENSION(0:), INTENT(IN)                 :: nsgfl_a, nsgfl_b, nsgfl_c, nsgfl_d
-      REAL(dp), INTENT(IN) :: sphi_a_ext(sphi_a_u1, sphi_a_u2, sphi_a_u3), &
-         sphi_b_ext(sphi_b_u1, sphi_b_u2, sphi_b_u3), sphi_c_ext(sphi_c_u1, sphi_c_u2, sphi_c_u3), &
-         sphi_d_ext(sphi_d_u1, sphi_d_u2, sphi_d_u3)
+      TYPE(eri4_contraction_type), INTENT(IN)            :: contraction_a(0:), contraction_b(0:), &
+                                                            contraction_c(0:), contraction_d(0:)
       REAL(dp), DIMENSION(*)                             :: ede_work, ede_work2, ede_work_forces, &
-                                                            ede_buffer1, ede_buffer2, &
-                                                            ede_primitives_tmp
+                                                            ede_buffer1, ede_buffer2
       INTEGER, DIMENSION(*)                              :: nimages
       LOGICAL, INTENT(IN)                                :: do_periodic, use_virial
-      REAL(dp), DIMENSION(*)                             :: ede_work_virial, ede_work2_virial, &
-                                                            ede_primitives_tmp_virial
+      REAL(dp), DIMENSION(*)                             :: ede_work_virial, ede_work2_virial
       REAL(dp), &
          DIMENSION(nsgfa, nsgfb, nsgfc, nsgfd, 12, 3)    :: primitive_integrals_virial
       REAL(dp)                                           :: cart_estimate_virial
@@ -552,30 +499,30 @@ CONTAINS
 
             CALL prepare_four_center_batch(context, pgf_list_ij(list_ij), pgf_list_kl(list_kl), &
                                            nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
-                                           potential_parameter, max_l, do_periodic)
+                                           potential_parameter, max_l, do_periodic, group_images=.NOT. use_virial)
             IF (nproducts == 0) CYCLE
             s_offset_a = 0
             DO la = la_min, la_max
                s_offset_b = 0
                ncoa = nco(la)
-               nsgfla = nsgfl_a(la)
+               nsgfla = SIZE(contraction_a(la)%weights, 1)
                nsoa = nso(la)
 
                DO lb = lb_min, lb_max
                   s_offset_c = 0
                   ncob = nco(lb)
-                  nsgflb = nsgfl_b(lb)
+                  nsgflb = SIZE(contraction_b(lb)%weights, 1)
                   nsob = nso(lb)
 
                   DO lc = lc_min, lc_max
                      s_offset_d = 0
                      ncoc = nco(lc)
-                     nsgflc = nsgfl_c(lc)
+                     nsgflc = SIZE(contraction_c(lc)%weights, 1)
                      nsoc = nso(lc)
 
                      DO ld = ld_min, ld_max
                         ncod = nco(ld)
-                        nsgfld = nsgfl_d(ld)
+                        nsgfld = SIZE(contraction_d(ld)%weights, 1)
                         nsod = nso(ld)
                         tmp_max = 0.0_dp
                         tmp_max_virial = 0.0_dp
@@ -587,13 +534,13 @@ CONTAINS
                                                 max_contraction_val, tmp_max, eps_schwarz, neris_tmp, &
                                                 s_offset_a, s_offset_b, s_offset_c, s_offset_d, &
                                                 nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, &
-                                                sphi_a_ext(1, la + 1, ipgf), &
-                                                sphi_b_ext(1, lb + 1, jpgf), &
-                                                sphi_c_ext(1, lc + 1, kpgf), &
-                                                sphi_d_ext(1, ld + 1, lpgf), &
+                                                contraction_a(la)%angular, contraction_b(lb)%angular, &
+                                                contraction_c(lc)%angular, contraction_d(ld)%angular, &
+                                                contraction_a(la)%weights(:, ipgf), contraction_b(lb)%weights(:, jpgf), &
+                                                contraction_c(lc)%weights(:, kpgf), contraction_d(ld)%weights(:, lpgf), &
                                                 ede_work, ede_work2, ede_work_forces, &
-                                                ede_buffer1, ede_buffer2, ede_primitives_tmp, use_virial, &
-                                                ede_work_virial, ede_work2_virial, ede_primitives_tmp_virial, &
+                                                ede_buffer1, ede_buffer2, use_virial, &
+                                                ede_work_virial, ede_work2_virial, &
                                                 primitive_integrals_virial, cell, tmp_max_virial)
                         cart_estimate = MAX(tmp_max, cart_estimate)
                         IF (use_virial) cart_estimate_virial = MAX(tmp_max_virial, cart_estimate_virial)

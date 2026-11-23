@@ -47,7 +47,9 @@ MODULE hfx_types
    USE four_center_integral_interface,  ONLY: four_center_integral_cleanup,&
                                               four_center_integral_context_type,&
                                               four_center_integral_init
-   USE four_center_integral_types,      ONLY: hfx_cell_type => eri4_cell_type,&
+   USE four_center_integral_preparation,ONLY: prepare_eri4_contraction
+   USE four_center_integral_types,      ONLY: eri4_contraction_type,&
+                                              hfx_cell_type => eri4_cell_type,&
                                               hfx_pgf_list => eri4_pgf_pair_type,&
                                               hfx_screen_coeff_type => eri4_screen_coeff_type
    USE hfx_helpers,                     ONLY: count_cells_perd,&
@@ -74,9 +76,6 @@ MODULE hfx_types
    USE mathlib,                         ONLY: erfc_cutoff
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_para_env_type
-   USE orbital_pointers,                ONLY: nco,&
-                                              ncoset,&
-                                              nso
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: a_bohr
@@ -266,8 +265,7 @@ MODULE hfx_types
       INTEGER, DIMENSION(:, :), POINTER         :: nl => NULL()
       INTEGER, DIMENSION(:, :), POINTER         :: nsgfl => NULL()
       INTEGER, DIMENSION(:), POINTER           :: nshell => NULL()
-      REAL(dp), DIMENSION(:, :, :, :), POINTER &
-         :: sphi_ext => NULL()
+      TYPE(eri4_contraction_type), ALLOCATABLE       :: contraction(:, :)
       REAL(dp), DIMENSION(:, :, :), POINTER   :: gcc => NULL()
       REAL(dp), DIMENSION(:), POINTER          :: set_radius => NULL()
       REAL(dp), DIMENSION(:, :), POINTER        :: pgf_radius => NULL()
@@ -1674,12 +1672,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_basis_types'
 
-      INTEGER :: co_counter, handle, i, ikind, ipgf, iset, j, k, la, max_am_kind, max_coeff, &
-         max_nsgfl, max_pgf, max_pgf_kind, max_set, nkind, nl_count, nset, nseta, offset_a, &
-         offset_a1, s_offset_nl_a, sgfa, so_counter
-      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nshell
-      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, nl_a
-      REAL(dp), DIMENSION(:, :), POINTER                 :: sphi_a
+      INTEGER                                            :: handle, i, ikind, iset, j, max_set, &
+                                                            nkind, nl_count, nset
+      INTEGER, DIMENSION(:), POINTER                     :: nshell
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_a
 
       CALL timeset(routineN, handle)
@@ -1714,6 +1709,7 @@ CONTAINS
                                 set_radius=basis_parameter(ikind)%set_radius, &
                                 pgf_radius=basis_parameter(ikind)%pgf_radius, &
                                 kind_radius=basis_parameter(ikind)%kind_radius)
+         CALL prepare_eri4_contraction(orb_basis_a, basis_parameter(ikind)%contraction)
       END DO
       DO ikind = 1, nkind
          ALLOCATE (basis_parameter(ikind)%nsgfl(0:basis_info%max_am, max_set))
@@ -1727,60 +1723,6 @@ CONTAINS
                   IF (basis_parameter(ikind)%nl(j, iset) == i) nl_count = nl_count + 1
                END DO
                basis_parameter(ikind)%nsgfl(i, iset) = nl_count
-            END DO
-         END DO
-      END DO
-
-      max_nsgfl = 0
-      max_pgf = 0
-      DO ikind = 1, nkind
-         max_coeff = 0
-         max_am_kind = 0
-         max_pgf_kind = 0
-         npgfa => basis_parameter(ikind)%npgf
-         nseta = basis_parameter(ikind)%nset
-         nl_a => basis_parameter(ikind)%nsgfl
-         la_max => basis_parameter(ikind)%lmax
-         la_min => basis_parameter(ikind)%lmin
-         DO iset = 1, nseta
-            max_pgf_kind = MAX(max_pgf_kind, npgfa(iset))
-            max_pgf = MAX(max_pgf, npgfa(iset))
-            DO la = la_min(iset), la_max(iset)
-               max_nsgfl = MAX(max_nsgfl, nl_a(la, iset))
-               max_coeff = MAX(max_coeff, nso(la)*nl_a(la, iset)*nco(la))
-               max_am_kind = MAX(max_am_kind, la)
-            END DO
-         END DO
-         ALLOCATE (basis_parameter(ikind)%sphi_ext(max_coeff, 0:max_am_kind, max_pgf_kind, nseta))
-         basis_parameter(ikind)%sphi_ext = 0.0_dp
-      END DO
-
-      DO ikind = 1, nkind
-         sphi_a => basis_parameter(ikind)%sphi
-         nseta = basis_parameter(ikind)%nset
-         la_max => basis_parameter(ikind)%lmax
-         la_min => basis_parameter(ikind)%lmin
-         npgfa => basis_parameter(ikind)%npgf
-         first_sgfa => basis_parameter(ikind)%first_sgf
-         nl_a => basis_parameter(ikind)%nsgfl
-         DO iset = 1, nseta
-            sgfa = first_sgfa(1, iset)
-            DO ipgf = 1, npgfa(iset)
-               offset_a1 = (ipgf - 1)*ncoset(la_max(iset))
-               s_offset_nl_a = 0
-               DO la = la_min(iset), la_max(iset)
-                  offset_a = offset_a1 + ncoset(la - 1)
-                  co_counter = 0
-                  co_counter = co_counter + 1
-                  so_counter = 0
-                  DO k = sgfa + s_offset_nl_a, sgfa + s_offset_nl_a + nso(la)*nl_a(la, iset) - 1
-                     DO i = offset_a + 1, offset_a + nco(la)
-                        so_counter = so_counter + 1
-                        basis_parameter(ikind)%sphi_ext(so_counter, la, ipgf, iset) = sphi_a(i, k)
-                     END DO
-                  END DO
-                  s_offset_nl_a = s_offset_nl_a + nso(la)*(nl_a(la, iset))
-               END DO
             END DO
          END DO
       END DO
@@ -1802,10 +1744,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      !! BASIS parameter
       DO i = 1, SIZE(basis_parameter)
-         DEALLOCATE (basis_parameter(i)%nsgfl)
-         DEALLOCATE (basis_parameter(i)%sphi_ext)
+         IF (ASSOCIATED(basis_parameter(i)%nsgfl)) DEALLOCATE (basis_parameter(i)%nsgfl)
+         ! gfortran may skip allocatable components when deallocating the pointer array.
+         IF (ALLOCATED(basis_parameter(i)%contraction)) DEALLOCATE (basis_parameter(i)%contraction)
       END DO
       DEALLOCATE (basis_parameter)
       CALL timestop(handle)
