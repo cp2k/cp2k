@@ -131,7 +131,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
 
       INTEGER                                            :: aspc_order
-      LOGICAL                                            :: magnetic, track_current, &
+      LOGICAL                                            :: do_kpoints, magnetic, track_current, &
                                                             track_current_int, vel_reprs
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(global_environment_type), POINTER             :: globenv
@@ -148,8 +148,14 @@ CONTAINS
       CALL cite_reference(Andermatt2016)
 
       CALL force_env_get(force_env=force_env, qs_env=qs_env, globenv=globenv)
-      CALL get_qs_env(qs_env, dft_control=dft_control, energy=energy)
+      CALL get_qs_env(qs_env, dft_control=dft_control, energy=energy, do_kpoints=do_kpoints)
       rtp_control => dft_control%rtp_control
+
+      ! The propagation works with the Gamma-point MOs and matrices only
+      IF (do_kpoints) THEN
+         CALL cp_abort(__LOCATION__, "RTP/EMD is not implemented with k-points: "// &
+                       "remove the DFT%KPOINTS section")
+      END IF
 
       ! The RTP/EMD ADMM implementation (density fit, KS merge and forces) only supports
       ! basis projection without purification and without exchange scaling
