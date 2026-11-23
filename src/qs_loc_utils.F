@@ -724,10 +724,13 @@ CONTAINS
          lb = localized_wfn_control%lu_bound_states(1, ispin)
          ub = localized_wfn_control%lu_bound_states(2, ispin)
          ! same indexing as the copy of the localized orbitals in qs_loc_driver
+         IF (ALLOCATED(states)) DEALLOCATE (states)
          IF (localized_wfn_control%set_of_states == state_loc_list) THEN
-            states = localized_wfn_control%loc_states(lb:ub, ispin)
+            ALLOCATE (states(ub - lb + 1))
+            states(:) = localized_wfn_control%loc_states(lb:ub, ispin)
          ELSE
-            states = [(i, i=lb, lb + localized_wfn_control%nloc_states(ispin) - 1)]
+            ALLOCATE (states(localized_wfn_control%nloc_states(ispin)))
+            states(:) = [(i, i=lb, lb + localized_wfn_control%nloc_states(ispin) - 1)]
          END IF
          IF (SIZE(states) > 0) THEN
             IF (MAXVAL(mo_array(ispin)%occupation_numbers(states)) - &
