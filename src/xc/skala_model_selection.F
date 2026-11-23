@@ -295,7 +295,6 @@ CONTAINS
 
       CHARACTER(len=256)                                 :: msg
 
-      exec_target%gpu_mode = gpu_mode
       exec_target%use_cuda = .FALSE.
       exec_target%device = -1
 

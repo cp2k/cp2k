@@ -641,7 +641,6 @@ struct staging_slot {
 static std::mutex pinned_pool_mutex;
 static std::vector<staging_slot> *pinned_pool = nullptr;
 static int64_t pinned_bytes = 0;
-// Upper bound on pinned host staging memory retained by the pool.
 static constexpr int64_t kPinnedMaxBytes = 256LL * 1024 * 1024;
 static thread_local int pinned_current_slot = -1;
 static std::atomic<uint64_t> pinned_generation{0};
@@ -1093,13 +1092,11 @@ static void grad_batch_impl(const torch_c_tensor_t *const *tensors,
   }
 
   std::vector<torch::Tensor> sources(count);
-  bool all_defined = true;
   bool all_cuda_same_device = true;
   int source_device = -1;
   for (int i = 0; i < count; ++i) {
     sources[i] = tensors[i]->grad();
     if (!sources[i].defined()) {
-      all_defined = false;
       all_cuda_same_device = false;
       continue;
     }
@@ -1115,7 +1112,7 @@ static void grad_batch_impl(const torch_c_tensor_t *const *tensors,
     }
   }
 
-  if (all_defined && all_cuda_same_device) {
+  if (all_cuda_same_device) {
     c10::DeviceGuard source_guard(torch::Device(
         torch::kCUDA, static_cast<c10::DeviceIndex>(source_device)));
     std::vector<torch::Tensor> hosts(count);

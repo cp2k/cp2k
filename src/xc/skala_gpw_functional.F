@@ -860,7 +860,6 @@ CONTAINS
       CALL section_vals_val_get(xc_section, "XC_GRID%XC_SMOOTH_RHO", i_val=xc_rho_smooth_id)
 
       features => skala_state%features
-      cache_hit = .FALSE.
 
       CALL xc_rho_set_create(rho_set, &
                              rho_r(1)%pw_grid%bounds_local, &

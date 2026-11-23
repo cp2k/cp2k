@@ -12,7 +12,6 @@ MODULE skala_gpw_features
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_array_utils,                  ONLY: cp_3d_r_cp_type
-   USE input_constants,                 ONLY: do_gpu_auto
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               dp,&
@@ -71,7 +70,6 @@ MODULE skala_gpw_features
                                            skala_gpw_atom_partition_smooth = 2
 
    TYPE :: skala_execution_target_type
-      INTEGER                                            :: gpu_mode = do_gpu_auto
       LOGICAL                                            :: use_cuda = .FALSE.
       INTEGER                                            :: device = -1
    END TYPE skala_execution_target_type
@@ -818,7 +816,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
       LOGICAL                                            :: matches
 
-      LOGICAL                                            :: has_weights, signature_has_weights
+      LOGICAL                                            :: has_weights
       REAL(KIND=dp)                                      :: weight_sum, weight_sumsq
 
       matches = .FALSE.
@@ -830,12 +828,11 @@ CONTAINS
       IF (skala_state%layout%has_weights .NEQV. has_weights) RETURN
 
       IF (PRESENT(weights)) THEN
-         CALL weights_signature(weights, signature_has_weights, weight_sum, weight_sumsq)
+         CALL weights_signature(weights, has_weights, weight_sum, weight_sumsq)
       ELSE
-         CALL weights_signature(has_weights=signature_has_weights, weight_sum=weight_sum, &
+         CALL weights_signature(has_weights=has_weights, weight_sum=weight_sum, &
                                 weight_sumsq=weight_sumsq)
       END IF
-      IF (signature_has_weights .NEQV. has_weights) RETURN
       IF (ABS(skala_state%layout%weight_sum - weight_sum) > layout_tol) RETURN
       IF (ABS(skala_state%layout%weight_sumsq - weight_sumsq) > layout_tol) RETURN
 
@@ -2511,12 +2508,11 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: atom_begin, atom_count, row_begin, &
                                                             row_count
 
-      INTEGER                                            :: atom_end, max_grid_size, row_end
+      INTEGER                                            :: atom_end, max_grid_size
 
       IF (features%active) CALL release_subchunk_tensors(features)
       CPASSERT(parent%uses_atom_chunks)
       atom_end = atom_begin + atom_count - 1
-      row_end = row_begin + row_count - 1
       CPASSERT(atom_count > 0)
       CPASSERT(row_count > 0)
       max_grid_size = MAXVAL(INT(skala_state%layout%chunk_atomic_grid_sizes(atom_begin:atom_end)))
@@ -2530,11 +2526,6 @@ CONTAINS
          ALLOCATE (features%atomic_grid_size_bound_shape(0, max_grid_size))
       END IF
 
-      features%chunk_feature_count = row_count
-      features%nflat = parent%nflat
-      features%nflat_local = parent%nflat_local
-      features%grid_weight_sum = SUM(skala_state%layout%chunk_grid_weights(row_begin:row_end))
-      features%uses_atom_chunks = .TRUE.
       CALL add_subchunk_feature_tensors(parent, features, atom_begin, atom_count, row_begin, &
                                         row_count)
       features%active = .TRUE.

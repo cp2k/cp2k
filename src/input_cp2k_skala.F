@@ -171,16 +171,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="MODEL_ATOM_CHUNK_SIZE", &
-                          description="Atom chunk size for GauXC Skala Torch inference. "// &
-                          "A positive value evaluates the Torch model atom block by atom block; "// &
-                          "zero disables chunking; the default leaves GauXC's model-specific policy "// &
-                          "or the GAUXC_ONEDFT_ATOM_CHUNK_SIZE environment variable in control.", &
-                          usage="MODEL_ATOM_CHUNK_SIZE 3", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="PERIODIC_REFERENCE", &
                           description="Explicitly opt into the limited isolated-cell GauXC reference "// &
                           "path for periodic CP2K inputs. This path is restricted to Gamma-only, "// &

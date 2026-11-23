@@ -175,9 +175,6 @@ CONTAINS
          dense(row_start:row_end, col_start:col_end) = block
       END IF
       IF (has_symmetry .AND. irow /= icol) THEN
-         ! Write the mirror directly from the block instead of reading back the
-         ! just-written slice: for a transposed block the mirror is sign**2*block
-         ! (= block), otherwise it is sign*TRANSPOSE(block).
          IF (transposed) THEN
             dense(col_start:col_end, row_start:row_end) = block
          ELSE
@@ -193,9 +190,8 @@ CONTAINS
 !> \param dense_mat ...
 !> \param para_env ...
 !> \param replicated ...
-!> \param fill_replicated ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat, para_env, replicated, fill_replicated)
+   SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat, para_env, replicated)
       USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
                               dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
                               dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, &
@@ -206,12 +202,11 @@ CONTAINS
          INTENT(INOUT)                                   :: dense_mat
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       LOGICAL, INTENT(OUT), OPTIONAL                     :: replicated
-      LOGICAL, INTENT(IN), OPTIONAL                      :: fill_replicated
 
       CHARACTER                                          :: matrix_type
       INTEGER                                            :: col_start, icol, irow, izero, ncol, &
                                                             ncols, nrow, nrows, numnodes, row_start
-      LOGICAL                                            :: fill_local, has_symmetry, transposed
+      LOGICAL                                            :: has_symmetry, transposed
       REAL(c_double), POINTER                            :: block(:, :)
       REAL(KIND=dp)                                      :: symmetry_sign
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -223,8 +218,6 @@ CONTAINS
                           distribution=dist)
       CALL dbcsr_distribution_get(dist, numnodes=numnodes)
       IF (PRESENT(replicated)) replicated = (numnodes == 1)
-      fill_local = .FALSE.
-      IF (PRESENT(fill_replicated)) fill_local = fill_replicated
       matrix_type = dbcsr_get_matrix_type(dbcsr_mat%matrix)
       has_symmetry = matrix_type == dbcsr_type_symmetric .OR. matrix_type == dbcsr_type_antisymmetric
       symmetry_sign = 1.0_dp
@@ -237,12 +230,6 @@ CONTAINS
          ALLOCATE (dense_mat(nrows, ncols))
       ELSE
          CPASSERT(ALL(SHAPE(dense_mat) == [nrows, ncols]))
-      END IF
-      ! Replicated DBCSR blocks must enter a following MPI sum exactly once. If the
-      ! caller requests fill_replicated, every rank fills its own copy locally so the
-      ! collective can be skipped entirely.
-      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0 .AND. .NOT. fill_local) THEN
-         RETURN
       END IF
 
       ! Stored blocks and their symmetry mirrors occupy disjoint dense slices.
@@ -274,10 +261,8 @@ CONTAINS
 !> \param dense_b ...
 !> \param para_env ...
 !> \param replicated ...
-!> \param fill_replicated ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_to_dense_pair(dbcsr_a, dense_a, dbcsr_b, dense_b, para_env, replicated, &
-                                  fill_replicated)
+   SUBROUTINE dbcsr_to_dense_pair(dbcsr_a, dense_a, dbcsr_b, dense_b, para_env, replicated)
       USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
                               dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
                               dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, &
@@ -291,14 +276,12 @@ CONTAINS
          INTENT(INOUT)                                   :: dense_b
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       LOGICAL, INTENT(OUT), OPTIONAL                     :: replicated
-      LOGICAL, INTENT(IN), OPTIONAL                      :: fill_replicated
 
       CHARACTER                                          :: matrix_type_a, matrix_type_b
       INTEGER :: col_start, col_start_b, icol, icol_b, irow, irow_b, izero, ncol, ncol_b, ncols, &
          nrow, nrow_b, nrows, numnodes, row_start, row_start_b
-      LOGICAL                                            :: fill_local, has_symmetry_a, &
-                                                            has_symmetry_b, transposed_a, &
-                                                            transposed_b
+      LOGICAL                                            :: has_symmetry_a, has_symmetry_b, &
+                                                            transposed_a, transposed_b
       REAL(c_double), POINTER                            :: block_a(:, :), block_b(:, :)
       REAL(KIND=dp)                                      :: symmetry_sign_a, symmetry_sign_b
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -308,8 +291,6 @@ CONTAINS
                           distribution=dist)
       CALL dbcsr_distribution_get(dist, numnodes=numnodes)
       IF (PRESENT(replicated)) replicated = (numnodes == 1)
-      fill_local = .FALSE.
-      IF (PRESENT(fill_replicated)) fill_local = fill_replicated
       matrix_type_a = dbcsr_get_matrix_type(dbcsr_a%matrix)
       matrix_type_b = dbcsr_get_matrix_type(dbcsr_b%matrix)
       has_symmetry_a = matrix_type_a == dbcsr_type_symmetric .OR. &
@@ -330,9 +311,6 @@ CONTAINS
       ELSE IF (.NOT. ALL(SHAPE(dense_b) == [nrows, ncols])) THEN
          DEALLOCATE (dense_b)
          ALLOCATE (dense_b(nrows, ncols))
-      END IF
-      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0 .AND. .NOT. fill_local) THEN
-         RETURN
       END IF
 
 !$OMP PARALLEL DEFAULT(NONE) &
@@ -450,8 +428,6 @@ CONTAINS
       zsign = 1.0_dp
       IF (PRESENT(z_sign)) zsign = z_sign
 
-      ! Reuse the existing upper-triangular block pattern when the target matrix
-      ! already matches the cached layout: only the block values need refreshing.
       rebuild = .TRUE.
       IF (ASSOCIATED(dbcsr_mat%matrix)) THEN
          IF (dbcsr_target_matches_layout(dbcsr_mat%matrix, layout)) THEN
@@ -1521,7 +1497,7 @@ CONTAINS
          gapw_paw_pseudopotentials, gapw_pseudopotentials, grid_explicit, have_zeta, &
          int_space_explicit, is_periodic, lb_space_explicit, low_spin_scope, molecular_virial, &
          molecular_virial_debug, need_xc_gradient, periodic_reference, pruning_explicit, &
-         replicated, replicated_fill, use_cuda, use_skala_model, write_hdf5_output
+         replicated, use_cuda, use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: exc_value, force_numerical_gradient_dx, &
                                                             molecular_virial_debug_dx
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1612,7 +1588,6 @@ CONTAINS
       params%nspins = dft_control%nspins
       params%nimages = dft_control%nimages
       params%nkind = SIZE(qs_kind_set)
-      IF (ALLOCATED(params%kind_basis_names)) DEALLOCATE (params%kind_basis_names)
       ALLOCATE (params%kind_basis_names(params%nkind))
       DO ikind = 1, params%nkind
          NULLIFY (basis_set)
@@ -1918,10 +1893,6 @@ CONTAINS
       END IF
 
       exc_value = 0.0_dp
-      ! For replicated DBCSR matrices every rank can fill its dense copy locally,
-      ! which avoids the collective. If that policy is disabled, broadcast the
-      ! root-filled copy instead of summing one nonzero contribution plus zeros.
-      replicated_fill = .TRUE.
 
       IF (ASSOCIATED(matrix_vxc)) THEN
          IF (SIZE(matrix_vxc) /= params%nspins) THEN
@@ -1940,11 +1911,9 @@ CONTAINS
          IF (params%nspins == 1) THEN
             CALL timeset("gauxc_density_dense", density_handle)
             CALL dbcsr_to_dense(rho_ao(1, img), cache%density_scalar, para_env, &
-                                replicated=replicated, fill_replicated=replicated_fill)
+                                replicated=replicated)
             IF (.NOT. replicated) THEN
                CALL para_env%sum(cache%density_scalar)
-            ELSE IF (.NOT. replicated_fill .AND. para_env%num_pe > 1) THEN
-               CALL para_env%bcast(cache%density_scalar, 0)
             END IF
             CALL timestop(density_handle)
          ELSE
@@ -1954,14 +1923,10 @@ CONTAINS
             ! zeta   <- rho_ao(1, :) - rho_ao(2, :)
             CALL timeset("gauxc_density_dense", density_handle)
             CALL dbcsr_to_dense_pair(rho_ao(1, img), cache%density_scalar, rho_ao(2, img), &
-                                     cache%density_zeta, para_env, replicated=replicated, &
-                                     fill_replicated=replicated_fill)
+                                     cache%density_zeta, para_env, replicated=replicated)
             IF (.NOT. replicated) THEN
                CALL para_env%sum(cache%density_scalar)
                CALL para_env%sum(cache%density_zeta)
-            ELSE IF (.NOT. replicated_fill .AND. para_env%num_pe > 1) THEN
-               CALL para_env%bcast(cache%density_scalar, 0)
-               CALL para_env%bcast(cache%density_zeta, 0)
             END IF
             CALL timestop(density_handle)
             ! Do NOT reorder the following lines!

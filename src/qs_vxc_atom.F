@@ -1172,8 +1172,6 @@ CONTAINS
                   rho_atom%exc_h = rho_atom%exc_h + exc_h
                   rho_atom%exc_s = rho_atom%exc_s + exc_s
                ELSE
-                  !-------------------!
-                  !-------------------!
                   CALL xc_dset_zero_all(deriv_set)
                   IF (.NOT. evaluate_hard) THEN
                      exc_h = 0.0_dp
@@ -1189,8 +1187,6 @@ CONTAINS
                   END IF
                   rho_atom%exc_h = rho_atom%exc_h + exc_h
 
-                  !-------------------!
-                  !-------------------!
                   CALL xc_dset_zero_all(deriv_set)
                   IF (.NOT. evaluate_soft) THEN
                      exc_s = 0.0_dp
@@ -1468,9 +1464,6 @@ CONTAINS
                   composite_model_atom_force(:, composite_local_atoms(composite_local_atom)) = &
                      composite_atom_coord_grad(:, composite_local_atom)
                END DO
-               ! Split each atom grid into chunks so the expensive per-point work is
-               ! parallelized with good load balance while each task rebuilds only its
-               ! own (private) partition layout, keeping memory O(nthreads).
                nchunks_per_atom = 4
                ALLOCATE (chunk_atom(composite_local_natom*nchunks_per_atom), &
                          chunk_begin(composite_local_natom*nchunks_per_atom), &
@@ -3142,6 +3135,7 @@ CONTAINS
       IF (ALLOCATED(native_need_sidx)) DEALLOCATE (native_need_sidx)
       IF (ALLOCATED(native_need_ridx)) DEALLOCATE (native_need_ridx)
       IF (ALLOCATED(native_need_base)) DEALLOCATE (native_need_base)
+      IF (ALLOCATED(native_need_atoms)) DEALLOCATE (native_need_atoms)
       IF (ALLOCATED(native_need_values)) DEALLOCATE (native_need_values)
       IF (ALLOCATED(native_need_reply)) DEALLOCATE (native_need_reply)
       CALL native_need_index_release()
@@ -3253,8 +3247,6 @@ CONTAINS
             native_need_rdispl(ip) = native_need_rdispl(ip - 1) + native_need_rcount(ip - 1)
          END DO
          ALLOCATE (native_need_ridx(MAX(SUM(native_need_rcount), 1)))
-         CPASSERT(SIZE(native_need_sidx) >= SUM(native_need_scount))
-         CPASSERT(SIZE(native_need_ridx) >= SUM(native_need_rcount))
          CALL group%alltoall(native_need_sidx, native_need_scount, native_need_sdispl, &
                              native_need_ridx, native_need_rcount, native_need_rdispl)
       END IF
@@ -3282,7 +3274,9 @@ CONTAINS
       END DO
       DEALLOCATE (bucket_count, cand, native_need_lin)
 
+      ALLOCATE (native_need_base(SIZE(work_base, 1), SIZE(work_base, 2)))
       native_need_base(:, :) = work_base
+      ALLOCATE (native_need_atoms(SIZE(atom_coords, 1), SIZE(atom_coords, 2)))
       native_need_atoms(:, :) = atom_coords
       DEALLOCATE (work_base)
       native_need_dh_inv = grid%dh_inv

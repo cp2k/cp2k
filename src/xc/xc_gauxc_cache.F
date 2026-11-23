@@ -181,19 +181,13 @@ CONTAINS
       cache%molecule = gauxc_create_molecule( &
                        particle_set, &
                        status)
-      IF (status%status%code /= 0) THEN
-         CALL gauxc_check_status(status)
-         RETURN
-      END IF
+      CALL gauxc_check_status(status)
 
       cache%basisset = gauxc_create_basisset( &
                        qs_kind_set, &
                        particle_set, &
                        status)
-      IF (status%status%code /= 0) THEN
-         CALL gauxc_check_status(status)
-         RETURN
-      END IF
+      CALL gauxc_check_status(status)
 
       CALL gauxc_resolve_gradient_policy( &
          params%need_xc_gradient, params%gapw_method, cache%max_l(), params%use_gauxc_model, &
@@ -235,10 +229,7 @@ CONTAINS
                       mpi_comm=para_env%get_handle(), force_new_runtime=.FALSE., &
                       int_exec_space=params%int_exec_space)
       END IF
-      IF (status%status%code /= 0) THEN
-         CALL gauxc_check_status(status)
-         RETURN
-      END IF
+      CALL gauxc_check_status(status)
 
       cache%integrator = gauxc_create_integrator( &
                          TRIM(params%xc_fun_name), &
@@ -247,10 +238,7 @@ CONTAINS
                          params%lwd_kernel, &
                          params%nspins, &
                          status)
-      IF (status%status%code /= 0) THEN
-         CALL gauxc_check_status(status)
-         RETURN
-      END IF
+      CALL gauxc_check_status(status)
 
       IF (.NOT. cache%execution_spaces_logged .AND. para_env%mepos == 0) THEN
          unit_nr = cp_logger_get_default_io_unit()
