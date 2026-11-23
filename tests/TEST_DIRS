@@ -61,6 +61,8 @@ QS/regtest-ls-rtp
 xTB/regtest-gfn0-m2                                         libdftd4
 QS/regtest-kp-3
 QS/regtest-gw-realspace                                     libint
+QS/regtest-gw-realspace-kp                                  libint
+QS/regtest-rpa-realspace-kp                                 libint
 QS/regtest-nlcc-1                                           libint libxc
 SE/regtest-2-1
 QMMM/QS/regtest-1

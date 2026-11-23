@@ -217,7 +217,81 @@ automatically for the material:
   [RS_AO_RATIO](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.RI_RS.GRID_OPTIMIZATION.RS_AO_RATIO)
   grid points per basis function. We recommend `RS_AO_RATIO 7` (this is also the default).
 
-### 4.2 Input
+### 4.2 *k*-point sampling
+
+*GW* uses the *k*-point mesh of [DFT/KPOINTS](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS) with $N_k$
+*k*-points; there is no separate *k*-point setting for *GW*. From the KS orbitals
+$\psi_{n\mathbf{k}}$ and KS eigenvalues $\varepsilon_{n\mathbf{k}}^\text{DFT}$ on this mesh, CP2K
+computes the Green's function on the RI-RS grid points $\mathbf{r}_\ell$ in imaginary time $i\tau$
+(here for $\tau>0$, sum over empty bands $n$, Fermi energy $\varepsilon_\text{F}$) and transforms it
+to the lattice vectors $\mathbf{R}$:
+
+$$
+G_{\ell\ell'}(\mathbf{k},i\tau) = -\sum_n^\text{empty} \psi_{n\mathbf{k}}(\mathbf{r}_\ell)\,
+\psi^*_{n\mathbf{k}}(\mathbf{r}_{\ell'})\,
+e^{-\tau|\varepsilon_{n\mathbf{k}}^\text{DFT}-\varepsilon_\text{F}|}\,,
+$$
+
+$$
+G^\mathbf{R}_{\ell\ell'}(i\tau) = \frac{1}{N_k}\sum_\mathbf{k} e^{-i\mathbf{k}\cdot\mathbf{R}}\,
+G_{\ell\ell'}(\mathbf{k},i\tau)\,.
+$$
+
+For $\tau<0$, the sum runs over the occupied bands and the sign is positive. In this representation,
+the density response $\chi$ and the correlation self-energy $\Sigma^\text{c}$ are element-wise
+products, without any sum over grid points or *k*-points:
+
+$$
+\chi^\mathbf{R}_{\ell\ell'}(i\tau) = -2\, G^\mathbf{R}_{\ell\ell'}(i\tau)\,
+G^{-\mathbf{R}}_{\ell'\ell}(-i\tau)\,,
+$$
+
+$$
+\Sigma^{\text{c},\mathbf{R}}_{\ell\ell'}(i\tau) = - G^\mathbf{R}_{\ell\ell'}(i\tau)\,
+W^{\text{c},\mathbf{R}}_{\ell\ell'}(i\tau)\,.
+$$
+
+The factor 2 in $\chi$ accounts for the two spin states of a closed-shell system. Between these two
+steps, $\chi^\mathbf{R}_{\ell\ell'}(i\tau)$ is transformed to the wavevectors $\mathbf{q}$ of the
+*k*-point mesh and to imaginary frequency $i\omega$, and is projected onto the RI basis with the
+RI-RS coefficients $Z_{\ell P}$ from Sec. 4.1. The dielectric matrix
+$\varepsilon_{PQ}(\mathbf{q},i\omega)$ is inverted for every $\mathbf{q}$ and $i\omega$, which gives
+the correlation part $W^\text{c}=W-V$ of the screened Coulomb interaction $W$ ($V$: bare Coulomb
+interaction). $W^\text{c}$ is transformed back to the RI-RS grid, to lattice vectors and to
+imaginary time:
+
+$$
+\chi_{PQ}(\mathbf{q},i\tau) = \sum_{\ell\ell'} Z^*_{\ell P}(\mathbf{q})\,
+\chi_{\ell\ell'}(\mathbf{q},i\tau)\, Z_{\ell' Q}(\mathbf{q})
+\,,
+$$
+
+$$
+\chi_{PQ}(\mathbf{q},i\omega) \;\rightarrow\; \varepsilon_{PQ}(\mathbf{q},i\omega)
+\;\rightarrow\; W^\text{c}_{PQ}(\mathbf{q},i\omega)
+\;\rightarrow\; W^{\text{c},\mathbf{R}}_{\ell\ell'}(i\tau)\,.
+$$
+
+The self-energy in the lattice representation can be transformed to any $\mathbf{k}$, so the
+quasiparticle energies are computed directly at the *k*-points of the band structure path, which do
+not need to be part of the *k*-point mesh ($\Sigma^\text{x}$: exchange self-energy):
+
+$$
+\Sigma_{n\mathbf{k}}(i\omega) = \sum_{\ell\ell'} \psi^*_{n\mathbf{k}}(\mathbf{r}_\ell)
+\,\Sigma_{\ell\ell'}(\mathbf{k},i\omega)\,\psi_{n\mathbf{k}}(\mathbf{r}_{\ell'})\,,
+$$
+
+$$
+\Sigma_{\ell\ell'}(\mathbf{k},i\omega) = \sum_\mathbf{R} e^{i\mathbf{k}\cdot\mathbf{R}}
+\left[\Sigma^{\text{x},\mathbf{R}}_{\ell\ell'} + \Sigma^{\text{c},\mathbf{R}}_{\ell\ell'}(i\omega)\right].
+$$
+
+Because of the element-wise products, the computation time of $\chi$ and $\Sigma$ increases only
+linearly with the number of *k*-points. The $\mathbf{q}\rightarrow 0$ contribution of $W$, which a
+finite *k*-point mesh does not sample, is added by a correction for 3D crystals and for 2D
+materials. A publication with all details of the method is in preparation.
+
+### 4.3 Input
 
 *k*-point sampling is defined in the [DFT/KPOINTS](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS) section. The
 *GW* calculation uses the same *k*-point mesh as DFT, i.e. the density response $\chi$, the screened
@@ -281,12 +355,45 @@ All other parameters have well-tested default values. The sections and keywords 
   needed which you can retrieve for your crystal structure from \[[](#Setyawan2010)\].
 
 The *k*-point mesh is a convergence parameter for both DFT and *GW*. For the benchmark below, we
-used 12×12×12 for 3D crystals and 16×16×1 for 2D materials. We recommend the augmented basis sets
-`aug-SZV-MOLOPT-GTH-tier-2`, `aug-DZVP-MOLOPT-GTH-tier-2` and `aug-TZVP-MOLOPT-GTH-tier-2` from the
-file `BASIS_AUG_MOLOPT_GTH` together with GTH pseudopotentials. `aug-SZV-MOLOPT-GTH-tier-2` is a
-cheap choice for a first band structure, `aug-TZVP-MOLOPT-GTH-tier-2` is the accurate choice.
+used 12×12×12 for 3D crystals and 16×16×1 for 2D materials.
 
-### 4.3 Analytic continuation
+### 4.4 Basis sets
+
+We recommend the augmented basis sets `aug-SZV-MOLOPT-GTH-tier-2`, `aug-DZVP-MOLOPT-GTH-tier-2` and
+`aug-TZVP-MOLOPT-GTH-tier-2` from the file `BASIS_AUG_MOLOPT_GTH` together with GTH
+pseudopotentials. `aug-SZV-MOLOPT-GTH-tier-2` is a cheap choice for a first band structure,
+`aug-TZVP-MOLOPT-GTH-tier-2` is the accurate choice.
+
+**Why augmented basis sets?** The MOLOPT basis sets are optimized for ground-state total energies,
+which depend only on the occupied orbitals. The occupied orbitals and their energies are therefore
+well converged, but the empty orbitals are not: no basis function was optimized for them. By the
+variational principle, an orbital that is poorly described by the basis set has a too high energy.
+With a MOLOPT basis set, the conduction bands are thus too high in energy and the band gap is too
+large. In *GW*, the empty orbitals enter twice, as conduction bands of the band structure and in the
+sums over empty bands in $G$ and $\chi$ (Sec. 4.2), so that *GW* band gaps converge slowly with the
+size of a ground-state basis set. Additional diffuse basis functions describe the empty orbitals,
+lower the conduction bands towards their basis-set limit and make the *GW* band gap converge much
+faster with the basis-set size.
+
+**Construction.** An augmented basis set contains the unchanged MOLOPT basis set (`SZV-MOLOPT-GTH`,
+`DZVP-MOLOPT-GTH` or `TZVP-MOLOPT-GTH`) plus one additional contracted Gaussian function per angular
+momentum $l$:
+
+- `tier-1`: one additional function for every $l$ from 0 to the highest angular momentum
+  $l_\text{max}$ of the MOLOPT basis set. Example carbon: `SZV-MOLOPT-GTH` has one *s* and one *p*
+  function, `aug-SZV-MOLOPT-GTH-tier-1` has two *s* and two *p* functions.
+- `tier-2`: as `tier-1`, and one additional function with $l_\text{max}+1$. Example carbon:
+  `aug-SZV-MOLOPT-GTH-tier-2` has two *s*, two *p* and one *d* function.
+
+The additional functions were optimized on a set of molecules such that the five lowest
+*GW*+Bethe-Salpeter excitation energies agree with the complete-basis-set limit. At the same time,
+the condition number of the overlap matrix was kept small, so that the SCF of solids and large
+molecules converges without problems. The total energy is of similar quality as with the underlying
+MOLOPT basis set. The same basis sets are suited for other excited-state methods (TDDFT,
+Bethe-Salpeter). With *k*-point sampling, the RI basis is generated automatically (`&AUTO_RI`, Sec.
+4.1), no RI basis set file is needed.
+
+### 4.5 Analytic continuation
 
 CP2K computes the *GW* self-energy on the imaginary frequency axis, $\Sigma_{n\mathbf{k}}(i\omega)$.
 The quasiparticle equation from Sec. 2, however, needs the self-energy at real frequencies,
@@ -319,7 +426,7 @@ working on more robust methods; until then, please keep this limitation in mind 
 need enough imaginary-frequency points to be meaningful, we recommend NUM_TIME_FREQ_POINTS ≥ 26.
 ```
 
-### 4.4 Output, accuracy and computation time
+### 4.6 Output, accuracy and computation time
 
 The *GW* band structure is written to the files `bandstructure_SCF_and_G0W0` and
 `bandstructure_SCF_and_G0W0_plus_SOC`. The direct and indirect band gaps are also listed in the CP2K
@@ -331,16 +438,91 @@ sets are available in the GitHub repository
 We recommend to start from one of these inputs. The table summarizes the mean computational cost and
 the mean absolute error (MAE) of the *G*<sub>0</sub>*W*<sub>0</sub>@PBE band gap:
 
-| Materials                             | Basis set                    | Cost (core-h) | Gap MAE to ref. (eV) | Gap MAE to prev. CP2K (eV) |
-| ------------------------------------- | ---------------------------- | ------------: | -------------------: | -------------------------: |
-| 2D materials (MoS₂, MoSe₂, WS₂, WSe₂) | `aug-SZV-MOLOPT-GTH-tier-2`  |           2.2 |                0.074 |                      0.040 |
-| 2D materials (MoS₂, MoSe₂, WS₂, WSe₂) | `aug-TZVP-MOLOPT-GTH-tier-2` |          22.8 |                0.040 |                      0.034 |
-| 3D crystals                           | `aug-SZV-MOLOPT-GTH-tier-2`  |          42.7 |                0.205 |                          – |
-| 3D crystals                           | `aug-TZVP-MOLOPT-GTH-tier-2` |         973.4 |                0.137 |                          – |
+| Materials                                | Basis set                    | Cost (core-h) | Gap MAE to ref. (eV) |
+| ---------------------------------------- | ---------------------------- | ------------: | -------------------: |
+| 2D materials<br>(MoS₂, MoSe₂, WS₂, WSe₂) | `aug-SZV-MOLOPT-GTH-tier-2`  |           2.2 |                0.074 |
+| 2D materials<br>(MoS₂, MoSe₂, WS₂, WSe₂) | `aug-TZVP-MOLOPT-GTH-tier-2` |          22.8 |                0.040 |
+| 3D crystals                              | `aug-SZV-MOLOPT-GTH-tier-2`  |          42.7 |                0.205 |
+| 3D crystals                              | `aug-TZVP-MOLOPT-GTH-tier-2` |         973.4 |                0.137 |
 
 The cost is the mean over all materials. As an example, 22.8 core-hours correspond to about 11
 minutes on a single compute node with 128 cores. For 2D materials, the *GW* calculation is very
 cheap. For 3D crystals, the *GW* calculation is only roughly 2–10 times more expensive than the
 preceding PBE calculation.
+
+### 4.7 Preliminary benchmark: band gaps compared to VASP
+
+The table lists preliminary *G*<sub>0</sub>*W*<sub>0</sub>@PBE band gaps (in eV) of 29 3D crystals
+computed with CP2K (indirect gap, without spin-orbit coupling, *k*-point mesh 12×12×12, all *GW*
+parameters at their default values) together with plane-wave *G*<sub>0</sub>*W*<sub>0</sub>@PBE band
+gaps from VASP ([Klimeš 2014](https://doi.org/10.1103/PhysRevB.90.075125) and
+[Varrassi 2025](https://doi.org/10.1038/s41524-025-01833-w)). The CP2K columns are labeled by the
+basis set, where aug-SZV tier-2 stands for `aug-SZV-MOLOPT-GTH-tier-2` etc. The last row is the mean
+absolute deviation (MAD) of CP2K from VASP over the 28 crystals with a VASP value; where two VASP
+values are available, their mean is the reference.
+
+| Material         | CP2K<br>aug-SZV<br>tier-2 | CP2K<br>aug-DZVP<br>tier-2 | CP2K<br>aug-TZVP<br>tier-2 | VASP<br>[Klimeš 2014](https://doi.org/10.1103/PhysRevB.90.075125) | VASP<br>[Varrassi 2025](https://doi.org/10.1038/s41524-025-01833-w) |
+| ---------------- | ------------------------: | -------------------------: | -------------------------: | ----------------------------------------------------------------: | ------------------------------------------------------------------: |
+| AlAs (As: q23)   |                      2.01 |                       2.07 |                       2.16 |                                                              2.31 |                                                                2.36 |
+| AlAs (As: q5)    |                      2.00 |                       1.97 |                       2.10 |                                                              2.31 |                                                                2.36 |
+| AlN              |                      6.50 |                       5.80 |                       5.86 |                                                                 – |                                                                6.07 |
+| AlP              |                      2.28 |                       2.36 |                       2.52 |                                                              2.48 |                                                                2.46 |
+| AlSb (Sb: q23)   |                      1.75 |                       1.65 |                       1.77 |                                                              1.87 |                                                                1.88 |
+| AlSb (Sb: q5)    |                      1.66 |                       1.56 |                       1.68 |                                                              1.87 |                                                                1.88 |
+| BN (cubic)       |                      6.28 |                       6.29 |                       6.32 |                                                              6.40 |                                                                6.39 |
+| BN (hexagonal)   |                      5.95 |                       5.94 |                       6.00 |                                                                 – |                                                                6.17 |
+| BP               |                      2.17 |                       2.02 |                       2.09 |                                                                 – |                                                                2.13 |
+| C                |                      5.58 |                       5.61 |                       5.59 |                                                                 – |                                                                5.72 |
+| CdS (wurtzite)   |                      2.01 |                       2.08 |                       2.17 |                                                                 – |                                                                2.19 |
+| CdS (zincblende) |                      1.93 |                       1.99 |                       2.08 |                                                              2.15 |                                                                   – |
+| CdSe             |                      1.14 |                       1.23 |                       1.33 |                                                              1.52 |                                                                1.71 |
+| CdTe             |                      1.49 |                       1.35 |                       1.41 |                                                              1.57 |                                                                1.68 |
+| GaAs             |                      1.15 |                       1.06 |                       1.13 |                                                              1.23 |                                                                1.34 |
+| GaP              |                      2.18 |                       2.18 |                       2.34 |                                                              2.30 |                                                                2.37 |
+| Ge               |                      0.49 |                       0.56 |                       0.59 |                                                              0.67 |                                                                   – |
+| InP              |                      1.17 |                       1.07 |                       1.20 |                                                              1.23 |                                                                1.29 |
+| LiCl             |                      8.49 |                       8.93 |                       9.17 |                                                                 – |                                                                9.21 |
+| LiF              |                     14.30 |                      13.72 |                      13.72 |                                                                 – |                                                               13.74 |
+| MgO              |                      7.66 |                       7.44 |                       7.39 |                                                              7.55 |                                                                7.51 |
+| NaCl             |                      7.66 |                       7.96 |                       8.28 |                                                                 – |                                                                9.27 |
+| Si               |                      1.11 |                       1.08 |                       1.17 |                                                                 – |                                                                1.30 |
+| SiC              |                      2.35 |                       2.28 |                       2.35 |                                                              2.42 |                                                                2.42 |
+| TiO₂ (anatase)   |                      3.10 |                       3.65 |                       3.74 |                                                                 – |                                                                   – |
+| TiO₂ (rutile)    |                      2.80 |                       3.32 |                       3.41 |                                                                 – |                                                                3.39 |
+| ZnS              |                      3.32 |                       3.30 |                       3.37 |                                                              3.46 |                                                                3.48 |
+| ZnSe             |                      2.22 |                       2.20 |                       2.29 |                                                              2.55 |                                                                2.65 |
+| ZnTe             |                      2.46 |                       2.05 |                       2.10 |                                                              2.27 |                                                                2.33 |
+| **MAD to VASP**  |                  **0.30** |                   **0.24** |                   **0.15** |                                                                   |                                                                     |
+
+For AlAs and AlSb, two calculations with different GTH pseudopotentials are listed: As and Sb with 5
+valence electrons (q5) and with 23 valence electrons (q23). Zn and Cd have 20 valence electrons, Ga
+and In have 21. For NaCl, CP2K is 1.0 eV below the VASP value; all-electron
+*G*<sub>0</sub>*W*<sub>0</sub>@PBE calculations with FHI-aims give 7.80 eV and 7.92 eV
+([Ren *et al.*, Phys. Rev. Materials **5**, 013807 (2021)](https://doi.org/10.1103/PhysRevMaterials.5.013807)).
+For TiO₂ anatase, no *G*<sub>0</sub>*W*<sub>0</sub>@PBE band gap is available in the two VASP
+references.
+
+ZnO is not part of the table. The *G*<sub>0</sub>*W*<sub>0</sub>@PBE band gap of ZnO has been
+debated for a long time, because it converges very slowly with the number of empty bands
+([Shih *et al.* 2010](https://doi.org/10.1103/PhysRevLett.105.146401),
+[Friedrich *et al.* 2011](https://doi.org/10.1103/PhysRevB.83.081101)). With the present basis sets,
+CP2K cannot yet compute a converged *GW* band gap of ZnO.
+
+For the four 2D materials MoS₂, MoSe₂, WS₂ and WSe₂, the table lists the
+*G*<sub>0</sub>*W*<sub>0</sub>@PBE band gap at K with spin-orbit coupling (in eV, *k*-point mesh
+16×16×1) together with VASP ([arXiv:2507.18411](https://arxiv.org/abs/2507.18411)):
+
+| Material        | CP2K<br>aug-SZV<br>tier-2 | CP2K<br>aug-DZVP<br>tier-2 | CP2K<br>aug-TZVP<br>tier-2 | VASP |
+| --------------- | ------------------------: | -------------------------: | -------------------------: | ---: |
+| MoS₂            |                      2.36 |                       2.34 |                       2.33 | 2.29 |
+| MoSe₂           |                      1.92 |                       1.98 |                       1.97 | 2.01 |
+| WS₂             |                      2.41 |                       2.37 |                       2.39 | 2.37 |
+| WSe₂            |                      1.93 |                       1.98 |                       1.97 | 2.02 |
+| **MAD to VASP** |                  **0.07** |                   **0.03** |                   **0.03** |      |
+
+These numbers are preliminary; a publication is in preparation. All raw data (inputs, outputs, band
+structures and compute times, also for the basis sets `aug-DZVP-MOLOPT-GTH-tier-1` and
+`aug-TZVP-MOLOPT-GTH-tier-1`) are available in the GitHub repository
+[CP2K_GW_RIRS_Bandstructures_3D_2D](https://github.com/JWilhelm/CP2K_GW_RIRS_Bandstructures_3D_2D).
 
 In case anything does not work, please feel free to contact jan.wilhelm (at) ur.de.

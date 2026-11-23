@@ -24,7 +24,7 @@ MODULE mp2_setup
    USE input_constants,                 ONLY: &
         cohsex_off, do_eri_mme, do_potential_short, evGW, evGW0, mp2_method_direct, &
         mp2_method_gpw, mp2_method_none, mp2_ri_optimize_basis, ri_mp2_laplace, ri_mp2_method_gpw, &
-        ri_rpa_method_gpw
+        ri_rpa_method_gpw, ri_rs_rpa_method
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -71,7 +71,7 @@ CONTAINS
                                                             unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: do_mp2, do_opt_ri_basis, do_ri_mp2, &
-                                                            do_ri_sos_mp2, do_rpa
+                                                            do_ri_rs_rpa, do_ri_sos_mp2, do_rpa
       REAL(KIND=dp), DIMENSION(:), POINTER               :: r_vals
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: bse_section, cphf_section, &
@@ -448,6 +448,12 @@ CONTAINS
          CALL section_vals_val_get(cphf_section, "DO_POLAK_RIBIERE", l_val=mp2_env%ri_grad%polak_ribiere)
       END IF
 
+      CALL section_vals_val_get(mp2_section, "RI_RS_RPA%_SECTION_PARAMETERS_", l_val=do_ri_rs_rpa)
+      IF (do_ri_rs_rpa) THEN
+         CALL check_method(mp2_env%method)
+         mp2_env%method = ri_rs_rpa_method
+      END IF
+
       ! print some info about the MP2 parameters
       unit_nr = cp_print_key_unit_nr(logger, mp2_section, "PRINT", &
                                      extension=".mp2Log")
@@ -466,6 +472,8 @@ CONTAINS
             WRITE (unit_nr, '(T2,A)') "RI-SOS-Laplace-MP2| using GPW style"
          CASE (mp2_ri_optimize_basis)
             WRITE (unit_nr, '(T2,A)') "MP2| Optimize RI auxiliary basis"
+         CASE (ri_rs_rpa_method)
+            WRITE (unit_nr, '(T2,A)') "RI-RS-RPA| using real-space RI with k-point sampling"
          CASE DEFAULT
             CPABORT("Unknown MP2 method")
          END SELECT

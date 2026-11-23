@@ -69,6 +69,8 @@ MODULE gw_ri_rs_small_cell_full_kp_types
       ! X(q,iω) = M(q) (s/N_k) Σ_k,ia d_ia m_ia* w_ia(iω) per owned q, L0(iω) = (s/N_k) Σ_k,ia |m_ia|² w_ia(iω).
       COMPLEX(dp), ALLOCATABLE                  :: leak_e(:, :), leak_x(:, :, :)
       REAL(dp), ALLOCATABLE                     :: leak_l0(:)
+      ! RPA correlation energy per unit cell, summed from the Cholesky factors of ε(q,iω) in compute_W0
+      REAL(dp)                                  :: e_c_rpa = 0.0_dp
       TYPE(mp_para_env_type), POINTER           :: group_env => NULL()
       INTEGER                                   :: ngroups = 1, my_group = 0
       ! Progress of the χ and Σc time loops in the group of rank 0, counted in k points of G and Σ

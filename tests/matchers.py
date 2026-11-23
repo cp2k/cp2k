@@ -727,6 +727,12 @@ registry["RIRS_Grid_Optimization_Error"] = GenericMatcher(
 registry["E_RIRS_HOMO"] = GenericMatcher(r"G0W0 valence band maximum", col=6)
 registry["E_RIRS_LUMO"] = GenericMatcher(r"G0W0 conduction band minimum", col=6)
 
+# RI-RS RPA with k-points (WF_CORRELATION%RI_RS_RPA)
+registry["E_RIRS_RPA_EXX"] = GenericMatcher(r"RI-RS-RPA| Exact exchange energy", col=6)
+registry["E_RIRS_RPA_correlation"] = GenericMatcher(
+    r"RI-RS-RPA| RPA correlation energy", col=6
+)
+
 # RI-RS evGW0 calculation for molecules; the band edges are labelled evGW0 rather than
 # G0W0 once SELF_CONSISTENCY EVGW0 is requested, so these need their own matchers
 registry["E_RIRS_evGW0_HOMO"] = GenericMatcher(r"evGW0 valence band maximum", col=6)

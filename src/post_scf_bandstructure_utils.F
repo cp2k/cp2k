@@ -160,11 +160,13 @@ CONTAINS
 !> \param qs_env ...
 !> \param bs_env ...
 !> \param post_scf_bandstructure_section ...
+!> \param rpa_sec WF_CORRELATION%RI_RS_RPA section; when present, the setup is for RI-RS RPA
 ! **************************************************************************************************
-   SUBROUTINE create_and_init_bs_env(qs_env, bs_env, post_scf_bandstructure_section)
+   SUBROUTINE create_and_init_bs_env(qs_env, bs_env, post_scf_bandstructure_section, rpa_sec)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(section_vals_type), POINTER                   :: post_scf_bandstructure_section
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: rpa_sec
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_and_init_bs_env'
 
@@ -176,7 +178,8 @@ CONTAINS
 
       CALL print_header(bs_env)
 
-      CALL read_bandstructure_input_parameters(bs_env, post_scf_bandstructure_section, qs_env)
+      CALL read_bandstructure_input_parameters(bs_env, post_scf_bandstructure_section, qs_env, &
+                                               PRESENT(rpa_sec))
 
       CALL get_parameters_from_qs_env(qs_env, bs_env)
 
@@ -264,11 +267,13 @@ CONTAINS
 !> \param bs_env ...
 !> \param bs_sec ...
 !> \param qs_env ...
+!> \param do_ri_rs_rpa RI-RS RPA from WF_CORRELATION instead of GW from BANDSTRUCTURE%GW
 ! **************************************************************************************************
-   SUBROUTINE read_bandstructure_input_parameters(bs_env, bs_sec, qs_env)
+   SUBROUTINE read_bandstructure_input_parameters(bs_env, bs_sec, qs_env, do_ri_rs_rpa)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(section_vals_type), POINTER                   :: bs_sec
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: do_ri_rs_rpa
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_bandstructure_input_parameters'
 
@@ -298,6 +303,7 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "RI_RS%_SECTION_PARAMETERS_", l_val=bs_env%do_gw_ri_rs)
       CALL section_vals_val_get(gw_sec, "EVGW0%_SECTION_PARAMETERS_", l_val=do_evgw0)
       IF (do_evgw0) bs_env%gw_flavour = evGW0
+      IF (do_ri_rs_rpa) bs_env%do_gw_ri_rs = .TRUE.
 
       NULLIFY (soc_sec)
       soc_sec => section_vals_get_subs_vals(bs_sec, "SOC")

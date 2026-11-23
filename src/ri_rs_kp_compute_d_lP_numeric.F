@@ -9,7 +9,7 @@
 !> \brief Numerical integrals d_lP(R) for periodic RI-RS fitting.
 !> \author Jan Wilhelm (with help of ChatGPT, GPT-6 Sol and GPT-6 Astra)
 ! **************************************************************************************************
-MODULE ri_rs_kp_integrals
+MODULE ri_rs_kp_compute_d_lP_numeric
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
@@ -25,8 +25,7 @@ MODULE ri_rs_kp_integrals
    USE mathlib,                         ONLY: diamat_all,&
                                               gauss_legendre
    USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_mem_avail_per_rank_GB,&
-                                              mp_para_env_type
+                                              mp_mem_avail_per_rank_GB
    USE omp_lib,                         ONLY: omp_get_max_threads,&
                                               omp_in_parallel
    USE orbital_pointers,                ONLY: indco,&
@@ -40,13 +39,15 @@ MODULE ri_rs_kp_integrals
                                               l_block_partition_type,&
                                               radial_interpolation_type,&
                                               uniform_settings_type
-   USE ri_rs_utils,                     ONLY: evaluate_ao_basis_on_points
+   USE ri_rs_utils,                     ONLY: evaluate_ao_basis_on_points,&
+                                              get_local_l_range,&
+                                              write_ri_rs_progress
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_kp_integrals'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_kp_compute_d_lP_numeric'
 
    ! Uniform d_lP integration grid: spacing prefactor calibrated on the AO exponents
    ! (including the matched reference RI basis) and safety factor of the Gaussian padding.
@@ -83,11 +84,14 @@ MODULE ri_rs_kp_integrals
    ! Safety factor on the estimated d_lP workspaces and the shares of the available memory
    ! for the cached RI potentials and AO values of the quadrature blocks.
    REAL(dp), PARAMETER :: workspace_safety = 1.3_dp, ri_cache_share = 0.4_dp, ao_cache_share = 0.1_dp
+   ! Share of the available memory for the partial sums d_lP^T of one rank.
+   REAL(dp), PARAMETER :: partial_sum_share = 0.1_dp
 
-   PUBLIC :: compute_d_lP_R, &
+   PUBLIC :: compute_d_lP_R_numeric, &
              compute_d_lP_cutoffs, &
-             get_local_l_range, &
-             write_ri_rs_progress
+             d_lP_integration_accuracy, &
+             d_lP_quadrature_resolution, &
+             prepare_ao_images
 
 CONTAINS
 
@@ -100,8 +104,8 @@ CONTAINS
 !> \param qpoints ...
 !> \param charge_lq ...
 ! **************************************************************************************************
-   SUBROUTINE compute_d_lP_R(bs_env, grid_points, cells_R_d_lP, d_lP_R, &
-                             qpoints, charge_lq)
+   SUBROUTINE compute_d_lP_R_numeric(bs_env, grid_points, cells_R_d_lP, d_lP_R, &
+                                     qpoints, charge_lq)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(dp), INTENT(IN)                               :: grid_points(:, :)
       INTEGER, INTENT(IN)                                :: cells_R_d_lP(:, :)
@@ -109,14 +113,11 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: qpoints(:, :)
       COMPLEX(dp), ALLOCATABLE, INTENT(OUT)              :: charge_lq(:, :)
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_d_lP_R'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_d_lP_R_numeric'
 
       INTEGER                                            :: first_l, handle, last_l
       TYPE(uniform_settings_type)                        :: settings
 
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,T72,A9)') 'd_lP method', 'NUMERICAL'
-      END IF
       CALL get_local_l_range(bs_env%ri_rs%n_grid_points, bs_env%para_env%num_pe, &
                              bs_env%para_env%mepos, first_l, last_l)
       ALLOCATE (d_lP_R(last_l - first_l + 1, bs_env%n_RI, SIZE(cells_R_d_lP, 2)))
@@ -128,11 +129,11 @@ CONTAINS
       CALL integrate_d_lP_R(bs_env, grid_points, cells_R_d_lP, settings, d_lP_R, first_l, &
                             qpoints, charge_lq)
 
-      IF (.NOT. ALL(ieee_is_finite(d_lP_R))) CPABORT("Nonfinite DLP cell value")
+      IF (.NOT. ALL(ieee_is_finite(d_lP_R))) CPABORT("Nonfinite d_lP value")
 
       CALL timestop(handle)
 
-   END SUBROUTINE compute_d_lP_R
+   END SUBROUTINE compute_d_lP_R_numeric
 
 ! **************************************************************************************************
 !> \brief Automatic l/P cutoff from the overlap of the diffuse AO-field square and RI potential.
@@ -176,134 +177,75 @@ CONTAINS
    END SUBROUTINE compute_d_lP_cutoffs
 
 ! **************************************************************************************************
-!> \brief Distribute individual l rows evenly across MPI ranks; empty ranges are valid.
-!> \param n_grid Number of RI-RS grid points.
-!> \param n_ranks Number of MPI ranks.
-!> \param i_rank MPI rank.
-!> \param first_l First locally owned grid row.
-!> \param last_l Last locally owned grid row.
-! **************************************************************************************************
-   SUBROUTINE get_local_l_range(n_grid, n_ranks, i_rank, first_l, last_l)
-      INTEGER, INTENT(IN)                                :: n_grid, n_ranks, i_rank
-      INTEGER, INTENT(OUT)                               :: first_l, last_l
-
-      CPASSERT(i_rank >= 0 .AND. i_rank < n_ranks)
-      first_l = INT(INT(n_grid, int_8)*INT(i_rank, int_8)/INT(n_ranks, int_8)) + 1
-      last_l = INT(INT(n_grid, int_8)*INT(i_rank + 1, int_8)/INT(n_ranks, int_8))
-
-   END SUBROUTINE get_local_l_range
-
-! **************************************************************************************************
-!> \brief Print one rank-local RI-RS work milestone without synchronizing MPI ranks.
-!> Percentages count completed local units; time is the elapsed wall time since the phase began.
-!> \param unit_nr ...
-!> \param phase ...
-!> \param n_done ...
-!> \param n_total ...
-!> \param next_progress ...
-!> \param phase_start ...
-! **************************************************************************************************
-   SUBROUTINE write_ri_rs_progress(unit_nr, phase, n_done, n_total, next_progress, phase_start)
-      INTEGER, INTENT(IN)                                :: unit_nr
-      CHARACTER(LEN=*), INTENT(IN)                       :: phase
-      INTEGER(KIND=int_8), INTENT(IN)                    :: n_done, n_total
-      INTEGER, INTENT(INOUT)                             :: next_progress
-      REAL(KIND=dp), INTENT(IN)                          :: phase_start
-
-      REAL(KIND=dp), PARAMETER :: milestones(9) = [0.1_dp, 0.3_dp, 1.0_dp, 3.0_dp, 10.0_dp, 30.0_dp&
-         , 60.0_dp, 90.0_dp, 100.0_dp]
-
-      CHARACTER(LEN=100)                                 :: progress_line
-      CHARACTER(LEN=20)                                  :: count_text
-      CHARACTER(LEN=40)                                  :: phase_text
-      CHARACTER(LEN=64)                                  :: progress_format
-      CHARACTER(LEN=8)                                   :: time_text
-      INTEGER                                            :: count_width, i, n_extra_bytes, &
-                                                            previous_progress
-      REAL(KIND=dp)                                      :: percent_done, phase_time
-
-      IF (unit_nr <= 0 .OR. n_total <= 0) RETURN
-      percent_done = 100.0_dp*REAL(n_done, dp)/REAL(n_total, dp)
-      previous_progress = next_progress
-      DO WHILE (next_progress <= SIZE(milestones))
-         IF (percent_done < milestones(next_progress)) EXIT
-         next_progress = next_progress + 1
-      END DO
-      IF (next_progress == previous_progress) RETURN
-      ! UTF-8 characters such as χ, Σ and τ take more bytes than screen columns.
-      n_extra_bytes = COUNT([(IACHAR(phase(i:i)) >= 128 .AND. IACHAR(phase(i:i)) < 192, i=1, LEN(phase))])
-      CPASSERT(LEN_TRIM(phase) - n_extra_bytes <= 32)
-      WRITE (count_text, '(I0)') n_total
-      count_width = LEN_TRIM(count_text)
-      WRITE (progress_format, '(A,I0,A,I0,A,I0,A)') &
-         '(A', 32 + n_extra_bytes, ',1X,I', count_width, ',A,I', count_width, ',1X,F5.1,A)'
-      phase_text = phase
-      WRITE (progress_line, progress_format) &
-         phase_text, n_done, ' / ', n_total, percent_done, ' %'
-      phase_time = m_walltime() - phase_start
-      WRITE (time_text, '(F8.1)') phase_time
-      IF (INDEX(time_text, '*') > 0) WRITE (time_text, '(ES8.1E3)') phase_time
-      IF (LEN_TRIM(progress_line) - n_extra_bytes > 56) THEN
-         WRITE (unit_nr, '(T2,A)') TRIM(phase)
-         WRITE (unit_nr, '(T2,A)') TRIM(ADJUSTL(progress_line(34 + n_extra_bytes:)))
-         progress_line = ''
-         n_extra_bytes = 0
-      END IF
-      WRITE (progress_format, '(A,I0,A,I0,A)') '(T2,A,T', 60 + n_extra_bytes, ',A,T', 71 + n_extra_bytes, ',A,A)'
-      WRITE (unit_nr, progress_format) TRIM(progress_line), 'Total time:', time_text, ' s'
-      FLUSH (unit_nr)
-
-   END SUBROUTINE write_ri_rs_progress
-
-! **************************************************************************************************
-!> \brief Choose the smallest fitting divisor of MPI ranks with 30 percent reserve.
-!> A memory group has ngroups ranks and jointly holds all T. Corresponding T slices
-!> across memory groups divide g. Equal integration ranks
-!> share their uniquely evaluated fields across T groups. The caller's P result is already live.
-!> Use the existing node-memory estimate to bound temporary workspaces.
-!> Budget the maximum simultaneous integration, reduction and redistribution storage.
-!> The final redistribution needs an extra receive buffer as large as the live result.
-!> Selection masks remain live throughout; block masks have at most nl rows.
-!> \param para_env ...
-!> \param nl ...
+!> \brief Split the ranks into l groups, memory groups and integration groups for d_lP^T.
+!> An l group is a contiguous block of n_ranks/n_l_groups ranks; it integrates all quadrature points for the union of
+!> the l rows of its ranks, so each rank holds the partial sums of these rows only. The number of
+!> l groups is the smallest divisor of the ranks for which the partial sums fit into partial_sum_share of the memory.
+!> Inside an l group, a memory group has ngroups ranks that divide the T cells and share their
+!> fields; ngroups is the smallest divisor of the l group size whose workspaces fit into memory
+!> with 30 percent reserve. The caller's d_lP_R is already allocated and not charged again.
 !> \param bs_env ...
-!> \param nt ...
-!> \param nresult ...
-!> \param integration_comm ...
-!> \param field_comm ...
-!> \param ngroups ...
+!> \param nt Number of T cells.
+!> \param first_l First l row of this rank.
+!> \param last_l Last l row of this rank.
+!> \param l_comm Ranks of the l group.
+!> \param first_group_l First l row of the l group.
+!> \param last_group_l Last l row of the l group.
+!> \param integration_comm Ranks of the l group that hold partial sums of the same T cells.
+!> \param field_comm Ranks of the memory group.
+!> \param ngroups Size of the memory group.
 ! **************************************************************************************************
-   SUBROUTINE prepare_d_lP_mpi_groups(para_env, nl, bs_env, nt, nresult, integration_comm, field_comm, ngroups)
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: nl
+   SUBROUTINE prepare_d_lP_mpi_groups(bs_env, nt, first_l, last_l, l_comm, first_group_l, last_group_l, &
+                                      integration_comm, field_comm, ngroups)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER, INTENT(IN)                                :: nt
-      INTEGER(int_8), INTENT(IN)                         :: nresult
+      INTEGER, INTENT(IN)                                :: nt, first_l, last_l
+      TYPE(mp_comm_type), INTENT(OUT)                    :: l_comm
+      INTEGER, INTENT(OUT)                               :: first_group_l, last_group_l
       TYPE(mp_comm_type), INTENT(OUT)                    :: integration_comm, field_comm
       INTEGER, INTENT(OUT)                               :: ngroups
 
       INTEGER                                            :: igroup, integration_rank, maxnp, &
-                                                            nlocal_T, np
-      REAL(dp) :: available_GB, cell_bytes, contraction_bytes, cyclic_bytes, local_bytes, &
-         reduction_bytes, required_bytes, result_bytes, selection_bytes, workspace_bytes
+                                                            n_l_groups, n_ranks, nl, nlocal_T, np
+      REAL(dp) :: available_GB, cell_bytes, contraction_bytes, local_bytes, reduction_bytes, &
+         required_bytes, result_bytes, selection_bytes, summed_rows_bytes, workspace_bytes
 
       np = bs_env%n_RI
-      CALL mp_mem_avail_per_rank_GB(para_env, available_GB)
-      result_bytes = real_bytes*REAL(nresult, dp)
-      CALL para_env%max(result_bytes)
+      n_ranks = bs_env%para_env%num_pe
+      CALL mp_mem_avail_per_rank_GB(bs_env%para_env, available_GB)
+      result_bytes = real_bytes*REAL(last_l - first_l + 1, dp)*REAL(np, dp)*REAL(nt, dp)
+      CALL bs_env%para_env%max(result_bytes)
+      ! Smallest divisor n_l_groups of the ranks whose largest l group fits; contiguous rank
+      ! blocks hold at most n_grid/n_l_groups + n_grid/n_ranks + 1 rows.
+      DO n_l_groups = 1, n_ranks
+         IF (MODULO(n_ranks, n_l_groups) /= 0) CYCLE
+         nl = bs_env%ri_rs%n_grid_points/n_l_groups + bs_env%ri_rs%n_grid_points/n_ranks + 1
+         IF (real_bytes*REAL(nl, dp)*REAL(np, dp)*REAL(nt, dp) <= &
+             partial_sum_share*available_GB*bytes_per_GB) EXIT
+      END DO
+      IF (n_l_groups > n_ranks) THEN
+         n_l_groups = n_ranks
+         CPWARN("d_lP of the quadrature may exceed the available memory")
+      END IF
+      CALL l_comm%from_split(bs_env%para_env, bs_env%para_env%mepos/(n_ranks/n_l_groups), &
+                             key=bs_env%para_env%mepos)
+      first_group_l = first_l
+      last_group_l = last_l
+      CALL l_comm%min(first_group_l)
+      CALL l_comm%max(last_group_l)
+      nl = last_group_l - first_group_l + 1
+      CALL bs_env%para_env%max(nl)
+
       cell_bytes = real_bytes*REAL(nl, dp)*REAL(np, dp)
-      cyclic_bytes = cell_bytes*REAL((nt + para_env%num_pe - 1)/para_env%num_pe, dp)
+      summed_rows_bytes = cell_bytes*REAL((nt + l_comm%num_pe - 1)/l_comm%num_pe, dp)
       maxnp = MAXVAL(bs_env%i_RI_end_from_atom - bs_env%i_RI_start_from_atom + 1)
       contraction_bytes = real_bytes*(REAL(nl, dp)*REAL(maxnp + quadrature_block_size, dp) + &
                                       REAL(quadrature_block_size, dp)*REAL(maxnp, dp))
       workspace_bytes = library_workspace_bytes + &
                         5.0_dp*real_bytes*REAL(nl + 3, dp)*REAL(quadrature_block_size, dp) + &
                         MAX(thread_workspace_bytes, contraction_bytes)
-      DO ngroups = 1, para_env%num_pe
-         IF (MODULO(para_env%num_pe, ngroups) /= 0) CYCLE
+      DO ngroups = 1, l_comm%num_pe
+         IF (MODULO(l_comm%num_pe, ngroups) /= 0) CYCLE
          nlocal_T = (nt + ngroups - 1)/ngroups
-         ! The caller allocated d_lP_R before this call. Its bytes are already
-         ! reflected in the measured free memory and must not be charged twice.
          local_bytes = cell_bytes*REAL(nlocal_T, dp)
          selection_bytes = 2.0_dp*REAL(STORAGE_SIZE(.TRUE.)/8, dp)* &
                            REAL(nl, dp)*REAL(bs_env%n_atom, dp)*REAL(nlocal_T, dp)
@@ -311,22 +253,25 @@ CONTAINS
          reduction_bytes = MAX(message_batch_bytes, cell_bytes)
          required_bytes = workspace_safety*(selection_bytes + &
                                             MAX(local_bytes + workspace_bytes, &
-                                                local_bytes + cyclic_bytes + reduction_bytes, &
-                                                2.0_dp*cyclic_bytes + result_bytes + reduction_bytes))
+                                                local_bytes + summed_rows_bytes + reduction_bytes, &
+                                                2.0_dp*summed_rows_bytes + result_bytes + reduction_bytes))
          IF (required_bytes <= available_GB*bytes_per_GB) EXIT
       END DO
-      IF (ngroups > para_env%num_pe) THEN
-         ngroups = para_env%num_pe
+      IF (ngroups > l_comm%num_pe) THEN
+         ngroups = l_comm%num_pe
          CPWARN('d_lP workspaces exceed memory with all MPI ranks')
       END IF
-      igroup = MODULO(para_env%mepos, ngroups)
-      integration_rank = para_env%mepos/ngroups
-      CALL integration_comm%from_split(para_env, igroup, key=integration_rank)
-      CALL field_comm%from_split(para_env, integration_rank, key=igroup)
+      igroup = MODULO(l_comm%mepos, ngroups)
+      integration_rank = l_comm%mepos/ngroups
+      CALL integration_comm%from_split(l_comm, igroup, key=integration_rank)
+      CALL field_comm%from_split(l_comm, integration_rank, key=igroup)
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A,T66,F12.1,A)') 'd_lP PSS-aware rank headroom:', available_GB, ' GB'
+         WRITE (bs_env%unit_nr, '(T2,A,T61,I20)') 'd_lP groups of l rows:', n_l_groups
          WRITE (bs_env%unit_nr, '(T2,A,T61,I20)') 'd_lP memory group size:', ngroups
          WRITE (bs_env%unit_nr, '(T2,A,T61,I20)') 'd_lP independent integration groups:', integration_comm%num_pe
+         WRITE (bs_env%unit_nr, '(T2,A,T66,F12.1,A)') 'd_lP partial sums per rank:', &
+            cell_bytes*REAL((nt + ngroups - 1)/ngroups, dp)*1.0E-9_dp, ' GB'
          WRITE (bs_env%unit_nr, '(T2,A,T66,F12.1,A)') 'd_lP existing output storage:', result_bytes*1.0E-9_dp, ' GB'
          WRITE (bs_env%unit_nr, '(T2,A,T66,F12.1,A)') 'd_lP additional memory budget:', required_bytes*1.0E-9_dp, ' GB'
          FLUSH (bs_env%unit_nr)
@@ -335,26 +280,31 @@ CONTAINS
    END SUBROUTINE prepare_d_lP_mpi_groups
 
 ! **************************************************************************************************
-!> \brief Sum Eq. (2) directly onto ranks owning cyclic T cells, T=r+1+j*N.
-!> The first two indices are (L,P); contiguous T blocks are pointer views, with no packing copy.
-!> Reduce-scatter retains only each rank's output cells instead of replicating the full sum.
-!> \param comm ...
-!> \param partial ...
-!> \param cells ...
+!> \brief Sum the partial d_lP^T of the integration ranks; each rank keeps the l rows of its
+!>        memory group for all its T cells.
+!> For each batch of T cells, one all-to-all sends every rank its rows from all ranks, which the
+!> receiving rank adds up: each rank sends and receives one partial array in total, all ranks
+!> communicate and add at the same time, and no rank receives a full (l,P) plane.
+!> \param comm Integration ranks that hold partial sums of the same T cells.
+!> \param partial Partial sums indexed (l,P,T).
+!> \param first_row First l row (index of partial) kept by this rank.
+!> \param n_rows_kept Number of l rows kept by this rank.
+!> \param rows Summed rows indexed (local l,P,T).
 ! **************************************************************************************************
-   SUBROUTINE sum_d_lP_R_over_mpi_ranks(comm, partial, cells)
+   SUBROUTINE sum_d_lP_R_over_mpi_ranks(comm, partial, first_row, n_rows_kept, rows)
       TYPE(mp_comm_type), INTENT(IN)                     :: comm
-      REAL(dp), CONTIGUOUS, INTENT(IN), TARGET           :: partial(:, :, :)
-      REAL(dp), ALLOCATABLE, INTENT(OUT), TARGET         :: cells(:, :, :)
+      REAL(dp), INTENT(IN)                               :: partial(:, :, :)
+      INTEGER, INTENT(IN)                                :: first_row, n_rows_kept
+      REAL(dp), ALLOCATABLE, INTENT(OUT)                 :: rows(:, :, :)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'sum_d_lP_R_over_mpi_ranks'
 
-      INTEGER :: block_cells, first_rank, first_T, handle, icycle, last_rank, last_T, nl, nlocal, &
-         np, nranks, nt, rank, round_first, round_last
-      INTEGER(int_8)                                     :: iround, plane_count
-      REAL(dp), CONTIGUOUS, POINTER                      :: receive_block(:), send_block(:, :)
-      REAL(dp), TARGET                                   :: empty(0)
-      INTEGER                                            :: recv_counts(comm%num_pe)
+      INTEGER                                            :: block_cells, first_T, handle, ip, irank, &
+                                                            it, last_T, n_cells, n_rows, nl, np, &
+                                                            nranks, nt, position
+      REAL(dp), ALLOCATABLE                              :: packed(:), received(:)
+      INTEGER, DIMENSION(comm%num_pe)                    :: first_rows, last_rows, recv_counts, &
+                                                            recv_offsets, send_counts, send_offsets
 
       CALL timeset(routineN, handle)
 
@@ -362,132 +312,129 @@ CONTAINS
       np = SIZE(partial, 2)
       nt = SIZE(partial, 3)
       nranks = comm%num_pe
-      rank = comm%mepos
-      nlocal = 0
-      IF (nt > rank) nlocal = 1 + (nt - 1 - rank)/nranks
-      ALLOCATE (cells(nl, np, nlocal))
-      IF (nl == 0 .OR. np == 0 .OR. nt == 0) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
+      CALL comm%allgather(first_row, first_rows)
+      CALL comm%allgather(first_row + n_rows_kept - 1, last_rows)
+      CPASSERT(first_rows(1) == 1 .AND. last_rows(nranks) == nl)
+      ALLOCATE (rows(n_rows_kept, np, nt))
       IF (nranks == 1) THEN
-         cells(:, :, :) = partial(:, :, :)
-         CALL timestop(handle)
-         RETURN
-      END IF
-      plane_count = INT(nl, int_8)*INT(np, int_8)
-      IF (plane_count > HUGE(0)) THEN
-         CPABORT('DLP integration block exceeds the MPI count range')
-      END IF
-      block_cells = INT(MAX(1_int_8, INT(message_batch_bytes/real_bytes, int_8)/plane_count))
-      block_cells = MIN(block_cells, INT(INT(HUGE(0), int_8)/plane_count))
-      icycle = 0
-      DO iround = 1_int_8, INT(nt, int_8), INT(nranks, int_8)
-         icycle = icycle + 1
-         round_first = INT(iround)
-         round_last = INT(MIN(INT(nt, int_8), iround + INT(nranks, int_8) - 1_int_8))
-         first_T = round_first
-         DO WHILE (first_T <= round_last)
-            last_T = INT(MIN(INT(round_last, int_8), INT(first_T, int_8) + INT(block_cells, int_8) - 1_int_8))
-            first_rank = first_T - round_first
-            last_rank = last_T - round_first
-            recv_counts = 0
-            recv_counts(first_rank + 1:last_rank + 1) = INT(plane_count)
-            send_block(1:INT(plane_count), 1:last_T - first_T + 1) => partial(:, :, first_T:last_T)
-            receive_block => empty
-            IF (rank >= first_rank .AND. rank <= last_rank) THEN
-               receive_block(1:INT(plane_count)) => cells(:, :, icycle)
-            END IF
-            CALL comm%sum_scatter(send_block, receive_block, recv_counts)
-            IF (last_T == round_last) EXIT
-            first_T = last_T + 1
+         rows(:, :, :) = partial(:, :, :)
+      ELSE IF (nl > 0 .AND. np > 0 .AND. nt > 0) THEN
+         block_cells = MAX(1, MIN(nt, INT(message_batch_bytes/(real_bytes*REAL(nl, dp)*REAL(np, dp)))))
+         IF (INT(nl, int_8)*INT(np, int_8)*INT(block_cells, int_8) > INT(HUGE(0), int_8)) THEN
+            CPABORT('d_lP reduction block exceeds the MPI count range')
+         END IF
+         ALLOCATE (packed(nl*np*block_cells), received(n_rows_kept*np*block_cells*nranks))
+         DO first_T = 1, nt, block_cells
+            last_T = MIN(nt, first_T + block_cells - 1)
+            n_cells = last_T - first_T + 1
+            ! Destination blocks in rank order, each ordered (l,P,T) like rows.
+            DO irank = 1, nranks
+               n_rows = last_rows(irank) - first_rows(irank) + 1
+               send_counts(irank) = n_rows*np*n_cells
+               send_offsets(irank) = (first_rows(irank) - 1)*np*n_cells
+               recv_counts(irank) = n_rows_kept*np*n_cells
+               recv_offsets(irank) = (irank - 1)*n_rows_kept*np*n_cells
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) PRIVATE(it, ip, position) &
+!$OMP             SHARED(first_T, last_T, np, n_rows, irank, first_rows, last_rows, partial, packed, send_offsets)
+               DO it = first_T, last_T
+                  DO ip = 1, np
+                     position = send_offsets(irank) + ((it - first_T)*np + ip - 1)*n_rows
+                     packed(position + 1:position + n_rows) = partial(first_rows(irank):last_rows(irank), ip, it)
+                  END DO
+               END DO
+!$OMP END PARALLEL DO
+            END DO
+            CALL comm%alltoall(packed, send_counts, send_offsets, received, recv_counts, recv_offsets)
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) PRIVATE(it, ip, irank, position) &
+!$OMP             SHARED(first_T, last_T, np, n_rows_kept, nranks, rows, received, recv_offsets)
+            DO it = first_T, last_T
+               DO ip = 1, np
+                  rows(:, ip, it) = 0.0_dp
+                  DO irank = 1, nranks
+                     position = recv_offsets(irank) + ((it - first_T)*np + ip - 1)*n_rows_kept
+                     rows(:, ip, it) = rows(:, ip, it) + received(position + 1:position + n_rows_kept)
+                  END DO
+               END DO
+            END DO
+!$OMP END PARALLEL DO
          END DO
-      END DO
+      END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE sum_d_lP_R_over_mpi_ranks
 
 ! **************************************************************************************************
-!> \brief Redistribute Eq. (2) from cyclic T cells to disjoint contiguous l rows.
-!> Rank r initially owns T=r+1+j*N. The caller owns first_l:first_l+size(d_lP_R,1)-1.
-!> Only the local T slice and local l slice are materialized, never a global DLP replica.
-!> \param para_env ...
-!> \param cell_values ...
-!> \param first_l ...
-!> \param d_lP_R Numerical integrals indexed by local point l, RI function P and cell R.
+!> \brief Move the summed rows of the field group's T cells to the l rows of each rank.
+!> The ranks of one field group own the cells T = g+1+i*G (g = rank in the group, G = group size)
+!> and share the same l rows, which are the union of their own l rows. Rank g sends each member
+!> its l rows of the cells of g, so the data never leave the field group.
+!> \param field_comm Ranks of the field group.
+!> \param rows Summed rows of the group's l range, indexed (l,P,local T).
+!> \param first_l First l row owned by this rank.
+!> \param d_lP_R Rows of this rank for all cells, indexed (local l,P,T).
 ! **************************************************************************************************
-   SUBROUTINE distribute_d_lP_R_by_l(para_env, cell_values, first_l, d_lP_R)
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      REAL(dp), INTENT(IN)                               :: cell_values(:, :, :)
+   SUBROUTINE distribute_d_lP_R_by_l(field_comm, rows, first_l, d_lP_R)
+      TYPE(mp_comm_type), INTENT(IN)                     :: field_comm
+      REAL(dp), INTENT(IN)                               :: rows(:, :, :)
       INTEGER, INTENT(IN)                                :: first_l
       REAL(dp), INTENT(OUT)                              :: d_lP_R(:, :, :)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_d_lP_R_by_l'
 
-      INTEGER                                            :: handle, il, ip, irank, it, local_it, &
-                                                            nlocal_l, nlocal_T, np, nranks, &
+      INTEGER                                            :: first_group_l, handle, igroup, ip, it, &
+                                                            local_it, n_group, nlocal_l, np, nt, &
                                                             position
-      INTEGER(int_8)                                     :: count_wide
-      INTEGER, ALLOCATABLE :: cell_counts(:), first_rows(:), recv_counts(:), recv_offsets(:), &
-         row_counts(:), send_counts(:), send_offsets(:)
       REAL(dp), ALLOCATABLE                              :: receive_values(:), send_values(:)
+      INTEGER, DIMENSION(field_comm%num_pe)              :: cell_counts, first_rows, recv_counts, &
+                                                            recv_offsets, row_counts, send_counts, &
+                                                            send_offsets
 
       CALL timeset(routineN, handle)
 
-      nranks = para_env%num_pe
+      n_group = field_comm%num_pe
       np = SIZE(d_lP_R, 2)
+      nt = SIZE(d_lP_R, 3)
       nlocal_l = SIZE(d_lP_R, 1)
-      nlocal_T = SIZE(cell_values, 3)
-      ALLOCATE (first_rows(nranks), row_counts(nranks), cell_counts(nranks), &
-                send_counts(nranks), send_offsets(nranks), recv_counts(nranks), recv_offsets(nranks))
-      CALL para_env%allgather(first_l, first_rows)
-      CALL para_env%allgather(nlocal_l, row_counts)
-      CALL para_env%allgather(nlocal_T, cell_counts)
-      DO irank = 1, nranks
-         count_wide = INT(np, int_8)*INT(row_counts(irank), int_8)*INT(nlocal_T, int_8)
-         CPASSERT(count_wide <= HUGE(0))
-         count_wide = INT(np, int_8)*INT(nlocal_l, int_8)*INT(cell_counts(irank), int_8)
-         CPASSERT(count_wide <= HUGE(0))
-         send_counts(irank) = np*row_counts(irank)*nlocal_T
-         recv_counts(irank) = np*nlocal_l*cell_counts(irank)
+      CALL field_comm%allgather(first_l, first_rows)
+      CALL field_comm%allgather(nlocal_l, row_counts)
+      first_group_l = MINVAL(first_rows)
+      CPASSERT(SIZE(rows, 1) == SUM(row_counts))
+      DO igroup = 1, n_group
+         cell_counts(igroup) = (nt - igroup + n_group)/n_group
       END DO
-      CPASSERT(SUM(INT(send_counts, int_8)) <= HUGE(0))
-      CPASSERT(SUM(INT(recv_counts, int_8)) <= HUGE(0))
-      position = 0
-      DO irank = 1, nranks
-         send_offsets(irank) = position
-         position = position + send_counts(irank)
+      CPASSERT(SIZE(rows, 3) == cell_counts(field_comm%mepos + 1))
+      IF (INT(SIZE(rows), int_8) > INT(HUGE(0), int_8) .OR. INT(SIZE(d_lP_R), int_8) > INT(HUGE(0), int_8)) THEN
+         CPABORT('d_lP redistribution exceeds the MPI count range')
+      END IF
+      send_counts(:) = row_counts*np*SIZE(rows, 3)
+      recv_counts(:) = nlocal_l*np*cell_counts
+      send_offsets(1) = 0
+      recv_offsets(1) = 0
+      DO igroup = 2, n_group
+         send_offsets(igroup) = send_offsets(igroup - 1) + send_counts(igroup - 1)
+         recv_offsets(igroup) = recv_offsets(igroup - 1) + recv_counts(igroup - 1)
       END DO
-      ALLOCATE (send_values(position))
-      position = 0
-      DO irank = 1, nranks
-         recv_offsets(irank) = position
-         position = position + recv_counts(irank)
-      END DO
-      ALLOCATE (receive_values(position))
-      DO irank = 1, nranks
-         position = send_offsets(irank)
-         DO local_it = 1, nlocal_T
+      ALLOCATE (send_values(SUM(send_counts)), receive_values(SUM(recv_counts)))
+      DO igroup = 1, n_group
+         position = send_offsets(igroup)
+         DO local_it = 1, SIZE(rows, 3)
             DO ip = 1, np
-               DO il = first_rows(irank), first_rows(irank) + row_counts(irank) - 1
-                  position = position + 1
-                  send_values(position) = cell_values(il, ip, local_it)
-               END DO
+               send_values(position + 1:position + row_counts(igroup)) = &
+                  rows(first_rows(igroup) - first_group_l + 1:first_rows(igroup) - first_group_l + row_counts(igroup), &
+                       ip, local_it)
+               position = position + row_counts(igroup)
             END DO
          END DO
       END DO
-      CALL para_env%alltoall(send_values, send_counts, send_offsets, &
-                             receive_values, recv_counts, recv_offsets)
-      DO irank = 1, nranks
-         position = recv_offsets(irank)
-         DO local_it = 1, cell_counts(irank)
-            it = irank + (local_it - 1)*nranks
+      CALL field_comm%alltoall(send_values, send_counts, send_offsets, &
+                               receive_values, recv_counts, recv_offsets)
+      DO igroup = 1, n_group
+         position = recv_offsets(igroup)
+         DO it = igroup, nt, n_group
             DO ip = 1, np
-               DO il = 1, nlocal_l
-                  position = position + 1
-                  d_lP_R(il, ip, it) = receive_values(position)
-               END DO
+               d_lP_R(:, ip, it) = receive_values(position + 1:position + nlocal_l)
+               position = position + nlocal_l
             END DO
          END DO
       END DO
@@ -579,17 +526,17 @@ CONTAINS
       REAL(dp)                                           :: exponent_max, exponent_min
 
       settings%accuracy = d_lP_integration_accuracy(bs_env)
+      CALL d_lP_quadrature_resolution(bs_env, settings%spacing, settings%padding)
       ! The full-k RI-RS path always uses the erfc(omega r)/r RI metric with omega > 0.
       IF (bs_env%ri_metric%potential_type /= do_potential_short .OR. &
           .NOT. (bs_env%ri_metric%omega > 0.0_dp)) THEN
-         CPABORT('Uniform DLP requires the short-range erfc RI metric with positive omega')
+         CPABORT('d_lP quadrature needs the erfc RI metric with positive omega')
       END IF
-      IF (ALL(bs_env%ri_rs%cell%perd == 0)) CPABORT('Uniform DLP requires a periodic cell')
+      IF (ALL(bs_env%ri_rs%cell%perd == 0)) THEN
+         CPABORT('d_lP quadrature requires a periodic cell')
+      END IF
       CALL ao_exponent_range(bs_env, exponent_min, exponent_max)
       settings%l_block_edge = 1.0_dp/angstrom
-      settings%spacing = spacing_prefactor/ &
-                         SQRT(exponent_max*LOG(1.0_dp/settings%accuracy))
-      settings%padding = padding_safety*SQRT(LOG(1.0_dp/settings%accuracy)/exponent_min)
       CALL build_d_lP_integration_grid(bs_env, grid_points, settings)
       npoints = PRODUCT(INT(settings%counts, int_8))
       IF (bs_env%unit_nr > 0) THEN
@@ -600,6 +547,26 @@ CONTAINS
       END IF
 
    END SUBROUTINE prepare_d_lP_integration_grid
+
+! **************************************************************************************************
+!> \brief Spacing h = C/[alpha_max log(1/epsilon)]^(1/2) of the uniform d_lP quadrature and the
+!> padding 1.1 [log(1/epsilon)/alpha_min]^(1/2) of its box (largest and smallest AO exponent).
+!> \param bs_env ...
+!> \param spacing ...
+!> \param padding ...
+! **************************************************************************************************
+   SUBROUTINE d_lP_quadrature_resolution(bs_env, spacing, padding)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(dp), INTENT(OUT)                              :: spacing, padding
+
+      REAL(dp)                                           :: accuracy, exponent_max, exponent_min
+
+      accuracy = d_lP_integration_accuracy(bs_env)
+      CALL ao_exponent_range(bs_env, exponent_min, exponent_max)
+      spacing = spacing_prefactor/SQRT(exponent_max*LOG(1.0_dp/accuracy))
+      padding = padding_safety*SQRT(LOG(1.0_dp/accuracy)/exponent_min)
+
+   END SUBROUTINE d_lP_quadrature_resolution
 
 ! **************************************************************************************************
 !> \brief Build Eq. (3) on a cell-commensurate lattice without coarsening its largest spacing.
@@ -718,32 +685,21 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(dp), INTENT(OUT)                              :: exponent_min, exponent_max
 
-      INTEGER                                            :: ikind, ipgf, iset
-      REAL(dp)                                           :: exponent
-      TYPE(gto_basis_set_type), POINTER                  :: basis
+      INTEGER                                            :: ikind
+      REAL(dp)                                           :: kind_max, kind_min
 
       exponent_min = HUGE(1.0_dp)
       exponent_max = 0.0_dp
       DO ikind = 1, SIZE(bs_env%basis_set_AO)
-         basis => bs_env%basis_set_AO(ikind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(basis)) CYCLE
-         DO iset = 1, basis%nset
-            DO ipgf = 1, basis%npgf(iset)
-               exponent = basis%zet(ipgf, iset)
-               IF (exponent <= 0.0_dp) CYCLE
-               exponent_min = MIN(exponent_min, exponent)
-               exponent_max = MAX(exponent_max, exponent)
-            END DO
-         END DO
+         IF (.NOT. ASSOCIATED(bs_env%basis_set_AO(ikind)%gto_basis_set)) CYCLE
+         CALL basis_exponent_range(bs_env%basis_set_AO(ikind)%gto_basis_set, kind_min, kind_max)
+         exponent_min = MIN(exponent_min, kind_min)
+         exponent_max = MAX(exponent_max, kind_max)
       END DO
-      IF (exponent_max <= 0.0_dp .OR. exponent_min == HUGE(1.0_dp)) THEN
-         CPABORT('Uniform DLP found no positive AO primitive exponent')
-      END IF
-
    END SUBROUTINE ao_exponent_range
 
 ! **************************************************************************************************
-!> \brief Use the sparse-filter threshold EPS_FILTER as the DLP threshold.
+!> \brief Accuracy of d_lP: the sparse-filter threshold EPS_FILTER.
 !> \param bs_env ...
 !> \return ...
 ! **************************************************************************************************
@@ -753,7 +709,7 @@ CONTAINS
 
       IF (.NOT. ieee_is_finite(bs_env%eps_filter) .OR. &
           bs_env%eps_filter <= 0.0_dp .OR. bs_env%eps_filter >= 1.0_dp) THEN
-         CPABORT('EPS_FILTER must be between zero and one for periodic RI-RS DLP')
+         CPABORT('EPS_FILTER must be between zero and one for periodic RI-RS d_lP')
       END IF
       accuracy = bs_env%eps_filter
    END FUNCTION d_lP_integration_accuracy
@@ -783,7 +739,7 @@ CONTAINS
          END DO
       END DO
       IF (exponent_max <= 0.0_dp .OR. exponent_min == HUGE(1.0_dp)) THEN
-         CPABORT('Automatic DLP cutoff found no positive primitive exponent')
+         CPABORT('Gaussian basis set without positive primitive exponent')
       END IF
 
    END SUBROUTINE basis_exponent_range
@@ -803,11 +759,12 @@ CONTAINS
 !> The usual l/P/T cutoff removes individual l rows before contraction.
 !> Eq. (1) retains all AO pairs in the explicit cell domain; cell-domain and screening errors
 !> must be converged together with the numerical quadrature.
-!> Integration-point blocks are MPI distributed and each AO field is evaluated once. Bounded batches
-!> share these fields within memory groups whose ranks divide T; independent groups divide g.
-!> Group sums assemble disjoint cyclic T cells. A final all-to-all
-!> redistributes the completed d(T) from T ownership to the caller's l ownership.
-!> Each memory group holds one full partial d(T), subject to the memory budget.
+!> The ranks form l groups; each integrates all points g for the l rows of its ranks, so a rank
+!> holds partial sums of these rows only. Inside an l group, integration-point blocks are MPI
+!> distributed and each AO field is evaluated once; bounded batches share these fields within
+!> memory groups whose ranks divide T, and independent integration groups divide g.
+!> All-to-all sums give each integration rank the l rows of its memory group; an all-to-all within
+!> the memory group moves them to the caller's l rows of all T.
 !> No global AO-pair matrix is formed.
 !> EPS_FILTER controls the grid, finite box and screening threshold together.
 !> \param bs_env ...
@@ -832,9 +789,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'integrate_d_lP_R'
 
-      INTEGER :: block_class, block_point(3), copy(3), counts(3), first_block(3), handle, iatom, &
-         ibatch, iblock, ig, igroup, il, indices(quadrature_block_size), irank, it, last_rank, &
-         n_blocks(3), n_class(3), next_progress, ngroups, nkeep, nl, np, npoints, nranks, &
+      INTEGER :: block_class, block_point(3), copy(3), counts(3), first_block(3), &
+         first_field_group_l, first_group_l, handle, iatom, ibatch, iblock, ig, igroup, il, &
+         indices(quadrature_block_size), irank, it, last_group_l, last_rank, n_blocks(3), &
+         n_class(3), n_field_group_rows, next_progress, ngroups, nkeep, nl, np, npoints, nranks, &
          nreceived, point_index(quadrature_block_size), position, quadrature_block_first(3), &
          quadrature_block_points(3), rank, ranks_per_batch
       INTEGER(int_8) :: contraction_products, iround, item, n_completed_quadrature_blocks, &
@@ -847,19 +805,24 @@ CONTAINS
       REAL(dp) :: available_GB, bound, elapsed, field_bound(quadrature_block_size), lower(3), &
          mesh_index(3), points(3, quadrature_block_size), prep_start, RI_center_R(3), threshold, &
          weight
-      REAL(dp), ALLOCATABLE :: cutoffs_lP(:), cyclic_d_lP_R(:, :, :), envelopes(:, :), &
-         field(:, :), local_d_lP_R(:, :, :), q_cart(:, :), receive_fields(:), send_fields(:)
+      REAL(dp), ALLOCATABLE :: cutoffs_lP(:), envelopes(:, :), field(:, :), group_points(:, :), &
+         local_d_lP_R(:, :, :), q_cart(:, :), receive_fields(:), send_fields(:), &
+         summed_rows(:, :, :)
       TYPE(ao_image_type), ALLOCATABLE                   :: images(:)
       TYPE(block_class_cache_type)                       :: ao_cache, cache
       TYPE(cell_type), POINTER                           :: cell
       TYPE(l_block_partition_type)                       :: blocks
-      TYPE(mp_comm_type)                                 :: field_comm, integration_comm
+      TYPE(mp_comm_type)                                 :: field_comm, integration_comm, l_comm
       TYPE(particle_type), POINTER                       :: particles(:)
       TYPE(radial_interpolation_type), ALLOCATABLE       :: aux_potentials(:)
 
       CALL timeset(routineN, handle)
 
-      nl = bs_env%ri_rs%n_grid_points
+      CALL prepare_d_lP_mpi_groups(bs_env, SIZE(cells_R_d_lP, 2), first_l, first_l + SIZE(d_lP_R, 1) - 1, &
+                                   l_comm, first_group_l, last_group_l, integration_comm, field_comm, ngroups)
+      nl = last_group_l - first_group_l + 1
+      ALLOCATE (group_points(3, nl))
+      group_points(:, :) = grid_points(:, first_group_l:last_group_l)
       cell => bs_env%ri_rs%cell
       particles => bs_env%ri_rs%particle_set
       ALLOCATE (field(quadrature_block_size, nl), q_cart(3, SIZE(qpoints, 2)))
@@ -871,7 +834,7 @@ CONTAINS
          WRITE (bs_env%unit_nr, '(T2,A)') 'd_lP quadrature: evaluating AO image values'
          FLUSH (bs_env%unit_nr)
       END IF
-      CALL prepare_ao_images(bs_env, grid_points, images)
+      CALL prepare_ao_images(bs_env, group_points, images)
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A,T67,F12.1,A)') &
             'd_lP AO image values, rank 0 time:', m_walltime() - prep_start, ' s'
@@ -879,11 +842,9 @@ CONTAINS
       END IF
       CALL prepare_aux_potentials(bs_env, settings, aux_potentials)
       CALL auxiliary_potential_bound(bs_env, aux_potentials, envelopes)
-      CALL group_points_l_by_position(grid_points, settings%l_block_edge, blocks)
+      CALL group_points_l_by_position(group_points, settings%l_block_edge, blocks)
       bound = MAXVAL(envelopes(1, :))
       d_lP_R = 0.0_dp
-      CALL prepare_d_lP_mpi_groups(bs_env%para_env, nl, bs_env, SIZE(cells_R_d_lP, 2), SIZE(d_lP_R, KIND=int_8), &
-                                   integration_comm, field_comm, ngroups)
       igroup = field_comm%mepos
       nranks = field_comm%num_pe
       rank = field_comm%mepos
@@ -898,7 +859,7 @@ CONTAINS
          DO iatom = 1, bs_env%n_atom
             RI_center_R = pbc(particles(iatom)%r, cell) + MATMUL(bs_env%hmat, REAL(local_cells(:, it), dp))
             DO il = 1, nl
-               include_lP_R(il, iatom, it) = SUM((grid_points(:, il) - RI_center_R)**2) <= cutoffs_lP(iatom)**2
+               include_lP_R(il, iatom, it) = SUM((group_points(:, il) - RI_center_R)**2) <= cutoffs_lP(iatom)**2
             END DO
             DO iblock = 1, blocks%nblocks
                IF (distance_to_box_squared(RI_center_R, blocks%lower(:, iblock), &
@@ -969,7 +930,8 @@ CONTAINS
             CALL evaluate_rho_l_squared(images, points(:, 1:npoints), point_index(1:npoints), copy, ao_cache, &
                                         field(1:npoints, :), &
                                         settings%accuracy/(8.0_dp*weight*REAL(ntotal, dp)*MAX(1.0_dp, bound)))
-            CALL accumulate_fourier_charge(points(:, 1:npoints), field, q_cart, weight, charge_lq)
+            CALL accumulate_fourier_charge(points(:, 1:npoints), field, q_cart, weight, &
+                                           charge_lq(first_group_l:last_group_l, :))
             nkeep = 0
             field_bound(1:npoints) = 0.0_dp
             DO il = 1, nl
@@ -1039,12 +1001,19 @@ CONTAINS
 
       DEALLOCATE (field, send_fields, receive_fields, kept_per_rank, recv_counts, recv_offsets, &
                   chunk_class, chunk_part, chunk_parts, chunk_first)
-      CALL sum_d_lP_R_over_mpi_ranks(integration_comm, local_d_lP_R, cyclic_d_lP_R)
-      DEALLOCATE (local_d_lP_R, local_cells)
-      CALL distribute_d_lP_R_by_l(bs_env%para_env, cyclic_d_lP_R, first_l, d_lP_R)
-      DEALLOCATE (cyclic_d_lP_R)
+      ! The memory group sums the l rows of its ranks.
+      first_field_group_l = first_l - first_group_l + 1
+      n_field_group_rows = SIZE(d_lP_R, 1)
+      CALL field_comm%min(first_field_group_l)
+      CALL field_comm%sum(n_field_group_rows)
+      CALL sum_d_lP_R_over_mpi_ranks(integration_comm, local_d_lP_R, first_field_group_l, n_field_group_rows, &
+                                     summed_rows)
+      DEALLOCATE (local_d_lP_R, local_cells, group_points)
+      CALL distribute_d_lP_R_by_l(field_comm, summed_rows, first_l - first_group_l + 1, d_lP_R)
+      DEALLOCATE (summed_rows)
       CALL integration_comm%free()
       CALL field_comm%free()
+      CALL l_comm%free()
       CALL bs_env%para_env%sum(charge_lq)
       CALL bs_env%para_env%sum(potential_points)
       CALL bs_env%para_env%sum(contraction_products)
@@ -1412,7 +1381,7 @@ CONTAINS
       cell => bs_env%ri_rs%cell
       particles => bs_env%ri_rs%particle_set
       maxao = MAXVAL(bs_env%i_ao_end_from_atom - bs_env%i_ao_start_from_atom + 1)
-      ALLOCATE (primary(bs_env%ri_rs%n_grid_points, maxao))
+      ALLOCATE (primary(SIZE(grid_points, 2), maxao))
       ALLOCATE (images(bs_env%n_atom*SIZE(bs_env%index_to_cell_3c, 2)))
       iimage = 0
       DO icell = 1, SIZE(bs_env%index_to_cell_3c, 2)
@@ -1432,7 +1401,7 @@ CONTAINS
             images(iimage)%atom = iatom
             images(iimage)%cell = bs_env%index_to_cell_3c(:, icell)
             images(iimage)%center = center
-            ALLOCATE (images(iimage)%primary(bs_env%ri_rs%n_grid_points, nao))
+            ALLOCATE (images(iimage)%primary(SIZE(grid_points, 2), nao))
             images(iimage)%primary(:, :) = primary(:, 1:nao)
             CALL pack_nonzero_ao_rows(images(iimage))
             CALL bound_ao_image(images(iimage))
@@ -1694,8 +1663,8 @@ CONTAINS
          IF (nmissing == 0) CYCLE
          nao = SIZE(images(iimage)%primary, 2)
          ALLOCATE (values(nmissing, nao))
-         CALL evaluate_mu_r_values(values, points(:, missing_indices(1:nmissing)), &
-                                   images(iimage)%basis, images(iimage)%center)
+         CALL evaluate_mu_r(values, points(:, missing_indices(1:nmissing)), &
+                            images(iimage)%basis, images(iimage)%center)
          DO row = 1, nmissing
             cache%values(1:nao, point_index(missing_indices(row)), islot) = values(row, :)
             cache%evaluated(point_index(missing_indices(row)), islot) = .TRUE.
@@ -1809,7 +1778,7 @@ CONTAINS
                values(ig, :) = cache%values(1:nao, point_index(ig), image_slot(iimage))
             END DO
          ELSE
-            CALL evaluate_mu_r_values(values, points, images(iimage)%basis, images(iimage)%center)
+            CALL evaluate_mu_r(values, points, images(iimage)%basis, images(iimage)%center)
          END IF
          nprimary = SIZE(images(iimage)%primary, 1)
          IF (ALLOCATED(images(iimage)%primary_l)) THEN
@@ -1839,7 +1808,7 @@ CONTAINS
 !> \param basis ...
 !> \param center ...
 ! **************************************************************************************************
-   SUBROUTINE evaluate_mu_r_values(values, points, basis, center)
+   SUBROUTINE evaluate_mu_r(values, points, basis, center)
       REAL(dp), INTENT(OUT)                              :: values(:, :)
       REAL(dp), INTENT(IN)                               :: points(:, :)
       TYPE(gto_basis_set_type), POINTER                  :: basis
@@ -1913,7 +1882,7 @@ CONTAINS
                     1.0_dp, values(:, first_sgf:last_sgf), ng)
       END DO
 
-   END SUBROUTINE evaluate_mu_r_values
+   END SUBROUTINE evaluate_mu_r
 
 ! **************************************************************************************************
 !> \brief Bound every auxiliary potential in Eq. (2), including contracted angular functions.
@@ -2031,7 +2000,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potentials'
 
       INTEGER :: firstp, handle, iatom, iblock, ig, ikind, ilocal, iradial, islot, it, lastp, &
-         maxnp, nactive, nmissing, np, nthreads, nunion, row, u(3)
+         maxnp, nactive, nmissing, np, nthreads, nunion, row, u(3), active_l(SIZE(include_lP_R, 1))
       REAL(dp)                                           :: center(3), decay, field_max, &
                                                             points_lower(3), points_upper(3)
       REAL(dp), ALLOCATABLE :: block_field_bound(:, :), block_RI(:, :), field_work(:, :), &
@@ -2043,7 +2012,6 @@ CONTAINS
       LOGICAL                                            :: block_needed(blocks%nblocks)
       INTEGER :: block_active_last(blocks%nblocks), block_active_first(blocks%nblocks)
       TYPE(particle_type), POINTER                       :: particles(:)
-      INTEGER :: active_l(bs_env%ri_rs%n_grid_points)
 
       CALL timeset(routineN, handle)
 
@@ -2072,7 +2040,7 @@ CONTAINS
       nthreads = 1
 !$    nthreads = omp_get_max_threads()
       nthreads = MIN(nthreads, MAX(1, INT(thread_workspace_bytes/ &
-                                          (real_bytes*(REAL(bs_env%ri_rs%n_grid_points, dp)*(maxnp + SIZE(points, 2)) + &
+                                          (real_bytes*(REAL(SIZE(include_lP_R, 1), dp)*(maxnp + SIZE(points, 2)) + &
                                                        2.0_dp*REAL(SIZE(points, 2), dp)*maxnp)))))
       ! Each atom/image owns disjoint P/T columns of Eq. (2).
 
@@ -2088,8 +2056,8 @@ CONTAINS
       !$OMP active_l, block_needed, block_active_last, block_active_first) &
       !$OMP REDUCTION(+:potential_points, contraction_products)
 
-      ALLOCATE (block_RI(bs_env%ri_rs%n_grid_points, maxnp), &
-                field_work(SIZE(points, 2), bs_env%ri_rs%n_grid_points), point_bound(SIZE(points, 2)), &
+      ALLOCATE (block_RI(SIZE(include_lP_R, 1), maxnp), &
+                field_work(SIZE(points, 2), SIZE(include_lP_R, 1)), point_bound(SIZE(points, 2)), &
                 maximum_field(SIZE(points, 2)), potential(SIZE(points, 2), maxnp), &
                 potential_t(maxnp, SIZE(points, 2)))
 
@@ -3277,4 +3245,4 @@ CONTAINS
 
    END SUBROUTINE prepare_mesh_radial_moments
 
-END MODULE ri_rs_kp_integrals
+END MODULE ri_rs_kp_compute_d_lP_numeric

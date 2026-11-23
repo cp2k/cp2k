@@ -45,10 +45,10 @@ MODULE gw_tensor_large_cell_Gamma
    USE gw_compute_V_and_W,              ONLY: fm_read,&
                                               fm_write,&
                                               get_W_MIC
+   USE gw_nevanlinna,                   ONLY: gw_qp_summary_type
    USE gw_utils,                        ONLY: G_occ_vir,&
                                               analyt_conti_and_print,&
-                                              de_init_bs_env,&
-                                              gw_qp_summary_type
+                                              de_init_bs_env
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
                                               fm_contract_ABA
    USE hfx_types,                       ONLY: alloc_containers

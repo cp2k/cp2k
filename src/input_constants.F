@@ -1147,8 +1147,14 @@ MODULE input_constants
                                                ri_rpa_method_gpw = 8, &
                                                ri_mp2_laplace = 9, &
                                                mp2_ri_optimize_basis = 10, &
+                                               ri_rs_rpa_method = 13, &
                                                wfc_mm_style_gemm = 11, &
                                                wfc_mm_style_syrk = 12
+
+   ! d_lP computation of periodic RI-RS with k-points
+   INTEGER, PARAMETER, PUBLIC               :: ri_rs_d_lP_auto = 0, &
+                                               ri_rs_d_lP_analytic = 1, &
+                                               ri_rs_d_lP_numeric = 2
 
    ! RPA exchange corrections
    INTEGER, PARAMETER, PUBLIC               :: rpa_exchange_none = 0, &

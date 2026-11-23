@@ -253,8 +253,10 @@ list(
   ri_rs_setup.F
   ri_rs_types.F
   ri_rs_utils.F
-  ri_rs_kp_fitting.F
-  ri_rs_kp_integrals.F
+  ri_rs_kp_compute_d_lP.F
+  ri_rs_kp_compute_d_lP_analytic.F
+  ri_rs_kp_compute_d_lP_numeric.F
+  ri_rs_kp_compute_Z_lP.F
   ri_rs_kp_types.F
   ri_rs_fitting.F
   ri_rs_matrices.F
@@ -326,6 +328,7 @@ list(
   input_cp2k_read.F
   input_cp2k_resp.F
   input_cp2k_restarts_util.F
+  input_cp2k_ri_rs.F
   input_cp2k_rsgrid.F
   input_cp2k_skala.F
   input_cp2k_subsys.F
@@ -846,6 +849,7 @@ list(
   rpa_gw_static_cohsex.F
   rpa_im_time.F
   rpa_main.F
+  rpa_ri_rs.F
   rpa_sigma_functional.F
   rpa_rse.F
   rpa_im_time_force_types.F

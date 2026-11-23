@@ -9,7 +9,7 @@
 !> \brief AO sampling, D_llp(R), and the periodic RI-RS fit Z_lP(q).
 !> \author Jan Wilhelm (with help of ChatGPT, GPT-6 Sol and GPT-6 Astra)
 ! **************************************************************************************************
-MODULE ri_rs_kp_fitting
+MODULE ri_rs_kp_compute_Z_lP
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
@@ -27,19 +27,17 @@ MODULE ri_rs_kp_fitting
                                               mp_request_type,&
                                               mp_waitall
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: angstrom
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
-   USE ri_rs_kp_integrals,              ONLY: compute_d_lP_R,&
-                                              compute_d_lP_cutoffs,&
+   USE ri_rs_kp_compute_d_lP,           ONLY: compute_d_lP_R
+   USE ri_rs_utils,                     ONLY: evaluate_ao_basis_on_points,&
                                               get_local_l_range,&
                                               write_ri_rs_progress
-   USE ri_rs_utils,                     ONLY: evaluate_ao_basis_on_points
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_kp_fitting'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_kp_compute_Z_lP'
 
    ! Complex numbers in the 64 MiB batches of q points.
    INTEGER(KIND=int_8), PARAMETER :: q_batch_elements = 64_int_8*1024_int_8**2/16_int_8
@@ -50,7 +48,7 @@ MODULE ri_rs_kp_fitting
    END TYPE ao_cell_type
 
    PUBLIC :: compute_Z_lP_q, &
-             evaluate_mu_rl_R_values
+             evaluate_mu_rl_R
 
 CONTAINS
 
@@ -72,8 +70,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Z_lP_q'
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: charge_lq(:, :)
-      INTEGER                                            :: first_l, handle, last_l, n_d_lP_cells, &
-                                                            n_grid
+      INTEGER                                            :: first_l, handle, last_l, n_grid
       INTEGER, ALLOCATABLE                               :: cells_R_D_llp(:, :), cells_R_d_lP(:, :)
       REAL(KIND=dp)                                      :: elapsed, start_time
       REAL(KIND=dp), ALLOCATABLE                         :: D_llp_R(:, :, :), d_lP_R(:, :, :), &
@@ -89,26 +86,14 @@ CONTAINS
       CPASSERT(SIZE(grid_points, 2) == n_grid)
       CPASSERT(bs_env%nkp_scf_desymm > 0)
 
-      CALL build_cells_R_for_d_lP_R(bs_env, grid_points, cells_R_d_lP)
-      n_d_lP_cells = SIZE(cells_R_d_lP, 2)
-      CPASSERT(n_d_lP_cells > 0)
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,T72,I9)') 'RI-RS d_lP^R cells R:', n_d_lP_cells
-      END IF
-
       ! Each rank stores a rectangular (l,l') block for every translation A.
       CALL get_local_l_range(n_grid, bs_env%para_env%num_pe, bs_env%para_env%mepos, first_l, last_l)
       CALL build_D_llp_R(bs_env, grid_points, first_l, last_l, cells_R_D_llp, D_llp_R)
       CALL mp_print_mem_per_rank(bs_env%para_env, bs_env%unit_nr, "After distribution of D_ll'^R:")
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A)') 'RI-RS three-center projection d_lP^R: starting'
-         FLUSH (bs_env%unit_nr)
-      END IF
       ALLOCATE (qpoints_scf(3, bs_env%nkp_scf_desymm))
       qpoints_scf(:, :) = bs_env%kpoints_chi_eps_W%xkp(:, 1:bs_env%nkp_scf_desymm)
       ALLOCATE (qpoints_head(3, 1), SOURCE=0.0_dp)
       CALL compute_d_lP_R(bs_env, grid_points, cells_R_d_lP, d_lP_R, qpoints_head, charge_lq)
-      CALL mp_print_mem_per_rank(bs_env%para_env, bs_env%unit_nr, 'After RI-RS three-center projection d_lP^R')
 
       CALL solve_for_Z_lP_q(bs_env, cells_R_D_llp, cells_R_d_lP, D_llp_R, d_lP_R, first_l, last_l, qpoints_scf, &
                             q_slot, Z_lP_q, distributed=.TRUE.)
@@ -135,13 +120,13 @@ CONTAINS
 !> \param i_cell Index of R in index_to_cell_3c.
 !> \param ao_values AO values indexed (l,μ), without MPI communication.
 ! **************************************************************************************************
-   SUBROUTINE evaluate_mu_rl_R_values(bs_env, grid_points, i_cell, ao_values)
+   SUBROUTINE evaluate_mu_rl_R(bs_env, grid_points, i_cell, ao_values)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(dp), INTENT(IN)                               :: grid_points(:, :)
       INTEGER, INTENT(IN)                                :: i_cell
       REAL(dp), INTENT(OUT)                              :: ao_values(:, :)
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_mu_rl_R_values'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'evaluate_mu_rl_R'
 
       INTEGER                                            :: first_ao, handle, i_atom, i_kind, last_ao
       REAL(dp)                                           :: cutoff_squared, source_position(3)
@@ -174,7 +159,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE evaluate_mu_rl_R_values
+   END SUBROUTINE evaluate_mu_rl_R
 
 ! **************************************************************************************************
 !> \brief Solve the periodic RI-RS equations at the supplied momentum-transfer points.
@@ -207,14 +192,17 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_for_Z_lP_q'
 
-      COMPLEX(KIND=dp)                                   :: empty_matrix(0, 0), phase
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: D_llp_q(:, :), D_llp_q_batch(:, :, :), &
-                                                            D_llp_q_local(:, :), d_lP_q(:, :)
+      COMPLEX(KIND=dp)                                   :: phase
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: D_llp_q_batch(:, :, :), d_lP_q(:, :)
+      COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: D_llp_q(:, :), D_lpl_q_batch(:, :, :)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: receive_D(:), send_D(:)
       INTEGER :: backend, first_l_rank, first_q, handle, i_batch, i_rank, info, iq, iq_batch, &
          iq_store, l, last_l_rank, last_q, lp, n_active, n_grid, n_q, n_q_local, n_rank, n_RI, &
          n_RI_solve, n_sub, next_progress
       INTEGER(KIND=int_8)                                :: n_done, n_local
-      INTEGER, ALLOCATABLE                               :: displs(:), q_batch(:), recvcounts(:)
+      INTEGER, ALLOCATABLE                               :: displs(:), q_batch(:), &
+                                                            receive_counts(:), recvcounts(:), &
+                                                            send_counts(:), send_offsets(:)
       LOGICAL, ALLOCATABLE                               :: active_grid_point(:)
       REAL(KIND=dp)                                      :: max_scale, metric_head, progress_start, &
                                                             volume
@@ -245,13 +233,16 @@ CONTAINS
       ELSE
          ALLOCATE (D_llp_q(0, 0))
       END IF
-      ! D(q) of up to n_sub q points at a time, bounded to 64 MiB unless one q is larger.
+      ! D(q) of up to n_sub q points at a time, bounded to 64 MiB unless one q is larger. n_sub is
+      ! the same on all ranks (largest row block), since each batch is one collective all-to-all.
       n_sub = INT(MAX(1_int_8, MIN(INT(bs_env%para_env%num_pe, int_8), q_batch_elements/ &
-                                   MAX(1_int_8, SIZE(D_llp_R, 1, KIND=int_8)*n_grid))))
-      ALLOCATE (D_llp_q_local(n_grid, last_l - first_l + 1), &
+                                   MAX(1_int_8, INT((n_grid + bs_env%para_env%num_pe - 1)/ &
+                                                    bs_env%para_env%num_pe, int_8)*n_grid))))
+      ALLOCATE (D_lpl_q_batch(n_grid, last_l - first_l + 1, n_sub), &
                 D_llp_q_batch(last_l - first_l + 1, n_grid, n_sub), &
                 recvcounts(bs_env%para_env%num_pe), displs(bs_env%para_env%num_pe), &
-                d_lP_q(n_grid, n_RI_solve), q_batch(n_rank))
+                receive_counts(bs_env%para_env%num_pe), send_counts(bs_env%para_env%num_pe), &
+                send_offsets(bs_env%para_env%num_pe), d_lP_q(n_grid, n_RI_solve), q_batch(n_rank))
       DO i_rank = 0, bs_env%para_env%num_pe - 1
          CALL get_local_l_range(n_grid, bs_env%para_env%num_pe, i_rank, first_l_rank, last_l_rank)
          recvcounts(i_rank + 1) = (last_l_rank - first_l_rank + 1)*n_grid
@@ -279,15 +270,22 @@ CONTAINS
                                      bs_env%kpoints_scf_desymm%nkp_grid, &
                                      D_llp_q_batch(:, :, 1:last_q - first_q + 1), backend, &
                                      profile_fft=fft_profile_enabled, profile_label='RI-RS D_R -> D_q')
+            ! One all-to-all sends the transposed row blocks of every q to its owner, where they
+            ! are contiguous columns of D(q); all owners of the batch receive at the same time.
+            send_counts(:) = 0
+            send_offsets(:) = 0
+            receive_counts(:) = 0
             DO iq_batch = first_q, last_q
-               D_llp_q_local(:, :) = TRANSPOSE(D_llp_q_batch(:, :, iq_batch - first_q + 1))
+               D_lpl_q_batch(:, :, iq_batch - first_q + 1) = TRANSPOSE(D_llp_q_batch(:, :, iq_batch - first_q + 1))
                i_rank = MODULO(q_batch(iq_batch) - 1 + MERGE(1, 0, distributed), n_rank)
-               IF (bs_env%para_env%mepos == i_rank) THEN
-                  CALL bs_env%para_env%gatherv(D_llp_q_local, D_llp_q, recvcounts, displs, i_rank)
-               ELSE
-                  CALL bs_env%para_env%gatherv(D_llp_q_local, empty_matrix, recvcounts, displs, i_rank)
-               END IF
+               send_counts(i_rank + 1) = SIZE(D_lpl_q_batch(:, :, 1))
+               send_offsets(i_rank + 1) = (iq_batch - first_q)*SIZE(D_lpl_q_batch(:, :, 1))
+               IF (bs_env%para_env%mepos == i_rank) receive_counts(:) = recvcounts
             END DO
+            send_D(1:SIZE(D_lpl_q_batch)) => D_lpl_q_batch
+            receive_D(1:SIZE(D_llp_q)) => D_llp_q
+            CALL bs_env%para_env%alltoall(send_D, send_counts, send_offsets, &
+                                          receive_D, receive_counts, displs)
          END DO
          IF (PRESENT(charge_lq)) THEN
             CALL fourier_transform_d_lP_R_to_q(bs_env, cells_R_d_lP, d_lP_R, qpoints, i_batch, &
@@ -373,7 +371,8 @@ CONTAINS
          END IF
       END DO
       IF (.NOT. distributed) CALL bs_env%para_env%sum(Z_lP_q)
-      DEALLOCATE (D_llp_q, D_llp_q_batch, D_llp_q_local, recvcounts, displs, d_lP_q, scale, active_grid_point)
+      DEALLOCATE (D_llp_q, D_llp_q_batch, D_lpl_q_batch, recvcounts, displs, receive_counts, send_counts, &
+                  send_offsets, d_lP_q, q_batch, scale, active_grid_point)
 
       CALL timestop(handle)
 
@@ -423,79 +422,6 @@ CONTAINS
    END SUBROUTINE solve_unregularized_D_llp
 
 ! **************************************************************************************************
-!> \brief Enumerate translations T that survive the R_cut^(lP) criterion for at least one (l,P).
-!> \param bs_env ...
-!> \param grid_points ...
-!> \param cells_R_d_lP ...
-! **************************************************************************************************
-   SUBROUTINE build_cells_R_for_d_lP_R(bs_env, grid_points, cells_R_d_lP)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: grid_points
-      INTEGER, ALLOCATABLE, INTENT(OUT)                  :: cells_R_d_lP(:, :)
-
-      INTEGER                                            :: cell_index(3), i_atom, i_l, ix, iy, iz, &
-                                                            n_max(3), n_RI, n_work
-      INTEGER, ALLOCATABLE                               :: cells_work(:, :)
-      LOGICAL                                            :: keep
-      REAL(KIND=dp)                                      :: center(3), cutoff, max_cutoff
-      REAL(KIND=dp), ALLOCATABLE                         :: automatic_cutoffs(:)
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-
-      particle_set => bs_env%ri_rs%particle_set
-      CALL compute_d_lP_cutoffs(bs_env, automatic_cutoffs)
-      max_cutoff = MAXVAL(automatic_cutoffs)
-      DO ix = 1, 3
-         IF (bs_env%periodic(ix) == 1) THEN
-            ! If |h*T + delta| <= R, then every fractional component obeys
-            ! |T_i| <= R*|(h^-1)_i| + |(h^-1 delta)_i|.  Both the atom and the
-            ! grid point are mapped into the reference cell, so the last term
-            ! is smaller than one.  This reciprocal-vector bound remains safe
-            ! for skewed cells, unlike a bound based on direct-vector lengths.
-            n_max(ix) = CEILING(max_cutoff*NORM2(bs_env%ri_rs%cell%h_inv(ix, :))) + 1
-         ELSE
-            n_max(ix) = 0
-         END IF
-      END DO
-
-      n_work = PRODUCT(2*n_max + 1)
-      ALLOCATE (cells_work(3, n_work))
-      n_RI = 0
-      DO ix = -n_max(1), n_max(1)
-         DO iy = -n_max(2), n_max(2)
-            DO iz = -n_max(3), n_max(3)
-               cell_index = [ix, iy, iz]
-               keep = .FALSE.
-               DO i_atom = 1, bs_env%n_atom
-                  cutoff = automatic_cutoffs(i_atom)
-                  center = pbc(particle_set(i_atom)%r, bs_env%ri_rs%cell) + &
-                           MATMUL(bs_env%hmat, REAL(cell_index, dp))
-                  DO i_l = 1, bs_env%ri_rs%n_grid_points
-                     IF (NORM2(center - grid_points(:, i_l)) <= cutoff) THEN
-                        keep = .TRUE.
-                        EXIT
-                     END IF
-                  END DO
-                  IF (keep) EXIT
-               END DO
-               IF (.NOT. keep) CYCLE
-               n_RI = n_RI + 1
-               cells_work(:, n_RI) = cell_index
-            END DO
-         END DO
-      END DO
-
-      ALLOCATE (cells_R_d_lP(3, n_RI))
-      cells_R_d_lP(:, :) = cells_work(:, 1:n_RI)
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,T69,F10.1,A)') &
-            'Periodic RI-RS automatic R_cut^(lP):', &
-            max_cutoff*angstrom, ' Å'
-      END IF
-      DEALLOCATE (automatic_cutoffs, cells_work)
-
-   END SUBROUTINE build_cells_R_for_d_lP_R
-
-! **************************************************************************************************
 !> \brief Build the AO-product D matrix D_ll'^A on its active translations A.
 !>
 !> Unlike the right-hand side d_lP^T, D_ll'^A is independent of R_cut^(lP). A translation can
@@ -527,7 +453,7 @@ CONTAINS
       n_active = 0
       ! Keep the owned rows from the full-grid activity test for the contractions below.
       DO i_R = 1, SIZE(bs_env%index_to_cell_3c, 2)
-         CALL evaluate_mu_rl_R_values(bs_env, grid_points, i_R, phi)
+         CALL evaluate_mu_rl_R(bs_env, grid_points, i_R, phi)
          IF (.NOT. ANY(ABS(phi) > 0.0_dp)) CYCLE
          n_active = n_active + 1
          active_cells(n_active)%index = i_R
@@ -605,7 +531,7 @@ CONTAINS
             IF (nrows == SIZE(grid_points, 2)) THEN
                phi_full(:, :) = active_cells(i_active_prime)%phi_local
             ELSE
-               CALL evaluate_mu_rl_R_values(bs_env, grid_points, i_R_prime, phi_full)
+               CALL evaluate_mu_rl_R(bs_env, grid_points, i_R_prime, phi_full)
             END IF
             DO i_active = 1, SIZE(active_cells)
                i_R = active_cells(i_active)%index
@@ -764,4 +690,4 @@ CONTAINS
 
    END SUBROUTINE fourier_transform_d_lP_R_to_q
 
-END MODULE ri_rs_kp_fitting
+END MODULE ri_rs_kp_compute_Z_lP

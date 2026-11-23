@@ -45,6 +45,7 @@ MODULE input_cp2k_mp2
       sigma_none, sigma_PBE0_S1, sigma_PBE0_S2, sigma_PBE_S1, sigma_PBE_S2
    USE input_cp2k_hfx, ONLY: create_hfx_section
    USE input_cp2k_kpoints, ONLY: create_kpoint_set_section
+   USE input_cp2k_ri_rs, ONLY: create_ri_rs_rpa_section
    USE input_keyword_types, ONLY: keyword_create, &
                                   keyword_release, &
                                   keyword_type
@@ -193,6 +194,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_canonical_gradients(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_ri_rs_rpa_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
