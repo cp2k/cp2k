@@ -2,7 +2,7 @@ import math
 import re
 import sys
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, Callable, Dict
 
 if sys.version_info >= (3, 8):
     from typing import Literal, Protocol
@@ -196,5 +196,13 @@ class GWOrbitalSelfEnergyMatcher(Matcher):
             )
         return MatchResult("OK", None, value)
 
+
+# ======================================================================================
+MATCHER_CLASSES: Dict[str, Callable[..., Matcher]] = {
+    "GenericMatcher": GenericMatcher,
+    "TextPresenceMatcher": TextPresenceMatcher,
+    "TextAbsenceMatcher": TextAbsenceMatcher,
+    "GWOrbitalSelfEnergyMatcher": GWOrbitalSelfEnergyMatcher,
+}
 
 # EOF

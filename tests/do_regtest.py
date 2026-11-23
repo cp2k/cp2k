@@ -20,7 +20,8 @@ import subprocess
 import sys
 import tempfile
 import time
-from matchers import run_matcher
+import traceback
+from matcher_classes import MatchResult, Matcher, MATCHER_CLASSES
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -788,6 +789,43 @@ def run_with_capture_stdout(cmd: str) -> bytes:
 def cpu_count() -> int:
     # os.cpu_count() ignores $PYTHON_CPU_COUNT before Python 3.13
     return int(os.getenv("PYTHON_CPU_COUNT") or str(os.cpu_count()))
+
+
+# ======================================================================================
+def run_matcher(output: str, **spec: Any) -> MatchResult:
+    try:
+        kwargs = spec.copy()
+        key = kwargs.pop("matcher")
+        return matchers[key].run(output, **kwargs)
+    except:
+        return MatchResult("N/A", error=traceback.format_exc(), value=None)
+
+
+# ======================================================================================
+def load_matchers(toml_path: Path) -> Dict[str, Matcher]:
+    data = tomllib.loads(toml_path.read_text(encoding="utf8"))
+    reg: Dict[str, Matcher] = {}
+    for key, spec in data.items():
+        if not isinstance(spec, dict):
+            raise ValueError(
+                f"Matcher '{key}' must be a table, got {type(spec).__name__}"
+            )
+        kwargs = dict(spec)
+        cls_name = kwargs.pop("class", None)
+        if not isinstance(cls_name, str) or cls_name not in MATCHER_CLASSES:
+            raise ValueError(f"Unknown matcher class '{cls_name}' for matcher '{key}'")
+        assert key not in reg  # check for name collisions
+        try:
+            reg[key] = MATCHER_CLASSES[cls_name](**kwargs)
+        except TypeError as exc:
+            raise TypeError(
+                f"Invalid arguments for matcher '{key}' ({cls_name}): {exc}"
+            ) from exc
+    return reg
+
+
+# ======================================================================================
+matchers = load_matchers(Path(__file__).with_name("matchers.toml"))
 
 
 # ======================================================================================
