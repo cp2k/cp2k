@@ -14,8 +14,8 @@
 MODULE dimer_types
 
    USE cell_types,                      ONLY: &
-        cell_transform_input_cartesian, cell_type, use_perd_x, use_perd_xy, use_perd_xyz, &
-        use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
+        cell_sym_none, cell_transform_input_cartesian, cell_type, use_perd_x, use_perd_xy, &
+        use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_to_string
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
@@ -25,7 +25,9 @@ MODULE dimer_types
                                               parser_release
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
-   USE force_env_types,                 ONLY: force_env_type
+   USE force_env_types,                 ONLY: force_env_type,&
+                                              use_fist_force,&
+                                              use_qs_force
    USE global_types,                    ONLY: global_environment_type
    USE input_constants,                 ONLY: dimer_init_molden,&
                                               dimer_init_random,&
@@ -33,7 +35,8 @@ MODULE dimer_types
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_val_get,&
+                                              section_vals_val_set
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE message_passing,                 ONLY: mp_para_env_type
@@ -41,6 +44,10 @@ MODULE dimer_types
    USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                               get_molecule_kind,&
                                               molecule_kind_type
+   USE solid_state_coordinates,         ONLY: solid_state_frame,&
+                                              solid_state_frame_type,&
+                                              ss_cell_dof
+   USE virial_types,                    ONLY: virial_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -55,6 +62,7 @@ MODULE dimer_types
              dimer_env_release, &
              dimer_fixed_atom_control, &
              dimer_init_vector, &
+             dimer_remove_translation, &
              vib_get_index_weight
 
 ! **************************************************************************************************
@@ -109,6 +117,11 @@ MODULE dimer_types
       TYPE(dimer_translational_type)             :: tsl = dimer_translational_type()
       TYPE(dimer_cg_rot_type)                    :: cg_rot = dimer_cg_rot_type()
       LOGICAL                                    :: kdimer = .FALSE.
+      LOGICAL                                    :: solid_state = .FALSE.
+      REAL(KIND=dp)                              :: external_pressure = 0.0_dp, enthalpy = 0.0_dp
+      REAL(KIND=dp), ALLOCATABLE                  :: centre_force(:)
+      TYPE(solid_state_frame_type)                :: frame
+      TYPE(virial_type)                           :: centre_virial
    END TYPE dimer_env_type
 
 CONTAINS
@@ -132,7 +145,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dimer_section
       TYPE(force_env_type), POINTER                      :: force_env
 
-      INTEGER                                            :: i, j, k, natom, unit_nr
+      INTEGER                                            :: i, j, k, natom, nvar, unit_nr
       REAL(KIND=dp)                                      :: norm, xval(3)
       TYPE(cell_type), POINTER                           :: cell
 
@@ -144,53 +157,64 @@ CONTAINS
       ! Setup NVEC
       ! get natom
       CALL cp_subsys_get(subsys=subsys, cell=cell, natom=natom)
+      CALL section_vals_val_get(dimer_section, "SOLID_STATE", l_val=dimer_env%solid_state)
+      nvar = 3*natom
+      IF (dimer_env%solid_state) THEN
+         CALL setup_solid_state_dimer(dimer_env, dimer_section, force_env, subsys, cell, natom)
+         ALLOCATE (dimer_env%centre_force(nvar))
+         nvar = nvar + ss_cell_dof
+      END IF
       ! Allocate the working arrays
-      ALLOCATE (dimer_env%rot%g0(natom*3))
-      ALLOCATE (dimer_env%rot%g1(natom*3))
-      ALLOCATE (dimer_env%rot%g1p(natom*3))
+      ALLOCATE (dimer_env%rot%g0(nvar))
+      ALLOCATE (dimer_env%rot%g1(nvar))
+      ALLOCATE (dimer_env%rot%g1p(nvar))
       ! Read dimer vector from input
       CALL dimer_init_vector(dimer_env, dimer_section, natom, &
                              unit_nr, globenv, force_env)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, "(/,T2,A,T9,A,T71,I10)") &
-            "DIMER|", "Dimension of dimer vector (natom * 3)", natom*3
-         DO j = 1, natom
+            "DIMER|", "Dimension of dimer vector", nvar
+         DO j = 1, nvar/3
             WRITE (unit_nr, "(T2,A,T9,3(F12.6,3X))") &
                "DIMER|", dimer_env%nvec(3*j - 2:3*j)
          END DO
       END IF
-      ! Transform input cell
-      DO i = 1, natom
-         xval(:) = dimer_env%nvec(3*i - 2:3*i)
-         CALL cell_transform_input_cartesian(cell, xval)
-         dimer_env%nvec(3*i - 2:3*i) = xval(:)
-      END DO
-      ! Check for translation in the dimer vector and remove them
-      IF (natom > 1) THEN
-         xval = 0.0_dp
-         DO j = 1, natom
-            DO k = 1, 3
-               i = (j - 1)*3 + k
-               xval(k) = xval(k) + dimer_env%nvec(i)
-            END DO
+      IF (dimer_env%solid_state) THEN
+         CALL dimer_remove_translation(dimer_env%nvec, natom)
+      ELSE
+         ! Transform input cell
+         DO i = 1, natom
+            xval(:) = dimer_env%nvec(3*i - 2:3*i)
+            CALL cell_transform_input_cartesian(cell, xval)
+            dimer_env%nvec(3*i - 2:3*i) = xval(:)
          END DO
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, "(/,T2,A,T9,A)") &
-               "DIMER|", "Overall translation to be removed from the initial dimer vector"
-            WRITE (unit_nr, "(T2,A,T9,3(F12.6,3X))") &
-               "DIMER|", xval(1:3)
+         ! Check for translation in the dimer vector and remove them
+         IF (natom > 1) THEN
+            xval = 0.0_dp
+            DO j = 1, natom
+               DO k = 1, 3
+                  i = (j - 1)*3 + k
+                  xval(k) = xval(k) + dimer_env%nvec(i)
+               END DO
+            END DO
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, "(/,T2,A,T9,A)") &
+                  "DIMER|", "Overall translation to be removed from the initial dimer vector"
+               WRITE (unit_nr, "(T2,A,T9,3(F12.6,3X))") &
+                  "DIMER|", xval(1:3)
+            END IF
+            ! Subtract net translations
+            xval = xval/REAL(natom*3, KIND=dp)
+            DO j = 1, natom
+               DO k = 1, 3
+                  i = (j - 1)*3 + k
+                  dimer_env%nvec(i) = dimer_env%nvec(i) - xval(k)
+               END DO
+            END DO
          END IF
-         ! Subtract net translations
-         xval = xval/REAL(natom*3, KIND=dp)
-         DO j = 1, natom
-            DO k = 1, 3
-               i = (j - 1)*3 + k
-               dimer_env%nvec(i) = dimer_env%nvec(i) - xval(k)
-            END DO
-         END DO
+         ! set nvec components to zero for the corresponding constraints
+         CALL dimer_fixed_atom_control(dimer_env%nvec, subsys, unit_nr)
       END IF
-      ! set nvec components to zero for the corresponding constraints
-      CALL dimer_fixed_atom_control(dimer_env%nvec, subsys, unit_nr)
       ! Normalize dimer vector
       norm = SQRT(SUM(dimer_env%nvec**2))
       IF (norm <= EPSILON(0.0_dp)) THEN
@@ -209,6 +233,9 @@ CONTAINS
                                 r_val=dimer_env%rot%angle_tol)
       CALL section_vals_val_get(dimer_section, "K-DIMER", &
                                 l_val=dimer_env%kdimer)
+      IF (dimer_env%solid_state .AND. dimer_env%kdimer) THEN
+         CPABORT("K-DIMER is not supported for solid-state searches.")
+      END IF
       CALL section_vals_val_get(dimer_section, "BETA", &
                                 r_val=dimer_env%beta)
       ! initialise values
@@ -216,8 +243,79 @@ CONTAINS
       dimer_env%rot%g0 = 0.0_dp
       dimer_env%rot%g1 = 0.0_dp
       dimer_env%rot%g1p = 0.0_dp
-      ALLOCATE (dimer_env%cg_rot%nvec_old(natom*3))
+      ALLOCATE (dimer_env%cg_rot%nvec_old(nvar))
    END SUBROUTINE dimer_env_create
+
+! **************************************************************************************************
+!> \brief Initialize the solid-state chart and persist the reference cell for restarts.
+!> \param dimer_env dimer environment
+!> \param section dimer section
+!> \param force_env force environment
+!> \param subsys subsystem
+!> \param cell physical cell
+!> \param natom number of atoms
+! **************************************************************************************************
+   SUBROUTINE setup_solid_state_dimer(dimer_env, section, force_env, subsys, cell, natom)
+      TYPE(dimer_env_type), INTENT(INOUT)                :: dimer_env
+      TYPE(section_vals_type), POINTER                   :: section
+      TYPE(force_env_type), INTENT(IN)                   :: force_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(cell_type), INTENT(IN)                        :: cell
+      INTEGER, INTENT(IN)                                :: natom
+
+      INTEGER                                            :: nparticle, nval
+      LOGICAL                                            :: constrained
+      REAL(KIND=dp)                                      :: weight
+      REAL(KIND=dp), POINTER                             :: values(:)
+      TYPE(virial_type), POINTER                         :: virial
+
+      IF (force_env%in_use /= use_qs_force .AND. force_env%in_use /= use_fist_force) THEN
+         CPABORT("Solid-state Dimer currently supports Quickstep and FIST.")
+      END IF
+      CALL cp_subsys_get(subsys, virial=virial, nparticle=nparticle)
+      IF (.NOT. virial%pv_availability .OR. virial%pv_numer .OR. virial%pv_diagonal) THEN
+         CALL cp_abort(__LOCATION__, "Solid-state Dimer requires FORCE_EVAL/STRESS_TENSOR ANALYTICAL.")
+      END IF
+      IF (ANY(cell%perd /= 1) .OR. cell%symmetry_id /= cell_sym_none .OR. cell%input_cell_canonicalized) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Solid-state Dimer requires PERIODIC XYZ, no SUBSYS/CELL symmetry, and no automatic cell rotation.")
+      END IF
+      CALL section_vals_get(section_vals_get_subs_vals(force_env%root_section, "MOTION%CONSTRAINT"), explicit=constrained)
+      IF (constrained .OR. nparticle /= natom) THEN
+         CPABORT("Solid-state Dimer does not support constraints or shells.")
+      END IF
+      CALL section_vals_val_get(section, "CELL_WEIGHT", r_val=weight)
+      IF (.NOT. (weight > 0.0_dp)) THEN
+         CPABORT("Solid-state Dimer requires a positive CELL_WEIGHT.")
+      END IF
+      CALL section_vals_val_get(section, "EXTERNAL_PRESSURE", r_val=dimer_env%external_pressure)
+      CALL section_vals_val_get(section, "REFERENCE_CELL", n_rep_val=nval)
+      IF (nval == 0) THEN
+         CALL solid_state_frame(dimer_env%frame, cell%hmat, natom, weight)
+         ALLOCATE (values(9))
+         values(:) = RESHAPE(cell%hmat, [9])
+         CALL section_vals_val_set(section, "REFERENCE_CELL", r_vals_ptr=values)
+      ELSE
+         CALL section_vals_val_get(section, "REFERENCE_CELL", r_vals=values)
+         CALL solid_state_frame(dimer_env%frame, RESHAPE(values, [3, 3]), natom, weight)
+      END IF
+   END SUBROUTINE setup_solid_state_dimer
+
+! **************************************************************************************************
+!> \brief Remove uniform atomic translations without changing the lattice direction.
+!> \param v joint positions or forces written as an atomic block followed by the cell block
+!> \param natom number of atoms
+! **************************************************************************************************
+   SUBROUTINE dimer_remove_translation(v, natom)
+      REAL(KIND=dp), INTENT(INOUT)                       :: v(:)
+      INTEGER, INTENT(IN)                                :: natom
+
+      INTEGER                                            :: d
+
+      DO d = 1, 3
+         v(d:3*natom:3) = v(d:3*natom:3) - SUM(v(d:3*natom:3))/natom
+      END DO
+   END SUBROUTINE dimer_remove_translation
 
 ! **************************************************************************************************
 !> \brief ...
@@ -383,6 +481,7 @@ CONTAINS
       nvec_section => section_vals_get_subs_vals(dimer_section, "DIMER_VECTOR")
       NULLIFY (array)
       nvec_size = natom*3
+      IF (dimer_env%solid_state) nvec_size = nvec_size + ss_cell_dof
 
       ALLOCATE (dimer_env%nvec(nvec_size))
       dimer_env%nvec(:) = 0.0_dp
@@ -399,12 +498,12 @@ CONTAINS
                IF (isize <= nvec_size) THEN
                   dimer_env%nvec(isize) = array(j)
                ELSE
-                  CPABORT("Size of input DIMER_VECTOR more than natom * 3")
+                  CPABORT("Too many components in DIMER_VECTOR.")
                END IF
             END DO
          END DO
          IF (isize /= nvec_size) THEN
-            CPABORT("Size of input DIMER_VECTOR inconsistent with natom * 3")
+            CPABORT("Incorrect number of components in DIMER_VECTOR.")
          END IF
       ELSE
          CALL section_vals_val_get(dimer_section, "INITIALIZATION_METHOD", i_val=dimer_init_method)
@@ -414,6 +513,10 @@ CONTAINS
                "DIMER|", "Initial dimer vector generated randomly"
             CALL globenv%gaussian_rng_stream%fill(dimer_env%nvec)
          CASE (dimer_init_molden)
+            IF (dimer_env%solid_state) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "MOLDEN modes do not include the six solid-state cell components.")
+            END IF
             CALL section_vals_val_get(dimer_section, "VIB_MOLDEN_NAME", explicit=explicit)
             IF (.NOT. explicit) THEN
                CPABORT("INITIALIZATION_METHOD MOLDEN requires VIB_MOLDEN_NAME")

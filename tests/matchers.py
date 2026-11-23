@@ -189,6 +189,11 @@ registry["Ssneb_initial_shear_force"] = GenericMatcher(
 registry["Ssneb_final_middle_volume"] = GenericMatcher(
     r"SS-NEB\| Volume \[bohr\^3\] 2\s+(\S+)", col=1, regex=True
 )
+registry["Ssdimer_curvature"] = GenericMatcher("SS-DIMER| Curvature [au]", col=4)
+registry["Ssdimer_joint_force_norm"] = GenericMatcher(
+    "SS-DIMER| Joint-force norm [au]", col=5
+)
+registry["Ssdimer_completed"] = TextPresenceMatcher("GEOMETRY OPTIMIZATION COMPLETED")
 registry["M011"] = GenericMatcher(r"ENERGY| Total FORCE_EVAL", col=9)
 registry["FIST_periodic_dipole_x"] = GenericMatcher(
     r"MM_DIPOLE| Moment [a.u.]", col=4, first=True
