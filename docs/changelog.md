@@ -84,10 +84,9 @@
   ([#6433](https://github.com/cp2k/cp2k/pull/6433))
 - RI-HFX for GAPW low-spin ROKS ([#6496](https://github.com/cp2k/cp2k/pull/6496))
 - IDPP initialization for Cartesian bands ([#6570](https://github.com/cp2k/cp2k/pull/6570))
-  [#5887](https://github.com/cp2k/cp2k/pull/5887))
 - All requested local FFTs can be performed on the GPU by requesting PREFERRED_FFT_LIBRARY GPU
   (requires CUDA- or HIP-offloading). The value DEFAULT asks for GPU or, if GPU-support is not
-  available, FFTW (via FFTW3 or MKL).
+  available, FFTW (via FFTW3 or MKL). ([#6475](https://github.com/cp2k/cp2k/pull/6475))
 
 ### New Libraries
 
@@ -108,7 +107,7 @@
   ([#5961](https://github.com/cp2k/cp2k/pull/5961))
 - Require FFTW3 as hard dependency ([#6119](https://github.com/cp2k/cp2k/pull/6119))
 - PREFERRED_FFT_LIBRARY does not anymore take the values FFTSG and FFTW3. The
-  Stefan-Goedecker-backend was removed.
+  Stefan-Goedecker-backend was removed. ([#6475](https://github.com/cp2k/cp2k/pull/6475))
 - **TODO**
 
 ### Fixes
