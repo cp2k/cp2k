@@ -266,7 +266,7 @@ CONTAINS
 !> \param extent Fine-grid periods.
 !> \param dh Coarse-grid basis vectors.
 !> \param radius Support of the radial reconstruction.
-!> \retval duplicate An earlier image contains the same quadrature point.
+!> \return True if an earlier image contains the same quadrature point.
 ! **************************************************************************************************
    LOGICAL FUNCTION previous_image(q, box, extent, dh, radius) RESULT(duplicate)
       INTEGER, INTENT(IN)                                :: q(3), box(3), extent(3)
