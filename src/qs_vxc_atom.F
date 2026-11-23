@@ -718,6 +718,14 @@ CONTAINS
                          native_comp_coords(3, composite_nflat), &
                          native_comp_base_w(composite_nflat), &
                          native_comp_grid_w(composite_nflat))
+!$OMP PARALLEL DO SCHEDULE(DYNAMIC) DEFAULT(NONE) &
+!$OMP PRIVATE(composite_local_atom, iatom, grid_atom, nr, na, &
+!$OMP         composite_partition_image_coords, composite_partition_target_image, &
+!$OMP         ir, ia, composite_row, composite_point, partition_weight) &
+!$OMP SHARED(cell, composite_atom_coords, composite_atom_end, composite_atom_kind, &
+!$OMP        composite_atom_start, composite_base_grid_weights, composite_grid_coords, &
+!$OMP        composite_grid_weights, composite_image_periodicity, composite_local_atoms, &
+!$OMP        composite_local_natom, my_kind_set, particle_set)
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
                   CALL get_qs_kind(my_kind_set(composite_atom_kind(iatom)), grid_atom=grid_atom)
@@ -745,6 +753,7 @@ CONTAINS
                      END DO
                   END DO
                END DO
+!$OMP END PARALLEL DO
                native_comp_coords = composite_grid_coords
                native_comp_base_w = composite_base_grid_weights
                native_comp_grid_w = composite_grid_weights
