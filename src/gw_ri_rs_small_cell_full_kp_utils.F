@@ -2204,6 +2204,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_sigma_projection'
 
+      COMPLEX(KIND=dp)                                   :: phase
       INTEGER :: c1, c2, c3, first_pair, handle, i_dim, i_image, i_kp, i_local, i_pair, i_partner, &
          i_rank, i_slot, il, ilp, ispin, n_cells, n_grid, n_kp, n_mesh, n_off, n_pairs, n_partner, &
          n_rank, n_requests, nmesh(3), partner_rank, tied
@@ -2330,7 +2331,7 @@ CONTAINS
             plan%offmesh_slot(i_kp) = n_off
          END DO
          !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-         !$OMP SHARED(bs_env, n_kp, plan) PRIVATE(angle, c1, c2, c3, i_image, i_kp, i_slot, xk)
+         !$OMP SHARED(bs_env, n_kp, plan) PRIVATE(angle, c1, c2, c3, i_image, i_kp, i_slot, phase, xk)
          DO i_kp = 1, n_kp
             i_slot = plan%offmesh_slot(i_kp)
             IF (i_slot == 0) CYCLE
@@ -2341,8 +2342,9 @@ CONTAINS
                   DO c1 = plan%first_image(1), plan%last_image(1)
                      i_image = i_image + 1
                      angle = twopi*(xk(1)*c1 + xk(2)*c2 + xk(3)*c3)
-                     plan%phase_cos(i_image, i_slot) = COS(angle)
-                     plan%phase_sin(i_image, i_slot) = SIN(angle)
+                     phase = EXP(CMPLX(0.0_dp, angle, KIND=dp))
+                     plan%phase_cos(i_image, i_slot) = REAL(phase, KIND=dp)
+                     plan%phase_sin(i_image, i_slot) = AIMAG(phase)
                   END DO
                END DO
             END DO
