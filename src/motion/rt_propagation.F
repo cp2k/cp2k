@@ -380,11 +380,15 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation'
+      CHARACTER(len=17), DIMENSION(9), PARAMETER :: loc_print_keys = ["MOLECULAR_DIPOLES", &
+         "TOTAL_DIPOLE     ", "WANNIER_CENTERS  ", "WANNIER_SPREADS  ", "WANNIER_CUBES    ", &
+         "MOLECULAR_STATES ", "MOLECULAR_MOMENTS", "LOCALIZED_MOMENTS", "WANNIER_STATES   "]
 
       INTEGER                                            :: aspc_order, handle, i_iter, i_step, &
-                                                            max_iter, max_steps, output_unit, &
-                                                            unit_nr
-      LOGICAL                                            :: moments_read, should_stop
+                                                            ikey, max_iter, max_steps, &
+                                                            output_unit, unit_nr
+      LOGICAL                                            :: explicit, loc_print, moments_read, &
+                                                            should_stop
       REAL(Kind=dp)                                      :: eps_ener, time_iter_start, &
                                                             time_iter_stop, used_time
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -394,7 +398,10 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
-      TYPE(section_vals_type), POINTER                   :: input, moments_section, rtp_section
+      TYPE(section_vals_type), POINTER                   :: input, loc_print_section, &
+                                                            moments_section, print_key, rtp_section
+
+! print keys of DFT%LOCALIZE%PRINT that trigger the localization in rtp_localize
 
       should_stop = .FALSE.
       CALL timeset(routineN, handle)
@@ -428,6 +435,23 @@ CONTAINS
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
       output_unit = cp_print_key_unit_nr(logger, rtp_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".scfLog")
+
+      ! The localization along the propagation (rtp_localize) acts on the real part of the MOs only
+      loc_print_section => section_vals_get_subs_vals(input, "DFT%LOCALIZE%PRINT")
+      loc_print = .FALSE.
+      DO ikey = 1, SIZE(loc_print_keys)
+         print_key => section_vals_get_subs_vals(loc_print_section, TRIM(loc_print_keys(ikey)))
+         CALL section_vals_get(print_key, explicit=explicit)
+         loc_print = loc_print .OR. explicit
+      END DO
+      IF (loc_print .AND. .NOT. rtp%linear_scaling) THEN
+         CALL cp_warn(__LOCATION__, "DFT%LOCALIZE%PRINT along RTP: the localization uses only the "// &
+                      "real part of the propagated MOs, and always the occupied MOs (STATES and "// &
+                      "LIST_UNOCCUPIED are ignored). The localized properties (Wannier centers and "// &
+                      "spreads, dipoles, moments) can deviate strongly from those of the time-dependent "// &
+                      "density, compare e.g. LOCALIZE%PRINT%TOTAL_DIPOLE with DFT%PRINT%MOMENTS.")
+      END IF
+
       ! Add the zero iteration moments to the moment trace
       IF (rtp_control%save_local_moments) THEN
          CALL get_rtp(rtp, rho_new=rho_new)

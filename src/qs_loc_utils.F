@@ -59,6 +59,7 @@ MODULE qs_loc_utils
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
+                                              loc_coeff_index,&
                                               localized_wfn_control_create,&
                                               localized_wfn_control_release,&
                                               localized_wfn_control_type,&
@@ -229,9 +230,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_loc_env_init'
 
-      INTEGER                                            :: dim_op, handle, i, iatom, imo, imoloc, &
-                                                            ispin, j, l_spin, lb, nao, naosub, &
-                                                            natoms, nmo, nmosub, nspins, s_spin, ub
+      INTEGER                                            :: dim_op, handle, i, iatom, icoeff, imo, &
+                                                            imoloc, ispin, j, l_spin, lb, nao, &
+                                                            naosub, natoms, nmo, nmosub, nspins, &
+                                                            s_spin, ub
       LOGICAL                                            :: loc_coeff_spin_resolved
       REAL(KIND=dp)                                      :: my_occ, occ_imo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupations
@@ -275,6 +277,9 @@ CONTAINS
             NULLIFY (tmp_fm_struct, mo_coeff)
             CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
             nmosub = localized_wfn_control%nloc_states(ispin)
+            ! in the spin resolved case (RTP) the real part of spin ispin is moloc_coeff(2*ispin - 1)
+            icoeff = ispin
+            IF (loc_coeff_spin_resolved) icoeff = loc_coeff_index(SIZE(loc_coeff), nspins, ispin)
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                      ncol_global=nmosub, para_env=para_env, context=mo_coeff%matrix_struct%context)
             IF (loc_coeff_spin_resolved) THEN
@@ -284,7 +289,7 @@ CONTAINS
                CALL cp_fm_create(moloc_coeff(ispin), tmp_fm_struct)
             END IF
 
-            CALL cp_fm_get_info(moloc_coeff(ispin), nrow_global=naosub, &
+            CALL cp_fm_get_info(moloc_coeff(icoeff), nrow_global=naosub, &
                                 ncol_global=nmosub)
             CPASSERT(nao == naosub)
             IF ((localized_wfn_control%do_homo) .OR. &
@@ -293,7 +298,8 @@ CONTAINS
             ELSE
                CPASSERT(nao - nmo >= nmosub)
             END IF
-            CALL cp_fm_set_all(moloc_coeff(ispin), 0.0_dp)
+            CALL cp_fm_set_all(moloc_coeff(icoeff), 0.0_dp)
+            IF (loc_coeff_spin_resolved) CALL cp_fm_set_all(moloc_coeff(icoeff + 1), 0.0_dp)
             CALL cp_fm_struct_release(tmp_fm_struct)
          END DO ! ispin
          ! Copy the submatrix
@@ -305,9 +311,11 @@ CONTAINS
                             occupation_numbers=occupations, nao=nao, nmo=nmo)
             lb = localized_wfn_control%lu_bound_states(1, ispin)
             ub = localized_wfn_control%lu_bound_states(2, ispin)
+            icoeff = ispin
+            IF (loc_coeff_spin_resolved) icoeff = loc_coeff_index(SIZE(loc_coeff), nspins, ispin)
 
             IF (PRESENT(loc_coeff)) THEN
-               mat_ptr = loc_coeff(ispin)
+               mat_ptr = loc_coeff(icoeff)
             ELSE
                mat_ptr => mo_coeff
             END IF
@@ -338,8 +346,14 @@ CONTAINS
                   ! Take the imo vector from the full set and copy in the imoloc vector of the subset
                   CALL cp_fm_get_submatrix(mat_ptr, vecbuffer, 1, imo, &
                                            nao, 1, transpose=.TRUE.)
-                  CALL cp_fm_set_submatrix(moloc_coeff(ispin), vecbuffer, 1, imoloc, &
+                  CALL cp_fm_set_submatrix(moloc_coeff(icoeff), vecbuffer, 1, imoloc, &
                                            nao, 1, transpose=.TRUE.)
+                  IF (loc_coeff_spin_resolved) THEN
+                     CALL cp_fm_get_submatrix(loc_coeff(icoeff + 1), vecbuffer, 1, imo, &
+                                              nao, 1, transpose=.TRUE.)
+                     CALL cp_fm_set_submatrix(moloc_coeff(icoeff + 1), vecbuffer, 1, imoloc, &
+                                              nao, 1, transpose=.TRUE.)
+                  END IF
                END DO
                DEALLOCATE (vecbuffer)
             ELSE
@@ -355,8 +369,8 @@ CONTAINS
                nmosub = localized_wfn_control%nloc_states(ispin)
 
                IF (loc_coeff_spin_resolved) THEN
-                  CALL cp_fm_to_fm(loc_coeff(2*ispin - 1), moloc_coeff(2*ispin - 1))
-                  CALL cp_fm_to_fm(loc_coeff(2*ispin), moloc_coeff(2*ispin))
+                  CALL cp_fm_to_fm(loc_coeff(icoeff), moloc_coeff(icoeff), nmosub, lb, 1)
+                  CALL cp_fm_to_fm(loc_coeff(icoeff + 1), moloc_coeff(icoeff + 1), nmosub, lb, 1)
                ELSE
                   CALL cp_fm_to_fm(mat_ptr, moloc_coeff(ispin), nmosub, lb, 1)
                END IF
@@ -366,8 +380,8 @@ CONTAINS
             ! only do that if we have a history of course. The history is filled
             IF (PRESENT(mo_loc_history)) THEN
                IF (localized_wfn_control%use_history .AND. ASSOCIATED(mo_loc_history)) THEN
-                  CALL rotate_state_to_ref(moloc_coeff(ispin), &
-                                           mo_loc_history(ispin), matrix_s(1)%matrix)
+                  CALL rotate_state_to_ref(moloc_coeff(icoeff), &
+                                           mo_loc_history(icoeff), matrix_s(1)%matrix)
                END IF
             END IF
 

@@ -4,7 +4,10 @@
 "wfn_mix_3.inp"          = [{matcher = "E_total", tol = 8e-14, ref = -17.19408422718460}]
 "wfn_mix_4.inp"          = [{matcher = "E_total", tol = 8e-14, ref = -17.19408422718460}]
 "wfn_mix_loc-0.inp"      = [{matcher = "E_total", tol = 1.0E-14, ref = -17.18852591875700}]
-"wfn_mix_loc-1.inp"      = [{matcher = "E_total", tol = 6e-13, ref = -16.86459883779028}]
+"wfn_mix_loc-1.inp"      = [
+  {matcher = "E_total", tol = 6e-13, ref = -16.86459883779028},
+  {matcher = "Spread_Berry", tol = 1e-8, ref = 13.6875039453}
+]
 "wfn_mix_loc-2.inp"      = []
 "wfn_mix_loc-3.inp"      = []
 "wfn_mix_loc_mark-0.inp" = [{matcher = "E_total", tol = 1.0E-14, ref = -17.18852591875700}]
@@ -20,4 +23,6 @@
 "H2O-loc-wfn-1.inp"      = [{matcher = "E_total", tol = 1e-10, ref = -15.74758448212426}]
 "H2O-loc-wfn-2.inp"      = [{matcher = "E_total", tol = 1e-10, ref = -15.74758448212426}]
 "H2O-loc-wfn-3.inp"      = [{matcher = "E_total", tol = 1e-10, ref = -17.18852374194047}]
+# open-shell localization along RTP (Nalpha > Nbeta)
+"H2Op-rtp-loc-lsd.inp"   = [{matcher = "Spread_Berry", tol = 1e-8, ref = 9.6084918975}]
 #EOF

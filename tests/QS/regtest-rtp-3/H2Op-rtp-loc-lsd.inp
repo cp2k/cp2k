@@ -1,0 +1,78 @@
+! Open-shell (doublet) RTP with localization along the propagation: each spin localizes its
+! own orbitals (Nalpha > Nbeta used to trigger an assertion, spin 2 used the imaginary part of alpha)
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2Op-rtp-loc-lsd
+  RUN_TYPE RT_PROPAGATION
+&END GLOBAL
+
+&MOTION
+  &MD
+    STEPS 3
+    TIMESTEP [au_t] 0.2
+  &END MD
+&END MOTION
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    CHARGE 1
+    LSD
+    MULTIPLICITY 2
+    POTENTIAL_FILE_NAME POTENTIAL
+    &LOCALIZE
+      EPS_LOCALIZATION 1.0E-10
+      METHOD JACOBI
+      &PRINT
+        &WANNIER_CENTERS
+          IONS+CENTERS
+        &END WANNIER_CENTERS
+      &END PRINT
+    &END LOCALIZE
+    &MGRID
+      CUTOFF 150
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &REAL_TIME_PROPAGATION
+      EPS_ITER 1.0E-9
+      EXP_ACCURACY 1.0E-10
+      INITIAL_WFN SCF_WFN
+      MAT_EXP ARNOLDI
+      MAX_ITER 20
+      PROPAGATOR ETRS
+    &END REAL_TIME_PROPAGATION
+    &SCF
+      EPS_SCF 1.0E-8
+      MAX_SCF 50
+      SCF_GUESS ATOMIC
+      &DIAGONALIZATION
+        ALGORITHM STANDARD
+      &END DIAGONALIZATION
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+    &END CELL
+    &COORD
+      O   0.000000    0.000000   -0.065587 H2O
+      H   0.000000   -0.757136    0.520545 H2O
+      H   0.000000    0.757136    0.520545 H2O
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-BLYP
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-BLYP
+      POTENTIAL GTH-BLYP-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

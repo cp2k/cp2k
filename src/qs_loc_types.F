@@ -151,7 +151,8 @@ MODULE qs_loc_types
 ! *** Public ***
    PUBLIC :: qs_loc_env_create, qs_loc_env_release, &
              get_qs_loc_env, set_qs_loc_env, &
-             localized_wfn_control_create, localized_wfn_control_release
+             localized_wfn_control_create, localized_wfn_control_release, &
+             loc_coeff_index
    PUBLIC :: qs_loc_env_type, localized_wfn_control_type
 
 CONTAINS
@@ -429,6 +430,27 @@ CONTAINS
       END IF
 
    END SUBROUTINE set_qs_loc_env
+
+! **************************************************************************************************
+!> \brief Index of the (real) MO coefficients of a spin in an array of MO coefficients.
+!>        In RTP the array holds the real and imaginary parts of each spin,
+!>        interleaved as (re_1, im_1, re_2, im_2), otherwise one matrix per spin.
+!> \param ncoeff number of matrices in the array
+!> \param nspins number of spins
+!> \param ispin spin
+!> \return index of the real part of spin ispin
+! **************************************************************************************************
+   PURE FUNCTION loc_coeff_index(ncoeff, nspins, ispin) RESULT(icoeff)
+      INTEGER, INTENT(IN)                                :: ncoeff, nspins, ispin
+      INTEGER                                            :: icoeff
+
+      IF (ncoeff == 2*nspins) THEN
+         icoeff = 2*ispin - 1
+      ELSE
+         icoeff = ispin
+      END IF
+
+   END FUNCTION loc_coeff_index
 
 END MODULE qs_loc_types
 
