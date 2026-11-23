@@ -175,8 +175,14 @@ CONTAINS
          dense(row_start:row_end, col_start:col_end) = block
       END IF
       IF (has_symmetry .AND. irow /= icol) THEN
-         dense(col_start:col_end, row_start:row_end) = &
-            symmetry_sign*TRANSPOSE(dense(row_start:row_end, col_start:col_end))
+         ! Write the mirror directly from the block instead of reading back the
+         ! just-written slice: for a transposed block the mirror is sign**2*block
+         ! (= block), otherwise it is sign*TRANSPOSE(block).
+         IF (transposed) THEN
+            dense(col_start:col_end, row_start:row_end) = block
+         ELSE
+            dense(col_start:col_end, row_start:row_end) = symmetry_sign*TRANSPOSE(block)
+         END IF
       END IF
 
    END SUBROUTINE copy_block_to_dense
@@ -201,8 +207,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: fill_replicated
 
       CHARACTER                                          :: matrix_type
-      INTEGER                                            :: col_start, icol, irow, ncol, ncols, &
-                                                            nrow, nrows, numnodes, row_start
+      INTEGER                                            :: col_start, icol, irow, izero, ncol, &
+                                                            ncols, nrow, nrows, numnodes, row_start
       LOGICAL                                            :: fill_local, has_symmetry, transposed
       REAL(c_double), POINTER                            :: block(:, :)
       REAL(KIND=dp)                                      :: symmetry_sign
@@ -230,8 +236,6 @@ CONTAINS
       ELSE
          CPASSERT(ALL(SHAPE(dense_mat) == [nrows, ncols]))
       END IF
-      dense_mat = 0._dp
-
       ! Replicated DBCSR blocks must enter a following MPI sum exactly once. If the
       ! caller requests fill_replicated, every rank fills its own copy locally so the
       ! collective can be skipped entirely.
@@ -239,9 +243,15 @@ CONTAINS
          RETURN
 
       ! Stored blocks and their symmetry mirrors occupy disjoint dense slices.
-!$OMP PARALLEL DEFAULT(NONE) SHARED(dbcsr_mat, dense_mat, has_symmetry, symmetry_sign) &
-!$OMP PRIVATE(iter, irow, icol, block, transposed, row_start, col_start, nrow, ncol)
-      CALL dbcsr_iterator_readonly_start(iter, dbcsr_mat%matrix)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(dbcsr_mat, dense_mat, has_symmetry, symmetry_sign, ncols) &
+!$OMP PRIVATE(iter, irow, icol, izero, block, transposed, row_start, col_start, nrow, ncol)
+!$OMP DO SCHEDULE(STATIC)
+      DO izero = 1, ncols
+         dense_mat(:, izero) = 0._dp
+      END DO
+!$OMP END DO
+!$OMP BARRIER
+      CALL dbcsr_iterator_readonly_start(iter, dbcsr_mat%matrix, dynamic=.TRUE.)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, block, transposed=transposed, &
                                         row_size=nrow, col_size=ncol, row_offset=row_start, col_offset=col_start)
@@ -279,8 +289,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: fill_replicated
 
       CHARACTER                                          :: matrix_type_a, matrix_type_b
-      INTEGER :: col_start, col_start_b, icol, icol_b, irow, irow_b, ncol, ncol_b, ncols, nrow, &
-         nrow_b, nrows, numnodes, row_start, row_start_b
+      INTEGER :: col_start, col_start_b, icol, icol_b, irow, irow_b, izero, ncol, ncol_b, &
+         ncols, nrow, nrow_b, nrows, numnodes, row_start, row_start_b
       LOGICAL                                            :: fill_local, has_symmetry_a, has_symmetry_b, &
                                                             transposed_a, transposed_b
       REAL(c_double), POINTER                            :: block_a(:, :), block_b(:, :)
@@ -315,20 +325,24 @@ CONTAINS
          DEALLOCATE (dense_b)
          ALLOCATE (dense_b(nrows, ncols))
       END IF
-      dense_a = 0._dp
-      dense_b = 0._dp
-
       IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0 .AND. .NOT. fill_local) &
          RETURN
 
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(dbcsr_a, dbcsr_b, dense_a, dense_b, has_symmetry_a, has_symmetry_b, &
+!$OMP SHARED(dbcsr_a, dbcsr_b, dense_a, dense_b, has_symmetry_a, has_symmetry_b, ncols, &
 !$OMP        symmetry_sign_a, symmetry_sign_b) &
-!$OMP PRIVATE(iter_a, iter_b, irow, icol, irow_b, icol_b, block_a, block_b, transposed_a, &
+!$OMP PRIVATE(iter_a, iter_b, irow, icol, irow_b, icol_b, izero, block_a, block_b, transposed_a, &
 !$OMP         transposed_b, row_start, col_start, row_start_b, col_start_b, nrow, ncol, nrow_b, &
 !$OMP         ncol_b)
-      CALL dbcsr_iterator_readonly_start(iter_a, dbcsr_a%matrix)
-      CALL dbcsr_iterator_readonly_start(iter_b, dbcsr_b%matrix)
+!$OMP DO SCHEDULE(STATIC)
+      DO izero = 1, ncols
+         dense_a(:, izero) = 0._dp
+         dense_b(:, izero) = 0._dp
+      END DO
+!$OMP END DO
+!$OMP BARRIER
+      CALL dbcsr_iterator_readonly_start(iter_a, dbcsr_a%matrix, dynamic=.TRUE.)
+      CALL dbcsr_iterator_readonly_start(iter_b, dbcsr_b%matrix, dynamic=.TRUE.)
       DO WHILE (dbcsr_iterator_blocks_left(iter_a))
          CPASSERT(dbcsr_iterator_blocks_left(iter_b))
          CALL dbcsr_iterator_next_block(iter_a, irow, icol, block_a, transposed=transposed_a, &
@@ -489,18 +503,24 @@ CONTAINS
             r2t = r1t + layout%row_blk_size(icol) - 1
             c1t = layout%c_offset(irow)
             c2t = c1t + layout%col_blk_size(irow) - 1
-            IF (PRESENT(dense_zeta)) THEN
-               layout%blk(1:nr, 1:nc) = 0.5_dp*( &
-                                        (dense_mat(r1:r2, c1:c2) + zsign*dense_zeta(r1:r2, c1:c2)) + &
-                                        TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t) + zsign*dense_zeta(r1t:r2t, c1t:c2t)))
-            ELSE
-               layout%blk(1:nr, 1:nc) = 0.5_dp*( &
-                                        dense_mat(r1:r2, c1:c2) + TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t)))
-            END IF
             IF (transposed) THEN
-               block_ptr(1:nc, 1:nr) = TRANSPOSE(layout%blk(1:nr, 1:nc))
+               IF (PRESENT(dense_zeta)) THEN
+                  block_ptr(1:nc, 1:nr) = 0.5_dp*( &
+                     (dense_mat(r1t:r2t, c1t:c2t) + zsign*dense_zeta(r1t:r2t, c1t:c2t)) + &
+                     TRANSPOSE(dense_mat(r1:r2, c1:c2) + zsign*dense_zeta(r1:r2, c1:c2)))
+               ELSE
+                  block_ptr(1:nc, 1:nr) = 0.5_dp*( &
+                     dense_mat(r1t:r2t, c1t:c2t) + TRANSPOSE(dense_mat(r1:r2, c1:c2)))
+               END IF
             ELSE
-               block_ptr(1:nr, 1:nc) = layout%blk(1:nr, 1:nc)
+               IF (PRESENT(dense_zeta)) THEN
+                  block_ptr(1:nr, 1:nc) = 0.5_dp*( &
+                     (dense_mat(r1:r2, c1:c2) + zsign*dense_zeta(r1:r2, c1:c2)) + &
+                     TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t) + zsign*dense_zeta(r1t:r2t, c1t:c2t)))
+               ELSE
+                  block_ptr(1:nr, 1:nc) = 0.5_dp*( &
+                     dense_mat(r1:r2, c1:c2) + TRANSPOSE(dense_mat(r1t:r2t, c1t:c2t)))
+               END IF
             END IF
          END DO
          CALL dbcsr_iterator_stop(iter)
