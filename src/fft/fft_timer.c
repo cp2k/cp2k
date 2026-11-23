@@ -323,7 +323,7 @@ void fft_print_timing_report_unit(const double threshold,
                       " -------------------------------------------------------"
                       "------------------------\n"
                       " ROUTINE                          CALLS           "
-                      "SELF TIME            MAX TIME\n"
+                      "SELF TIME          TOTAL TIME\n"
                       "                                          "
                       "AVERAGE   MAXIMUM   AVERAGE   MAXIMUM\n");
     for (int routine = 0; routine < number_of_routines; routine++) {
