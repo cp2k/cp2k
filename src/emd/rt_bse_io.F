@@ -713,6 +713,53 @@ CONTAINS
       rtbse_env%restart_trace_written = .TRUE.
    END SUBROUTINE write_restart_trace
 ! **************************************************************************************************
+!> \brief Reads the RESTART.trace header that write_restart_trace writes, through the n_eps record
+!> \param trace_unit unit of the trace, opened for reading at its start
+!> \param ios nonzero when a record could not be read
+!> \param version format version of the file; nothing after it is read when it differs from this binary's
+!> \param n_spin_file number of spins of the original run
+!> \param n_basis_file active-MO count (linearized) or AO count of the original run's density
+!> \param n_ao_file AO count of the original run
+!> \param dt_file time step of the original run, in atomic units
+!> \param kick_dir_file delta-kick direction of the original run
+!> \param kick_scale_file delta-kick scale of the original run
+!> \param n_eps active eigenvalues per spin in the record that follows; the caller reads it when positive
+!> \author Maximilian Graml
+! **************************************************************************************************
+   SUBROUTINE read_restart_trace_header(trace_unit, ios, version, n_spin_file, n_basis_file, n_ao_file, &
+                                        dt_file, kick_dir_file, kick_scale_file, n_eps)
+      INTEGER, INTENT(IN)                                :: trace_unit
+      INTEGER, INTENT(OUT)                               :: ios, version, n_spin_file, n_basis_file, &
+                                                            n_ao_file
+      REAL(kind=dp), INTENT(OUT)                         :: dt_file
+      REAL(kind=dp), DIMENSION(3), INTENT(OUT)           :: kick_dir_file
+      REAL(kind=dp), INTENT(OUT)                         :: kick_scale_file
+      INTEGER, INTENT(OUT)                               :: n_eps
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_restart_trace_header'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+      n_spin_file = 0
+      n_basis_file = 0
+      n_ao_file = 0
+      dt_file = 0.0_dp
+      kick_dir_file(:) = 0.0_dp
+      kick_scale_file = 0.0_dp
+      n_eps = 0
+      READ (trace_unit, IOSTAT=ios) version
+      IF (ios == 0 .AND. version == restart_trace_version) THEN
+         READ (trace_unit, IOSTAT=ios) n_spin_file, n_basis_file, n_ao_file
+         IF (ios == 0) READ (trace_unit, IOSTAT=ios) dt_file
+         IF (ios == 0) READ (trace_unit, IOSTAT=ios) kick_dir_file, kick_scale_file
+         IF (ios == 0) READ (trace_unit, IOSTAT=ios) n_eps
+         ! a failed read leaves n_eps undefined, and the caller reads an eps record when it is positive
+         IF (ios /= 0) n_eps = 0
+      END IF
+      CALL timestop(handle)
+   END SUBROUTINE read_restart_trace_header
+! **************************************************************************************************
 !> \brief Early phase of the restart read: the starting step index from the .info file, the original
 !>        run's dt peeked from the RESTART.trace header (so ENFORCE_MAX_DT can inherit it), and an
 !>        SCF_GUESS hygiene check. Runs BEFORE initialize_maximum_timestep; the trace prefix records
@@ -723,7 +770,10 @@ CONTAINS
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=default_path_length)                 :: save_name
-      INTEGER                                            :: info_unit, trace_unit, version
+      INTEGER                                            :: info_unit, ios, n_ao_file, n_basis_file, &
+                                                            n_eps, n_spin_file, trace_unit, version
+      REAL(kind=dp)                                      :: dt_file, kick_scale_file
+      REAL(kind=dp), DIMENSION(3)                        :: kick_dir_file
       TYPE(scf_control_type), POINTER                    :: scf_control
 
       logger => cp_get_default_logger()
@@ -740,18 +790,16 @@ CONTAINS
          CPWARN("Restart required but no info file found - starting from sim_step given in input")
       END IF
 
-      ! Peek the original run's dt from the trace header (version, dims record, dt) so ENFORCE_MAX_DT
-      ! can inherit it rather than recompute a window-dependent dt. The dims record is skipped here;
-      ! read_restart_trace re-reads the full header and validates it once the trace arrays are sized.
+      ! Peek the original run's dt from the trace header so ENFORCE_MAX_DT can inherit it rather than
+      ! recompute a window-dependent dt; read_restart_trace validates the header once the trace
+      ! arrays are sized.
       save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=".trace", my_local=.FALSE.)
       IF (file_exists(save_name)) THEN
          CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
                         unit_number=trace_unit)
-         READ (trace_unit) version
-         IF (version == restart_trace_version) THEN
-            READ (trace_unit)
-            READ (trace_unit) rtbse_env%sim_dt_restart
-         END IF
+         CALL read_restart_trace_header(trace_unit, ios, version, n_spin_file, n_basis_file, n_ao_file, &
+                                        dt_file, kick_dir_file, kick_scale_file, n_eps)
+         IF (ios == 0 .AND. version == restart_trace_version) rtbse_env%sim_dt_restart = dt_file
          CALL close_file(trace_unit)
       END IF
 
@@ -798,13 +846,15 @@ CONTAINS
 
       CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
                      unit_number=trace_unit)
-      READ (trace_unit) version
+      CALL read_restart_trace_header(trace_unit, ios, version, n_spin_file, n_basis_file, n_ao_file, &
+                                     dt_file, kick_dir_file, kick_scale_file, n_eps)
+      ! a header that cannot be read leaves nothing to continue from
+      CPASSERT(ios == 0)
       IF (version /= restart_trace_version) THEN
          WRITE (err_msg, '(A,I0,A,I0)') "RESTART.trace: format version ", version, &
             " does not match this binary's version ", restart_trace_version
          CALL cp_abort(__LOCATION__, TRIM(err_msg))
       END IF
-      READ (trace_unit) n_spin_file, n_basis_file, n_ao_file
       IF (n_spin_file /= rtbse_env%n_spin) CPABORT("RESTART.trace: n_spin mismatch")
       IF (n_ao_file /= rtbse_env%n_ao) CPABORT("RESTART.trace: n_ao mismatch")
       ! v1 is strict same-window: the linearized active-MO count must match (D6)
@@ -812,7 +862,6 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "RESTART.trace: active-MO count differs from the original run - same-window continuation only")
       END IF
-      READ (trace_unit) dt_file
       ! ENFORCE_MAX_DT inherits dt_file (read_restart_info -> initialize_maximum_timestep), so this
       ! fires only on the manual path (ENFORCE off + user dt /= original); name the exact fix.
       IF (ABS(dt_file - rtbse_env%sim_dt) > 1.0e-12_dp*MAX(1.0_dp, ABS(rtbse_env%sim_dt))) THEN
@@ -822,13 +871,11 @@ CONTAINS
             " or enable RTBSE%ENFORCE_MAX_DT to inherit it automatically."
          CALL cp_abort(__LOCATION__, TRIM(err_msg))
       END IF
-      READ (trace_unit) kick_dir_file, kick_scale_file
       IF (MAXVAL(ABS(kick_dir_file - REAL(rtbse_env%dft_control%rtp_control%delta_pulse_direction, dp))) > 1.0e-12_dp .OR. &
           ABS(kick_scale_file - rtbse_env%dft_control%rtp_control%delta_pulse_scale) > 1.0e-12_dp) THEN
          CALL cp_warn(__LOCATION__, &
                       "RESTART.trace: delta-kick parameters differ from the original run - FT normalization inconsistent.")
       END IF
-      READ (trace_unit) n_eps
       IF (n_eps > 0) THEN
          ALLOCATE (eps_file(n_eps, rtbse_env%n_spin))
          READ (trace_unit) eps_file
