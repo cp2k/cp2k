@@ -9,13 +9,17 @@
 @SET XYZFILE              HeH-water.xyz
 @SET BECKE_ACTIVE         TRUE
 @SET BECKE_FRAGMENT       FALSE
-@SET MAX_SCF              5
+@SET MAX_SCF              20
+@SET CDFT_EPS_SCF         1.0E-5
+@SET SCF_EPS_SCF          1.0E-9
+@SET SCF_MAX_SCF          100
+@SET SCF_MINIMIZER        DIIS
 ! He+ H
 @SET BECKE_TARGET_1       0.0
 @SET BECKE_STR_1          0.575328339408
-! He H+
-@SET BECKE_TARGET_2       2.0
-@SET BECKE_STR_2          -1.885819092012
+! An attainable He-rich state in the finite-basis Becke partition.
+@SET BECKE_TARGET_2       1.5
+@SET BECKE_STR_2          -0.3
 @SET BECKE_GLOBAL_CUTOFF  TRUE
 @SET BECKE_CUTOFF_ELEMENT FALSE
 @SET BECKE_ADJUST_SIZE    FALSE

@@ -29,17 +29,17 @@
     @IF ( ${RESTART_WFN} == FALSE )
       SCF_GUESS ATOMIC
     @ENDIF
-    EPS_SCF 1.0E-5
+    EPS_SCF ${SCF_EPS_SCF-1.0E-5}
     CHOLESKY INVERSE_DBCSR
-    MAX_SCF 20
+    MAX_SCF ${SCF_MAX_SCF-20}
     &OT ON
-      ! DIIS convergence might not be constant with different mpiranks => use CG
-      MINIMIZER CG
+      ! Keep CG for the legacy cases; the coupling tests use a tighter DIIS solve.
+      MINIMIZER ${SCF_MINIMIZER-CG}
       PRECONDITIONER FULL_ALL
       ALGORITHM IRAC
     &END OT    
     &OUTER_SCF ON
-        EPS_SCF 1.0E-5
+        EPS_SCF ${SCF_EPS_SCF-1.0E-5}
         MAX_SCF 2
     &END
     &PRINT
