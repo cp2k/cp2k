@@ -1,26 +1,33 @@
-"h2_linrtbse_tda_open_shell_restart.inp"      = [
+"h2_linrtbse_tda_open_shell_restart.inp"           = [
   {matcher = "LinRTBSE_1st_excit_ener", tol = 1e-04, ref = 11.5023},
   {matcher = "LinRTBSE_2nd_excit_ener", tol = 1e-04, ref = 17.448},
   {matcher = "LinRTBSE_3rd_excit_ener", tol = 1e-04, ref = 24.0428}
 ]
-"h2_linrtbse_tda_open_shell_restart_cont.inp" = [
+"h2_linrtbse_tda_open_shell_restart_cont.inp"      = [
   {matcher = "LinRTBSE_1st_excit_ener", tol = 1e-04, ref = 11.5023},
   {matcher = "LinRTBSE_2nd_excit_ener", tol = 1e-04, ref = 17.448},
   {matcher = "LinRTBSE_3rd_excit_ener", tol = 1e-04, ref = 24.0428},
   {matcher = "LinRTBSE_static_pol_xx", tol = 1e-03, ref = 0.4243269784},
   {matcher = "LinRTBSE_static_pol_xx_total", tol = 1e-03, ref = 0.8486539568}
 ]
-"h2_linrtbse_abba_rirs_open_shell.inp"        = [
+"h2_linrtbse_abba_rirs_open_shell.inp"             = [
   {matcher = "LinRTBSE_1st_excit_ener", tol = 1e-04, ref = 11.331},
   {matcher = "LinRTBSE_2nd_excit_ener", tol = 1e-04, ref = 16.8475},
   {matcher = "LinRTBSE_3rd_excit_ener", tol = 1e-04, ref = 23.9541},
   {matcher = "LinRTBSE_static_pol_xx", tol = 1e-03, ref = 0.3148014092},
   {matcher = "LinRTBSE_static_pol_xx_total", tol = 1e-03, ref = 0.6296028184}
 ]
-"h2_linrtbse_tda_full_rirs_open_shell.inp"    = [
+"h2_linrtbse_tda_full_rirs_open_shell.inp"         = [
   {matcher = "LinRTBSE_1st_excit_ener", tol = 1e-04, ref = 11.5021},
   {matcher = "LinRTBSE_2nd_excit_ener", tol = 1e-04, ref = 17.4473},
   {matcher = "LinRTBSE_3rd_excit_ener", tol = 1e-04, ref = 24.0421},
   {matcher = "LinRTBSE_static_pol_xx", tol = 1e-03, ref = 0.4243369799},
   {matcher = "LinRTBSE_static_pol_xx_total", tol = 1e-03, ref = 0.8486739598}
+]
+"h2_linrtbse_abba_rirs_open_shell_hartree_off.inp" = [
+  {matcher = "LinRTBSE_1st_excit_ener", tol = 1e-04, ref = 2.7536},
+  {matcher = "LinRTBSE_2nd_excit_ener", tol = 1e-04, ref = 2.7536},
+  {matcher = "LinRTBSE_3rd_excit_ener", tol = 1e-04, ref = 15.622},
+  {matcher = "LinRTBSE_static_pol_xx", tol = 1e-03, ref = 0.1250906186},
+  {matcher = "LinRTBSE_static_pol_xx_total", tol = 1e-03, ref = 0.2501812371}
 ]
