@@ -201,8 +201,9 @@ CONTAINS
                                       i_val=use_rt_restart)
             IF (ASSOCIATED(dft_control%efield_fields)) THEN
                tmp_section => section_vals_get_subs_vals(dft_section, "EFIELD")
-               ALLOCATE (work(3))
                DO i = 1, SIZE(dft_control%efield_fields)
+                  ! the section value keeps the array, so each repetition needs its own
+                  ALLOCATE (work(3))
                   work = dft_control%efield_fields(1)%efield%vec_pot_initial
                   CALL section_vals_val_set(tmp_section, "VEC_POT_INITIAL", i_rep_section=i, &
                                             r_vals_ptr=work)
