@@ -263,6 +263,18 @@ static void copy_pack_block(const bool trans_matrix, const dbm_block_t *blk,
 }
 
 /*******************************************************************************
+ * \brief Private routine for computing a block's squared norm (read-only).
+ ******************************************************************************/
+static inline float block_norm(const double data[], const int size) {
+  // Compute norm as double, return as float.
+  double norm = 0.0;
+  for (int i = 0; i < size; i++) {
+    norm += data[i] * data[i];
+  }
+  return (float)norm;
+}
+
+/*******************************************************************************
  * \brief Private routine for filling send buffers.
  * \author Ole Schuett
  ******************************************************************************/
@@ -351,7 +363,8 @@ static int compare_pack_blocks_by_sum_index(const void *a, const void *b) {
  ******************************************************************************/
 static dbm_pack_t pack_local_matrix(const bool trans_matrix,
                                     const dbm_matrix_t *matrix,
-                                    const int nshards, double *seconds_sort) {
+                                    const int nshards, double *seconds_sort,
+                                    const bool zero_copy) {
   dbm_pack_t pack = {0};
   if (dbm_get_num_blocks(matrix) == 0) {
     return pack;
@@ -404,7 +417,14 @@ static dbm_pack_t pack_local_matrix(const bool trans_matrix,
       shard_start[nshards] = pack.nblocks;
       pack.blocks =
           allocate_comm_buffer(pack.nblocks * sizeof(dbm_pack_block_t));
-      pack.data = allocate_comm_buffer(pack.data_size * sizeof(double));
+      if (zero_copy) {
+        pack.src = malloc(pack.nblocks * sizeof(double *));
+        cp_assert(pack.src != NULL);
+        pack.transposed = trans_matrix;
+        pack.data = NULL;
+      } else {
+        pack.data = allocate_comm_buffer(pack.data_size * sizeof(double));
+      }
     }
 #pragma omp barrier
     // Keep the frequently updated cursors private to avoid false sharing.
@@ -420,10 +440,21 @@ static dbm_pack_t pack_local_matrix(const bool trans_matrix,
         const int target = free_index % nshards;
         const int row_size = matrix->row_sizes[blk->row];
         const int col_size = matrix->col_sizes[blk->col];
-        copy_pack_block(trans_matrix, blk, row_size, col_size, shard->data,
-                        pack.data, data[target],
-                        &pack.blocks[blocks[target]++]);
-        data[target] += row_size * col_size;
+        if (zero_copy) {
+          const int idx = blocks[target]++;
+          double *const src = shard->data + blk->offset;
+          pack.src[idx] = src;
+          dbm_pack_block_t *const pb = &pack.blocks[idx];
+          pb->free_index = free_index;
+          pb->sum_index = trans_matrix ? blk->row : blk->col;
+          pb->offset = idx;
+          pb->norm = block_norm(src, row_size * col_size);
+        } else {
+          copy_pack_block(trans_matrix, blk, row_size, col_size, shard->data,
+                          pack.data, data[target],
+                          &pack.blocks[blocks[target]++]);
+          data[target] += row_size * col_size;
+        }
       }
     }
 
@@ -528,7 +559,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
                                        const bool trans_dist,
                                        const dbm_matrix_t *restrict matrix,
                                        const dbm_distribution_t *restrict dist,
-                                       const int nticks,
+                                       const int nticks, const bool zero_copy,
                                        dbm_comm_iterator_t *iter) {
   cp_assert(cp_mpi_comms_are_similar(matrix->dist->comm, dist->comm));
 
@@ -544,18 +575,19 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
   // Allocate packed matrix.
   const int nsend_packs = nticks / dist_ticks->nranks;
   cp_assert(nsend_packs * dist_ticks->nranks == nticks);
-  dbm_packed_matrix_t packed;
+  // recv_pack.src must be NULL on the MPI path.
+  dbm_packed_matrix_t packed = {0};
   packed.dist_indices = dist_indices;
   packed.dist_ticks = dist_ticks;
   packed.nsend_packs = nsend_packs;
-  packed.send_packs = malloc(nsend_packs * sizeof(dbm_pack_t));
+  packed.send_packs = calloc(nsend_packs, sizeof(dbm_pack_t));
   cp_assert(packed.send_packs != NULL || nsend_packs == 0);
 
   if (dist->nranks == 1) {
     cp_assert(nsend_packs == 1);
-    packed.send_packs[0] = pack_local_matrix(
-        trans_matrix, matrix, dist_indices->nshards, &iter->seconds_sort);
-    packed.recv_pack = (dbm_pack_t){0};
+    packed.send_packs[0] =
+        pack_local_matrix(trans_matrix, matrix, dist_indices->nshards,
+                          &iter->seconds_sort, zero_copy);
     packed.max_nblocks = packed.send_packs[0].nblocks;
     packed.max_data_size = packed.send_packs[0].data_size;
     return packed;
@@ -741,6 +773,7 @@ static void free_packed_matrix(dbm_packed_matrix_t *packed) {
   for (int ipack = 0; ipack < packed->nsend_packs; ipack++) {
     free_comm_buffer(packed->send_packs[ipack].blocks);
     free_comm_buffer(packed->send_packs[ipack].data);
+    free(packed->send_packs[ipack].src);
   }
   free(packed->send_packs);
 }
@@ -753,7 +786,8 @@ dbm_comm_iterator_t *dbm_comm_iterator_start(const bool transa,
                                              const bool transb,
                                              const dbm_matrix_t *matrix_a,
                                              const dbm_matrix_t *matrix_b,
-                                             const dbm_matrix_t *matrix_c) {
+                                             const dbm_matrix_t *matrix_c,
+                                             const bool zero_copy) {
   dbm_comm_iterator_t *iter = malloc(sizeof(dbm_comm_iterator_t));
   cp_assert(iter != NULL);
   iter->dist = matrix_c->dist;
@@ -767,10 +801,10 @@ dbm_comm_iterator_t *dbm_comm_iterator_start(const bool transa,
   iter->bytes_alltoall = iter->bytes_shift = 0;
 
   // 1.arg=source dimension, 2.arg=target dimension, false=rows, true=columns.
-  iter->packed_a =
-      pack_matrix(transa, false, matrix_a, iter->dist, iter->nticks, iter);
-  iter->packed_b =
-      pack_matrix(!transb, true, matrix_b, iter->dist, iter->nticks, iter);
+  iter->packed_a = pack_matrix(transa, false, matrix_a, iter->dist,
+                               iter->nticks, zero_copy, iter);
+  iter->packed_b = pack_matrix(!transb, true, matrix_b, iter->dist,
+                               iter->nticks, zero_copy, iter);
 
   return iter;
 }
