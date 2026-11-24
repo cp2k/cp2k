@@ -1104,12 +1104,13 @@ CONTAINS
    END SUBROUTINE do_rk4_stage
 
 ! **************************************************************************************************
-!> \brief Builds the spin-summed complex Hartree potential in AO, once per RK4 stage (AO-RI or RI-RS).
+!> \brief Builds the spin-summed complex Hartree potential in AO for the open-shell Liouvillian
+!>        diagnostic (AO-RI or RI-RS).
 !>        rho_total = spin_degeneracy * sum_sigma (OV-masked rho^sigma -> AO); hartree_total_ao =
-!>        V_H[rho_total]. update_effective_ham_MO back-transforms it with each spin's C, so this
+!>        V_H[rho_total]. apply_liouvillian_to_drho back-transforms it with each spin's C, so this
 !>        single call feeds every spin block - the cross-spin Hartree coupling of open shell.
-!>        Side effect: leaves rho_ao_scratch(sigma) = OV-masked AO density (recomputed per spin in
-!>        update_effective_ham_MO; built here only to form the sum).
+!>        Side effect: leaves rho_ao_scratch(sigma) = OV-masked AO density, which SEX reads.
+!>        With Hartree off (debug_disable_hartree) only this projection runs.
 !> \param rtbse_env RT-BSE environment
 !> \param rho_stage Per-spin MO density at the current RK4 stage
 !> \param keep_ovvo .FALSE. = OV source mask (TDA); .TRUE. = OV+VO (open-shell ABBA).
@@ -1133,24 +1134,27 @@ CONTAINS
          CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_delta_mo(isp), &
                                                    rtbse_env%rho_ao_scratch(isp), isp)
       END DO
-      ! Sum: rho_total = spin_degeneracy * sum_isp rho_ao_scratch(isp).
-      CALL cp_cfm_set_all(rtbse_env%rho_total_ao_scratch, CMPLX(0.0_dp, 0.0_dp, kind=dp))
-      DO isp = 1, rtbse_env%n_spin
-         CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_total_ao_scratch, &
-                                   CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), &
-                                   rtbse_env%rho_ao_scratch(isp))
-      END DO
-      ! One complex Hartree contraction on the summed density. RI backend = kernel choice: both
-      ! get_hartree_complex and compute_hartree_ri_rs_complex take AO x AO in/out and are spin-blind,
-      ! so the spin-summed cross-spin density feeds whichever kernel is active.
-      IF (rtbse_env%rirs_kernel) THEN
-         ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'[ρ^total]  (RI-RS)
-         CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_total_ao_scratch, &
-                                            rtbse_env%hartree_total_ao)
-      ELSE
-         ! V^H_λσ = sum_PQ (λσ|P) V_PQ [sum_µν (µν|Q) ρ^total_µν]  (AO-RI)
-         CALL get_hartree_complex(rtbse_env, rtbse_env%rho_total_ao_scratch, &
-                                  rtbse_env%hartree_total_ao, 1)
+      ! with Hartree off the two Hartree buffers are not allocated, and only SEX reads the projection
+      IF (.NOT. rtbse_env%debug_disable_hartree) THEN
+         ! Sum: rho_total = spin_degeneracy * sum_isp rho_ao_scratch(isp).
+         CALL cp_cfm_set_all(rtbse_env%rho_total_ao_scratch, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+         DO isp = 1, rtbse_env%n_spin
+            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_total_ao_scratch, &
+                                      CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), &
+                                      rtbse_env%rho_ao_scratch(isp))
+         END DO
+         ! One complex Hartree contraction on the summed density. RI backend = kernel choice: both
+         ! get_hartree_complex and compute_hartree_ri_rs_complex take AO x AO in/out and are spin-blind,
+         ! so the spin-summed cross-spin density feeds whichever kernel is active.
+         IF (rtbse_env%rirs_kernel) THEN
+            ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'[ρ^total]  (RI-RS)
+            CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_total_ao_scratch, &
+                                               rtbse_env%hartree_total_ao)
+         ELSE
+            ! V^H_λσ = sum_PQ (λσ|P) V_PQ [sum_µν (µν|Q) ρ^total_µν]  (AO-RI)
+            CALL get_hartree_complex(rtbse_env, rtbse_env%rho_total_ao_scratch, &
+                                     rtbse_env%hartree_total_ao, 1)
+         END IF
       END IF
       CALL timestop(handle)
    END SUBROUTINE build_shared_hartree_ao
