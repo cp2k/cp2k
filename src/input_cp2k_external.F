@@ -88,8 +88,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="READ_FROM_CUBE", &
                           description="Switch for reading the external potential from file pot.cube. The values "// &
                           "of the potential must be on the grid points of the realspace grid. "// &
-                          "Whitespace-separated cube values are accepted. If adjacent values are written "// &
-                          "without whitespace, each value must occupy a 13-character E13.5 field.", &
+                          "Grid values must be separated by whitespace.", &
                           usage="READ_FROM_CUBE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

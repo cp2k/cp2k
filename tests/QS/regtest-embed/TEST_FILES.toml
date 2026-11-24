@@ -8,7 +8,7 @@
 "H2O_H2_pbe_grid.inp"                        = [{matcher = "M011", tol = 1e-9, ref = -18.3246249755}]
 "H_H_pbe_pbe0_triplet_grid.inp"              = [{matcher = "M011", tol = 1e-9, ref = -0.94028826539}]
 "H_H_pbe_pbe0_triplet_grid_restart_cube.inp" = [{matcher = "M011", tol = 1e-9, ref = -0.94028826537}]
-"H_H_given_embed.inp"                        = [{matcher = "M011", tol = 1e-9, ref = -0.49080678947}]
+"H_H_given_embed.inp"                        = [{matcher = "M011", tol = 1e-9, ref = -0.49080679250}]
 "H2O_H2_pbe_baerends_uks.inp"                = [{matcher = "M011", tol = 1e-9, ref = -18.3246760167}]
 "H2O_H2_pbe_FAB.inp"                         = [{matcher = "M011", tol = 1e-9, ref = -18.3826585434}]
 #EOF

@@ -436,7 +436,7 @@ looks like:
     6    0.000000    0.000000   -0.000000    0.000000
     6    0.000000    2.681237    0.893728    2.681237
 ...
-  1.23456E-07 -2.34567E-07  3.45678E-07 -4.56789E-07  5.67890E-07 -6.78901E-07
+  1.23456E-007 -2.34567E-007  3.45678E-007 -4.56789E-007  5.67890E-007 -6.78901E-007
 ...
 ```
 
@@ -444,10 +444,9 @@ The first two lines are comments. The following lines define the grid origin, gr
 grid vectors, followed by the atom list and then the real-space values of the selected orbital.
 
 ```{note}
-CP2K writes the real-space orbital values in fixed-width `E13.5` fields following the
-[Gaussian cube file convention](https://gaussian.com/cubegen/). Some downstream cube-file parsers
-assume this fixed-width layout rather than only whitespace-separated floating-point values, so the
-formatting should be preserved when cube files are post-processed or rewritten.
+CP2K writes up to six real-space orbital values per line using `6(1X,ES13.5E3)`. Each value takes
+14 characters, including a leading space, and has six significant digits and a three-digit
+exponent. Tools that assume 13-character fields need to be updated to read this output.
 ```
 
 Cube files can become very large, especially for large cells or when many orbitals are requested.
