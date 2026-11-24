@@ -184,6 +184,8 @@ CONTAINS
                                        efield%phase_offset*pi)*pol(:)
             END IF
          CASE (ramp_env)
+            ! the plateau; the ramps and the off times below override it
+            strength = E_0
             IF (sim_step >= efield%envelop_i_vars(1) .AND. sim_step <= efield%envelop_i_vars(2)) THEN
                strength = E_0*(sim_step - efield%envelop_i_vars(1))/(efield%envelop_i_vars(2) - efield%envelop_i_vars(1))
             END IF
