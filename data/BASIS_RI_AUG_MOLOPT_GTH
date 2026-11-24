@@ -39486,7 +39486,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-1_N_RI_055_s_p_d_f_g_h_i_7_6_6_0_0_0_0_error_3.4e
       0.1000001402    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 2.5e-02
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_014_s_p_d_f_g_h_i_3_2_1_0_0_0_0_error_2.5e-02
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_014_s_p_d_f_g_h_i_3_2_1_0_0_0_0_error_2.5e-02
     6
      1   0   0   1   1
       1.0482954831    1.0000000000
@@ -39502,7 +39502,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_014_s_p_d_f_g_h_i_3_2_1_0_0_0_0_error_2.5e
       0.1499861576    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 1.6e-02
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_021_s_p_d_f_g_h_i_7_3_1_0_0_0_0_error_1.6e-02
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_021_s_p_d_f_g_h_i_7_3_1_0_0_0_0_error_1.6e-02
    11
      1   0   0   1   1
       8.7830138282    1.0000000000
@@ -39528,7 +39528,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_021_s_p_d_f_g_h_i_7_3_1_0_0_0_0_error_1.6e
       0.1559585896    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 1.1e-02
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_026_s_p_d_f_g_h_i_7_3_2_0_0_0_0_error_1.1e-02
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_026_s_p_d_f_g_h_i_7_3_2_0_0_0_0_error_1.1e-02
    12
      1   0   0   1   1
       8.7606589684    1.0000000000
@@ -39556,7 +39556,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_026_s_p_d_f_g_h_i_7_3_2_0_0_0_0_error_1.1e
       0.1585467955    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 1.9e-04
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_033_s_p_d_f_g_h_i_7_3_2_1_0_0_0_error_1.9e-04
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_033_s_p_d_f_g_h_i_7_3_2_1_0_0_0_error_1.9e-04
    13
      1   0   0   1   1
       8.7742393211    1.0000000000
@@ -39586,7 +39586,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_033_s_p_d_f_g_h_i_7_3_2_1_0_0_0_error_1.9e
       0.8413297237    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 9.5e-05
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_038_s_p_d_f_g_h_i_7_3_3_1_0_0_0_error_9.5e-05
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_038_s_p_d_f_g_h_i_7_3_3_1_0_0_0_error_9.5e-05
    14
      1   0   0   1   1
       8.7725058489    1.0000000000
@@ -39618,7 +39618,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_038_s_p_d_f_g_h_i_7_3_3_1_0_0_0_error_9.5e
       1.0774459958    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 3.5e-05
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_044_s_p_d_f_g_h_i_7_5_3_1_0_0_0_error_3.5e-05
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_044_s_p_d_f_g_h_i_7_5_3_1_0_0_0_error_3.5e-05
    16
      1   0   0   1   1
       8.7345292666    1.0000000000
@@ -39654,7 +39654,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_044_s_p_d_f_g_h_i_7_5_3_1_0_0_0_error_3.5e
       1.1218584449    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 1.1e-05
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_054_s_p_d_f_g_h_i_7_6_3_2_0_0_0_error_1.1e-05
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_054_s_p_d_f_g_h_i_7_6_3_2_0_0_0_error_1.1e-05
    18
      1   0   0   1   1
       8.7028246884    1.0000000000
@@ -39694,7 +39694,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_054_s_p_d_f_g_h_i_7_6_3_2_0_0_0_error_1.1e
       0.1837232092    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 8.6e-07
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_059_s_p_d_f_g_h_i_7_6_4_2_0_0_0_error_8.6e-07
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_059_s_p_d_f_g_h_i_7_6_4_2_0_0_0_error_8.6e-07
    19
      1   0   0   1   1
       8.5610815075    1.0000000000
@@ -39736,7 +39736,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_059_s_p_d_f_g_h_i_7_6_4_2_0_0_0_error_8.6e
       0.4283428928    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 3.9e-07
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_078_s_p_d_f_g_h_i_7_6_5_4_0_0_0_error_3.9e-07
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_078_s_p_d_f_g_h_i_7_6_5_4_0_0_0_error_3.9e-07
    22
      1   0   0   1   1
       8.7016140068    1.0000000000
@@ -39784,7 +39784,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_078_s_p_d_f_g_h_i_7_6_5_4_0_0_0_error_3.9e
       0.1361020174    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 2.8e-02
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_017_s_p_d_f_g_h_i_6_2_1_0_0_0_0_error_2.8e-02
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_017_s_p_d_f_g_h_i_6_2_1_0_0_0_0_error_2.8e-02
     9
      1   0   0   1   1
       8.6650731572    1.0000000000
@@ -39806,7 +39806,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_017_s_p_d_f_g_h_i_6_2_1_0_0_0_0_error_2.8e
       0.1620507609    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 1.8e-02
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_020_s_p_d_f_g_h_i_6_3_1_0_0_0_0_error_1.8e-02
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_020_s_p_d_f_g_h_i_6_3_1_0_0_0_0_error_1.8e-02
    10
      1   0   0   1   1
       8.6624308423    1.0000000000
@@ -39830,7 +39830,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_020_s_p_d_f_g_h_i_6_3_1_0_0_0_0_error_1.8e
       0.1807513660    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 1.1e-02
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_028_s_p_d_f_g_h_i_6_4_2_0_0_0_0_error_1.1e-02
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_028_s_p_d_f_g_h_i_6_4_2_0_0_0_0_error_1.1e-02
    12
      1   0   0   1   1
       7.8578876449    1.0000000000
@@ -39858,7 +39858,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_028_s_p_d_f_g_h_i_6_4_2_0_0_0_0_error_1.1e
       0.1406807569    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 3.5e-05
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_044_s_p_d_f_g_h_i_7_5_3_1_0_0_0_error_3.5e-05
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_044_s_p_d_f_g_h_i_7_5_3_1_0_0_0_error_3.5e-05
    16
      1   0   0   1   1
       8.7346848676    1.0000000000
@@ -39894,7 +39894,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_044_s_p_d_f_g_h_i_7_5_3_1_0_0_0_error_3.5e
       1.1232783103    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 7.1e-07
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_059_s_p_d_f_g_h_i_7_6_4_2_0_0_0_error_7.1e-07
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_059_s_p_d_f_g_h_i_7_6_4_2_0_0_0_error_7.1e-07
    19
      1   0   0   1   1
       8.5593217928    1.0000000000
@@ -39936,7 +39936,7 @@ Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_059_s_p_d_f_g_h_i_7_6_4_2_0_0_0_error_7.1e
       0.4455240953    1.0000000000
 
 # RI basis set for Ca, GTH pseudo, relative accuracy of RI-MP2: 3.9e-07
-Ca  RI_aug-SZV-MOLOPT-GTH-tier-2_N_RI_078_s_p_d_f_g_h_i_7_6_5_4_0_0_0_error_3.9e-07
+Ca  RI_aug-SZV-MOLOPT-GTH-tier-2-SR_N_RI_078_s_p_d_f_g_h_i_7_6_5_4_0_0_0_error_3.9e-07
    22
      1   0   0   1   1
       8.7016349321    1.0000000000
