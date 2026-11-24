@@ -94,16 +94,17 @@ MODULE cp_fm_diag
    ! Whether the diagonalization library was requested explicitly (e.g. via PREFERRED_DIAG_LIBRARY);
    ! complex matrices use ELPA only in that case.
    LOGICAL, SAVE, PUBLIC    :: diag_lib_explicit = .FALSE.
-   ! Minimum number of eigenvectors for the use of the ELPA eigensolver.
+   ! Minimum matrix order for the use of the ELPA eigensolver.
    ! The ScaLAPACK eigensolver is used as fallback for all smaller cases.
    INTEGER, SAVE, PUBLIC    :: elpa_neigvec_min = 0
    ! Minimum matrix size for the use of the cuSOLVERMp eigensolver.
    ! Smaller matrices use the ScaLAPACK fallback to avoid GPU launch overheads.
-   INTEGER, PARAMETER, PUBLIC :: cusolver_n_min = 64
-   ! Minimum number of eigenvectors for the use of the DLAF eigensolver.
+   INTEGER, SAVE, PUBLIC :: cusolver_n_min = 0
+   ! Minimum matrix order for the use of the DLAF eigensolver.
    ! The ScaLAPACK eigensolver is used as fallback for all smaller cases.
    INTEGER, SAVE, PUBLIC    :: dlaf_neigvec_min = 0
    LOGICAL, SAVE, PUBLIC :: direct_generalized_diagonalization = .FALSE.
+   LOGICAL, SAVE :: auto_generalized = .FALSE.
    ! Threshold value for the orthonormality check of the eigenvectors obtained
    ! after a diagonalization. A negative value disables the check.
    REAL(KIND=dp), SAVE :: eps_check_diag = -1.0_dp
@@ -123,6 +124,7 @@ MODULE cp_fm_diag
 
    ! Public subroutines
    PUBLIC :: choose_eigv_solver, &
+             cusolver_selected, generalized_requested, prefer_local_kpoint_solver, &
              cp_fm_block_jacobi, &
              cp_fm_power, &
              cp_fm_syevd, &
@@ -136,6 +138,99 @@ MODULE cp_fm_diag
              diag_finalize
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Minimum useful order for a local or distributed GPU solve.
+!> \param nranks size of the eigensolver communicator
+!> \return threshold including any explicit user override
+! **************************************************************************************************
+   INTEGER FUNCTION cusolver_min_order(nranks) RESULT(n)
+      INTEGER, INTENT(IN) :: nranks
+
+      n = cusolver_n_min
+      IF (n == 0) n = MERGE(512, 2048, nranks == 1)
+   END FUNCTION cusolver_min_order
+
+! **************************************************************************************************
+!> \brief Select a native generalized solve when requested or profitable.
+!> \param n matrix order
+!> \param nranks size of the solve communicator
+!> \param cached_overlap whether the SCF driver already reuses its overlap decomposition
+!> \return true if the generalized solver should be requested
+! **************************************************************************************************
+   LOGICAL FUNCTION generalized_requested(n, nranks, cached_overlap) RESULT(use_generalized)
+      INTEGER, INTENT(IN)                                :: n, nranks
+      LOGICAL, INTENT(IN), OPTIONAL                      :: cached_overlap
+
+      use_generalized = direct_generalized_diagonalization
+      IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. n < cusolver_min_order(nranks)) use_generalized = .FALSE.
+      IF (.NOT. auto_generalized) RETURN
+      IF (PRESENT(cached_overlap)) THEN
+         IF (cached_overlap) RETURN
+      END IF
+      use_generalized = diag_type == FM_DIAG_TYPE_CUSOLVER .AND. n >= cusolver_min_order(nranks) .AND. nranks <= 2
+   END FUNCTION generalized_requested
+
+! **************************************************************************************************
+!> \brief Keep small independent k-point solves on the local LAPACK worker.
+!> \param nranks group size
+!> \param layout matrix layout, if a full diagonalization is being performed
+!> \return whether the local LAPACK solver is preferred
+! **************************************************************************************************
+   LOGICAL FUNCTION prefer_local_kpoint_solver(nranks, layout) RESULT(use_local)
+      INTEGER, INTENT(IN)                                :: nranks
+      TYPE(cp_fm_struct_type), INTENT(IN), OPTIONAL      :: layout
+
+      use_local = nranks == 1 .AND. .NOT. diag_lib_explicit .AND. .NOT. diag_check_requested()
+      IF (use_local .AND. PRESENT(layout)) THEN
+         use_local = .NOT. cusolver_selected(layout)
+      END IF
+   END FUNCTION prefer_local_kpoint_solver
+
+! **************************************************************************************************
+!> \brief Whether the configured cuSOLVER backend can solve on this matrix distribution.
+!> \param layout input matrix
+!> \param vectors optional full-size solver output
+!> \param overlap optional overlap matrix for a generalized solve
+!> \return true if order, matrix layouts and rank-to-device placement are suitable
+! **************************************************************************************************
+   LOGICAL FUNCTION cusolver_selected(layout, vectors, overlap) RESULT(selected)
+      TYPE(cp_fm_struct_type), INTENT(IN)                :: layout
+      TYPE(cp_fm_struct_type), OPTIONAL, INTENT(IN)      :: vectors, overlap
+#if defined(__CUSOLVERMP)
+      INTERFACE
+         FUNCTION devices_ok(comm) BIND(C, name="cp_fm_cusolver_devices_ok")
+            USE ISO_C_BINDING, ONLY: C_INT
+            INTEGER(KIND=C_INT), VALUE :: comm
+            INTEGER(KIND=C_INT) :: devices_ok
+         END FUNCTION devices_ok
+      END INTERFACE
+#endif
+
+      selected = .FALSE.
+#if defined(__CUSOLVERMP)
+      IF (diag_type /= FM_DIAG_TYPE_CUSOLVER .OR. layout%nrow_global < cusolver_min_order(layout%para_env%num_pe)) RETURN
+      IF (layout%nrow_global /= layout%ncol_global .OR. layout%nrow_block /= layout%ncol_block) RETURN
+      IF (ANY(layout%first_p_pos /= 0)) RETURN
+      IF (MINVAL(layout%context%num_pe) > 1) THEN
+         IF (layout%context%blacs2mpi(0, 1) /= 1) RETURN
+      END IF
+      IF (PRESENT(vectors)) THEN
+         IF (ANY(layout%descriptor(1:8) /= vectors%descriptor(1:8))) RETURN
+      END IF
+      IF (PRESENT(overlap)) THEN
+         IF (ANY(layout%descriptor(1:8) /= overlap%descriptor(1:8))) RETURN
+      END IF
+      IF (layout%context%cusolver_devices_ok < 0) THEN
+         layout%context%cusolver_devices_ok = devices_ok(layout%para_env%get_handle())
+      END IF
+      selected = layout%context%cusolver_devices_ok == 1
+#else
+      MARK_USED(layout)
+      MARK_USED(vectors)
+      MARK_USED(overlap)
+#endif
+   END FUNCTION cusolver_selected
 
 ! **************************************************************************************************
 !> \brief Setup the diagonalization library to be used
@@ -156,6 +251,7 @@ CONTAINS
 !> \param diag_lib_explicit_input ...
 !> \param elpa_auto_stage_input choose the stage for the actual matrix and kernel
 !> \param elpa_gpu_available_input all participating ranks have an assigned device
+!> \param auto_generalized_input allow automatic native generalized diagonalization
 !> \par History
 !>      - Add support for DLA-Future (05.09.2023, RMeli)
 !> \author  MI 11.2013
@@ -163,7 +259,7 @@ CONTAINS
    SUBROUTINE diag_init(diag_lib, fallback_applied, elpa_kernel, elpa_c_kernel, elpa_neigvec_min_input, &
                         elpa_qr, elpa_print, elpa_one_stage, dlaf_neigvec_min_input, eps_check_diag_input, &
                         direct_generalized_diagonalization_input, diag_lib_explicit_input, &
-                        elpa_auto_stage_input, elpa_gpu_available_input)
+                        elpa_auto_stage_input, elpa_gpu_available_input, auto_generalized_input)
       CHARACTER(LEN=*), INTENT(IN)                       :: diag_lib
       LOGICAL, INTENT(OUT)                               :: fallback_applied
       INTEGER, INTENT(IN)                                :: elpa_kernel
@@ -173,7 +269,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dlaf_neigvec_min_input
       REAL(KIND=dp), INTENT(IN)                          :: eps_check_diag_input
       LOGICAL, INTENT(IN), OPTIONAL :: direct_generalized_diagonalization_input, &
-         diag_lib_explicit_input, elpa_auto_stage_input, elpa_gpu_available_input
+         diag_lib_explicit_input, elpa_auto_stage_input, elpa_gpu_available_input, auto_generalized_input
 
       LOGICAL, SAVE                                      :: initialized = .FALSE.
 
@@ -191,7 +287,12 @@ CONTAINS
          fallback_applied = .TRUE.
 #endif
       ELSE IF (diag_lib == "cuSOLVER") THEN
+#if defined(__CUSOLVERMP)
          diag_type = FM_DIAG_TYPE_CUSOLVER
+#else
+         diag_type = FM_DIAG_TYPE_SCALAPACK
+         fallback_applied = .TRUE.
+#endif
       ELSE IF (diag_lib == "DLAF") THEN
 #if defined (__DLAF)
          diag_type = FM_DIAG_TYPE_DLAF
@@ -232,6 +333,8 @@ CONTAINS
       ELSE
          direct_generalized_diagonalization = .FALSE.
       END IF
+      auto_generalized = .FALSE.
+      IF (PRESENT(auto_generalized_input)) auto_generalized = auto_generalized_input
 
    END SUBROUTINE diag_init
 
@@ -287,8 +390,7 @@ CONTAINS
          END IF
 
       ELSE IF (diag_type == FM_DIAG_TYPE_CUSOLVER) THEN
-         IF (matrix%matrix_struct%nrow_global < cusolver_n_min) THEN
-            ! We don't trust cuSolver with very small matrices.
+         IF (.NOT. cusolver_selected(matrix%matrix_struct, eigenvectors%matrix_struct)) THEN
             CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
          ELSE
             CALL cp_fm_diag_cusolver(matrix, eigenvectors, eigenvalues)
@@ -1521,8 +1623,8 @@ CONTAINS
       nmo = SIZE(eigenvalues)
       check_eigenvectors = diag_check_requested()
 
-      IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. direct_generalized_diagonalization .AND. &
-          nao >= cusolver_n_min) THEN
+      IF (generalized_requested(nao, amatrix%matrix_struct%para_env%num_pe) .AND. &
+          cusolver_selected(amatrix%matrix_struct, work%matrix_struct, bmatrix%matrix_struct)) THEN
          ! Use cuSolverMP generalized eigenvalue solver without a CP2K-side
          ! Cholesky reduction.
          ! Use work as intermediate buffer since eigenvectors may be smaller (nao x nmo)

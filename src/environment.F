@@ -575,7 +575,7 @@ CONTAINS
          MemTotal_max, MemTotal_min, Slab, Slab_avr, Slab_max, Slab_min, SReclaimable, &
          SReclaimable_avr, SReclaimable_max, SReclaimable_min
       INTEGER, DIMENSION(:), POINTER                     :: i_force_eval
-      LOGICAL                                            :: ata, do_echo_all_hosts, explicit, flag, &
+      LOGICAL                                            :: ata, do_echo_all_hosts, direct_explicit, explicit, flag, &
                                                             report_maxloc, trace, trace_master
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(enumeration_type), POINTER                    :: enum1, enum2
@@ -593,7 +593,7 @@ CONTAINS
       CALL section_vals_val_get(global_section, "BLACS_REPEATABLE", l_val=globenv%blacs_repeatable)
       CALL section_vals_val_get(global_section, "PREFERRED_DIAG_LIBRARY", i_val=i_diag)
       CALL section_vals_val_get(global_section, "DIRECT_GENERALIZED_DIAGONALIZATION", &
-                                l_val=globenv%direct_generalized_diagonalization)
+                                l_val=globenv%direct_generalized_diagonalization, explicit=direct_explicit)
       CALL section_vals_val_get(global_section, "PREFERRED_CHOLESKY_LIBRARY", i_val=i_cholesky)
       CALL section_vals_val_get(global_section, "PREFERRED_DGEMM_LIBRARY", i_val=i_dgemm)
       CALL section_vals_val_get(global_section, "EPS_CHECK_DIAG", r_val=globenv%eps_check_diag)
@@ -606,6 +606,8 @@ CONTAINS
       CALL section_vals_val_get(global_section, "ELPA_ONE_STAGE", l_val=globenv%elpa_one_stage)
       CALL section_vals_val_get(global_section, "ELPA_PRINT", l_val=globenv%elpa_print)
       CALL section_vals_val_get(global_section, "DLAF_NEIGVEC_MIN", i_val=globenv%dlaf_neigvec_min)
+      CALL section_vals_val_get(global_section, "CUSOLVER_N_MIN", i_val=globenv%cusolver_n_min)
+      IF (globenv%cusolver_n_min < 0) CPABORT("CUSOLVER_N_MIN must be nonnegative")
       CALL section_vals_val_get(global_section, "DLAF_CHOLESKY_N_MIN", i_val=globenv%dlaf_cholesky_n_min)
       CALL section_vals_val_get(global_section, "PREFERRED_FFT_LIBRARY", i_val=i_fft)
       CALL section_vals_val_get(global_section, "PRINT_LEVEL", i_val=print_level)
@@ -877,27 +879,32 @@ CONTAINS
 
          IF (globenv%diag_library == "ELPA") THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
-               start_section_label//"| Minimum number of eigenvectors for ELPA usage", &
+               start_section_label//"| Minimum matrix order for ELPA usage", &
                globenv%elpa_neigvec_min
          END IF
 
          IF (globenv%diag_library == "DLAF") THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
-               start_section_label//"| Minimum number of eigenvectors for DLAF usage", &
+               start_section_label//"| Minimum matrix order for DLAF usage", &
                globenv%dlaf_neigvec_min
          END IF
 
          IF (globenv%diag_library == "cuSOLVER" .OR. globenv%diag_library == "ScaLAPACK" .OR. &
              globenv%diag_library == "DLAF") THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,T71,L10)") &
-               start_section_label//"| Direct generalized diagonalization requested", &
-               globenv%direct_generalized_diagonalization
+            IF (globenv%diag_library == "cuSOLVER" .AND. .NOT. direct_explicit) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,T71,A10)") &
+                  start_section_label//"| Direct generalized diagonalization", "automatic"
+            ELSE
+               WRITE (UNIT=output_unit, FMT="(T2,A,T71,L10)") &
+                  start_section_label//"| Direct generalized diagonalization requested", &
+                  globenv%direct_generalized_diagonalization
+            END IF
          END IF
 
-         IF (globenv%diag_library == "cuSOLVER") THEN
+         IF (globenv%diag_library == "cuSOLVER" .AND. globenv%cusolver_n_min > 0) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
                start_section_label//"| Minimum matrix size for cuSOLVER diagonalization", &
-               cusolver_n_min
+               globenv%cusolver_n_min
          END IF
 
          IF (globenv%cholesky_library == "DLAF") THEN
@@ -1210,9 +1217,11 @@ CONTAINS
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
       INTEGER                                            :: device_count
-      LOGICAL                                            :: diag_lib_explicit, fallback_applied, stage_explicit
+      LOGICAL                                            :: diag_lib_explicit, direct_explicit, fallback_applied, stage_explicit
 
       CALL section_vals_val_get(global_section, "PREFERRED_DIAG_LIBRARY", explicit=diag_lib_explicit)
+      cusolver_n_min = globenv%cusolver_n_min
+      CALL section_vals_val_get(global_section, "DIRECT_GENERALIZED_DIAGONALIZATION", explicit=direct_explicit)
       CALL section_vals_val_get(global_section, "ELPA_ONE_STAGE", explicit=stage_explicit)
       device_count = 0
       IF (globenv%diag_library == "ELPA") THEN
@@ -1223,6 +1232,7 @@ CONTAINS
       CALL diag_init(diag_lib=TRIM(globenv%diag_library), &
                      fallback_applied=fallback_applied, &
                      diag_lib_explicit_input=diag_lib_explicit, &
+                     auto_generalized_input=.NOT. direct_explicit, &
                      elpa_kernel=globenv%k_elpa, &
                      elpa_c_kernel=globenv%k_elpa_c, &
                      elpa_neigvec_min_input=globenv%elpa_neigvec_min, &

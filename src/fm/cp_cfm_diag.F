@@ -30,7 +30,7 @@ MODULE cp_cfm_diag
                          diag_lib_explicit, &
                          diag_type, &
                          direct_generalized_diagonalization, &
-                         cusolver_n_min, &
+                         cusolver_selected, generalized_requested, &
                          elpa_neigvec_min, &
                          FM_DIAG_TYPE_CUSOLVER, &
                          FM_DIAG_TYPE_ELPA, &
@@ -101,25 +101,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_heevd'
 
       INTEGER                                            :: handle
-#if defined(__CUSOLVERMP)
-      LOGICAL                                            :: use_cusolver
-#endif
 
       CALL timeset(routineN, handle)
 
 #if defined(__CUSOLVERMP)
-      IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. matrix%matrix_struct%nrow_global >= cusolver_n_min) THEN
-         ASSOCIATE (a => matrix%matrix_struct, z => eigenvectors%matrix_struct, grid => matrix%matrix_struct%context)
-            ! The cuSOLVERMp grid is row-major and A and Z must have aligned square tiles.
-            use_cusolver = a%nrow_block == a%ncol_block .AND. ALL(a%first_p_pos == 0) .AND. &
-                           ALL(a%descriptor(1:8) == z%descriptor(1:8))
-            IF (MINVAL(grid%num_pe) > 1) use_cusolver = use_cusolver .AND. grid%blacs2mpi(0, 1) == 1
-         END ASSOCIATE
-         IF (use_cusolver) THEN
-            CALL cp_cfm_diag_cusolver(matrix, eigenvectors, eigenvalues)
-            CALL timestop(handle)
-            RETURN
-         END IF
+      IF (cusolver_selected(matrix%matrix_struct, eigenvectors%matrix_struct)) THEN
+         CALL cp_cfm_diag_cusolver(matrix, eigenvectors, eigenvalues)
+         CALL timestop(handle)
+         RETURN
       END IF
 #endif
 #if defined(__DLAF)
@@ -496,8 +485,8 @@ CONTAINS
             CALL cp_cfm_release(overlap_check)
          END IF
 #endif
-      ELSE IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. direct_generalized_diagonalization .AND. &
-               nao >= cusolver_n_min) THEN
+      ELSE IF (generalized_requested(nao, amatrix%matrix_struct%para_env%num_pe) .AND. &
+               cusolver_selected(amatrix%matrix_struct, work%matrix_struct, bmatrix%matrix_struct)) THEN
          ! Use cuSolverMP generalized eigenvalue solver without a CP2K-side
          ! Cholesky reduction.
          IF (check_eigenvectors) THEN

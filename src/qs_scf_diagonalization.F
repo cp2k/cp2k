@@ -59,9 +59,8 @@ MODULE qs_scf_diagonalization
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                               cp_fm_geeig,&
                                               cp_fm_geeig_canon,&
-                                              diag_check_requested,&
-                                              diag_lib_explicit,&
-                                              direct_generalized_diagonalization
+                                              generalized_requested,&
+                                              prefer_local_kpoint_solver
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
                                               fm_pool_create_fm,&
                                               fm_pool_get_el_struct,&
@@ -512,7 +511,9 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspin
-            IF (direct_generalized_diagonalization .AND. .NOT. do_level_shift) THEN
+            IF (generalized_requested(scf_env%scf_work1(ispin)%matrix_struct%nrow_global, &
+                                      scf_env%scf_work1(ispin)%matrix_struct%para_env%num_pe, &
+                                      cached_overlap=.TRUE.) .AND. .NOT. do_level_shift) THEN
                CALL eigensolver_generalized(matrix_ks_fm=scf_env%scf_work1(ispin), &
                                             matrix_s=matrix_s(ispin)%matrix, &
                                             mo_set=mos(ispin), &
@@ -809,9 +810,6 @@ CONTAINS
       nspin = SIZE(matrix_ks, 1)
       omp_threads = 1
 !$    omp_threads = omp_get_max_threads()
-      ! One-rank groups use the same worker path for MPI, OpenMP and hybrid jobs.
-      use_local_kpoints = kpoints%para_env_kp%num_pe == 1 .AND. .NOT. use_real_wfn
-      IF (diag_check_requested() .OR. diag_lib_explicit) use_local_kpoints = .FALSE.
       ib = 0
       nb = 0
       NULLIFY (scf_section)
@@ -826,6 +824,8 @@ CONTAINS
 
       CALL fm_pool_create_fm(ao_ao_fm_pool, fmlocal)
       CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
+      use_local_kpoints = .NOT. use_real_wfn .AND. &
+                          prefer_local_kpoint_solver(kpoints%para_env_kp%num_pe, matrix_struct)
 
       IF (use_real_wfn) THEN
          CALL cp_fm_create(rksmat, matrix_struct)
@@ -3177,10 +3177,7 @@ CONTAINS
       ! one-rank k-point groups refine their k points locally, without a
       ! transfer round; a diag check, a convergence-only probe and an
       ! explicitly selected diagonalization library keep the rounds
-      use_local_kpoints = kpoints%para_env_kp%num_pe == 1
-      IF (diag_check_requested()) use_local_kpoints = .FALSE.
-      IF (my_check_moconv_only) use_local_kpoints = .FALSE.
-      IF (diag_lib_explicit) use_local_kpoints = .FALSE.
+      use_local_kpoints = prefer_local_kpoint_solver(kpoints%para_env_kp%num_pe) .AND. .NOT. my_check_moconv_only
       CALL kp_diag_setup(qs_env, kpoints, nspin, matrix_ks_kp, matrix_s_kp, fmwork, op_ctx, &
                          matrix_struct)
 

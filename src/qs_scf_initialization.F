@@ -36,7 +36,7 @@ MODULE qs_scf_initialization
    USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER,&
                                               choose_eigv_solver,&
                                               cp_fm_power,&
-                                              cusolver_n_min,&
+                                              generalized_requested,&
                                               diag_type,&
                                               direct_generalized_diagonalization
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -863,8 +863,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, dft_control=dft_control, mos=mos)
+      CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, dft_control=dft_control, mos=mos, para_env=para_env)
       not_se_or_tb = .NOT. (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb .OR. &
                             dft_control%qs_control%semi_empirical)
       need_coeff_b = .FALSE.
@@ -899,13 +900,13 @@ CONTAINS
          CASE (diag_standard)
             scf_env%method = general_diag_method_nr
             scf_env%needs_ortho = (.NOT. has_unit_metric) .AND. (.NOT. do_kpoints)
-            IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. &
+            IF (scf_env%needs_ortho .AND. diag_type == FM_DIAG_TYPE_CUSOLVER .AND. &
                 direct_generalized_diagonalization .AND. &
                 scf_control%level_shift == 0.0_dp .AND. &
                 scf_env%cholesky_method /= cholesky_off .AND. &
                 scf_env%cholesky_method /= cholesky_dbcsr) THEN
                CALL get_mo_set(mos(1), nao=nao)
-               IF (nao >= cusolver_n_min) THEN
+               IF (generalized_requested(nao, para_env%num_pe, cached_overlap=.TRUE.)) THEN
                   scf_env%needs_ortho = .FALSE.
                END IF
             END IF

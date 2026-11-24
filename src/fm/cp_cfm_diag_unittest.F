@@ -31,8 +31,11 @@ PROGRAM cp_cfm_diag_unittest
    CALL offload_set_chosen_device(MOD(para_env%mepos, offload_get_device_count()))
 #endif
    direct_generalized_diagonalization = .FALSE.
+   cusolver_n_min = 64
    CALL check_solve(cusolver_n_min - 1, .FALSE.)
    CALL check_solve(cusolver_n_min, .FALSE.)
+   CALL check_solve(cusolver_n_min, .TRUE.)
+   direct_generalized_diagonalization = .TRUE.
    CALL check_solve(cusolver_n_min, .TRUE.)
    CALL mp_world_finalize()
    DEALLOCATE (para_env)
@@ -42,7 +45,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Check the selected backend and the returned eigenpairs on a fresh BLACS grid.
 !> \param n matrix order
-!> \param generalized exercise the Cholesky reduction to the standard solver
+!> \param generalized solve the generalized eigenproblem
 ! **************************************************************************************************
    SUBROUTINE check_solve(n, generalized)
       INTEGER, INTENT(IN) :: n
@@ -50,7 +53,7 @@ CONTAINS
 
       REAL(KIND=dp), PARAMETER :: tol = 1.0E-11_dp
       COMPLEX(KIND=dp), DIMENSION(n, n) :: h, s, sz, z
-      INTEGER :: i
+      INTEGER :: i, nev
       LOGICAL :: expect_gpu
       REAL(KIND=dp), DIMENSION(n) :: eval
       TYPE(cp_blacs_env_type), POINTER :: grid
@@ -58,6 +61,8 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER :: layout, vector_layout
 
       NULLIFY (grid, layout, vector_layout)
+      nev = n
+      IF (generalized .AND. direct_generalized_diagonalization) nev = n - 3
       CALL cp_blacs_env_create(grid, para_env)
       CALL cp_fm_struct_create(layout, nrow_global=n, ncol_global=n, context=grid, &
                                nrow_block=8, ncol_block=8, force_block=.TRUE.)
@@ -84,11 +89,19 @@ CONTAINS
          DO i = 1, n
             s(i, i) = 1.0_dp + REAL(i, dp)/n
          END DO
-         CALL cp_cfm_create(b, layout)
-         CALL cp_cfm_create(work, layout)
+         IF (cp2k_is_parallel .AND. nev < n) THEN
+            CALL cp_fm_struct_create(vector_layout, template_fmstruct=layout, &
+                                     local_leading_dimension=layout%local_leading_dimension + 2, force_block=.TRUE.)
+            CALL cp_cfm_create(b, vector_layout)
+            CALL cp_cfm_create(work, vector_layout)
+            CALL cp_fm_struct_release(vector_layout)
+         ELSE
+            CALL cp_cfm_create(b, layout)
+            CALL cp_cfm_create(work, layout)
+         END IF
          CALL cp_cfm_set_submatrix(a, h)
          CALL cp_cfm_set_submatrix(b, s)
-         CALL cp_cfm_geeig(a, b, vec, eval, work)
+         CALL cp_cfm_geeig(a, b, vec, eval(:nev), work)
          CALL cp_cfm_release(work)
          CALL cp_cfm_release(b)
       ELSE
@@ -102,16 +115,17 @@ CONTAINS
       END IF
 
       expect_gpu = diag_type == FM_DIAG_TYPE_CUSOLVER .AND. n >= cusolver_n_min
+      IF (expect_gpu .AND. para_env%num_pe > 1) expect_gpu = grid%cusolver_devices_ok == 1
       IF (C_ASSOCIATED(grid%cusolver_context) .NEQV. expect_gpu) ERROR STOP "Wrong complex standard eigensolver"
-      CALL cp_cfm_get_submatrix(vec, z)
-      sz = MATMUL(s, z)
-      IF (ANY(eval(2:) < eval(:n - 1))) ERROR STOP "Eigenvalues are not ordered"
-      IF (.NOT. ALL(ABS(MATMUL(h, z) - sz*SPREAD(eval, 1, n)) < tol)) ERROR STOP "Large eigenpair residual"
-      s = MATMUL(CONJG(TRANSPOSE(z)), sz)
-      DO i = 1, n
+      CALL cp_cfm_get_submatrix(vec, z(:, :nev))
+      sz(:, :nev) = MATMUL(s, z(:, :nev))
+      IF (ANY(eval(2:nev) < eval(:nev - 1))) ERROR STOP "Eigenvalues are not ordered"
+      IF (.NOT. ALL(ABS(MATMUL(h, z(:, :nev)) - sz(:, :nev)*SPREAD(eval(:nev), 1, n)) < tol)) ERROR STOP "Large eigenpair residual"
+      s(:nev, :nev) = MATMUL(CONJG(TRANSPOSE(z(:, :nev))), sz(:, :nev))
+      DO i = 1, nev
          s(i, i) = s(i, i) - 1.0_dp
       END DO
-      IF (.NOT. ALL(ABS(s) < tol)) ERROR STOP "Eigenvectors are not S-orthonormal"
+      IF (.NOT. ALL(ABS(s(:nev, :nev)) < tol)) ERROR STOP "Eigenvectors are not S-orthonormal"
 
       CALL cp_cfm_release(vec)
       CALL cp_cfm_release(a)

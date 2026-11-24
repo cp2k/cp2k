@@ -158,7 +158,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="DIRECT_GENERALIZED_DIAGONALIZATION", &
                           description="Request direct generalized eigenvalue problem diagonalization "// &
                           "without a CP2K-side Cholesky reduction in supported dense matrix paths. "// &
-                          "The eigensolver is still selected by PREFERRED_DIAG_LIBRARY.", &
+                          "When omitted, suitable one- or two-rank cuSOLVER problems use a direct solve unless the overlap "// &
+                          "decomposition is cached. An explicit F disables automatic direct cuSOLVER solves.", &
                           usage="DIRECT_GENERALIZED_DIAGONALIZATION", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -226,7 +227,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ELPA_NEIGVEC_MIN", &
-                          description="Minimum number of eigenvectors for the use of the eigensolver from "// &
+                          description="Minimum matrix order for the use of the eigensolver from "// &
                           "the ELPA library. The eigensolver from the ScaLAPACK library is used as fallback "// &
                           "for all smaller cases", &
                           usage="ELPA_NEIGVEC_MIN 32", &
@@ -262,11 +263,19 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DLAF_NEIGVEC_MIN", &
-                          description="Minimum number of eigenvectors for the use of the eigensolver from "// &
+                          description="Minimum matrix order for the use of the eigensolver from "// &
                           "the DLA-Future library. The eigensolver from the ScaLAPACK library is used as fallback "// &
                           "for all smaller cases", &
                           usage="DLAF_NEIGVEC_MIN 512", &
                           default_i_val=1024)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CUSOLVER_N_MIN", &
+                          description="Minimum matrix order for cuSOLVER diagonalization. Smaller problems use a CPU solver. "// &
+                          "Zero selects 512 for a one-rank solve and 2048 for a distributed solve. "// &
+                          "A positive value overrides either threshold.", &
+                          usage="CUSOLVER_N_MIN 512", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
