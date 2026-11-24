@@ -171,6 +171,8 @@ CONTAINS
       lb_min = MAX(0, lb_min_set - db_max)
 
       mmax = la_max + lb_max
+      ! Each first derivative raises A or B, never both in the same integral.
+      IF (calculate_force_a .AND. calculate_force_b) mmax = mmax - 1
 
       a_first = ncoset(la_min_set - 1) + 1
       a_last = ncoset(la_max_set)

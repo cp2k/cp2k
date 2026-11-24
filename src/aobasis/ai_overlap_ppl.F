@@ -134,7 +134,7 @@ CONTAINS
          CPASSERT(PRESENT(force_a))
          CPASSERT(PRESENT(force_b))
          CPASSERT(PRESENT(fs))
-         mmax = la_max_set + lb_max_set + 2
+         mmax = la_max_set + lb_max_set + 1
          force_a(:) = 0.0_dp
          force_b(:) = 0.0_dp
       ELSE IF (PRESENT(hab2)) THEN
