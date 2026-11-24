@@ -900,7 +900,7 @@ CONTAINS
       IF (.NOT. enforce_max_dt .AND. ABS(dt_file - dt_input) > 1.0e-12_dp*MAX(1.0_dp, ABS(dt_input))) THEN
          CALL cp_abort(__LOCATION__, &
                        "RT_RESTART: MOTION%MD%TIMESTEP differs from the original run; set it to "// &
-                       TRIM(ADJUSTL(cp_to_string(dt_file*femtoseconds, '(ES24.16)')))//" fs, or enable "// &
+                       TRIM(ADJUSTL(cp_to_string(dt_file*femtoseconds, '(ES20.12)')))//" fs, or enable "// &
                        "DFT%REAL_TIME_PROPAGATION%RTBSE%ENFORCE_MAX_DT to inherit it")
       END IF
       IF (MAXVAL(ABS(kick_dir_file - REAL(dft_control%rtp_control%delta_pulse_direction, dp))) > 1.0e-12_dp .OR. &
@@ -911,7 +911,7 @@ CONTAINS
                        TRIM(ADJUSTL(cp_to_string(NINT(kick_dir_file(1)))))//" "// &
                        TRIM(ADJUSTL(cp_to_string(NINT(kick_dir_file(2)))))//" "// &
                        TRIM(ADJUSTL(cp_to_string(NINT(kick_dir_file(3)))))//" and DELTA_PULSE_SCALE to "// &
-                       TRIM(ADJUSTL(cp_to_string(kick_scale_file, '(ES24.16)')))//", the stored values")
+                       TRIM(ADJUSTL(cp_to_string(kick_scale_file, '(ES20.12)')))//", the stored values")
       END IF
       ! with ENFORCE_MAX_DT, initialize_maximum_timestep keeps the window STEPS*TIMESTEP at the stored step
       n_steps = n_steps_input
