@@ -79,9 +79,9 @@ MODULE rt_bse_linearized
                                               propagate_density,&
                                               rho_metric
    USE rt_bse_io,                       ONLY: &
-        check_restart_eps_consistency, output_field, output_moments, output_mos_contravariant, &
-        output_restart_linearized, print_timestep_info, read_restart_C, read_restart_density, &
-        read_restart_info, read_restart_trace
+        check_restart_eps_consistency, check_restart_files_before_scf, output_field, &
+        output_moments, output_mos_contravariant, output_restart_linearized, print_timestep_info, &
+        read_restart_C, read_restart_density, read_restart_info, read_restart_trace
    USE rt_bse_ri_rs,                    ONLY: compute_hartree_ri_rs,&
                                               compute_hartree_ri_rs_complex,&
                                               compute_hartree_ri_rs_from_diag,&
@@ -117,6 +117,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'run_propagation_linearized_bse'
 
       INTEGER                                            :: handle, i, j
+      LOGICAL                                            :: restart_found
       REAL(kind=dp)                                      :: t_phys, t_start, timestep_walltime, &
                                                             timestep_walltime_start
       REAL(kind=dp), DIMENSION(2)                        :: enum_im, enum_re
@@ -127,6 +128,9 @@ CONTAINS
       ! Per-spin (alpha/beta) electron numbers; only 1:n_spin entries are used.
 
       CALL timeset(routineN, handle)
+
+      ! the restart files are checked against the input before the SCF and GW
+      CALL check_restart_files_before_scf(force_env, restart_found)
 
       CALL cp_warn(__LOCATION__, &
                    "Linearized RT-BSE is under active development. Make sure you understand "// &
@@ -144,17 +148,14 @@ CONTAINS
 
       ! Restart phase 1a: read sim_start + the original run's dt (from the trace header) BEFORE
       ! ENFORCE_MAX_DT, so the continuation inherits that dt instead of a window-dependent one.
-      IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
+      IF (restart_found) THEN
          CALL read_restart_info(rtbse_env)
       END IF
 
       CALL initialize_maximum_timestep(rtbse_env)
 
       ! Restart phase 1b: load the trace prefix now that ENFORCE_MAX_DT has sized the trace arrays.
-      IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
-         IF (rtbse_env%sim_start >= rtbse_env%sim_nsteps) THEN
-            CPABORT("RT_RESTART: restart step >= STEPS - increase MOTION%MD%STEPS")
-         END IF
+      IF (restart_found) THEN
          CALL read_restart_trace(rtbse_env)
       END IF
 
@@ -177,7 +178,7 @@ CONTAINS
 
       ! Restart phase 2: overwrite rho from the lab-frame restart files, bridge into this run's MO
       ! gauge, then enter this run's rotating frame (rotate_rho_phase is a no-op when omega_shift=0)
-      IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
+      IF (restart_found) THEN
          CALL read_restart_density(rtbse_env)
          IF (rtbse_env%restart_extracted) THEN
             CALL apply_restart_basis_bridge(rtbse_env)
@@ -413,7 +414,7 @@ CONTAINS
              rtbse_env%sim_dt_restart > 0.0_dp) THEN
             ! Continuation: dt is frozen in the trace, so inherit it and only rescale the step count
             ! to the requested window. Recomputing dt from the (longer) window would desync the trace
-            ! time-grid and trip the continuation guard in read_restart_trace.
+            ! time-grid.
             rtbse_env%sim_dt = rtbse_env%sim_dt_restart
             n_steps_new = MAX(1, NINT(total_time/rtbse_env%sim_dt))
             rtbse_env%sim_nsteps = n_steps_new
@@ -2514,7 +2515,6 @@ CONTAINS
                                                             j_mo, jj, n_flip, ncol_local, &
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: found
       REAL(kind=dp)                                      :: dev_ident, dev_offdiag, dev_ov, &
                                                             dev_unitary
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: u_diag
@@ -2530,15 +2530,7 @@ CONTAINS
       DO i = 1, rtbse_env%n_spin
          CALL cp_fm_create(C_old(i), rtbse_env%fm_struct_ao_mo_active)
       END DO
-      CALL read_restart_C(rtbse_env, C_old, found)
-      IF (.NOT. found) THEN
-         DO i = 1, rtbse_env%n_spin
-            CALL cp_fm_release(C_old(i))
-         END DO
-         DEALLOCATE (C_old)
-         CALL timestop(handle)
-         RETURN
-      END IF
+      CALL read_restart_C(rtbse_env, C_old)
 
       CALL cp_fm_create(SC_old, rtbse_env%fm_struct_ao_mo_active)
       ALLOCATE (u_diag(rtbse_env%mo_active))
