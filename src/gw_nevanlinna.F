@@ -21,7 +21,8 @@ MODULE gw_nevanlinna
    USE double_double,                   ONLY: &
         zdd, zdd_abs2, zdd_add, zdd_conjg, zdd_div, zdd_i, zdd_mul, zdd_one, zdd_sub, zdd_to_dp, &
         zdd_type, zdd_zero
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE mathlib,                         ONLY: diag_complex
 #include "./base/base_uses.f90"
 
@@ -37,8 +38,8 @@ MODULE gw_nevanlinna
                                                                   1.0E-4_dp, 1.0E-3_dp, 1.0E-2_dp]
    REAL(KIND=dp), PARAMETER :: tiny_schur = 1.0E-40_dp
 
-   PUBLIC :: gw_nevanlinna_env_type, nevanlinna_type, nevanlinna_create, nevanlinna_evaluate, &
-             nevanlinna_evaluate_real_grid, nevanlinna_release
+   PUBLIC :: gw_nevanlinna_env_type, gw_qp_summary_type, nevanlinna_type, nevanlinna_create, &
+             nevanlinna_evaluate, nevanlinna_evaluate_real_grid, nevanlinna_release
    PUBLIC :: nevanlinna_window_grid_type, nevanlinna_prepare_window_grid, nevanlinna_create_windows
 
 ! **************************************************************************************************
@@ -81,6 +82,16 @@ MODULE gw_nevanlinna
       TYPE(zdd_type), ALLOCATABLE, DIMENSION(:)          :: xis
       TYPE(zdd_type), ALLOCATABLE, DIMENSION(:, :)       :: factors
    END TYPE nevanlinna_window_grid_type
+
+! **************************************************************************************************
+!> \brief Nevanlinna diagnostics for one GW cycle. n_kpoints is the number of target k-points per spin.
+! **************************************************************************************************
+   TYPE gw_qp_summary_type
+      INTEGER                                            :: n_kpoints = 1
+      INTEGER(KIND=int_8)                                :: n_reliable = 0_int_8, n_unstable = 0_int_8, &
+                                                            n_multi = 0_int_8, n_pade = 0_int_8
+      REAL(KIND=dp)                                      :: start_time = 0.0_dp
+   END TYPE gw_qp_summary_type
 
 CONTAINS
 

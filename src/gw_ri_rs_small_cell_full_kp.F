@@ -10,16 +10,17 @@
 !> \author Jan Wilhelm (with help of ChatGPT, GPT-6 Sol and GPT-6 Astra)
 ! **************************************************************************************************
 MODULE gw_ri_rs_small_cell_full_kp
+   USE gw_nevanlinna,                   ONLY: gw_qp_summary_type
+   USE gw_ri_rs_small_cell_full_kp_q0_corr,ONLY: gamma_point_correction
    USE gw_ri_rs_small_cell_full_kp_types,ONLY: gwkp_type
    USE gw_ri_rs_small_cell_full_kp_utils,ONLY: compute_Sigma_x,&
                                               compute_W0,&
-                                              compute_g_and_chi,&
+                                              compute_chi,&
                                               compute_sigma_c_from_w_pq,&
                                               prepare_ri_rs,&
                                               release_gw_work
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
-                                              de_init_bs_env,&
-                                              gw_qp_summary_type
+                                              de_init_bs_env
    USE input_constants,                 ONLY: evGW0
    USE kinds,                           ONLY: dp
    USE physcon,                         ONLY: evolt
@@ -101,7 +102,7 @@ CONTAINS
 !>      evGW₀ updates the energies entering G while retaining Wᶜ from the first cycle.
 !>
 !> Γ-point corrections are included as ΔWᶜ_Γ and ΔV_Γ; their construction is not shown here:
-!> compute_G_and_chi prepares ΔWᶜ_Γ through gamma_point_correction.
+!> gamma_point_correction prepares ΔWᶜ_Γ.
 !> compute_Sigma_c_from_W_PQ adds it to Wᶜ before forming Σᶜ.
 !> compute_Sigma_x_from_V computes and applies ΔV_Γ via singular_head_cell_factors.
 !>
@@ -124,8 +125,9 @@ CONTAINS
       ! Sample AO/Bloch orbitals and fit the auxiliary functions: Eqs. (1)-(2).
       CALL prepare_ri_rs(bs_env, gwkp_env)
 
-      ! G^occ/vir_ll′(R,iτ), χ_ll′(R,iτ), and χ_PQ(q,iω): Eqs. (3)-(6).
-      CALL compute_G_and_chi(qs_env, bs_env, gwkp_env)
+      ! ΔWᶜ_Γ, then G^occ/vir_ll′(R,iτ), χ_ll′(R,iτ), and χ_PQ(q,iω): Eqs. (3)-(6).
+      CALL gamma_point_correction(bs_env, qs_env, gwkp_env)
+      CALL compute_chi(bs_env, gwkp_env)
 
       ! Screen the Coulomb interaction and transform Wᶜ to imaginary time: Eqs. (7)-(8).
       CALL compute_W0(qs_env, bs_env, gwkp_env)

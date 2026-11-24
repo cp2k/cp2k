@@ -14,6 +14,7 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_on_diag,&
+                                              cp_cfm_get_diag,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_transpose,&
                                               cp_cfm_uplo_to_full
@@ -25,6 +26,7 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
                                               cp_cfm_release,&
                                               cp_cfm_set_submatrix,&
                                               cp_cfm_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -42,7 +44,6 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
         grid_pair_stencil_weight, grid_pair_upper_multiply, image_weight, owned_mo_coefficients, &
         real_bytes, ri_2c_lattice_to_kp, ri_metric_head_zero
    USE gw_ri_rs_small_cell_full_kp_q0_corr,ONLY: add_gamma_corr_pairs,&
-                                              gamma_point_correction,&
                                               q_mesh_and_gamma_shell_average,&
                                               singular_head_cell_factors
    USE gw_ri_rs_small_cell_full_kp_types,ONLY: gwkp_type,&
@@ -65,9 +66,12 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
                                               m_walltime
    USE mathconstants,                   ONLY: fourpi,&
                                               gaussi,&
+                                              pi,&
                                               twopi,&
                                               z_one,&
                                               z_zero
+   USE mathlib,                         ONLY: det_3x3,&
+                                              inv_3x3
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_mem_avail_per_rank_GB,&
                                               mp_para_env_release,&
@@ -78,10 +82,10 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: qs_environment_type
    USE ri_rs_grid_setup,                ONLY: setup_ri_rs_grid
-   USE ri_rs_kp_fitting,                ONLY: compute_Z_lP_q,&
-                                              evaluate_mu_rl_R_values
-   USE ri_rs_kp_integrals,              ONLY: write_ri_rs_progress
-   USE ri_rs_utils,                     ONLY: precompute_ri_rs_radii
+   USE ri_rs_kp_compute_Z_lP,           ONLY: compute_Z_lP_q,&
+                                              evaluate_mu_rl_R
+   USE ri_rs_utils,                     ONLY: precompute_ri_rs_radii,&
+                                              write_ri_rs_progress
 
 !$ USE omp_lib, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -92,7 +96,8 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_small_cell_full_kp_utils'
 
    PUBLIC :: compute_Sigma_x, &
-             compute_g_and_chi, &
+             compute_chi, &
+             compute_exchange_energy_ri_rs, &
              compute_W0, &
              compute_sigma_c_from_w_pq, &
              prepare_ri_rs, &
@@ -100,6 +105,8 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
 
    ! Tolerance for a sum of fractional k-point coordinates to be a reciprocal lattice vector.
    REAL(KIND=dp), PARAMETER :: eps_kpoint = 1.0E-8_dp
+   ! Tolerance (bohr^-1) for |q + G| to be the Γ point.
+   REAL(KIND=dp), PARAMETER :: eps_q_gamma = 1.0E-8_dp
 
    ! Blocking limits and named slots in the six existing CP2K matrix workspaces.
    INTEGER, PARAMETER :: column_block_cols = 32
@@ -394,38 +401,11 @@ CONTAINS
    END SUBROUTINE prepare_ri_rs
 
 ! **************************************************************************************************
-!> \brief Form the grid Green functions and RI polarizability.
-!> \param qs_env Quickstep data required by existing integral/lifecycle interfaces.
-!> \param bs_env Band-structure settings and physical results.
-!> \param gwkp_env Temporary periodic GW work data.
-! **************************************************************************************************
-   SUBROUTINE compute_G_and_chi(qs_env, bs_env, gwkp_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(gwkp_type), INTENT(INOUT)                     :: gwkp_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_G_and_chi'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(.NOT. ASSOCIATED(gwkp_env%group_env))
-      gwkp_env%group_env => bs_env%para_env
-      CALL gwkp_env%group_env%retain()
-      gwkp_env%ngroups = 1
-      gwkp_env%my_group = 0
-
-      CALL gamma_point_correction(bs_env, qs_env, gwkp_env)
-      CPASSERT(.NOT. ALLOCATED(gwkp_env%band_orbitals))
-      CALL compute_chi(bs_env, gwkp_env)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE compute_G_and_chi
-
-! **************************************************************************************************
-!> \brief Compute ε, Wᶜ and its imaginary-time transform, Eqs. (7)-(8).
+!> \brief Compute ε, Wᶜ and its imaginary-time transform, Eqs. (7)-(8), and the RPA correlation
+!>        energy per unit cell from the same Cholesky factors of ε(q,iω):
+!>        E_c^RPA = 1/(2π N_k) Σ_q ∫_0^∞ dω Tr[ln ε(q,iω) - ε(q,iω) + I],
+!>        stored in gwkp_env%e_c_rpa. The minimax weights w_j integrate 4 ∫_0^∞ dω (normalization of get_rpa_minimax_coeff),
+!>        and ε(-q) = ε(q)* contributes the same trace as ε(q). Wᶜ is only computed for GW.
 !> \param qs_env Required by the existing two-centre integral interfaces.
 !> \param bs_env Band-structure settings and physical results.
 !> \param gwkp_env Periodic GW work data.
@@ -443,7 +423,8 @@ CONTAINS
                                                             n_RI, nkp, nkp_local, q_group, &
                                                             q_owner, q_root
       INTEGER, ALLOCATABLE                               :: group_load(:), q_batch(:, :), q_roots(:)
-      REAL(KIND=dp)                                      :: available_GB, required_bytes, step_start
+      REAL(KIND=dp)                                      :: available_GB, required_bytes, &
+                                                            rpa_integrand, step_start
       REAL(KIND=dp), ALLOCATABLE                         :: frequency_elapsed(:)
       TYPE(cp_blacs_env_type), POINTER                   :: w_blacs
       TYPE(cp_cfm_type)                                  :: w_matrices(n_w_matrices)
@@ -494,7 +475,8 @@ CONTAINS
          group_load(q_group) = group_load(q_group) + 1
          q_batch(group_load(q_group), q_group) = ikp
       END DO
-      ALLOCATE (gwkp_env%W_PQ_tau(nkp_local))
+      ! RPA needs only E_c^RPA from the Cholesky factor of ε, not W
+      IF (bs_env%do_gw) ALLOCATE (gwkp_env%W_PQ_tau(nkp_local))
       IF (nkp_local > 0 .OR. bs_env%para_env%mepos == q_roots(my_qgroup + 1)) THEN
          ALLOCATE (chi_k_w(n_RI, n_RI), MWM_k_w(n_RI, n_RI))
       ELSE
@@ -518,8 +500,8 @@ CONTAINS
             IF (bs_env%para_env%mepos == q_owner) THEN
                CALL grouped_w_copy_matrix(bs_env%para_env, n_RI, q_owner, q_root, &
                                           gwkp_env%metric_coulomb_factor(ikp_local)%values(:, :, 1), chi_k_w)
-               ALLOCATE (gwkp_env%W_PQ_tau(ikp_local)%values( &
-                         n_RI, n_RI, bs_env%num_time_freq_points), SOURCE=z_zero)
+               IF (bs_env%do_gw) ALLOCATE (gwkp_env%W_PQ_tau(ikp_local)%values( &
+                                           n_RI, n_RI, bs_env%num_time_freq_points), SOURCE=z_zero)
             ELSE
                CALL grouped_w_copy_matrix(bs_env%para_env, n_RI, q_owner, q_root, MWM_k_w, chi_k_w)
             END IF
@@ -551,37 +533,47 @@ CONTAINS
                END IF
                CALL grouped_w_copy_matrix(bs_env%para_env, n_RI, q_owner, q_roots(q_group + 1), MWM_k_w, chi_k_w)
             END DO
-            IF (q_batch(i_batch, my_qgroup) > 0) THEN
+            ikp = q_batch(i_batch, my_qgroup)
+            IF (ikp > 0) THEN
                CALL grouped_w_solve(w_matrices, w_group_env, n_RI, 0, chi_k_w, &
-                                    bs_env%eps_eigval_mat_RI, MWM_k_w)
+                                    bs_env%eps_eigval_mat_RI, MWM_k_w, rpa_integrand, bs_env%do_gw)
+               IF (w_group_env%mepos == 0) THEN
+                  gwkp_env%e_c_rpa = gwkp_env%e_c_rpa + MERGE(1.0_dp, 2.0_dp, gwkp_env%q_partner(ikp) == ikp)* &
+                                     bs_env%time_frequency_grid%frequency_weights(j_w)*rpa_integrand/ &
+                                     (8.0_dp*pi*REAL(nkp, dp))
+               END IF
             END IF
             DO q_group = 0, n_qgroups - 1
                ikp = q_batch(i_batch, q_group)
                IF (ikp == 0) CYCLE
                q_owner = MODULO(ikp, bs_env%para_env%num_pe)
                ikp_local = gwkp_env%q_slot(ikp)
-               CALL grouped_w_copy_matrix(bs_env%para_env, n_RI, q_roots(q_group + 1), q_owner, MWM_k_w, chi_k_w)
-               IF (bs_env%para_env%mepos == q_owner) THEN
-                  gwkp_env%W_PQ_tau(ikp_local)%values(:, :, j_w) = chi_k_w
-                  IF (j_w == bs_env%num_time_freq_points) DEALLOCATE (gwkp_env%chi_q_frequency(ikp_local)%values)
+               IF (bs_env%do_gw) THEN
+                  CALL grouped_w_copy_matrix(bs_env%para_env, n_RI, q_roots(q_group + 1), q_owner, MWM_k_w, chi_k_w)
+                  IF (bs_env%para_env%mepos == q_owner) gwkp_env%W_PQ_tau(ikp_local)%values(:, :, j_w) = chi_k_w
+               END IF
+               IF (bs_env%para_env%mepos == q_owner .AND. j_w == bs_env%num_time_freq_points) THEN
+                  DEALLOCATE (gwkp_env%chi_q_frequency(ikp_local)%values)
                END IF
             END DO
             frequency_elapsed(j_w) = frequency_elapsed(j_w) + m_walltime() - step_start
          END DO
          DO q_group = 0, n_qgroups - 1
             ikp = q_batch(i_batch, q_group)
-            IF (ikp == 0) CYCLE
+            IF (ikp == 0 .OR. .NOT. bs_env%do_gw) CYCLE
             IF (bs_env%para_env%mepos /= MODULO(ikp, bs_env%para_env%num_pe)) CYCLE
             CALL cosine_transform_ri_q(gwkp_env%W_PQ_tau(gwkp_env%q_slot(ikp)), &
                                        bs_env%time_frequency_grid%cosine_frequency_to_time)
          END DO
       END DO
+      CALL bs_env%para_env%sum(gwkp_env%e_c_rpa)
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ''
       DO j_w = 1, bs_env%num_time_freq_points
          CALL bs_env%para_env%max(frequency_elapsed(j_w))
          IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(T2,A,I3,A,I0,T56,A,T70,F10.1,A)') &
-               'GW W(iω) point ', j_w, ' / ', bs_env%num_time_freq_points, &
+               TRIM(MERGE('GW W(iω) point   ', 'RPA ε(iω) point ', bs_env%do_gw))//' ', j_w, ' / ', &
+               bs_env%num_time_freq_points, &
                'Exec. time:', frequency_elapsed(j_w), ' s'
             CALL m_flush(bs_env%unit_nr)
          END IF
@@ -870,7 +862,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(gwkp_env%ngroups == 1 .AND. gwkp_env%my_group == 0)
+      CPASSERT(.NOT. ASSOCIATED(gwkp_env%group_env))
+      gwkp_env%group_env => bs_env%para_env
+      CALL gwkp_env%group_env%retain()
       CALL build_full_cell_grid(bs_env, full_cells)
       n_grid = bs_env%ri_rs%n_grid_points
       n_pairs_total = INT(n_grid, int_8)*(n_grid + 1)/2
@@ -1332,6 +1326,164 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_Sigma_x_from_V
+
+! **************************************************************************************************
+!> \brief Exact exchange energy with RI-RS from the real-space grid pairs, the self-energy product
+!>        of compute_Sigma_x_from_V contracted with the occupied density matrix,
+!>        E^EXX = -s/2 Σ_σ Σ_R Σ_ll' V_ll'(R) D^σ_ll'(R)², s the spin degeneracy,
+!>        plus the q → 0 limit of the Coulomb singularity (exchange_energy_singular_correction),
+!>        which is missing in V(q = 0) (no G = 0 term).
+!> \param bs_env Band-structure settings, orbitals, and RI-RS work data.
+!> \param gwkp_env RI-RS coefficients and the metric-Coulomb factor of compute_W0
+!> \param e_exx exact exchange energy per unit cell
+! **************************************************************************************************
+   SUBROUTINE compute_exchange_energy_ri_rs(bs_env, gwkp_env, e_exx)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(gwkp_type), INTENT(INOUT), TARGET             :: gwkp_env
+      REAL(KIND=dp), INTENT(OUT)                         :: e_exx
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_exchange_energy_ri_rs'
+
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: D_k(:, :, :), V_q(:, :, :)
+      INTEGER                                            :: first_in_batch, first_pair, handle, &
+                                                            i_batch, i_cell, i_pair, il, ilp, &
+                                                            ispin, last_in_batch, n_grid, &
+                                                            n_pairs_local
+      INTEGER, ALLOCATABLE                               :: full_cells(:, :)
+      REAL(KIND=dp), ALLOCATABLE                         :: D_R(:, :, :), pair_weight(:), &
+                                                            V_R(:, :, :)
+      TYPE(gw_pair_fft_work_type)                        :: fft_stencil_work
+
+      CALL timeset(routineN, handle)
+
+      ! With 2 k-points along a_i the sum over R holds only R = 0 and the boundary cell R = -a_i.
+      IF (ANY(MOD(bs_env%nkp_grid_chi_eps_W_orig, 2) == 0 .AND. bs_env%nkp_grid_chi_eps_W_orig < 4)) THEN
+         CPABORT("RI_RS_RPA: E^EXX needs >= 4 k-points per direction on even meshes")
+      END IF
+
+      CALL collect_band_bloch_orbitals(bs_env, gwkp_env%band_orbitals)
+
+      n_grid = bs_env%ri_rs%n_grid_points
+      CALL block_range(INT(INT(n_grid, int_8)*(n_grid + 1)/2), bs_env%para_env%mepos, &
+                       bs_env%para_env%num_pe, first_pair, n_pairs_local)
+      CPASSERT(ALLOCATED(gwkp_env%metric_coulomb_factor))
+
+      ! V_ll'(q) = (ZK)(ZK)† as in compute_Sigma_x_from_V
+      CALL build_full_cell_grid(bs_env, full_cells)
+      CALL prepare_pair_fft(bs_env, full_cells, first_pair, n_pairs_local, bs_env%para_env%num_pe, &
+                            fft_stencil_work, .FALSE., q_partner=gwkp_env%q_partner)
+      ALLOCATE (V_q(n_pairs_local, 1, bs_env%nkp_scf_desymm), D_k(n_pairs_local, 1, bs_env%nkp_scf_desymm))
+      CALL project_auxiliary_q_to_fft_pairs(gwkp_env%Z_lP_q, gwkp_env%metric_coulomb_factor, 1, &
+                                            bs_env%para_env, fft_stencil_work, V_q, factor=.TRUE.)
+      DEALLOCATE (gwkp_env%metric_coulomb_factor)
+      ALLOCATE (V_R(n_pairs_local, 1, SIZE(full_cells, 2)), D_R(n_pairs_local, 1, SIZE(full_cells, 2)))
+      CALL k_to_grid_pairs(V_q, fft_stencil_work, values_R=V_R)
+      DEALLOCATE (V_q)
+
+      ! an unordered pair l < l' stands for (l,l') and (l',l)
+      ALLOCATE (pair_weight(n_pairs_local))
+      DO i_pair = 1, n_pairs_local
+         CALL grid_pair_indices(first_pair + i_pair - 1, il, ilp)
+         pair_weight(i_pair) = MERGE(1.0_dp, 2.0_dp, il == ilp)
+      END DO
+
+      e_exx = 0.0_dp
+      DO ispin = 1, bs_env%n_spin
+         CALL build_green_pairs(bs_env, gwkp_env%band_orbitals(:, :, :, ispin), bs_env%para_env, &
+                                0.0_dp, ispin, .TRUE., fft_stencil_work, D_k)
+         CALL k_to_grid_pairs(D_k, fft_stencil_work, values_R=D_R)
+         ! The cells R are centred at the lattice vector nearest to r_l - r_l'. On a k mesh without
+         ! the Gamma point (N k-points along a_i), V_ll'(R) changes sign from R to R + N a_i while
+         ! D_ll'(R)² does not: the stencil weight carries this sign and removes the cells at
+         ! distance N/2 from the centre, where the terms of R and -R cancel.
+         DO i_batch = 1, SIZE(fft_stencil_work%batches)
+            first_in_batch = (i_batch - 1)*fft_stencil_work%width + 1
+            last_in_batch = first_in_batch + SIZE(fft_stencil_work%batches(i_batch)%weight, 1) - 1
+            DO i_cell = 1, SIZE(full_cells, 2)
+               e_exx = e_exx - 0.5_dp*bs_env%spin_degeneracy/REAL(grid_pair_stencil_denominator, dp)* &
+                       SUM(pair_weight(first_in_batch:last_in_batch)* &
+                           REAL(fft_stencil_work%batches(i_batch)%weight(:, i_cell), dp)* &
+                           V_R(first_in_batch:last_in_batch, 1, i_cell)* &
+                           D_R(first_in_batch:last_in_batch, 1, i_cell)**2)
+            END DO
+         END DO
+      END DO
+      CALL bs_env%para_env%sum(e_exx)
+      CALL release_pair_fft(fft_stencil_work)
+
+      DEALLOCATE (full_cells, D_k, D_R, V_R, pair_weight)
+
+      IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(T2,A,T55,F26.10)') &
+         'RI-RS-RPA| E^EXX without q -> 0 correction:', e_exx
+      e_exx = e_exx + exchange_energy_singular_correction(bs_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_exchange_energy_ri_rs
+
+! **************************************************************************************************
+!> \brief q → 0 correction of the exchange energy for the Coulomb singularity with the periodic
+!>        auxiliary function F(q) = Σ_G exp(-α|q+G|²)/|q+G|² of Gygi and Baldereschi,
+!>        Phys. Rev. B 34, 4405 (1986). The exchange integrand is a/q² + O(q⁰) with the exact
+!>        a = -2π N_e/Ω (N_e electrons per cell, cell volume Ω). The q-mesh sum misses
+!>        a [⟨F⟩_BZ - 1/N_q Σ_{q≠0} F(q)] and, if q = 0 is on the mesh, a [α - Σ_{G≠0} F_G(0)]/N_q,
+!>        the finite limit of a F(q) - a/q² at q = 0. ⟨F⟩_BZ = 2π^{3/2}/(√α V_BZ).
+!>        Not included: the direction-dependent q⁰ term at q = 0 of Γ-centred (odd) meshes.
+!> \param bs_env Band-structure settings with cell and q mesh.
+!> \return correction to E^EXX per unit cell
+! **************************************************************************************************
+   FUNCTION exchange_energy_singular_correction(bs_env) RESULT(correction)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp)                                      :: correction
+
+      INTEGER                                            :: i, iq, j, k, n_max(3), n_q
+      LOGICAL                                            :: gamma_on_mesh
+      REAL(KIND=dp)                                      :: a_singular, alpha, bmat(3, 3), &
+                                                            cell_volume, mesh_sum, q(3), qg(3), qg2
+
+      IF (ANY(bs_env%periodic /= 1)) THEN
+         CPABORT("RI_RS_RPA exchange energy requires 3D periodicity")
+      END IF
+
+      n_q = PRODUCT(bs_env%nkp_grid_chi_eps_W_orig)
+      cell_volume = ABS(det_3x3(bs_env%hmat))
+      bmat = twopi*TRANSPOSE(inv_3x3(bs_env%hmat))
+      a_singular = -twopi*bs_env%spin_degeneracy*SUM(bs_env%n_occ(1:bs_env%n_spin))/cell_volume
+      alpha = 1.0_dp/MAXVAL(SUM(bmat**2, DIM=1))
+      ! exp(-α|q+G|²) < e^-40 beyond n_max
+      DO i = 1, 3
+         n_max(i) = CEILING(SQRT(40.0_dp/alpha)*NORM2(bs_env%hmat(:, i))/twopi) + 1
+      END DO
+
+      mesh_sum = 0.0_dp
+      gamma_on_mesh = .FALSE.
+      DO iq = 1, n_q
+         q = MATMUL(bmat, bs_env%kpoints_chi_eps_W%xkp(1:3, iq) - ANINT(bs_env%kpoints_chi_eps_W%xkp(1:3, iq)))
+         IF (NORM2(q) < eps_q_gamma) THEN
+            gamma_on_mesh = .TRUE.
+            mesh_sum = mesh_sum - alpha
+         END IF
+         DO k = -n_max(3), n_max(3)
+            DO j = -n_max(2), n_max(2)
+               DO i = -n_max(1), n_max(1)
+                  qg = q + i*bmat(:, 1) + j*bmat(:, 2) + k*bmat(:, 3)
+                  qg2 = SUM(qg**2)
+                  IF (qg2 < eps_q_gamma**2) CYCLE
+                  mesh_sum = mesh_sum + EXP(-alpha*qg2)/qg2
+               END DO
+            END DO
+         END DO
+      END DO
+
+      correction = a_singular*(2.0_dp*pi**1.5_dp/(SQRT(alpha)*twopi**3/cell_volume) - mesh_sum/REAL(n_q, dp))
+
+      IF (bs_env%unit_nr > 0) THEN
+         WRITE (bs_env%unit_nr, '(T2,A,T55,F26.10)') 'RI-RS-RPA| E^EXX correction of the 1/q^2 singularity:', correction
+         IF (gamma_on_mesh) WRITE (bs_env%unit_nr, '(T2,A)') &
+            'RI-RS-RPA| Gamma-centred q mesh: the q^0 term at q = 0 is missing (error ~ 1/N_k)'
+      END IF
+
+   END FUNCTION exchange_energy_singular_correction
 
 ! **************************************************************************************************
 !> \brief Form Σc with one owner per unordered (l,l') pair through both lattice FFTs.
@@ -1907,7 +2059,7 @@ CONTAINS
          DO first = 1, SIZE(bs_env%index_to_cell_3c, 2), image_width
             last = MIN(first + image_width - 1, SIZE(bs_env%index_to_cell_3c, 2))
             DO i_R = first, last
-               CALL evaluate_mu_rl_R_values(bs_env, bs_env%ri_rs%grid_points, i_R, phi_R(:, :, i_R - first + 1))
+               CALL evaluate_mu_rl_R(bs_env, bs_env%ri_rs%grid_points, i_R, phi_R(:, :, i_R - first + 1))
             END DO
             CALL cell_to_k_transform(phi_R(:, :, 1:last - first + 1), &
                                      bs_env%index_to_cell_3c(:, first:last), &
@@ -2084,7 +2236,7 @@ CONTAINS
       orbitals = z_zero
       DO i_R = 1, SIZE(bs_env%index_to_cell_3c, 2)
          IF (n_own == 0) EXIT
-         CALL evaluate_mu_rl_R_values(bs_env, bs_env%ri_rs%grid_points, i_R, phi_R)
+         CALL evaluate_mu_rl_R(bs_env, bs_env%ri_rs%grid_points, i_R, phi_R)
          !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
          !$OMP SHARED(bs_env, env, i_R, n_own, orbitals, phi_R) PRIVATE(i_kp, i_local)
          DO i_local = 1, n_own
@@ -3576,22 +3728,29 @@ CONTAINS
 !> \brief Evaluate screened W with a distributed positive-definite dielectric inverse.
 !> For ε=I+BᴴχB after the unchanged positive χ filter, Cholesky gives ε^-1.
 !> Reuse K=M^-1 V^1/2 to form W=K(ε^-1-I)Kᴴ.
+!> The Cholesky factor ε = UᴴU also gives the RPA integrand Tr[ln ε - ε + I] = Σ_P [2 ln U_PP - ε_PP + 1].
 !> \param matrices ...
 !> \param group_env ...
 !> \param n ...
 !> \param root ...
 !> \param chi_owner ...
 !> \param cutoff ...
-!> \param output_owner ...
+!> \param output_owner W on the root rank, only computed for GW
+!> \param rpa_integrand Tr[ln ε - ε + I] on all ranks of the group
+!> \param do_gw W is computed only for GW; RPA needs only the RPA integrand
 ! **************************************************************************************************
-   SUBROUTINE grouped_w_solve(matrices, group_env, n, root, chi_owner, cutoff, output_owner)
+   SUBROUTINE grouped_w_solve(matrices, group_env, n, root, chi_owner, cutoff, output_owner, rpa_integrand, &
+                              do_gw)
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrices(n_w_matrices)
       TYPE(mp_para_env_type), INTENT(INOUT)              :: group_env
       INTEGER, INTENT(IN)                                :: n, root
       COMPLEX(KIND=dp), INTENT(IN)                       :: chi_owner(:, :)
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: output_owner(:, :)
+      COMPLEX(KIND=dp), INTENT(INOUT)                    :: output_owner(:, :)
+      REAL(KIND=dp), INTENT(OUT)                         :: rpa_integrand
+      LOGICAL, INTENT(IN)                                :: do_gw
 
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: diag_eps(:), diag_U(:)
       INTEGER                                            :: info
 
       CPASSERT(root >= 0 .AND. root < group_env%num_pe)
@@ -3610,11 +3769,17 @@ CONTAINS
       CALL cp_cfm_transpose(matrices(w_dielectric), 'C', matrices(w_output))
       CALL cp_cfm_scale_and_add(CMPLX(0.5_dp, 0.0_dp, KIND=dp), matrices(w_dielectric), &
                                 CMPLX(0.5_dp, 0.0_dp, KIND=dp), matrices(w_output))
+      ALLOCATE (diag_eps(n), diag_U(n))
+      CALL cp_cfm_get_diag(matrices(w_dielectric), diag_eps)
       ! χ is positive semidefinite after filtering: ε=I+BᴴχB has λ_min>=1.
       CALL cp_cfm_cholesky_decompose(matrices(w_dielectric), info_out=info)
       IF (info /= 0) THEN
          CPABORT("Screened dielectric Cholesky factorization failed")
       END IF
+      CALL cp_cfm_get_diag(matrices(w_dielectric), diag_U)
+      rpa_integrand = SUM(2.0_dp*LOG(REAL(diag_U, dp)) - REAL(diag_eps, dp) + 1.0_dp)
+      DEALLOCATE (diag_eps, diag_U)
+      IF (.NOT. do_gw) RETURN
       CALL cp_cfm_cholesky_invert(matrices(w_dielectric), info_out=info)
       IF (info /= 0) CPABORT("Screened dielectric Cholesky inversion failed")
       CALL cp_cfm_uplo_to_full(matrices(w_dielectric), matrices(w_output), uplo='U')
@@ -3665,12 +3830,12 @@ CONTAINS
       gwkp_env => bs_env%gwkp_env
       CALL mp_para_env_release(gwkp_env%group_env)
       IF (ALLOCATED(gwkp_env%eigenvalues_G)) DEALLOCATE (gwkp_env%eigenvalues_G)
-      ! AO image pointers are released immediately after the Gamma contraction.
-      CPASSERT(.NOT. ASSOCIATED(gwkp_env%gamma_corr_d))
-      CPASSERT(.NOT. ASSOCIATED(gwkp_env%gamma_corr_h))
-      CPASSERT(.NOT. ASSOCIATED(gwkp_env%gamma_corr_s))
-      CPASSERT(.NOT. ASSOCIATED(gwkp_env%gamma_corr_index_to_cell))
-      CPASSERT(.NOT. ASSOCIATED(gwkp_env%gamma_corr_cell_to_index))
+      ! GW releases the AO images in the Gamma contraction of W; RPA never contracts them.
+      IF (ASSOCIATED(gwkp_env%gamma_corr_d)) CALL dbcsr_deallocate_matrix_set(gwkp_env%gamma_corr_d)
+      IF (ASSOCIATED(gwkp_env%gamma_corr_h)) CALL dbcsr_deallocate_matrix_set(gwkp_env%gamma_corr_h)
+      IF (ASSOCIATED(gwkp_env%gamma_corr_s)) CALL dbcsr_deallocate_matrix_set(gwkp_env%gamma_corr_s)
+      IF (ASSOCIATED(gwkp_env%gamma_corr_index_to_cell)) DEALLOCATE (gwkp_env%gamma_corr_index_to_cell)
+      IF (ASSOCIATED(gwkp_env%gamma_corr_cell_to_index)) DEALLOCATE (gwkp_env%gamma_corr_cell_to_index)
       DEALLOCATE (bs_env%gwkp_env)
       NULLIFY (gwkp_env)
 

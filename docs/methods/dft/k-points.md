@@ -54,23 +54,24 @@ to the documentation of the relevant feature for detailed requirements and limit
 [#4854](https://github.com/cp2k/cp2k/issues/4854) which tracks the current status of k-points
 support.
 
-| Feature                       | Compatibility and limitations                                           |
-| ----------------------------- | ----------------------------------------------------------------------- |
-| Standard diagonalization      | **Supported.**                                                          |
-| Orbital transformation (OT)   | **Supported.** See [](orbital_transformation.md).                       |
-| Atomic symmetry reduction     | **Experimental.** Validate against an equivalent unreduced calculation. |
-| WFN extrapolation             | **Supported.**                                                          |
-| Other diagonalization methods | **Unsupported.** No k-point path available.                             |
-| Hybrid functionals            | **Supported via [RI-HFXk](hartree-fock/ri_kpoints).**                   |
-| DFT+U                         | **Limited.** Mulliken populations only.                                 |
-| SCCS                          | **Not validated.** Use with caution.                                    |
-| Constrained DFT (CDFT)        | **Unsupported.** No k-point path available.                             |
-| TDDFPT                        | **Limited.** Independent-particle response only (`KERNEL NONE`).        |
-| XAS and RIXS                  | **Unsupported.** No k-point path available.                             |
-| Linear response / DFPT        | **Unsupported.** No k-point path available.                             |
-| GW                            | **Support with separate workflow.** Does not rely on `DFT%KPOINTS`.     |
-| Periodic electric field       | **Unsupported.** Requires OT first.                                     |
-| Active-space calculations     | **Unsupported.** Only `SCHEME NONE` and `SCHEME GAMMA` available.       |
+| Feature                       | Compatibility and limitations                                                                                            |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Standard diagonalization      | **Supported.**                                                                                                           |
+| Orbital transformation (OT)   | **Supported.** See [](orbital_transformation.md).                                                                        |
+| Atomic symmetry reduction     | **Experimental.** Validate against an equivalent unreduced calculation.                                                  |
+| WFN extrapolation             | **Supported.**                                                                                                           |
+| Other diagonalization methods | **Unsupported.** No k-point path available.                                                                              |
+| Hybrid functionals            | **Supported via [RI-HFXk](hartree-fock/ri_kpoints).**                                                                    |
+| DFT+U                         | **Limited.** Mulliken populations only.                                                                                  |
+| SCCS                          | **Not validated.** Use with caution.                                                                                     |
+| Constrained DFT (CDFT)        | **Unsupported.** No k-point path available.                                                                              |
+| TDDFPT                        | **Limited.** Independent-particle response only (`KERNEL NONE`).                                                         |
+| XAS and RIXS                  | **Unsupported.** No k-point path available.                                                                              |
+| Linear response / DFPT        | **Unsupported.** No k-point path available.                                                                              |
+| *GW* band structure           | **Supported via [RI-RS *GW*](../electronic_structure/band/gw.md#4-gw-band-structures-of-solids-with-k-point-sampling).** |
+| RPA correlation energy        | **Supported via [RI-RS RPA](../post_hartree_fock/rpa-kpoints.md).**                                                      |
+| Periodic electric field       | **Unsupported.** Requires OT first.                                                                                      |
+| Active-space calculations     | **Unsupported.** Only `SCHEME NONE` and `SCHEME GAMMA` available.                                                        |
 
 The reason why a specialized feature does not have support for k-point sampling is twofold: it is
 possible that code implementation in CP2K is not present, complete, or verified yet, but it is also

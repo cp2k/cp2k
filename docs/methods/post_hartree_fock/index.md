@@ -8,6 +8,7 @@ maxdepth: 2
 preliminaries
 mp2
 rpa
+sos-mp2
 low-scaling
 cc4s
 ```

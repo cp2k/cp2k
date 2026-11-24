@@ -41,6 +41,7 @@ MODULE ri_rs_types
 
       ! Input parameters for RI-RS
       INTEGER                                          :: grid_select = 1
+      INTEGER                                          :: d_lP_computation = 0
       REAL(KIND=dp)                                    :: tikhonov = 1.0E-08_dp
       REAL(KIND=dp)                                    :: cutoff_radius_ri_ao = -1.0_dp
       REAL(KIND=dp)                                    :: cutoff_radius_v_w = -1.0_dp

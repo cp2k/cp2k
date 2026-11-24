@@ -1,0 +1,18 @@
+# RI-RS RPA total energy with k-points: even mesh without and odd mesh with q = 0.
+# E^EXX on even meshes needs at least 4 k points per direction.
+"01_RIRS_RPA_PBE_periodic_H2.inp"              = [
+  {matcher = "E_RIRS_RPA_EXX", tol = 1e-5, ref = -0.8356601600},
+  {matcher = "E_RIRS_RPA_correlation", tol = 1e-5, ref = -0.0472808981},
+  {matcher = "M011", tol = 1e-5, ref = -0.940332242923778}
+]
+"02_RIRS_RPA_PBE_periodic_H2_odd_k.inp"        = [
+  {matcher = "E_RIRS_RPA_EXX", tol = 1e-5, ref = -0.8346877530},
+  {matcher = "E_RIRS_RPA_correlation", tol = 1e-5, ref = -0.0471349247},
+  {matcher = "M011", tol = 1e-5, ref = -0.939216432669544}
+]
+# All-electron GAPW with a tabulated RI-RS grid, analytic d_lP, and an AO set with l_min = 1.
+"03_RIRS_RPA_PBE_periodic_H2_all_electron.inp" = [
+  {matcher = "E_RIRS_RPA_EXX", tol = 1e-5, ref = -0.6503690208},
+  {matcher = "E_RIRS_RPA_correlation", tol = 1e-5, ref = -0.0662313417}
+]
+#EOF

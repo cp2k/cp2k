@@ -16,7 +16,9 @@ MODULE ri_rs_utils
                                               get_cell,&
                                               pbc,&
                                               pbc_stable
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
+   USE machine,                         ONLY: m_walltime
    USE orbital_pointers,                ONLY: indco,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
@@ -31,7 +33,7 @@ MODULE ri_rs_utils
 
    PUBLIC :: evaluate_ao_basis_on_points, evaluate_ao_on_points, &
              get_rirs_cluster_atoms, precompute_ri_rs_radii, &
-             filter_grid_to_voronoi
+             filter_grid_to_voronoi, get_local_l_range, write_ri_rs_progress
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_utils'
 
@@ -507,5 +509,85 @@ CONTAINS
       IF (nearest2 <= 0.0_dp) CPABORT("Automatic RI-RS cluster radius requires distinct atomic positions")
       radius = cluster_radius_per_nearest*SQRT(nearest2)
    END FUNCTION automatic_cluster_radius
+
+! **************************************************************************************************
+!> \brief Distribute individual l rows evenly across MPI ranks; empty ranges are valid.
+!> \param n_grid Number of RI-RS grid points.
+!> \param n_ranks Number of MPI ranks.
+!> \param i_rank MPI rank.
+!> \param first_l First locally owned grid row.
+!> \param last_l Last locally owned grid row.
+! **************************************************************************************************
+   SUBROUTINE get_local_l_range(n_grid, n_ranks, i_rank, first_l, last_l)
+      INTEGER, INTENT(IN)                                :: n_grid, n_ranks, i_rank
+      INTEGER, INTENT(OUT)                               :: first_l, last_l
+
+      CPASSERT(i_rank >= 0 .AND. i_rank < n_ranks)
+      first_l = INT(INT(n_grid, int_8)*INT(i_rank, int_8)/INT(n_ranks, int_8)) + 1
+      last_l = INT(INT(n_grid, int_8)*INT(i_rank + 1, int_8)/INT(n_ranks, int_8))
+
+   END SUBROUTINE get_local_l_range
+
+! **************************************************************************************************
+!> \brief Print one rank-local RI-RS work milestone without synchronizing MPI ranks.
+!> Percentages count completed local units; time is the elapsed wall time since the phase began.
+!> \param unit_nr ...
+!> \param phase ...
+!> \param n_done ...
+!> \param n_total ...
+!> \param next_progress ...
+!> \param phase_start ...
+! **************************************************************************************************
+   SUBROUTINE write_ri_rs_progress(unit_nr, phase, n_done, n_total, next_progress, phase_start)
+      INTEGER, INTENT(IN)                                :: unit_nr
+      CHARACTER(LEN=*), INTENT(IN)                       :: phase
+      INTEGER(KIND=int_8), INTENT(IN)                    :: n_done, n_total
+      INTEGER, INTENT(INOUT)                             :: next_progress
+      REAL(KIND=dp), INTENT(IN)                          :: phase_start
+
+      REAL(KIND=dp), PARAMETER :: milestones(9) = [0.1_dp, 0.3_dp, 1.0_dp, 3.0_dp, 10.0_dp, 30.0_dp&
+         , 60.0_dp, 90.0_dp, 100.0_dp]
+
+      CHARACTER(LEN=100)                                 :: progress_line
+      CHARACTER(LEN=20)                                  :: count_text
+      CHARACTER(LEN=40)                                  :: phase_text
+      CHARACTER(LEN=64)                                  :: progress_format
+      CHARACTER(LEN=8)                                   :: time_text
+      INTEGER                                            :: count_width, i, n_extra_bytes, &
+                                                            previous_progress
+      REAL(KIND=dp)                                      :: percent_done, phase_time
+
+      IF (unit_nr <= 0 .OR. n_total <= 0) RETURN
+      percent_done = 100.0_dp*REAL(n_done, dp)/REAL(n_total, dp)
+      previous_progress = next_progress
+      DO WHILE (next_progress <= SIZE(milestones))
+         IF (percent_done < milestones(next_progress)) EXIT
+         next_progress = next_progress + 1
+      END DO
+      IF (next_progress == previous_progress) RETURN
+      ! UTF-8 characters such as χ, Σ and τ take more bytes than screen columns.
+      n_extra_bytes = COUNT([(IACHAR(phase(i:i)) >= 128 .AND. IACHAR(phase(i:i)) < 192, i=1, LEN(phase))])
+      CPASSERT(LEN_TRIM(phase) - n_extra_bytes <= 32)
+      WRITE (count_text, '(I0)') n_total
+      count_width = LEN_TRIM(count_text)
+      WRITE (progress_format, '(A,I0,A,I0,A,I0,A)') &
+         '(A', 32 + n_extra_bytes, ',1X,I', count_width, ',A,I', count_width, ',1X,F5.1,A)'
+      phase_text = phase
+      WRITE (progress_line, progress_format) &
+         phase_text, n_done, ' / ', n_total, percent_done, ' %'
+      phase_time = m_walltime() - phase_start
+      WRITE (time_text, '(F8.1)') phase_time
+      IF (INDEX(time_text, '*') > 0) WRITE (time_text, '(ES8.1E3)') phase_time
+      IF (LEN_TRIM(progress_line) - n_extra_bytes > 56) THEN
+         WRITE (unit_nr, '(T2,A)') TRIM(phase)
+         WRITE (unit_nr, '(T2,A)') TRIM(ADJUSTL(progress_line(34 + n_extra_bytes:)))
+         progress_line = ''
+         n_extra_bytes = 0
+      END IF
+      WRITE (progress_format, '(A,I0,A,I0,A)') '(T2,A,T', 60 + n_extra_bytes, ',A,T', 71 + n_extra_bytes, ',A,A)'
+      WRITE (unit_nr, progress_format) TRIM(progress_line), 'Total time:', time_text, ' s'
+      FLUSH (unit_nr)
+
+   END SUBROUTINE write_ri_rs_progress
 
 END MODULE ri_rs_utils

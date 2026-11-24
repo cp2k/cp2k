@@ -67,7 +67,8 @@ MODULE gw_utils
    USE gw_auto_ri_generate_RI_basis,    ONLY: generate_auto_ri_basis
    USE gw_auto_ri_types,                ONLY: auto_ri_type
    USE gw_compute_V_and_W,              ONLY: get_V_tr_R
-   USE gw_nevanlinna,                   ONLY: nevanlinna_create_windows,&
+   USE gw_nevanlinna,                   ONLY: gw_qp_summary_type,&
+                                              nevanlinna_create_windows,&
                                               nevanlinna_prepare_window_grid,&
                                               nevanlinna_type,&
                                               nevanlinna_window_grid_type
@@ -159,19 +160,9 @@ MODULE gw_utils
              add_R, &
              is_cell_in_index_to_cell, &
              rtbse_resolve_rirs_flag, &
-             G_occ_vir, &
-             gw_qp_summary_type
+             G_occ_vir
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils'
-
-!> \brief Nevanlinna diagnostics for one GW cycle. n_kpoints is the number of target k-points per spin.
-   TYPE gw_qp_summary_type
-      PRIVATE
-      INTEGER, PUBLIC                                    :: n_kpoints = 1
-      INTEGER(KIND=int_8)                               :: n_reliable = 0_int_8, n_unstable = 0_int_8, &
-                                                           n_multi = 0_int_8, n_pade = 0_int_8
-      REAL(KIND=dp)                                      :: start_time = 0.0_dp
-   END TYPE gw_qp_summary_type
 
 CONTAINS
 
@@ -180,11 +171,14 @@ CONTAINS
 !> \param qs_env ...
 !> \param bs_env Band-structure environment containing GW parameters.
 !> \param bs_sec BAND_STRUCTURE input section
+!> \param rpa_sec WF_CORRELATION%RI_RS_RPA section; when present, it holds the χ/ε keywords and
+!>        qs_env stays complete for the following SCF steps
 ! **************************************************************************************************
-   SUBROUTINE create_and_init_bs_env_for_gw(qs_env, bs_env, bs_sec)
+   SUBROUTINE create_and_init_bs_env_for_gw(qs_env, bs_env, bs_sec, rpa_sec)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(section_vals_type), POINTER                   :: bs_sec
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: rpa_sec
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_and_init_bs_env_for_gw'
 
@@ -196,7 +190,7 @@ CONTAINS
 
       CALL get_parameters_from_qs_env(qs_env, bs_env)
 
-      CALL read_gw_input_parameters(bs_env, bs_sec)
+      CALL read_gw_input_parameters(bs_env, bs_sec, rpa_sec)
 
       CALL print_header_and_input_parameters(bs_env)
 
@@ -267,7 +261,7 @@ CONTAINS
       ! Recommendation in case of memory issues: first perform GW calculation without calculating
       !                                          LDOS (to save memory). Then, use GW restart files
       !                                          in a subsequent calculation to calculate the LDOS
-      IF (.NOT. bs_env%do_ldos .AND. &
+      IF (.NOT. bs_env%do_ldos .AND. .NOT. PRESENT(rpa_sec) .AND. &
           bs_env%rtp_method /= rtp_method_bse .AND. &
           bs_env%rtp_method /= rtp_method_bse_linearized) THEN
          CALL qs_env_part_release(qs_env)
@@ -300,34 +294,40 @@ CONTAINS
 !> \brief Reads the GW input parameters.
 !> \param bs_env ...
 !> \param bs_sec BAND_STRUCTURE input section
+!> \param rpa_sec WF_CORRELATION%RI_RS_RPA section; when present, its χ/ε keywords are read
+!>        instead of those of BANDSTRUCTURE%GW
 ! **************************************************************************************************
-   SUBROUTINE read_gw_input_parameters(bs_env, bs_sec)
+   SUBROUTINE read_gw_input_parameters(bs_env, bs_sec, rpa_sec)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(section_vals_type), POINTER                   :: bs_sec
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: rpa_sec
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_gw_input_parameters'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: do_evgw0
-      TYPE(section_vals_type), POINTER                   :: auto_ri_sec, cohsex_sec, evgw0_sec, &
-                                                            grid_opt_sec, gw_sec, ri_rs_sec
+      TYPE(section_vals_type), POINTER                   :: auto_ri_sec, chi_sec, cohsex_sec, &
+                                                            evgw0_sec, grid_opt_sec, gw_sec, &
+                                                            ri_rs_sec
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (auto_ri_sec, cohsex_sec, evgw0_sec, grid_opt_sec, gw_sec, ri_rs_sec)
+      NULLIFY (auto_ri_sec, chi_sec, cohsex_sec, evgw0_sec, grid_opt_sec, gw_sec, ri_rs_sec)
       gw_sec => section_vals_get_subs_vals(bs_sec, "GW")
-      auto_ri_sec => section_vals_get_subs_vals(gw_sec, "AUTO_RI")
+      chi_sec => gw_sec
+      IF (PRESENT(rpa_sec)) chi_sec => rpa_sec
+      auto_ri_sec => section_vals_get_subs_vals(chi_sec, "AUTO_RI")
       cohsex_sec => section_vals_get_subs_vals(gw_sec, "COHSEX")
       evgw0_sec => section_vals_get_subs_vals(gw_sec, "EVGW0")
-      ri_rs_sec => section_vals_get_subs_vals(gw_sec, "RI_RS")
+      ri_rs_sec => section_vals_get_subs_vals(chi_sec, "RI_RS")
       grid_opt_sec => section_vals_get_subs_vals(ri_rs_sec, "GRID_OPTIMIZATION")
 
-      CALL section_vals_val_get(gw_sec, "NUM_TIME_FREQ_POINTS", i_val=bs_env%num_time_freq_points)
-      CALL section_vals_val_get(gw_sec, "EPS_FILTER", r_val=bs_env%eps_filter)
-      CALL section_vals_val_get(gw_sec, "REGULARIZATION_RI", r_val=bs_env%input_regularization_RI)
-      CALL section_vals_val_get(gw_sec, "REGULARIZATION_MINIMAX", r_val=bs_env%input_regularization_minimax)
-      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RI", r_val=bs_env%ri_metric%cutoff_radius)
-      CALL section_vals_val_get(gw_sec, "RI_CUTOFF_ATTENUATION", r_val=bs_env%ri_metric%omega)
+      CALL section_vals_val_get(chi_sec, "NUM_TIME_FREQ_POINTS", i_val=bs_env%num_time_freq_points)
+      CALL section_vals_val_get(chi_sec, "EPS_FILTER", r_val=bs_env%eps_filter)
+      CALL section_vals_val_get(chi_sec, "REGULARIZATION_RI", r_val=bs_env%input_regularization_RI)
+      CALL section_vals_val_get(chi_sec, "REGULARIZATION_MINIMAX", r_val=bs_env%input_regularization_minimax)
+      CALL section_vals_val_get(chi_sec, "CUTOFF_RADIUS_RI", r_val=bs_env%ri_metric%cutoff_radius)
+      CALL section_vals_val_get(chi_sec, "RI_CUTOFF_ATTENUATION", r_val=bs_env%ri_metric%omega)
       CALL section_vals_val_get(gw_sec, "MEMORY_PER_PROC", r_val=bs_env%input_memory_per_proc_GB)
       CALL section_vals_val_get(gw_sec, "APPROX_KP_EXTRAPOL", l_val=bs_env%approx_kp_extrapol)
       CALL section_vals_val_get(gw_sec, "SIZE_LATTICE_SUM", i_val=bs_env%size_lattice_sum_V)
@@ -348,7 +348,7 @@ CONTAINS
       CALL read_rirs_grid_opt(bs_env%ri_rs, grid_opt_sec)
       CALL read_evgw0_input(bs_env, evgw0_sec, do_evgw0)
       CALL read_auto_ri_input(bs_env%auto_ri, auto_ri_sec)
-      CALL check_gw_input(bs_env, do_evgw0)
+      CALL check_gw_input(bs_env, do_evgw0, rpa_sec)
 
       CALL timestop(handle)
 
@@ -371,6 +371,7 @@ CONTAINS
 
       CALL section_vals_val_get(ri_rs_sec, "TIKHONOV", r_val=ri_rs%tikhonov)
       CALL section_vals_val_get(ri_rs_sec, "GRID_SELECT", i_val=ri_rs%grid_select)
+      CALL section_vals_val_get(ri_rs_sec, "D_LP_COMPUTATION", i_val=ri_rs%d_lP_computation)
       CALL section_vals_val_get(ri_rs_sec, "CUTOFF_RADIUS_RL_AO", r_val=ri_rs%cutoff_radius_ri_ao)
       CALL section_vals_val_get(ri_rs_sec, "CUTOFF_RADIUS_RL_W", r_val=ri_rs%cutoff_radius_v_w)
 
@@ -468,14 +469,17 @@ CONTAINS
 !> \brief Checks compatibility among the GW input sections and assigns the GW flavour.
 !> \param bs_env ...
 !> \param do_evgw0 whether eigenvalue self-consistency is requested
+!> \param rpa_sec WF_CORRELATION%RI_RS_RPA section, present for RI-RS RPA
 ! **************************************************************************************************
-   SUBROUTINE check_gw_input(bs_env, do_evgw0)
+   SUBROUTINE check_gw_input(bs_env, do_evgw0, rpa_sec)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       LOGICAL, INTENT(IN)                                :: do_evgw0
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: rpa_sec
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_gw_input'
 
       INTEGER                                            :: handle
+      LOGICAL                                            :: explicit
 
       CALL timeset(routineN, handle)
 
@@ -492,10 +496,7 @@ CONTAINS
       END IF
       IF (bs_env%do_gw_ri_rs) THEN
          IF (bs_env%gw_implementation == ri_rs_small_cell_full_kp) THEN
-            IF (.NOT. bs_env%ri_rs%grid_opt%enabled) THEN
-               CPABORT("Full-k RI-RS GW requires RI_RS%GRID_OPTIMIZATION")
-            END IF
-            IF (bs_env%size_lattice_sum_V < 1) THEN
+            IF (bs_env%do_gw .AND. bs_env%size_lattice_sum_V < 1) THEN
                CPABORT("GW%SIZE_LATTICE_SUM must be positive")
             END IF
          END IF
@@ -528,6 +529,20 @@ CONTAINS
          IF (.NOT. (bs_env%auto_ri%ri_ao_ratio > 0.0_dp)) CPABORT("AUTO_RI%RI_AO_RATIO must be positive")
          IF (.NOT. (bs_env%auto_ri%occ_energy_window >= 0.0_dp)) THEN
             CPABORT("AUTO_RI%OCC_EMPTY_FRONTIER_ORBITAL_WINDOW must be nonnegative")
+         END IF
+      END IF
+
+      ! Keywords of the sections shared with GW that RI-RS RPA does not use
+      IF (PRESENT(rpa_sec)) THEN
+         CALL section_vals_val_get(rpa_sec, "CUTOFF_RADIUS_RI", explicit=explicit)
+         IF (explicit) CALL cp_abort(__LOCATION__, "RI_RS_RPA: CUTOFF_RADIUS_RI is not used, "// &
+                                     "the RI metric is set by RI_CUTOFF_ATTENUATION")
+         CALL section_vals_val_get(rpa_sec, "AUTO_RI%OCC_EMPTY_FRONTIER_ORBITAL_WINDOW", explicit=explicit)
+         IF (explicit) CALL cp_abort(__LOCATION__, "RI_RS_RPA: AUTO_RI%OCC_EMPTY_FRONTIER_ORBITAL_WINDOW "// &
+                                     "is a GW keyword and cannot be set")
+         IF (bs_env%ri_rs%cutoff_radius_v_w > 0.0_dp) THEN
+            CALL cp_abort(__LOCATION__, "RI_RS_RPA: RI_RS%CUTOFF_RADIUS_RL_W is a GW keyword "// &
+                          "and must stay -1")
          END IF
       END IF
 
@@ -1104,11 +1119,15 @@ CONTAINS
 
       periodic(1:3) = bs_env%periodic(1:3)
 
-      CPASSERT(SIZE(bs_env%nkp_grid_chi_eps_W_input) == 3)
+      IF (bs_env%gw_implementation == ri_rs_small_cell_full_kp) THEN
 
-      IF (bs_env%nkp_grid_chi_eps_W_input(1) > 0 .AND. &
-          bs_env%nkp_grid_chi_eps_W_input(2) > 0 .AND. &
-          bs_env%nkp_grid_chi_eps_W_input(3) > 0) THEN
+         ! periodic RI-RS evaluates χ, ε and W on the SCF mesh
+         nkp_grid(1:3) = bs_env%kpoints_scf_desymm%nkp_grid(1:3)
+         nkp_grid_extra(1:3) = 1
+
+      ELSE IF (bs_env%nkp_grid_chi_eps_W_input(1) > 0 .AND. &
+               bs_env%nkp_grid_chi_eps_W_input(2) > 0 .AND. &
+               bs_env%nkp_grid_chi_eps_W_input(3) > 0) THEN
 
          ! 1. k-point mesh for χ, ε, W from input
 
@@ -1144,9 +1163,6 @@ CONTAINS
                CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_static_cohsex)
                   nkp_grid(i_dim) = 4
                   nkp_grid_extra(i_dim) = 6
-               CASE (ri_rs_small_cell_full_kp)
-                  nkp_grid(i_dim) = bs_env%kpoints_scf_desymm%nkp_grid(i_dim)
-                  nkp_grid_extra(i_dim) = 1
                CASE (tensor_small_cell_full_kp)
                   nkp_grid(i_dim) = bs_env%kpoints_scf_desymm%nkp_grid(i_dim)*4
                   nkp_grid_extra(i_dim) = bs_env%kpoints_scf_desymm%nkp_grid(i_dim)*8
@@ -1166,7 +1182,6 @@ CONTAINS
       nkp_orig = MAX(PRODUCT(nkp_grid)/2, 1)
       nkp_extra = PRODUCT(nkp_grid_extra)/2
       IF (bs_env%gw_implementation == ri_rs_small_cell_full_kp) THEN
-         CPASSERT(ALL(nkp_grid == bs_env%kpoints_scf_desymm%nkp_grid))
          nkp_orig = PRODUCT(nkp_grid)
          nkp_extra = 0
          CPASSERT(nkp_orig == bs_env%nkp_scf_desymm)

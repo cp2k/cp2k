@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT periodic-h2-k2
+  PROJECT periodic-h2-auto-ri-k2
   RUN_TYPE ENERGY
 &END GLOBAL
 
@@ -60,7 +60,11 @@
         EPS_FILTER 1.0E-10
         FREQ_MAX_FIT 27.211
         NUM_TIME_FREQ_POINTS 32
+        &AUTO_RI
+          RI_AO_RATIO 3
+        &END AUTO_RI
         &RI_RS
+          D_LP_COMPUTATION NUMERIC
           TIKHONOV 1.0E-8
           &GRID_OPTIMIZATION
             CUTOFF_ATOMIC_CLUSTER [angstrom] 2.5

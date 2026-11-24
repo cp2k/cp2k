@@ -81,7 +81,8 @@ MODULE hfx_exx
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_exx'
 
-   PUBLIC :: calculate_exx, add_exx_to_rhs, calc_exx_admm_xc_contributions, exx_pre_hfx, exx_post_hfx
+   PUBLIC :: calculate_exx, add_exx_to_rhs, calc_exx_admm_xc_contributions, exx_pre_hfx, exx_post_hfx, &
+             remove_exc_energy
 
 CONTAINS
 

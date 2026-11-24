@@ -19,8 +19,9 @@ MODULE ri_rs_kp_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_kp_types'
 
-   PUBLIC :: ao_image_type, block_class_cache_type, l_block_partition_type, &
-             radial_interpolation_type, uniform_settings_type
+   PUBLIC :: analytic_pair_type, ao_image_type, block_class_cache_type, l_block_partition_type, &
+             radial_interpolation_type, space_group_type, &
+             uniform_settings_type
 
    TYPE uniform_settings_type
       REAL(dp)                          :: accuracy = 0.0_dp, &
@@ -61,6 +62,29 @@ MODULE ri_rs_kp_types
       REAL(dp), ALLOCATABLE             :: envelope_exponents(:), &
                                            radial_envelope(:, :)
    END TYPE ao_image_type
+
+   ! Unique AO pair (a 0, b S') of the analytic d_lP: segments, i.e. image cells R with points r_l
+   ! shared by the images (a, R) and (b, R+S'), their rows, screening data
+   ! (bounding spheres, largest AO values, bound weights, primitive-pair envelopes) and the
+   ! candidate integral blocks (c, T') of this rank, block_list(1:4, i) = (c, T').
+   TYPE analytic_pair_type
+      INTEGER                           :: atom_a = 0, atom_b = 0, cell(3) = 0, &
+                                           n_a = 0, n_b = 0, n_seg = 0, n_block = 0
+      REAL(dp)                          :: fac = 0.0_dp
+      INTEGER, ALLOCATABLE              :: block_list(:, :), seg_cell(:, :), seg_image(:, :)
+      REAL(dp), ALLOCATABLE             :: amax_a(:, :), amax_b(:, :), pair_envelope(:, :), seg_amax(:), &
+                                           seg_center(:, :), seg_radius(:), seg_weight(:)
+   END TYPE analytic_pair_type
+
+   ! Space group of the crystal for the analytic d_lP. Operation g maps atom a to atom
+   ! atom_map(a, g) in cell atom_cell(:, a, g), lattice vectors with the integer matrix
+   ! frac_rot(:, :, g) and the real solid harmonics of angular momentum l with sph_rot(:, :, l, g).
+   ! A block (a 0, b S'|c T') is coded as one integer; cell components lie in [-cell_range, cell_range].
+   TYPE space_group_type
+      INTEGER                           :: n_op = 0, n_atom = 0, cell_range = 0, identity = 0
+      INTEGER, ALLOCATABLE              :: atom_map(:, :), atom_cell(:, :, :), frac_rot(:, :, :)
+      REAL(dp), ALLOCATABLE             :: sph_rot(:, :, :, :)
+   END TYPE space_group_type
 
    ! Per-atom interpolation tables for the erfc kernel.
    TYPE radial_interpolation_type
