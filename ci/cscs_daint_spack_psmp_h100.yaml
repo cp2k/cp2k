@@ -32,12 +32,14 @@ build deps daint:
       "BASE_IMAGE",
       "CP2K_VERSION",
       "FEATURE_FLAGS",
+      "NUM_PACKAGES",
       "NUM_PROCS"
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     CP2K_VERSION: ${VERSION}
-    FEATURE_FLAGS: "-gpu GH200 -np 2"
+    FEATURE_FLAGS: "-gpu GH200"
+    NUM_PACKAGES: 2
     NUM_PROCS: 32
     KUBERNETES_CPU_REQUEST: 32
     KUBERNETES_CPU_LIMIT: 32

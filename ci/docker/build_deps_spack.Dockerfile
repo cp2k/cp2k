@@ -46,6 +46,9 @@ ENV LD_LIBRARY_PATH="${CUDA_HOME}/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 # Number of parallel build jobs (override with --build-arg NUM_PROCS=...)
 ARG NUM_PROCS="32"
 
+# Number of packages built by spack in parallel (override with --build-arg NUM_PACKAGES=...)
+ARG NUM_PACKAGES="2"
+
 ARG CP2K_VERSION="psmp"
 ENV CP2K_VERSION="${CP2K_VERSION}"
 
@@ -59,4 +62,4 @@ COPY ./tools/make_cp2k ./tools/make_cp2k
 COPY ./tools/docker ./tools/docker
 COPY ./tools/spack ./tools/spack
 
-RUN ./make_cp2k.sh -bd_only -cray -cv ${CP2K_VERSION} -j${NUM_PROCS} -uc no -ue ${FEATURE_FLAGS}
+RUN ./make_cp2k.sh -bd_only -cray -cv ${CP2K_VERSION} -j${NUM_PROCS} -np ${NUM_PACKAGES} -uc no -ue ${FEATURE_FLAGS}

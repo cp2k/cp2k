@@ -960,7 +960,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                         If the variable OMP_NUM_THREADS is set and the -j flag is not supplied, then"
   echo "                         the maximum number of processes is defined by OMP_NUM_THREADS"
   echo " --mpi_mode            : Set preferred MPI mode (default: \"mpich\")"
-  echo " --num_packages        : Maximum number of packages built by spack in parallel (default: 4)"
+  echo " --num_packages        : Maximum number of packages built by spack in parallel (default: 2)"
   echo " -opencl               : Enable the use of the Open Computing Language (OpenCL)"
   echo " --print_config        : Print the resolved configuration (options.conf) as KEY=value lines to stdout"
   echo "                         and quit without building anything (all other output goes to stderr)"

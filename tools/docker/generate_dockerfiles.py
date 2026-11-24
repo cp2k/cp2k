@@ -901,6 +901,10 @@ ENV IMAGE_TAG="${{IMAGE_TAG}}"
 ARG NUM_PROCS=""
 ENV NUM_PROCS="${{NUM_PROCS}}"
 
+# Set number of packages built by spack in parallel
+ARG NUM_PACKAGES="2"
+ENV NUM_PACKAGES="${{NUM_PACKAGES}}"
+
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://host.containers.internal:9000"
 ENV SPACK_CACHE="${{SPACK_CACHE}}"
 
@@ -910,7 +914,7 @@ COPY ./tools/spack ./tools/spack
 COPY ./tools/docker ./tools/docker
 COPY ./make_cp2k.sh .
 COPY ./tools/make_cp2k ./tools/make_cp2k
-RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} {gcc_version_flag} -j${{NUM_PROCS}} -mpi {mpi_mode} {use_externals} {feature_flags}
+RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} {gcc_version_flag} -j${{NUM_PROCS}} -mpi {mpi_mode} -np ${{NUM_PACKAGES}} {use_externals} {feature_flags}
 
 ###### Stage 2: Build CP2K ######
 
