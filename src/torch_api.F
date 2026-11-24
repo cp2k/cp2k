@@ -868,15 +868,8 @@ CONTAINS
       TYPE(torch_tensor_type), INTENT(IN)                :: tensor1, tensor2, tensor3
       TYPE(torch_tensor_type), INTENT(INOUT)             :: grad1, grad2, grad3
 
-      TYPE(torch_tensor_type), DIMENSION(3)              :: grads, tensors
-
-      tensors(1) = tensor1
-      tensors(2) = tensor2
-      tensors(3) = tensor3
-      CALL torch_tensor_grad_batch(tensors, grads)
-      grad1 = grads(1)
-      grad2 = grads(2)
-      grad3 = grads(3)
+      CALL torch_tensor_grad_batch3_impl(tensor1, tensor2, tensor3, grad1, grad2, grad3, &
+                                         deferred=.FALSE.)
 
    END SUBROUTINE torch_tensor_grad_batch3
 
@@ -887,17 +880,30 @@ CONTAINS
       TYPE(torch_tensor_type), INTENT(IN)                :: tensor1, tensor2, tensor3
       TYPE(torch_tensor_type), INTENT(INOUT)             :: grad1, grad2, grad3
 
+      CALL torch_tensor_grad_batch3_impl(tensor1, tensor2, tensor3, grad1, grad2, grad3, &
+                                         deferred=.TRUE.)
+
+   END SUBROUTINE torch_tensor_grad_batch3_deferred
+
+! **************************************************************************************************
+!> \brief Shared body of the three-gradient wrappers.
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_grad_batch3_impl(tensor1, tensor2, tensor3, grad1, grad2, grad3, deferred)
+      TYPE(torch_tensor_type), INTENT(IN)                :: tensor1, tensor2, tensor3
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: grad1, grad2, grad3
+      LOGICAL, INTENT(IN)                                :: deferred
+
       TYPE(torch_tensor_type), DIMENSION(3)              :: grads, tensors
 
       tensors(1) = tensor1
       tensors(2) = tensor2
       tensors(3) = tensor3
-      CALL torch_tensor_grad_batch_deferred(tensors, grads)
+      CALL torch_tensor_grad_batch_impl(tensors, grads, deferred)
       grad1 = grads(1)
       grad2 = grads(2)
       grad3 = grads(3)
 
-   END SUBROUTINE torch_tensor_grad_batch3_deferred
+   END SUBROUTINE torch_tensor_grad_batch3_impl
 
 ! **************************************************************************************************
 !> \brief Copies several autograd gradients to CPU memory with one synchronization.

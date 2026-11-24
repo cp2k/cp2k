@@ -1493,8 +1493,9 @@ CONTAINS
          skala_runtime_key
       INTEGER                                            :: assembly_handle, density_handle, &
                                                             gpu_mode, ikind, img, nimages
-      LOGICAL :: backend_has_gpu, do_kpoints, external_density, gapw_method, &
-         gapw_paw_pseudopotentials, gapw_pseudopotentials, grid_explicit, have_zeta, &
+      LOGICAL :: all_all_electron, all_pseudopotentials, backend_has_gpu, do_kpoints, &
+         external_density, gapw_method, gapw_paw_pseudopotentials, gapw_pseudopotentials, &
+         grid_explicit, has_paw_pseudopotentials, has_pseudopotentials, have_zeta, &
          int_space_explicit, is_periodic, lb_space_explicit, low_spin_scope, molecular_virial, &
          molecular_virial_debug, need_xc_gradient, periodic_reference, pruning_explicit, &
          replicated, use_cuda, use_skala_model, write_hdf5_output
@@ -1564,10 +1565,6 @@ CONTAINS
          scf_env=scf_env)
 
       gapw_method = dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc
-      gapw_pseudopotentials = gapw_method .AND. &
-                              gauxc_gapw_has_pseudopotentials(qs_kind_set)
-      gapw_paw_pseudopotentials = gapw_method .AND. &
-                                  gauxc_gapw_has_paw_pseudopotentials(qs_kind_set)
       IF (dft_control%qs_control%gapw_xc) THEN
          CPASSERT(ASSOCIATED(rho_xc))
          rho_use => rho_xc
@@ -1603,6 +1600,16 @@ CONTAINS
          CPASSERT(SIZE(rho_ao, 2) == nimages)
       END IF
       low_spin_scope = external_density .OR. (dft_control%low_spin_roks .AND. gapw_method)
+      has_pseudopotentials = .FALSE.
+      all_pseudopotentials = .TRUE.
+      has_paw_pseudopotentials = .FALSE.
+      all_all_electron = .FALSE.
+      IF (gapw_method .OR. low_spin_scope) THEN
+         CALL gauxc_gapw_kind_flags(qs_kind_set, has_pseudopotentials, all_pseudopotentials, &
+                                    has_paw_pseudopotentials, all_all_electron)
+      END IF
+      gapw_pseudopotentials = gapw_method .AND. has_pseudopotentials
+      gapw_paw_pseudopotentials = gapw_method .AND. has_paw_pseudopotentials
       is_periodic = .FALSE.
       IF (ASSOCIATED(cell)) is_periodic = ANY(cell%perd /= 0)
 
@@ -1779,7 +1786,7 @@ CONTAINS
          IF (.NOT. dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
             CPABORT("GauXC low spin ROKS requires METHOD GAPW.")
          END IF
-         IF (.NOT. gauxc_gapw_all_all_electron(qs_kind_set)) THEN
+         IF (.NOT. all_all_electron) THEN
             CPABORT("GAPW low spin ROKS GauXC requires all-electron kinds.")
          END IF
          IF (is_periodic .OR. do_kpoints .OR. nimages /= 1) THEN

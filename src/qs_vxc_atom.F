@@ -975,14 +975,9 @@ CONTAINS
                      DO ia = 1, na
                         composite_row = composite_atom_start(iatom) + (ir - 1)*na + ia - 1
                         composite_point = composite_grid_coords(:, composite_row)
-                        IF (.NOT. fetch_native_grid_stencil(qs_env%native_grid_cache, composite_row, &
-                                                            composite_point, interpolation_stencil)) THEN
-                           CALL create_native_grid_interpolation_stencil( &
-                              interpolation_stencil, smooth_rho_r(1)%pw_grid, cell, composite_point, &
-                              .TRUE.)
-                           CALL store_native_grid_stencil(qs_env%native_grid_cache, composite_row, &
-                                                          composite_point, interpolation_stencil)
-                        END IF
+                        CALL get_native_grid_stencil(qs_env, smooth_rho_r(1)%pw_grid, cell, &
+                                                     composite_row, composite_point, &
+                                                     interpolation_stencil, .TRUE.)
                         IF (lsd) THEN
                            CALL interpolate_native_grid_fields_compact( &
                               1, 5, 6, 7, 3, interpolation_stencil, &
@@ -1496,13 +1491,9 @@ CONTAINS
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
                   DO composite_row = composite_atom_start(iatom), composite_atom_end(iatom)
-                     IF (.NOT. fetch_native_grid_stencil(qs_env%native_grid_cache, composite_row, &
-                                                         composite_grid_coords(:, composite_row), &
-                                                         interpolation_stencil)) THEN
-                        CALL create_native_grid_interpolation_stencil( &
-                           interpolation_stencil, smooth_rho_r(1)%pw_grid, cell, &
-                           composite_grid_coords(:, composite_row), .TRUE.)
-                     END IF
+                     CALL get_native_grid_stencil(qs_env, smooth_rho_r(1)%pw_grid, cell, &
+                                                  composite_row, composite_grid_coords(:, composite_row), &
+                                                  interpolation_stencil, .FALSE.)
                      IF (lsd) THEN
                         DO jdir = 1, 3
                            composite_smooth_gradient_value(jdir, 1) = &
@@ -1571,13 +1562,9 @@ CONTAINS
                      composite_grid_coord_force_local(:, iatom) = &
                         composite_grid_coord_force_local(:, iatom) + &
                         composite_grid_coord_grad(:, composite_row)
-                     IF (.NOT. fetch_native_grid_stencil(qs_env%native_grid_cache, composite_row, &
-                                                         composite_grid_coords(:, composite_row), &
-                                                         interpolation_stencil)) THEN
-                        CALL create_native_grid_interpolation_stencil( &
-                           interpolation_stencil, smooth_rho_r(1)%pw_grid, cell, &
-                           composite_grid_coords(:, composite_row), .TRUE.)
-                     END IF
+                     CALL get_native_grid_stencil(qs_env, smooth_rho_r(1)%pw_grid, cell, &
+                                                  composite_row, composite_grid_coords(:, composite_row), &
+                                                  interpolation_stencil, .FALSE.)
                      IF (lsd) THEN
                         spatial_derivative = &
                            composite_density_grad(composite_row, 1)* &
@@ -2031,13 +2018,9 @@ CONTAINS
             thread_adj = 0.0_dp
 !$OMP DO SCHEDULE(DYNAMIC)
             DO composite_row = 1, composite_nflat
-               IF (.NOT. fetch_native_grid_stencil(qs_env%native_grid_cache, composite_row, &
-                                                   composite_grid_coords(:, composite_row), &
-                                                   interpolation_stencil)) THEN
-                  CALL create_native_grid_interpolation_stencil( &
-                     interpolation_stencil, smooth_rho_r(1)%pw_grid, cell, &
-                     composite_grid_coords(:, composite_row), .TRUE.)
-               END IF
+               CALL get_native_grid_stencil(qs_env, smooth_rho_r(1)%pw_grid, cell, &
+                                            composite_row, composite_grid_coords(:, composite_row), &
+                                            interpolation_stencil, .FALSE.)
                IF (.NOT. interpolation_stencil%active) CYCLE
                IF (lsd) THEN
                   composite_smooth_density_adjoint_value = composite_density_grad(composite_row, :)
@@ -2059,11 +2042,8 @@ CONTAINS
                      IF (.NOT. interpolation_stencil%valid(inode_y, 2)) CYCLE
                      DO inode_x = 1, native_grid_interp_npts
                         IF (.NOT. interpolation_stencil%valid(inode_x, 1)) CYCLE
-                        lin = 1_int_8 + INT(interpolation_stencil%relative_index(inode_x, 1), int_8) + &
-                              INT(native_need_npts(1), int_8)*( &
-                              INT(interpolation_stencil%relative_index(inode_y, 2), int_8) + &
-                              INT(native_need_npts(2), int_8)* &
-                              INT(interpolation_stencil%relative_index(inode_z, 3), int_8))
+                        lin = native_need_linear_index(interpolation_stencil, inode_x, inode_y, &
+                                                       inode_z, native_need_npts)
                         pos = native_need_lookup(lin)
                         CPASSERT(pos > 0)
                         coefficient = interpolation_stencil%weight(inode_x, 1)* &
@@ -3053,6 +3033,51 @@ CONTAINS
    END FUNCTION native_need_lookup
 
 ! **************************************************************************************************
+!> \brief Linear index of a stencil node within the auxiliary PW grid.
+!> \param stencil interpolation stencil
+!> \param ix x node
+!> \param iy y node
+!> \param iz z node
+!> \param npts grid point counts
+!> \return one-based grid linear index
+! **************************************************************************************************
+   PURE FUNCTION native_need_linear_index(stencil, ix, iy, iz, npts) RESULT(lin)
+      TYPE(native_grid_interpolation_stencil_type), &
+         INTENT(IN)                                      :: stencil
+      INTEGER, INTENT(IN)                                :: ix, iy, iz, npts(3)
+      INTEGER(int_8)                                     :: lin
+
+      lin = 1_int_8 + INT(stencil%relative_index(ix, 1), int_8) + INT(npts(1), int_8)*( &
+            INT(stencil%relative_index(iy, 2), int_8) + INT(npts(2), int_8)* &
+            INT(stencil%relative_index(iz, 3), int_8))
+   END FUNCTION native_need_linear_index
+
+! **************************************************************************************************
+!> \brief Fetch a cached interpolation stencil, creating (and optionally storing) it on a miss.
+!> \param qs_env qs environment holding the stencil cache
+!> \param pw_grid auxiliary real-space grid
+!> \param cell current cell
+!> \param row composite row index
+!> \param point grid point
+!> \param stencil returned stencil
+!> \param store whether to store a newly built stencil in the cache
+! **************************************************************************************************
+   SUBROUTINE get_native_grid_stencil(qs_env, pw_grid, cell, row, point, stencil, store)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(cell_type), POINTER                           :: cell
+      INTEGER, INTENT(IN)                                :: row
+      REAL(dp), INTENT(IN)                               :: point(3)
+      TYPE(native_grid_interpolation_stencil_type), &
+         INTENT(OUT)                                     :: stencil
+      LOGICAL, INTENT(IN)                                :: store
+
+      IF (fetch_native_grid_stencil(qs_env%native_grid_cache, row, point, stencil)) RETURN
+      CALL create_native_grid_interpolation_stencil(stencil, pw_grid, cell, point, .TRUE.)
+      IF (store) CALL store_native_grid_stencil(qs_env%native_grid_cache, row, point, stencil)
+   END SUBROUTINE get_native_grid_stencil
+
+! **************************************************************************************************
 !> \brief Build the compact set of PW grid points touched by the local atom-composite stencils
 !>        and the owner/local-index exchange schedule.
 !> \param grid auxiliary real-space grid
@@ -3162,9 +3187,7 @@ CONTAINS
                IF (.NOT. stencil%valid(j, 2)) CYCLE
                DO i = 1, native_grid_interp_npts
                   IF (.NOT. stencil%valid(i, 1)) CYCLE
-                  lin = 1_int_8 + INT(stencil%relative_index(i, 1), int_8) + nx8*( &
-                        INT(stencil%relative_index(j, 2), int_8) + ny8* &
-                        INT(stencil%relative_index(k, 3), int_8))
+                  lin = native_need_linear_index(stencil, i, j, k, npts)
                   word = (lin - 1_int_8)/64_int_8 + 1_int_8
                   bit = MOD(lin - 1_int_8, 64_int_8)
                   mask = ISHFT(1_int_8, INT(bit))
@@ -3494,10 +3517,7 @@ CONTAINS
             IF (.NOT. stencil%valid(inode_y, 2)) CYCLE
             DO inode_x = 1, native_grid_interp_npts
                IF (.NOT. stencil%valid(inode_x, 1)) CYCLE
-               lin = 1_int_8 + INT(stencil%relative_index(inode_x, 1), int_8) + &
-                     INT(native_need_npts(1), int_8)*( &
-                     INT(stencil%relative_index(inode_y, 2), int_8) + &
-                     INT(native_need_npts(2), int_8)*INT(stencil%relative_index(inode_z, 3), int_8))
+               lin = native_need_linear_index(stencil, inode_x, inode_y, inode_z, native_need_npts)
                pos = native_need_lookup(lin)
                CPASSERT(pos > 0)
                coefficient = stencil%weight(inode_x, 1)* &
@@ -3538,10 +3558,7 @@ CONTAINS
             IF (.NOT. stencil%valid(inode_y, 2)) CYCLE
             DO inode_x = 1, native_grid_interp_npts
                IF (.NOT. stencil%valid(inode_x, 1)) CYCLE
-               lin = 1_int_8 + INT(stencil%relative_index(inode_x, 1), int_8) + &
-                     INT(native_need_npts(1), int_8)*( &
-                     INT(stencil%relative_index(inode_y, 2), int_8) + &
-                     INT(native_need_npts(2), int_8)*INT(stencil%relative_index(inode_z, 3), int_8))
+               lin = native_need_linear_index(stencil, inode_x, inode_y, inode_z, native_need_npts)
                pos = native_need_lookup(lin)
                CPASSERT(pos > 0)
                coefficient = stencil%weight(inode_x, 1)* &
@@ -3583,10 +3600,7 @@ CONTAINS
             IF (.NOT. stencil%valid(inode_y, 2)) CYCLE
             DO inode_x = 1, native_grid_interp_npts
                IF (.NOT. stencil%valid(inode_x, 1)) CYCLE
-               lin = 1_int_8 + INT(stencil%relative_index(inode_x, 1), int_8) + &
-                     INT(native_need_npts(1), int_8)*( &
-                     INT(stencil%relative_index(inode_y, 2), int_8) + &
-                     INT(native_need_npts(2), int_8)*INT(stencil%relative_index(inode_z, 3), int_8))
+               lin = native_need_linear_index(stencil, inode_x, inode_y, inode_z, native_need_npts)
                pos = native_need_lookup(lin)
                CPASSERT(pos > 0)
                DO idir = 1, 3

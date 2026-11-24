@@ -1641,12 +1641,7 @@ double torch_c_tensor_item_double(const torch_c_tensor_t *tensor) {
  * \author Ole Schuett
  ******************************************************************************/
 void torch_c_model_release(torch_c_model_t *model) {
-  {
-    std::lock_guard<std::mutex> lock(model_method_mutex);
-    if (model_method_cache != nullptr) {
-      model_method_cache->erase(model);
-    }
-  }
+  invalidate_model_method_cache(model);
   delete (model);
 }
 
@@ -1734,9 +1729,9 @@ bool torch_c_cuda_is_available() { return torch::cuda::is_available(); }
  * \brief Return the number of CUDA devices visible to Torch.
  ******************************************************************************/
 int torch_c_cuda_device_count() {
-  TORCH_C_TRY
-  return torch::cuda::is_available() ? torch::cuda::device_count() : 0;
-  TORCH_C_CATCH("torch_c_cuda_device_count")
+  int device_count = 0;
+  cuda_device_available(device_count);
+  return device_count;
 }
 
 /*******************************************************************************
