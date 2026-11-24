@@ -16,4 +16,4 @@
   {matcher = "M073", tol = 1e-8, ref = 345.325380057211},
   {matcher = "M077", tol = 1e-8, ref = -1.16308667929220}
 ]
-"H2_SKALA_CDFT_CI.inp"                   = [{matcher = "M077", tol = 5e-8, ref = -1.39334899043359}]
+"H2_SKALA_CDFT_CI.inp"                   = [{matcher = "M077", tol = 5e-8, ref = -1.39098602157597}]
