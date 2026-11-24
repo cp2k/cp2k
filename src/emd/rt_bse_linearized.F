@@ -153,10 +153,6 @@ CONTAINS
       END IF
 
       CALL initialize_maximum_timestep(rtbse_env)
-      IF (restart_found) THEN
-         ! check_restart_files_before_scf refused a restart step at or past the run's end
-         CPASSERT(rtbse_env%sim_start < rtbse_env%sim_nsteps)
-      END IF
 
       ! Restart phase 1b: load the trace prefix now that ENFORCE_MAX_DT has sized the trace arrays.
       IF (restart_found) THEN
