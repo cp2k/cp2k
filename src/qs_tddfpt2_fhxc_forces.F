@@ -917,13 +917,13 @@ CONTAINS
                END IF
                IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
                IF (nspins == 1) THEN
-                  CALL update_ks_atom(qs_env, mgx, matrix_p, forces=.TRUE., &
+                  CALL update_ks_atom(qs_env, mgx, matrix_p_admm, forces=.TRUE., &
                                       rho_atom_external=rho_atom_set_g, &
                                       kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
                                       oce_external=admm_env%admm_gapw_env%oce, sab_external=sab_aux_fit, &
                                       kintegral=1.0_dp, kforce=0.5_dp)
                ELSE
-                  CALL update_ks_atom(qs_env, mgx, matrix_p, forces=.TRUE., &
+                  CALL update_ks_atom(qs_env, mgx, matrix_p_admm, forces=.TRUE., &
                                       rho_atom_external=rho_atom_set_g, &
                                       kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
                                       oce_external=admm_env%admm_gapw_env%oce, sab_external=sab_aux_fit, &
