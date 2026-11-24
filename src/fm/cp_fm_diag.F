@@ -105,12 +105,14 @@ MODULE cp_fm_diag
    INTEGER, SAVE, PUBLIC    :: dlaf_neigvec_min = 0
    LOGICAL, SAVE, PUBLIC :: direct_generalized_diagonalization = .FALSE.
    LOGICAL, SAVE :: auto_generalized = .FALSE.
+   LOGICAL, SAVE :: elpa_initialized = .FALSE.
    ! Threshold value for the orthonormality check of the eigenvectors obtained
    ! after a diagonalization. A negative value disables the check.
    REAL(KIND=dp), SAVE :: eps_check_diag = -1.0_dp
 
    ! Constants for the diag_type above
-   INTEGER, PARAMETER, PUBLIC  :: FM_DIAG_TYPE_SCALAPACK = 101, &
+   INTEGER, PARAMETER, PUBLIC  :: FM_DIAG_REDUCED = 0, FM_DIAG_LOCAL = 1, &
+                                  FM_DIAG_TYPE_SCALAPACK = 101, &
                                   FM_DIAG_TYPE_ELPA = 102, &
                                   FM_DIAG_TYPE_CUSOLVER = 103, &
                                   FM_DIAG_TYPE_DLAF = 104
@@ -124,13 +126,15 @@ MODULE cp_fm_diag
 
    ! Public subroutines
    PUBLIC :: choose_eigv_solver, &
-             cusolver_selected, generalized_requested, prefer_local_kpoint_solver, &
+             cusolver_selected, generalized_backend, generalized_backend_name, &
+             aligned_columns, prefer_local_kpoint_solver, &
              cp_fm_block_jacobi, &
              cp_fm_power, &
              cp_fm_syevd, &
              cp_fm_syevx, &
              cp_fm_svd, &
              cp_fm_geeig, &
+             local_gvd_fits, lapack_query_size, &
              cp_fm_geeig_canon, &
              diag_check_requested, &
              diag_check_warning_threshold, &
@@ -145,31 +149,98 @@ CONTAINS
 !> \return threshold including any explicit user override
 ! **************************************************************************************************
    INTEGER FUNCTION cusolver_min_order(nranks) RESULT(n)
-      INTEGER, INTENT(IN) :: nranks
+      INTEGER, INTENT(IN)                                :: nranks
 
       n = cusolver_n_min
       IF (n == 0) n = MERGE(512, 2048, nranks == 1)
    END FUNCTION cusolver_min_order
 
 ! **************************************************************************************************
-!> \brief Select a native generalized solve when requested or profitable.
-!> \param n matrix order
-!> \param nranks size of the solve communicator
+!> \brief Choose the generalized backend for either a symmetric or a Hermitian matrix.
+!> \param a Hamiltonian layout
+!> \param b optional overlap layout, assumed to match a if omitted
+!> \param work optional full-size eigenvector workspace layout
 !> \param cached_overlap whether the SCF driver already reuses its overlap decomposition
-!> \return true if the generalized solver should be requested
+!> \return direct backend or FM_DIAG_REDUCED for a CP2K Cholesky reduction
 ! **************************************************************************************************
-   LOGICAL FUNCTION generalized_requested(n, nranks, cached_overlap) RESULT(use_generalized)
-      INTEGER, INTENT(IN)                                :: n, nranks
+   INTEGER FUNCTION generalized_backend(a, b, work, cached_overlap) RESULT(backend)
+      TYPE(cp_fm_struct_type), INTENT(IN)                :: a
+      TYPE(cp_fm_struct_type), INTENT(IN), OPTIONAL      :: b, work
       LOGICAL, INTENT(IN), OPTIONAL                      :: cached_overlap
 
-      use_generalized = direct_generalized_diagonalization
-      IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. n < cusolver_min_order(nranks)) use_generalized = .FALSE.
-      IF (.NOT. auto_generalized) RETURN
-      IF (PRESENT(cached_overlap)) THEN
-         IF (cached_overlap) RETURN
+      INTEGER                                            :: n, nranks
+      LOGICAL                                            :: cached
+
+      backend = FM_DIAG_REDUCED
+      IF (.NOT. (auto_generalized .OR. direct_generalized_diagonalization)) RETURN
+      n = a%nrow_global
+      nranks = a%para_env%num_pe
+      cached = .FALSE.
+      IF (PRESENT(cached_overlap)) cached = cached_overlap
+
+      SELECT CASE (diag_type)
+      CASE (FM_DIAG_TYPE_CUSOLVER)
+         IF (direct_generalized_diagonalization .OR. (.NOT. cached .AND. nranks <= 2) .OR. &
+             (cached .AND. nranks == 1 .AND. n >= 1248)) THEN
+            IF (cusolver_selected(a, work, b)) THEN
+               backend = FM_DIAG_TYPE_CUSOLVER
+               RETURN
+            END IF
+         END IF
+         ! Keep the ordinary distributed fallback when ranks cannot use separate GPUs.
+         IF (nranks > 1) RETURN
+      CASE (FM_DIAG_TYPE_DLAF)
+         IF (n >= dlaf_neigvec_min) THEN
+            IF (direct_generalized_diagonalization) backend = FM_DIAG_TYPE_DLAF
+            RETURN
+         END IF
+      CASE (FM_DIAG_TYPE_ELPA)
+         IF (n >= elpa_neigvec_min) RETURN
+      END SELECT
+
+      IF (direct_generalized_diagonalization .OR. (nranks == 1 .AND. .NOT. cached)) THEN
+         backend = MERGE(FM_DIAG_LOCAL, FM_DIAG_TYPE_SCALAPACK, nranks == 1)
       END IF
-      use_generalized = diag_type == FM_DIAG_TYPE_CUSOLVER .AND. n >= cusolver_min_order(nranks) .AND. nranks <= 2
-   END FUNCTION generalized_requested
+   END FUNCTION generalized_backend
+
+! **************************************************************************************************
+!> \brief Identify the actual solver, including a fallback, in numerical diagnostics.
+!> \param backend selected generalized solver
+!> \return library name
+! **************************************************************************************************
+   PURE FUNCTION generalized_backend_name(backend) RESULT(name)
+      INTEGER, INTENT(IN)                                :: backend
+      CHARACTER(LEN=16)                                  :: name
+
+      SELECT CASE (backend)
+      CASE (FM_DIAG_LOCAL)
+         name = "LAPACK"
+      CASE (FM_DIAG_TYPE_SCALAPACK)
+         name = "ScaLAPACK"
+      CASE (FM_DIAG_TYPE_CUSOLVER)
+         name = "cuSOLVER"
+      CASE (FM_DIAG_TYPE_DLAF)
+         name = "DLA-Future"
+      CASE DEFAULT
+         name = "Cholesky"
+      END SELECT
+   END FUNCTION generalized_backend_name
+
+! **************************************************************************************************
+!> \brief Whether the first nvec eigenvector columns can be written without redistribution.
+!> \param a square operator layout
+!> \param z eigenvector layout, possibly rectangular or padded
+!> \param nvec number of requested columns
+!> \return true if corresponding columns belong to the same ranks
+! **************************************************************************************************
+   LOGICAL FUNCTION aligned_columns(a, z, nvec) RESULT(matches)
+      TYPE(cp_fm_struct_type), INTENT(IN)                :: a, z
+      INTEGER, INTENT(IN)                                :: nvec
+
+      matches = a%nrow_global == z%nrow_global .AND. z%ncol_global >= nvec .AND. &
+                ASSOCIATED(a%context, z%context) .AND. a%nrow_block == z%nrow_block .AND. &
+                a%ncol_block == z%ncol_block .AND. ALL(a%first_p_pos == z%first_p_pos)
+   END FUNCTION aligned_columns
 
 ! **************************************************************************************************
 !> \brief Keep small independent k-point solves on the local LAPACK worker.
@@ -183,7 +254,7 @@ CONTAINS
 
       use_local = nranks == 1 .AND. .NOT. diag_lib_explicit .AND. .NOT. diag_check_requested()
       IF (use_local .AND. PRESENT(layout)) THEN
-         use_local = .NOT. cusolver_selected(layout)
+         use_local = (auto_generalized .OR. direct_generalized_diagonalization) .AND. .NOT. cusolver_selected(layout)
       END IF
    END FUNCTION prefer_local_kpoint_solver
 
@@ -269,9 +340,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dlaf_neigvec_min_input
       REAL(KIND=dp), INTENT(IN)                          :: eps_check_diag_input
       LOGICAL, INTENT(IN), OPTIONAL :: direct_generalized_diagonalization_input, &
-         diag_lib_explicit_input, elpa_auto_stage_input, elpa_gpu_available_input, auto_generalized_input
-
-      LOGICAL, SAVE                                      :: initialized = .FALSE.
+         diag_lib_explicit_input, elpa_auto_stage_input, elpa_gpu_available_input, &
+         auto_generalized_input
 
       fallback_applied = .FALSE.
 
@@ -310,17 +380,14 @@ CONTAINS
 
       ! Initialization of requested diagonalization library
       IF (diag_type == FM_DIAG_TYPE_ELPA) THEN
-         IF (.NOT. initialized) CALL initialize_elpa_library()
+         IF (.NOT. elpa_initialized) CALL initialize_elpa_library()
          CALL set_elpa_options(elpa_one_stage, elpa_qr, elpa_print, elpa_auto_stage_input, elpa_gpu_available_input)
          CALL set_elpa_kernel(elpa_kernel)
          IF (PRESENT(elpa_c_kernel)) CALL set_elpa_c_kernel(elpa_c_kernel)
-         initialized = .TRUE.
+         elpa_initialized = .TRUE.
       END IF
 #if defined(__DLAF)
-      IF (.NOT. initialized .AND. diag_type == FM_DIAG_TYPE_DLAF) THEN
-         CALL cp_dlaf_initialize()
-         initialized = .TRUE.
-      END IF
+      IF (diag_type == FM_DIAG_TYPE_DLAF) CALL cp_dlaf_initialize()
       dlaf_neigvec_min = dlaf_neigvec_min_input
 #else
       MARK_USED(dlaf_neigvec_min_input)
@@ -343,8 +410,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE diag_finalize()
 #if defined (__ELPA)
-      IF (diag_type == FM_DIAG_TYPE_ELPA) &
-         CALL finalize_elpa_library()
+      IF (elpa_initialized) CALL finalize_elpa_library()
+      elpa_initialized = .FALSE.
 #endif
 #if defined (__DLAF)
       IF (diag_type == FM_DIAG_TYPE_DLAF) &
@@ -550,16 +617,16 @@ CONTAINS
 !> \param eigenvectors eigenvectors C to be checked
 !> \param scratch work matrix
 !> \param nvec ...
+!> \param backend selected generalized solver
 ! **************************************************************************************************
-   SUBROUTINE check_generalized_diag(overlap, eigenvectors, scratch, nvec)
+   SUBROUTINE check_generalized_diag(overlap, eigenvectors, scratch, nvec, backend)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: eigenvectors
       TYPE(cp_fm_type), INTENT(INOUT)                    :: overlap, scratch
-      INTEGER, INTENT(IN)                                :: nvec
+      INTEGER, INTENT(IN)                                :: nvec, backend
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_generalized_diag'
 
-      CHARACTER(LEN=default_string_length)               :: diag_type_name
       REAL(KIND=dp)                                      :: eps, eps_abort, eps_warning, gold, test
       INTEGER                                            :: handle, i, j, ncol, nrow, output_unit
 #if defined(__parallel)
@@ -620,19 +687,8 @@ CONTAINS
 #endif
 
       IF (eps > eps_warning) THEN
-         IF (diag_type == FM_DIAG_TYPE_SCALAPACK) THEN
-            diag_type_name = "SYGVX"
-         ELSE IF (diag_type == FM_DIAG_TYPE_ELPA) THEN
-            diag_type_name = "ELPA"
-         ELSE IF (diag_type == FM_DIAG_TYPE_CUSOLVER) THEN
-            diag_type_name = "CUSOLVER"
-         ELSE IF (diag_type == FM_DIAG_TYPE_DLAF) THEN
-            diag_type_name = "DLAF"
-         ELSE
-            CPABORT("Unknown diag_type")
-         END IF
          WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.15,/,T2,A,F0.0,A,ES10.3)") &
-            "The generalized eigenvectors returned by "//TRIM(diag_type_name)//" are not S-orthonormal", &
+            "The generalized eigenvectors returned by "//TRIM(generalized_backend_name(backend))//" are not S-orthonormal", &
             "Matrix element (", i, ", ", j, ") = ", test, &
             "The deviation from the expected value ", gold, " is", eps
          IF (eps > eps_abort) THEN
@@ -1597,84 +1653,76 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief General Eigenvalue Problem AX = BXE.
-!>        Use cuSOLVERMp directly when requested and large enough; otherwise
-!>        reduce the problem through a Cholesky decomposition of B.
-!> \param amatrix ...
-!> \param bmatrix ...
-!> \param eigenvectors ...
-!> \param eigenvalues ...
-!> \param work ...
+!>        Select a native generalized driver or reduce with a Cholesky decomposition of B.
+!> \param amatrix symmetric operator, may be overwritten
+!> \param bmatrix positive definite overlap, may be overwritten
+!> \param eigenvectors lowest eigenvectors as columns
+!> \param eigenvalues requested prefix of the spectrum in ascending order
+!> \param work optional square workspace for solvers that cannot write directly into the MO layout
 ! **************************************************************************************************
    SUBROUTINE cp_fm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: amatrix, bmatrix
+      TYPE(cp_fm_type), INTENT(IN), TARGET               :: eigenvectors
       REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
-      TYPE(cp_fm_type), INTENT(IN)                       :: work
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, TARGET     :: work
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_geeig'
 
-      INTEGER                                            :: handle, nao, nmo
+      INTEGER                                            :: backend, handle, nmo
       LOGICAL                                            :: check_eigenvectors
+      TYPE(cp_fm_struct_type), POINTER                   :: work_layout
       TYPE(cp_fm_type)                                   :: overlap_check, scratch_check
+      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), TARGET                           :: local_work
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_get_info(amatrix, nrow_global=nao)
       nmo = SIZE(eigenvalues)
-      check_eigenvectors = diag_check_requested()
+      work_layout => amatrix%matrix_struct
+      IF (PRESENT(work)) work_layout => work%matrix_struct
+      backend = generalized_backend(amatrix%matrix_struct, bmatrix%matrix_struct, work_layout)
+      IF ((backend == FM_DIAG_LOCAL .OR. backend == FM_DIAG_TYPE_CUSOLVER) .AND. &
+          aligned_columns(amatrix%matrix_struct, eigenvectors%matrix_struct, nmo)) THEN
+         vectors => eigenvectors
+      ELSE IF (PRESENT(work)) THEN
+         vectors => work
+      ELSE
+         CALL cp_fm_create(local_work, work_layout)
+         vectors => local_work
+      END IF
+      check_eigenvectors = backend /= FM_DIAG_REDUCED .AND. diag_check_requested()
+      IF (check_eigenvectors) THEN
+         CALL cp_fm_create(overlap_check, bmatrix%matrix_struct)
+         CALL cp_fm_create(scratch_check, bmatrix%matrix_struct)
+         CALL cp_fm_to_fm(bmatrix, overlap_check)
+         CALL cp_fm_uplo_to_full(overlap_check, scratch_check)
+      END IF
 
-      IF (generalized_requested(nao, amatrix%matrix_struct%para_env%num_pe) .AND. &
-          cusolver_selected(amatrix%matrix_struct, work%matrix_struct, bmatrix%matrix_struct)) THEN
-         ! Use cuSolverMP generalized eigenvalue solver without a CP2K-side
-         ! Cholesky reduction.
-         ! Use work as intermediate buffer since eigenvectors may be smaller (nao x nmo)
-         IF (check_eigenvectors) THEN
-            CALL cp_fm_create(overlap_check, bmatrix%matrix_struct)
-            CALL cp_fm_create(scratch_check, bmatrix%matrix_struct)
-            CALL cp_fm_to_fm(bmatrix, overlap_check)
-         END IF
-         CALL cp_fm_general_cusolver(amatrix, bmatrix, work, eigenvalues)
-         IF (check_eigenvectors) THEN
-            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
-            CALL cp_fm_release(scratch_check)
-            CALL cp_fm_release(overlap_check)
-         END IF
-         CALL cp_fm_to_fm(work, eigenvectors, nmo)
+      SELECT CASE (backend)
+      CASE (FM_DIAG_LOCAL)
+         CALL cp_fm_geeig_local(amatrix, bmatrix, vectors, eigenvalues)
+      CASE (FM_DIAG_TYPE_CUSOLVER)
+         CALL cp_fm_general_cusolver(amatrix, bmatrix, vectors, eigenvalues)
 #if defined(__parallel)
-      ELSE IF (diag_type == FM_DIAG_TYPE_SCALAPACK .AND. direct_generalized_diagonalization) THEN
-         ! Use ScaLAPACK generalized eigenvalue solver without a CP2K-side
-         ! Cholesky reduction.
-         IF (check_eigenvectors) THEN
-            CALL cp_fm_create(overlap_check, bmatrix%matrix_struct)
-            CALL cp_fm_create(scratch_check, bmatrix%matrix_struct)
-            CALL cp_fm_to_fm(bmatrix, overlap_check)
-         END IF
-         CALL cp_fm_geeig_scalapack(amatrix, bmatrix, work, eigenvalues)
-         IF (check_eigenvectors) THEN
-            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
-            CALL cp_fm_release(scratch_check)
-            CALL cp_fm_release(overlap_check)
-         END IF
-         CALL cp_fm_to_fm(work, eigenvectors, nmo)
+      CASE (FM_DIAG_TYPE_SCALAPACK)
+         CALL cp_fm_geeig_scalapack(amatrix, bmatrix, vectors, eigenvalues)
 #endif
 #if defined(__DLAF)
-      ELSE IF (diag_type == FM_DIAG_TYPE_DLAF .AND. direct_generalized_diagonalization .AND. &
-               nao >= dlaf_neigvec_min) THEN
-         ! Use DLA-Future generalized eigenvalue solver for large matrices
-         IF (check_eigenvectors) THEN
-            CALL cp_fm_create(overlap_check, bmatrix%matrix_struct)
-            CALL cp_fm_create(scratch_check, bmatrix%matrix_struct)
-            CALL cp_fm_to_fm(bmatrix, overlap_check)
-         END IF
-         CALL cp_fm_diag_gen_dlaf(amatrix, bmatrix, work, eigenvalues)
-         IF (check_eigenvectors) THEN
-            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
-            CALL cp_fm_release(scratch_check)
-            CALL cp_fm_release(overlap_check)
-         END IF
-         CALL cp_fm_to_fm(work, eigenvectors, nmo)
+      CASE (FM_DIAG_TYPE_DLAF)
+         CALL cp_fm_diag_gen_dlaf(amatrix, bmatrix, vectors, eigenvalues)
 #endif
-      ELSE
+      CASE (FM_DIAG_REDUCED)
+         ! A requested native solve may have supplied only the upper triangle.
+         IF (direct_generalized_diagonalization) THEN
+            IF (ASSOCIATED(amatrix%matrix_struct, vectors%matrix_struct)) THEN
+               CALL cp_fm_uplo_to_full(amatrix, vectors)
+            ELSE
+               CALL cp_fm_create(scratch_check, amatrix%matrix_struct)
+               CALL cp_fm_uplo_to_full(amatrix, scratch_check)
+               CALL cp_fm_release(scratch_check)
+            END IF
+         END IF
          ! Cholesky decompose S=U(T)U
          CALL cp_fm_cholesky_decompose(bmatrix)
          ! Invert to get U^(-1)
@@ -1683,16 +1731,118 @@ CONTAINS
          CALL cp_fm_triangular_multiply(bmatrix, amatrix, side="R")
          CALL cp_fm_triangular_multiply(bmatrix, amatrix, transpose_tr=.TRUE.)
          ! Diagonalize
-         CALL choose_eigv_solver(matrix=amatrix, eigenvectors=work, &
+         CALL choose_eigv_solver(matrix=amatrix, eigenvectors=vectors, &
                                  eigenvalues=eigenvalues)
          ! Restore vectors C = U^(-1) * C*
-         CALL cp_fm_triangular_multiply(bmatrix, work)
-         CALL cp_fm_to_fm(work, eigenvectors, nmo)
-      END IF
+         CALL cp_fm_triangular_multiply(bmatrix, vectors, n_cols=nmo)
+      END SELECT
 
+      IF (check_eigenvectors) THEN
+         CALL check_generalized_diag(overlap_check, vectors, scratch_check, nmo, backend)
+         CALL cp_fm_release(scratch_check)
+         CALL cp_fm_release(overlap_check)
+      END IF
+      IF (.NOT. ASSOCIATED(vectors, eigenvectors)) CALL cp_fm_to_fm(vectors, eigenvectors, nmo)
+      IF (ASSOCIATED(vectors, local_work)) CALL cp_fm_release(local_work)
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_geeig
+
+! **************************************************************************************************
+!> \brief Can LAPACK represent the minimum divide-and-conquer workspace for JOBZ='V'?
+!> \param n matrix order
+!> \param is_complex test ZHEGVD's LRWORK instead of DSYGVD's LWORK
+! **************************************************************************************************
+   PURE LOGICAL FUNCTION local_gvd_fits(n, is_complex) RESULT(fits)
+      INTEGER, INTENT(IN)                                :: n
+      LOGICAL, INTENT(IN)                                :: is_complex
+
+      ! 1 + c*n + 2*n**2 <= HUGE(n), without overflowing even for a 64-bit INTEGER.
+      fits = n <= ((HUGE(n) - 1)/MAX(1, n) - MERGE(5, 6, is_complex))/2
+   END FUNCTION local_gvd_fits
+
+! **************************************************************************************************
+!> \brief Convert a LAPACK workspace query, returning zero if it is not representable.
+!> \param query recommended workspace length
+! **************************************************************************************************
+   PURE INTEGER FUNCTION lapack_query_size(query) RESULT(length)
+      REAL(KIND=dp), INTENT(IN)                          :: query
+
+      REAL(KIND=dp), PARAMETER :: int_limit = REAL(HUGE(0), dp), &
+         max_length = MERGE(int_limit, NEAREST(int_limit, -1.0_dp), DIGITS(0) <= DIGITS(1.0_dp))
+
+! With 64-bit integers REAL(HUGE(0),dp) rounds up, outside the integer range.
+
+      length = 0
+      IF (query >= 1.0_dp .AND. query <= max_length) length = CEILING(query)
+   END FUNCTION lapack_query_size
+
+! **************************************************************************************************
+!> \brief Solve the real symmetric definite generalized problem on one rank.
+!> \param amatrix Hamiltonian, overwritten
+!> \param bmatrix overlap matrix, overwritten
+!> \param eigenvectors lowest eigenvectors
+!> \param eigenvalues corresponding eigenvalues
+! **************************************************************************************************
+   SUBROUTINE cp_fm_geeig_local(amatrix, bmatrix, eigenvectors, eigenvalues)
+      TYPE(cp_fm_type), INTENT(IN)                       :: amatrix, bmatrix, eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_geeig_local'
+
+      INTEGER                                            :: handle, info, lwork, n, nev
+      LOGICAL                                            :: use_gvd
+      INTEGER, DIMENSION(1)                              :: iquery
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: iwork
+      REAL(KIND=dp), DIMENSION(1)                        :: query
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: w, work
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, b
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      LOGICAL, DIMENSION(5)                              :: halt
+#endif
+
+      CALL timeset(routineN, handle)
+      CPASSERT(PRODUCT(amatrix%matrix_struct%context%num_pe) == 1)
+      n = amatrix%matrix_struct%nrow_global
+      nev = SIZE(eigenvalues)
+      CPASSERT(nev <= n)
+      a => amatrix%local_data
+      b => bmatrix%local_data
+      ALLOCATE (w(n))
+      use_gvd = local_gvd_fits(n, .FALSE.)
+      IF (use_gvd) THEN
+         CALL dsygvd(1, 'V', 'U', n, a(1, 1), SIZE(a, 1), b(1, 1), SIZE(b, 1), w, query, -1, iquery, -1, info)
+         CPASSERT(info == 0)
+         lwork = lapack_query_size(query(1))
+         use_gvd = lwork > 0 .AND. iquery(1) > 0
+      END IF
+      IF (use_gvd) THEN
+         ALLOCATE (iwork(iquery(1)))
+      ELSE
+         CPASSERT(n <= HUGE(n)/3)
+         CALL dsygv(1, 'V', 'U', n, a(1, 1), SIZE(a, 1), b(1, 1), SIZE(b, 1), w, query, -1, info)
+         CPASSERT(info == 0)
+         lwork = MAX(1, 3*n - 1, lapack_query_size(query(1)))
+      END IF
+      ALLOCATE (work(lwork))
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_get_halting_mode(IEEE_ALL, halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+      IF (use_gvd) THEN
+         CALL dsygvd(1, 'V', 'U', n, a(1, 1), SIZE(a, 1), b(1, 1), SIZE(b, 1), w, work, lwork, iwork, SIZE(iwork), info)
+      ELSE
+         CALL dsygv(1, 'V', 'U', n, a(1, 1), SIZE(a, 1), b(1, 1), SIZE(b, 1), w, work, lwork, info)
+      END IF
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
+      IF (info /= 0) CALL cp_abort(__LOCATION__, "Local "//TRIM(MERGE("DSYGVD", "DSYGV ", use_gvd))// &
+                                   " failed, info="//TRIM(cp_to_string(info)))
+      eigenvalues = w(1:nev)
+      eigenvectors%local_data(1:n, 1:nev) = a(1:n, 1:nev)
+      CALL timestop(handle)
+   END SUBROUTINE cp_fm_geeig_local
 
 ! **************************************************************************************************
 !> \brief General Eigenvalue Problem AX = BXE using ScaLAPACK PDSYGVX.

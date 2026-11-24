@@ -33,12 +33,8 @@ MODULE qs_scf_initialization
                                               cp_fm_transpose,&
                                               cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-   USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER,&
-                                              choose_eigv_solver,&
-                                              cp_fm_power,&
-                                              generalized_requested,&
-                                              diag_type,&
-                                              direct_generalized_diagonalization
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                              cp_fm_power
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_get_el_struct
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -863,9 +859,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, dft_control=dft_control, mos=mos, para_env=para_env)
+      CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, dft_control=dft_control, mos=mos)
       not_se_or_tb = .NOT. (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb .OR. &
                             dft_control%qs_control%semi_empirical)
       need_coeff_b = .FALSE.
@@ -900,16 +895,6 @@ CONTAINS
          CASE (diag_standard)
             scf_env%method = general_diag_method_nr
             scf_env%needs_ortho = (.NOT. has_unit_metric) .AND. (.NOT. do_kpoints)
-            IF (scf_env%needs_ortho .AND. diag_type == FM_DIAG_TYPE_CUSOLVER .AND. &
-                direct_generalized_diagonalization .AND. &
-                scf_control%level_shift == 0.0_dp .AND. &
-                scf_env%cholesky_method /= cholesky_off .AND. &
-                scf_env%cholesky_method /= cholesky_dbcsr) THEN
-               CALL get_mo_set(mos(1), nao=nao)
-               IF (generalized_requested(nao, para_env%num_pe, cached_overlap=.TRUE.)) THEN
-                  scf_env%needs_ortho = .FALSE.
-               END IF
-            END IF
             IF (has_unit_metric) THEN
                scf_env%method = special_diag_method_nr
             END IF

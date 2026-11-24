@@ -416,11 +416,11 @@ static void solve_local(cusolverDnHandle_t h, int n, int lda, int nev, void *a,
   if (subset) {
     CUSOLVER_CHECK(DN(Dsygvdx_bufferSize, Zhegvdx_bufferSize, h,
                       CUSOLVER_EIG_TYPE_1, job, CUSOLVER_EIG_RANGE_I,
-                      CUBLAS_FILL_MODE_LOWER, n, a, lda, b, lda, 0., 0., 1, nev,
+                      CUBLAS_FILL_MODE_UPPER, n, a, lda, b, lda, 0., 0., 1, nev,
                       found, w, &lwork));
   } else if (b) {
     CUSOLVER_CHECK(DN(Dsygvd_bufferSize, Zhegvd_bufferSize, h,
-                      CUSOLVER_EIG_TYPE_1, job, CUBLAS_FILL_MODE_LOWER, n, a,
+                      CUSOLVER_EIG_TYPE_1, job, CUBLAS_FILL_MODE_UPPER, n, a,
                       lda, b, lda, w, &lwork));
   } else {
     CUSOLVER_CHECK(DN(Dsyevd_bufferSize, Zheevd_bufferSize, h, job,
@@ -430,11 +430,11 @@ static void solve_local(cusolverDnHandle_t h, int n, int lda, int nev, void *a,
   CUDA_CHECK(cudaMalloc(work, (size_t)lwork * elem));
   if (subset) {
     CUSOLVER_CHECK(DN(Dsygvdx, Zhegvdx, h, CUSOLVER_EIG_TYPE_1, job,
-                      CUSOLVER_EIG_RANGE_I, CUBLAS_FILL_MODE_LOWER, n, a, lda,
+                      CUSOLVER_EIG_RANGE_I, CUBLAS_FILL_MODE_UPPER, n, a, lda,
                       b, lda, 0., 0., 1, nev, found, w, *work, lwork, info));
   } else if (b) {
     CUSOLVER_CHECK(DN(Dsygvd, Zhegvd, h, CUSOLVER_EIG_TYPE_1, job,
-                      CUBLAS_FILL_MODE_LOWER, n, a, lda, b, lda, w, *work,
+                      CUBLAS_FILL_MODE_UPPER, n, a, lda, b, lda, w, *work,
                       lwork, info));
   } else {
     CUSOLVER_CHECK(DN(Dsyevd, Zheevd, h, job, CUBLAS_FILL_MODE_UPPER, n, a, lda,
@@ -444,8 +444,19 @@ static void solve_local(cusolverDnHandle_t h, int n, int lda, int nev, void *a,
 }
 
 /*******************************************************************************
+ * \brief Keep the dense workspace limit and the Fortran triangle adapter in
+ * agreement, including large singleton problems that use cuSOLVERMp.
+ ******************************************************************************/
+int cp_fm_cusolver_uses_dense(int n, int nprow, int npcol) {
+  // The typed dense routines query 32-bit workspace sizes.
+  return nprow == 1 && npcol == 1 && n <= 16384;
+}
+
+/*******************************************************************************
  * \brief Solve a standard or type-1 generalized FP64 eigenproblem. Matrices
  * share a block distribution; output on the host may have a different stride.
+ * The native Mp generalized solver expects lower triangles prepared by the
+ * Fortran adapter. All dense and standard solves read upper triangles.
  ******************************************************************************/
 void cp_fm_cusolver_solve(void **context, int fortran_comm, const int desc[9],
                           int nprow, int npcol, int myprow, int mypcol,
@@ -453,9 +464,7 @@ void cp_fm_cusolver_solve(void **context, int fortran_comm, const int desc[9],
                           int ldz, double *w, int nev, int is_complex) {
   const int n = desc[2], mb = desc[4], nb = desc[5];
   const int generalized = ldb >= 0;
-  // The typed dense routines query 32-bit workspace sizes. Leave large
-  // singleton problems on the distributed API with size_t workspaces.
-  const int local = nprow == 1 && npcol == 1 && n <= 16384;
+  const int local = cp_fm_cusolver_uses_dense(n, nprow, npcol);
   const cudaDataType_t dtype = is_complex ? CUDA_C_64F : CUDA_R_64F;
   cp_fm_cusolver_context *ctx =
       get_context(context, fortran_comm, nprow, npcol, local);

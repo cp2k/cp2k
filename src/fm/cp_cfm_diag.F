@@ -18,7 +18,7 @@ MODULE cp_cfm_diag
                                   cp_cfm_column_scale, &
                                   cp_cfm_scale, &
                                   cp_cfm_triangular_invert, &
-                                  cp_cfm_triangular_multiply
+                                  cp_cfm_triangular_multiply, cp_cfm_uplo_to_full
    USE cp_cfm_types, ONLY: cp_cfm_create, &
                            cp_cfm_get_info, &
                            cp_cfm_release, &
@@ -26,11 +26,12 @@ MODULE cp_cfm_diag
                            cp_cfm_to_cfm, &
                            cp_cfm_type
    USE cp_fm_diag, ONLY: diag_check_requested, &
+                         local_gvd_fits, lapack_query_size, &
                          diag_check_warning_threshold, &
                          diag_lib_explicit, &
-                         diag_type, &
-                         direct_generalized_diagonalization, &
-                         cusolver_selected, generalized_requested, &
+                         diag_type, direct_generalized_diagonalization, &
+                         aligned_columns, cusolver_selected, generalized_backend, generalized_backend_name, &
+                         FM_DIAG_LOCAL, FM_DIAG_REDUCED, &
                          elpa_neigvec_min, &
                          FM_DIAG_TYPE_CUSOLVER, &
                          FM_DIAG_TYPE_ELPA, &
@@ -50,8 +51,7 @@ MODULE cp_cfm_diag
 #endif
    USE cp_log_handling, ONLY: cp_logger_get_default_unit_nr, &
                               cp_to_string
-   USE kinds, ONLY: default_string_length, &
-                    dp
+   USE kinds, ONLY: dp
    USE machine, ONLY: default_output_unit
    USE mathconstants, ONLY: z_one, &
                             z_zero
@@ -74,7 +74,7 @@ MODULE cp_cfm_diag
    ! Caller-owned LAPACK scratch: no module SAVE state and no cross-worker sharing.
    TYPE, PUBLIC :: cp_cfm_diag_workspace_type
       INTEGER :: n = 0
-      LOGICAL :: generalized = .FALSE.
+      LOGICAL :: generalized = .FALSE., use_hegv = .FALSE.
       COMPLEX(KIND=dp), ALLOCATABLE :: work(:)
       REAL(KIND=dp), ALLOCATABLE :: evals(:), rwork(:)
       INTEGER, ALLOCATABLE :: iwork(:)
@@ -333,16 +333,16 @@ CONTAINS
 !> \param eigenvectors eigenvectors C to be checked
 !> \param scratch work matrix
 !> \param nvec ...
+!> \param backend selected generalized solver
 ! **************************************************************************************************
-   SUBROUTINE check_generalized_diag(overlap, eigenvectors, scratch, nvec)
+   SUBROUTINE check_generalized_diag(overlap, eigenvectors, scratch, nvec, backend)
 
       TYPE(cp_cfm_type), INTENT(IN)                      :: eigenvectors
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: overlap, scratch
-      INTEGER, INTENT(IN)                                :: nvec
+      INTEGER, INTENT(IN)                                :: nvec, backend
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_generalized_diag'
 
-      CHARACTER(LEN=default_string_length)               :: diag_type_name
       COMPLEX(KIND=dp)                                   :: gold, test
       INTEGER                                            :: handle, i, j, ncol, nrow, output_unit
       REAL(KIND=dp)                                      :: eps, eps_abort, eps_warning
@@ -404,21 +404,8 @@ CONTAINS
 #endif
 
       IF (eps > eps_warning) THEN
-         IF (diag_type == FM_DIAG_TYPE_SCALAPACK) THEN
-            diag_type_name = "HEGVX"
-         ELSE IF (diag_type == FM_DIAG_TYPE_CUSOLVER) THEN
-            diag_type_name = "CUSOLVER"
-         ELSE IF (diag_type == FM_DIAG_TYPE_ELPA .AND. diag_lib_explicit) THEN
-            diag_type_name = "ELPA"
-#if defined(__DLAF)
-         ELSE IF (diag_type == FM_DIAG_TYPE_DLAF) THEN
-            diag_type_name = "DLAF"
-#endif
-         ELSE
-            diag_type_name = "generalized eigensolver"
-         END IF
          WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,ES10.3,/,T2,A,F0.0,A,ES10.3)") &
-            "The generalized eigenvectors returned by "//TRIM(diag_type_name)//" are not S-orthonormal", &
+            "The generalized eigenvectors returned by "//TRIM(generalized_backend_name(backend))//" are not S-orthonormal", &
             "Absolute deviation of matrix element (", i, ", ", j, ") is ", eps, &
             "The deviation from the expected value ", REAL(gold, KIND=dp), " is", eps
          IF (eps > eps_abort) THEN
@@ -435,112 +422,79 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief General Eigenvalue Problem  AX = BXE
-!>        Single option version: Cholesky decomposition of B
-!> \param amatrix ...
-!> \param bmatrix ...
-!> \param eigenvectors ...
-!> \param eigenvalues ...
-!> \param work ...
+!>        Select a native generalized driver or reduce with a Cholesky decomposition of B.
+!> \param amatrix Hermitian operator, may be overwritten
+!> \param bmatrix positive definite overlap, may be overwritten
+!> \param eigenvectors lowest eigenvectors as columns
+!> \param eigenvalues requested prefix of the spectrum in ascending order
+!> \param work square workspace for solvers that cannot write directly into the MO layout
 !> \param lowest_subset compute only the requested lowest eigenpairs with ScaLAPACK when available
 !> \par History
 !>      12.2024 Added DLA-Future support [Rocco Meli]
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work, lowest_subset)
 
-      TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix
+      TYPE(cp_cfm_type), INTENT(IN), TARGET              :: eigenvectors
       REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
-      TYPE(cp_cfm_type), INTENT(IN)                      :: work
+      TYPE(cp_cfm_type), INTENT(IN), TARGET              :: work
       LOGICAL, INTENT(IN), OPTIONAL                      :: lowest_subset
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_geeig'
 
-      INTEGER                                            :: handle, nao, nmo
-      LOGICAL                                            :: check_eigenvectors, use_lowest_subset
+      INTEGER                                            :: backend, handle, nmo
+      LOGICAL                                            :: check_eigenvectors
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
+      TYPE(cp_cfm_diag_workspace_type)                   :: local_ws
       TYPE(cp_cfm_type)                                  :: overlap_check, scratch_check
+      TYPE(cp_cfm_type), POINTER                         :: vectors
 
       CALL timeset(routineN, handle)
 
-      CALL cp_cfm_get_info(amatrix, nrow_global=nao)
-      ALLOCATE (evals(nao))
       nmo = SIZE(eigenvalues)
-      check_eigenvectors = diag_check_requested()
-      use_lowest_subset = .FALSE.
-      IF (PRESENT(lowest_subset)) use_lowest_subset = lowest_subset .AND. nmo < nao
-#if !defined(__parallel)
-      use_lowest_subset = .FALSE.
-#endif
-
-      IF (use_lowest_subset) THEN
+      backend = generalized_backend(amatrix%matrix_struct, bmatrix%matrix_struct, work%matrix_struct)
 #if defined(__parallel)
-         IF (check_eigenvectors) THEN
-            CALL cp_cfm_create(overlap_check, bmatrix%matrix_struct)
-            CALL cp_cfm_create(scratch_check, bmatrix%matrix_struct)
-            CALL cp_cfm_to_cfm(bmatrix, overlap_check)
-         END IF
-         CALL cp_cfm_geeig_scalapack(amatrix, bmatrix, work, evals(1:nmo))
-         IF (check_eigenvectors) THEN
-            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
-            CALL cp_cfm_release(scratch_check)
-            CALL cp_cfm_release(overlap_check)
-         END IF
+      IF (PRESENT(lowest_subset)) THEN
+         IF (lowest_subset .AND. nmo < amatrix%matrix_struct%nrow_global) backend = FM_DIAG_TYPE_SCALAPACK
+      END IF
+#else
+      MARK_USED(lowest_subset)
 #endif
-      ELSE IF (generalized_requested(nao, amatrix%matrix_struct%para_env%num_pe) .AND. &
-               cusolver_selected(amatrix%matrix_struct, work%matrix_struct, bmatrix%matrix_struct)) THEN
-         ! Use cuSolverMP generalized eigenvalue solver without a CP2K-side
-         ! Cholesky reduction.
-         IF (check_eigenvectors) THEN
-            CALL cp_cfm_create(overlap_check, bmatrix%matrix_struct)
-            CALL cp_cfm_create(scratch_check, bmatrix%matrix_struct)
-            CALL cp_cfm_to_cfm(bmatrix, overlap_check)
-         END IF
-         CALL cp_cfm_general_cusolver(amatrix, bmatrix, work, evals(1:nmo))
-         IF (check_eigenvectors) THEN
-            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
-            CALL cp_cfm_release(scratch_check)
-            CALL cp_cfm_release(overlap_check)
-         END IF
+      vectors => work
+      IF (backend == FM_DIAG_LOCAL .OR. backend == FM_DIAG_TYPE_CUSOLVER) THEN
+         IF (aligned_columns(amatrix%matrix_struct, eigenvectors%matrix_struct, nmo)) vectors => eigenvectors
+      END IF
+      check_eigenvectors = backend /= FM_DIAG_REDUCED .AND. diag_check_requested()
+      IF (check_eigenvectors) THEN
+         CALL cp_cfm_create(overlap_check, bmatrix%matrix_struct)
+         CALL cp_cfm_create(scratch_check, bmatrix%matrix_struct)
+         CALL cp_cfm_to_cfm(bmatrix, overlap_check)
+         CALL cp_cfm_uplo_to_full(overlap_check, scratch_check)
+      END IF
+
+      SELECT CASE (backend)
+      CASE (FM_DIAG_LOCAL)
+         CALL cp_cfm_geeig_local(amatrix, bmatrix, vectors, eigenvalues, local_ws)
+      CASE (FM_DIAG_TYPE_CUSOLVER)
+         CALL cp_cfm_general_cusolver(amatrix, bmatrix, vectors, eigenvalues)
+#if defined(__parallel)
+      CASE (FM_DIAG_TYPE_SCALAPACK)
+         CALL cp_cfm_geeig_scalapack(amatrix, bmatrix, work, eigenvalues)
+#endif
 #if defined(__DLAF)
-      ELSE IF (diag_type == FM_DIAG_TYPE_DLAF .AND. direct_generalized_diagonalization .AND. &
-               nao >= dlaf_neigvec_min) THEN
-         ! Initialize DLA-Future on-demand; if already initialized, does nothing
-         CALL cp_dlaf_initialize()
-
-         ! Create DLAF grid from BLACS context; if already present, does nothing
-         CALL cp_dlaf_create_grid(amatrix%matrix_struct%context%get_handle())
-         CALL cp_dlaf_create_grid(bmatrix%matrix_struct%context%get_handle())
-         CALL cp_dlaf_create_grid(eigenvectors%matrix_struct%context%get_handle())
-
-         ! Use DLA-Future generalized eigenvalue solver for large matrices
-         IF (check_eigenvectors) THEN
-            CALL cp_cfm_create(overlap_check, bmatrix%matrix_struct)
-            CALL cp_cfm_create(scratch_check, bmatrix%matrix_struct)
-            CALL cp_cfm_to_cfm(bmatrix, overlap_check)
-         END IF
-         CALL cp_cfm_diag_gen_dlaf(amatrix, bmatrix, work, evals)
-         IF (check_eigenvectors) THEN
-            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
-            CALL cp_cfm_release(scratch_check)
-            CALL cp_cfm_release(overlap_check)
-         END IF
+      CASE (FM_DIAG_TYPE_DLAF)
+         CALL cp_cfm_diag_gen_dlaf(amatrix, bmatrix, work, eigenvalues)
 #endif
-#if defined(__parallel)
-      ELSE IF (diag_type == FM_DIAG_TYPE_SCALAPACK .AND. direct_generalized_diagonalization) THEN
-         ! Use ScaLAPACK generalized eigenvalue solver without a CP2K-side
-         ! Cholesky reduction.
-         IF (check_eigenvectors) THEN
-            CALL cp_cfm_create(overlap_check, bmatrix%matrix_struct)
-            CALL cp_cfm_create(scratch_check, bmatrix%matrix_struct)
-            CALL cp_cfm_to_cfm(bmatrix, overlap_check)
+      CASE (FM_DIAG_REDUCED)
+         ! A requested native solve may have supplied only the upper triangle.
+         IF (direct_generalized_diagonalization) THEN
+            IF (ASSOCIATED(amatrix%matrix_struct, work%matrix_struct)) THEN
+               CALL cp_cfm_uplo_to_full(amatrix, work)
+            ELSE
+               CALL cp_cfm_uplo_to_full(amatrix)
+            END IF
          END IF
-         CALL cp_cfm_geeig_scalapack(amatrix, bmatrix, work, evals)
-         IF (check_eigenvectors) THEN
-            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
-            CALL cp_cfm_release(scratch_check)
-            CALL cp_cfm_release(overlap_check)
-         END IF
-#endif
-      ELSE
+         ALLOCATE (evals(amatrix%matrix_struct%nrow_global))
          ! Cholesky decompose S=U(T)U
          CALL cp_cfm_cholesky_decompose(bmatrix)
          ! Invert to get U^(-1)
@@ -551,14 +505,17 @@ CONTAINS
          ! Diagonalize
          CALL cp_cfm_heevd(matrix=amatrix, eigenvectors=work, eigenvalues=evals)
          ! Restore vectors C = U^(-1) * C*
-         CALL cp_cfm_triangular_multiply(bmatrix, work)
+         CALL cp_cfm_triangular_multiply(bmatrix, work, n_cols=nmo)
+         eigenvalues = evals(1:nmo)
+         DEALLOCATE (evals)
+      END SELECT
+
+      IF (check_eigenvectors) THEN
+         CALL check_generalized_diag(overlap_check, vectors, scratch_check, nmo, backend)
+         CALL cp_cfm_release(scratch_check)
+         CALL cp_cfm_release(overlap_check)
       END IF
-
-      CALL cp_cfm_to_cfm(work, eigenvectors, nmo)
-      eigenvalues(1:nmo) = evals(1:nmo)
-
-      DEALLOCATE (evals)
-
+      IF (.NOT. ASSOCIATED(vectors, eigenvectors)) CALL cp_cfm_to_cfm(work, eigenvectors, nmo)
       CALL timestop(handle)
 
    END SUBROUTINE cp_cfm_geeig
@@ -812,13 +769,19 @@ CONTAINS
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
-      CALL zhegvd(1, 'V', 'U', n, a(1, 1), SIZE(a, 1), b(1, 1), SIZE(b, 1), ws%evals(1), &
-                  ws%work(1), SIZE(ws%work), ws%rwork(1), SIZE(ws%rwork), ws%iwork(1), SIZE(ws%iwork), info)
+      IF (ws%use_hegv) THEN
+         CALL zhegv(1, 'V', 'U', n, a(1, 1), SIZE(a, 1), b(1, 1), SIZE(b, 1), ws%evals(1), &
+                    ws%work(1), SIZE(ws%work), ws%rwork(1), info)
+      ELSE
+         CALL zhegvd(1, 'V', 'U', n, a(1, 1), SIZE(a, 1), b(1, 1), SIZE(b, 1), ws%evals(1), &
+                     ws%work(1), SIZE(ws%work), ws%rwork(1), SIZE(ws%rwork), ws%iwork(1), SIZE(ws%iwork), info)
+      END IF
 #if defined (__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
       IF (info /= 0) THEN
-         CALL cp_abort(__LOCATION__, "Local ZHEGVD failed, info="//TRIM(cp_to_string(info)))
+         CALL cp_abort(__LOCATION__, "Local "//TRIM(MERGE("ZHEGV ", "ZHEGVD", ws%use_hegv))// &
+                       " failed, info="//TRIM(cp_to_string(info)))
       END IF
 
       eigenvalues(1:nmo) = ws%evals(1:nmo)
@@ -947,7 +910,7 @@ CONTAINS
 !> \param ws caller-owned workspace
 !> \param n matrix order
 !> \param a query matrix; workspace queries do not read its values
-!> \param b optional overlap selects ZHEGVD; otherwise query ZHEEVD
+!> \param b optional overlap selects a generalized driver; otherwise query ZHEEVD
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_local_workspace_prepare(ws, n, a, b)
       TYPE(cp_cfm_diag_workspace_type), INTENT(INOUT)    :: ws
@@ -956,24 +919,41 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(INOUT), OPTIONAL          :: b(:, :)
 
       COMPLEX(KIND=dp)                                   :: work(1)
-      INTEGER                                            :: info, iwork(1)
+      INTEGER                                            :: info, iwork(1), lrwork, lwork
       REAL(KIND=dp)                                      :: rwork(1)
 
       IF (ws%n == n .AND. (ws%generalized .EQV. PRESENT(b))) RETURN
       IF (ALLOCATED(ws%work)) DEALLOCATE (ws%work, ws%rwork, ws%iwork, ws%evals)
       ALLOCATE (ws%evals(n))
+      ws%use_hegv = .FALSE.
       IF (PRESENT(b)) THEN
-         CALL zhegvd(1, 'V', 'U', n, a(1, 1), SIZE(a, 1), b(1, 1), SIZE(b, 1), ws%evals(1), &
-                     work(1), -1, rwork(1), -1, iwork(1), -1, info)
+         ws%use_hegv = .NOT. local_gvd_fits(n, .TRUE.)
+         IF (.NOT. ws%use_hegv) THEN
+            CALL zhegvd(1, 'V', 'U', n, a(1, 1), SIZE(a, 1), b(1, 1), SIZE(b, 1), ws%evals(1), &
+                        work(1), -1, rwork(1), -1, iwork(1), -1, info)
+            CPASSERT(info == 0)
+            lwork = lapack_query_size(REAL(work(1), dp))
+            lrwork = lapack_query_size(rwork(1))
+            ws%use_hegv = MIN(lwork, lrwork, iwork(1)) <= 0
+         END IF
+         IF (ws%use_hegv) THEN
+            CPASSERT(n <= HUGE(n)/3)
+            CALL zhegv(1, 'V', 'U', n, a(1, 1), SIZE(a, 1), b(1, 1), SIZE(b, 1), ws%evals(1), &
+                       work(1), -1, rwork(1), info)
+            CPASSERT(info == 0)
+            lwork = MAX(1, 2*n - 1, lapack_query_size(REAL(work(1), dp)))
+            lrwork = MAX(1, 3*n - 2)
+            iwork(1) = 1
+         END IF
       ELSE
          CALL zheevd('V', 'U', n, a(1, 1), SIZE(a, 1), ws%evals(1), work(1), -1, rwork(1), -1, iwork(1), -1, info)
+         IF (info /= 0) THEN
+            CALL cp_abort(__LOCATION__, "Local ZHEEVD workspace query failed, info="//TRIM(cp_to_string(info)))
+         END IF
+         lwork = MAX(1, CEILING(REAL(work(1), dp)))
+         lrwork = MAX(1, CEILING(rwork(1)))
       END IF
-      IF (info /= 0) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "Local LAPACK workspace query failed, info="//TRIM(cp_to_string(info)))
-      END IF
-      ALLOCATE (ws%work(MAX(1, CEILING(REAL(work(1), dp)))), &
-                ws%rwork(MAX(1, CEILING(rwork(1)))), ws%iwork(MAX(1, iwork(1))))
+      ALLOCATE (ws%work(lwork), ws%rwork(lrwork), ws%iwork(MAX(1, iwork(1))))
       ws%n = n
       ws%generalized = PRESENT(b)
    END SUBROUTINE cp_cfm_local_workspace_prepare

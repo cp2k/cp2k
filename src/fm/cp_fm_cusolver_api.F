@@ -30,6 +30,16 @@ MODULE cp_fm_cusolver_api
    PUBLIC :: cp_cfm_general_cusolver
    PUBLIC :: cp_fm_general_cusolver
 
+#if defined(__CUSOLVERMP)
+   INTERFACE
+      FUNCTION uses_dense(n, nprow, npcol) BIND(C, name="cp_fm_cusolver_uses_dense")
+         IMPORT :: C_INT
+         INTEGER(KIND=C_INT), VALUE :: n, nprow, npcol
+         INTEGER(KIND=C_INT) :: uses_dense
+      END FUNCTION uses_dense
+   END INTERFACE
+#endif
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -133,47 +143,68 @@ CONTAINS
 #endif
    END SUBROUTINE solve_cusolver
 
+   #:for fm, scalar, complex_flag in [("fm", "REAL", 0), ("cfm", "COMPLEX", 1)]
 ! **************************************************************************************************
-!> \brief Driver routine to solve generalized eigenvalue problem A*x = lambda*B*x with cuSOLVERMp.
-!> \param aMatrix the first matrix for the generalized eigenvalue problem
-!> \param bMatrix the second matrix for the generalized eigenvalue problem
+!> \brief Solve A*x = lambda*B*x with cuSOLVER.
+!> \param aMatrix symmetric or Hermitian matrix (upper triangle)
+!> \param bMatrix positive definite metric (upper triangle)
 !> \param eigenvectors eigenvectors of the input matrix
-!> \param eigenvalues eigenvalues of the input matrix
+!> \param eigenvalues requested prefix of the spectrum
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_general_cusolver(aMatrix, bMatrix, eigenvectors, eigenvalues)
-      TYPE(cp_fm_type), INTENT(IN)                       :: aMatrix, bMatrix, eigenvectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+      SUBROUTINE cp_${fm}$_general_cusolver(aMatrix, bMatrix, eigenvectors, eigenvalues)
+         TYPE(cp_${fm}$_type), INTENT(IN) :: aMatrix, bMatrix, eigenvectors
+         REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_general_cusolver'
-      INTEGER                                            :: handle
+         CHARACTER(len=*), PARAMETER :: routineN = 'cp_${fm}$_general_cusolver'
+         INTEGER :: handle, ldb
+         TYPE(C_PTR) :: b
+#if defined(__CUSOLVERMP)
+         ${scalar}$(KIND=dp), ALLOCATABLE, TARGET, DIMENSION(:, :) :: lower
+         INTEGER :: n
+#endif
 
-      CALL timeset(routineN, handle)
-      CALL solve_cusolver(aMatrix%matrix_struct, C_LOC(aMatrix%local_data), C_LOC(eigenvectors%local_data), &
-                          SIZE(eigenvectors%local_data, 1), eigenvalues, 0_C_INT, &
-                          C_LOC(bMatrix%local_data), SIZE(bMatrix%local_data, 1))
-      CALL timestop(handle)
-   END SUBROUTINE cp_fm_general_cusolver
+         CALL timeset(routineN, handle)
+         b = C_LOC(bMatrix%local_data)
+         ldb = SIZE(bMatrix%local_data, 1)
+#if defined(__CUSOLVERMP)
+         n = aMatrix%matrix_struct%nrow_global
+         ASSOCIATE (grid => aMatrix%matrix_struct%context%num_pe)
+            IF (uses_dense(INT(n, C_INT), INT(grid(1), C_INT), INT(grid(2), C_INT)) == 0) THEN
+               ! Mp type-1 eigenvectors require lower A and B. Reuse A's undefined lower
+               ! triangle and a single scratch tile in A's distribution for B.
+               ALLOCATE (lower, MOLD=aMatrix%local_data)
+               CALL lower_triangle(aMatrix)
+               ASSOCIATE (desc => aMatrix%matrix_struct%descriptor)
+                  CALL p${'z' if complex_flag else 'd'}$lacpy('L', n, n, lower, 1, 1, desc, aMatrix%local_data, 1, 1, desc)
+               END ASSOCIATE
+               CALL lower_triangle(bMatrix)
+               b = C_LOC(lower)
+               ldb = SIZE(lower, 1)
+            END IF
+         END ASSOCIATE
+#endif
+         CALL solve_cusolver(aMatrix%matrix_struct, C_LOC(aMatrix%local_data), C_LOC(eigenvectors%local_data), &
+                             SIZE(eigenvectors%local_data, 1), eigenvalues, ${complex_flag}$_C_INT, b, ldb)
+         CALL timestop(handle)
+#if defined(__CUSOLVERMP)
 
-! **************************************************************************************************
-!> \brief Driver routine to solve generalized complex eigenvalue problem A*x = lambda*B*x with
-!>        cuSOLVERMp.
-!> \param aMatrix the first matrix for the generalized eigenvalue problem
-!> \param bMatrix the second matrix for the generalized eigenvalue problem
-!> \param eigenvectors eigenvectors of the input matrix
-!> \param eigenvalues eigenvalues of the input matrix
-! **************************************************************************************************
-   SUBROUTINE cp_cfm_general_cusolver(aMatrix, bMatrix, eigenvectors, eigenvalues)
-      TYPE(cp_cfm_type), INTENT(IN)                       :: aMatrix, bMatrix, eigenvectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+      CONTAINS
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_general_cusolver'
-      INTEGER                                            :: handle
+         SUBROUTINE lower_triangle(matrix)
+            TYPE(cp_${fm}$_type), INTENT(IN) :: matrix
 
-      CALL timeset(routineN, handle)
-      CALL solve_cusolver(aMatrix%matrix_struct, C_LOC(aMatrix%local_data), C_LOC(eigenvectors%local_data), &
-                          SIZE(eigenvectors%local_data, 1), eigenvalues, 1_C_INT, &
-                          C_LOC(bMatrix%local_data), SIZE(bMatrix%local_data, 1))
-      CALL timestop(handle)
-   END SUBROUTINE cp_cfm_general_cusolver
+            ASSOCIATE (src => matrix%matrix_struct%descriptor, dst => aMatrix%matrix_struct%descriptor)
+               #:if complex_flag
+                  CALL pztradd('L', 'C', n, n, (1.0_dp, 0.0_dp), matrix%local_data, 1, 1, src, &
+                               (0.0_dp, 0.0_dp), lower, 1, 1, dst)
+               #:else
+                  CALL pdtradd('L', 'T', n, n, 1.0_dp, matrix%local_data, 1, 1, src, &
+                               0.0_dp, lower, 1, 1, dst)
+               #:endif
+            END ASSOCIATE
+         END SUBROUTINE lower_triangle
+#endif
+      END SUBROUTINE cp_${fm}$_general_cusolver
+   #:endfor
 
 END MODULE cp_fm_cusolver_api

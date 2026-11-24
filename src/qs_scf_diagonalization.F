@@ -56,10 +56,11 @@ MODULE qs_scf_diagonalization
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+   USE cp_fm_diag,                      ONLY: FM_DIAG_REDUCED,&
+                                              choose_eigv_solver,&
                                               cp_fm_geeig,&
                                               cp_fm_geeig_canon,&
-                                              generalized_requested,&
+                                              generalized_backend,&
                                               prefer_local_kpoint_solver
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
                                               fm_pool_create_fm,&
@@ -168,7 +169,6 @@ MODULE qs_scf_diagonalization
    USE qs_scf_methods,                  ONLY: combine_ks_matrices,&
                                               eigensolver,&
                                               eigensolver_dbcsr,&
-                                              eigensolver_generalized,&
                                               eigensolver_simple,&
                                               eigensolver_symm,&
                                               scf_env_density_mixing
@@ -511,13 +511,12 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspin
-            IF (generalized_requested(scf_env%scf_work1(ispin)%matrix_struct%nrow_global, &
-                                      scf_env%scf_work1(ispin)%matrix_struct%para_env%num_pe, &
-                                      cached_overlap=.TRUE.) .AND. .NOT. do_level_shift) THEN
-               CALL eigensolver_generalized(matrix_ks_fm=scf_env%scf_work1(ispin), &
-                                            matrix_s=matrix_s(ispin)%matrix, &
-                                            mo_set=mos(ispin), &
-                                            work=scf_env%scf_work2)
+            IF (generalized_backend(scf_env%scf_work1(ispin)%matrix_struct, cached_overlap=.TRUE.) /= FM_DIAG_REDUCED .AND. &
+                scf_control%level_shift == 0.0_dp .AND. &
+                scf_control%diagonalization%eps_jacobi <= 0.0_dp .AND. scf_env%cholesky_method /= cholesky_dbcsr) THEN
+               ! The AO overlap is spin independent; its direct driver can overwrite this dense copy.
+               CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, scf_env%scf_work2, scf_env%fm_copy_plan(0), check_plan=.TRUE.)
+               CALL cp_fm_geeig(scf_env%scf_work1(ispin), scf_env%scf_work2, mos(ispin)%mo_coeff, mos(ispin)%eigenvalues)
             ELSE
                IF (do_level_shift) THEN
                   CALL eigensolver(matrix_ks_fm=scf_env%scf_work1(ispin), &

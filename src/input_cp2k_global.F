@@ -158,8 +158,10 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="DIRECT_GENERALIZED_DIAGONALIZATION", &
                           description="Request direct generalized eigenvalue problem diagonalization "// &
                           "without a CP2K-side Cholesky reduction in supported dense matrix paths. "// &
-                          "When omitted, suitable one- or two-rank cuSOLVER problems use a direct solve unless the overlap "// &
-                          "decomposition is cached. An explicit F disables automatic direct cuSOLVER solves.", &
+                          "When omitted, a one-rank LAPACK solve and suitable one- or two-rank cuSOLVER solves "// &
+                          "can use a direct driver. At Gamma, CP2K normally reuses the overlap decomposition, "// &
+                          "but selects a direct one-rank cuSOLVER solve from order 1248. "// &
+                          "An explicit F disables this automatic selection.", &
                           usage="DIRECT_GENERALIZED_DIAGONALIZATION", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
