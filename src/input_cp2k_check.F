@@ -241,8 +241,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Refuses, before the SCF, the input combinations linearized RT-BSE cannot run: MAT_EXP EXACT,
-!>        a DFT%EFIELD
-!> \param input_file the parsed input, for GLOBAL%RUN_TYPE
+!>        a DFT%EFIELD, a nonzero MOTION%MD%STEP_START_VAL
+!> \param input_file the parsed input, for GLOBAL%RUN_TYPE and MOTION%MD
 !> \param force_env_sections the FORCE_EVAL sections
 !> \param iforce_eval the repetition checked
 ! **************************************************************************************************
@@ -250,7 +250,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input_file, force_env_sections
       INTEGER, INTENT(IN)                                :: iforce_eval
 
-      INTEGER                                            :: mat_exp, rtp_method, run_type
+      INTEGER                                            :: mat_exp, rtp_method, run_type, step_start
       LOGICAL                                            :: efield, linearized
       TYPE(section_vals_type), POINTER                   :: dft_sec, efield_sec, rtp_sec
 
@@ -275,6 +275,13 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "Linearized RT-BSE does not couple a DFT%EFIELD, in the length or the velocity "// &
                        "gauge: only the delta kick is implemented; remove the EFIELD section")
+      END IF
+      CALL section_vals_val_get(input_file, "MOTION%MD%STEP_START_VAL", i_val=step_start)
+      IF (step_start /= 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Linearized RT-BSE requires MOTION%MD%STEP_START_VAL 0: its restart trace counts "// &
+                       "steps from 0, and a nonzero value may come from EXT_RESTART; continue a run with "// &
+                       "DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART")
       END IF
 
    END SUBROUTINE check_rtbse_linearized_input
