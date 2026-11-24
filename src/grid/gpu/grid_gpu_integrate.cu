@@ -162,7 +162,7 @@ __global__ __launch_bounds__(64) void compute_hab(const kernel_params dev_) {
     fill_smem_task_coef(dev_, task_id, task);
 
     T *__restrict__ coef_ = reinterpret_cast<T *>(__builtin_assume_aligned(
-        &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset], 32));
+        task_coefficients(dev_, dev_.tasks[task_id]), 32));
 
     __syncthreads();
     cxyz_to_cab_factorized(task, coef_, smem_cab);
@@ -233,7 +233,7 @@ __global__ __launch_bounds__(64) void compute_hab_two_steps(
     fill_smem_task_coef(dev_, task_id, task);
 
     T *__restrict__ coef_ = reinterpret_cast<T *>(__builtin_assume_aligned(
-        &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset], 32));
+        task_coefficients(dev_, dev_.tasks[task_id]), 32));
 
     __syncthreads();
     cxyz_to_cab_factorized(task, coef_, smem_cab);
@@ -342,8 +342,7 @@ __launch_bounds__(64) void compute_hab_forces(const kernel_params dev_) {
       continue;
     fill_smem_task_coef(dev_, task_id, task);
 
-    T *__restrict__ coef_ =
-        &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset];
+    T *__restrict__ coef_ = task_coefficients(dev_, dev_.tasks[task_id]);
     __syncthreads();
     cxyz_to_cab_factorized(task, coef_, smem_cab);
     __syncthreads();
@@ -461,7 +460,7 @@ __global__ __launch_bounds__(64) void compute_hab_forces_two_steps(
     fill_smem_task_coef(dev_, task_id, task);
 
     T *__restrict__ coef_ = reinterpret_cast<T *>(__builtin_assume_aligned(
-        &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset], 32));
+        task_coefficients(dev_, dev_.tasks[task_id]), 32));
 
     __syncthreads();
     cxyz_to_cab_factorized(task, coef_, smem_cab);
@@ -859,7 +858,7 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
   // the dgemm backend uses the same trick.
   //
 
-  double *coef = &dev_.buffers_dev.coef[glb_task.coef_offset];
+  double *coef = task_coefficients(dev_, glb_task);
   if (axis_aligned_) {
     for (int i = tid; i < ncoef; i += 64)
       coef[i] = acc[i];

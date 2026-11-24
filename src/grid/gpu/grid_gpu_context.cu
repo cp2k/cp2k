@@ -76,7 +76,19 @@ context_info::set_kernel_parameters(const int level,
     params.grid_border_width_ = grid_[level].border_width();
   }
 
-  params.buffers_dev.coef = this->coef_dev_.data();
+  // The operation is known here, unlike at task-list creation. smem_params
+  // already checked its maximum angular momentum against grid_gpu_max_l.
+  // Tasks with the same basis angular momentum can therefore share a stride.
+  size_t total = 0;
+  const int diff = smem_params.lp_diff();
+  for (int lp = 0; lp <= smem_params.lp_max() - diff; ++lp) {
+    const int stride = static_cast<int>(align_up_elems(ncoset(lp + diff), 4));
+    params.coef_start[lp] = total;
+    params.coef_stride[lp] = stride;
+    total += static_cast<size_t>(stride) * (stats[0][lp] + stats[1][lp]);
+  }
+  coef_dev_.resize(total);
+  params.buffers_dev.coef = coef_dev_.data();
   params.buffers_dev.hab_block = hab_block_.data();
   params.buffers_dev.virial = calculate_virial ? virial_.data() : nullptr;
   params.buffers_dev.cab = this->cab_dev_.data();
@@ -207,7 +219,7 @@ extern "C" void grid_gpu_create_task_list(
 
   std::vector<grid_gpu_backend::task_info> tasks_host(ntasks);
 
-  size_t coef_size = 0;
+  memset(ctx->stats, 0, sizeof(ctx->stats));
   int lmax_ = 0;
 
   for (int i = 0; i < ntasks; i++) {
@@ -312,33 +324,9 @@ extern "C" void grid_gpu_create_task_list(
             ? (tasks_host[i].sgfa * tasks_host[i].nsgfb + tasks_host[i].sgfb)
             : (tasks_host[i].sgfb * tasks_host[i].nsgfa + tasks_host[i].sgfa);
 
-    /* the constant 6 is important here since we do not know ahead of time what
-     * specific operation we will be doing. collocate functions can go up to 4
-     * while integrate can go up to 5 (but put 6 for safety reasons). It is
-     * capped at grid_gpu_max_l, the end of the ncoset table: an operation needs
-     * at most min(la + lb + 5, grid_gpu_max_l) since smem_parameters rejects
-     * anything larger. */
-
-    /* this block is only as temporary scratch for calculating the coefficients.
-     * Doing this avoid a lot of atomic operations that are costly on hardware
-     * that only have partial support of them. For better performance we should
-     * most probably align the offsets as well. it is 256 bytes on Mi100 and
-     * above */
-    tasks_host[i].lp_max =
-        std::min(tasks_host[i].lb_max + tasks_host[i].la_max + 6,
-                 grid_gpu_backend::grid_gpu_max_l);
-    if (i == 0) {
-      tasks_host[i].coef_offset = 0;
-    } else {
-      tasks_host[i].coef_offset =
-          tasks_host[i - 1].coef_offset +
-          grid_gpu_backend::align_up_elems(
-              grid_gpu_backend::ncoset(tasks_host[i - 1].lp_max), 4);
-    }
-
-    // calculate the size such that the coef table is a multiple of 4.
-    coef_size += grid_gpu_backend::align_up_elems(
-        grid_gpu_backend::ncoset(tasks_host[i].lp_max), 4);
+    const int lp = std::min(la_max_basis + lb_max_basis, 19);
+    tasks_host[i].coef_index = ctx->stats[0][lp] + ctx->stats[1][lp];
+    ctx->stats[tasks_host[i].border_mask != 0][lp]++;
 
     auto &grid = ctx->grid_[tasks_host[i].level];
     // compute the cube properties
@@ -473,25 +461,6 @@ extern "C" void grid_gpu_create_task_list(
   ctx->num_tasks_per_block_dev_.resize(num_tasks_per_block.size());
   ctx->num_tasks_per_block_dev_.copy_to_gpu(num_tasks_per_block);
 
-  // allocate workspace for the coefficients
-  ctx->coef_dev_.resize(coef_size);
-
-  // collect stats
-  memset(ctx->stats, 0, 2 * 20 * sizeof(int));
-  for (int itask = 0; itask < ntasks; itask++) {
-    const int iatom = iatom_list[itask] - 1;
-    const int jatom = jatom_list[itask] - 1;
-    const int ikind = atom_kinds[iatom] - 1;
-    const int jkind = atom_kinds[jatom] - 1;
-    const int iset = iset_list[itask] - 1;
-    const int jset = jset_list[itask] - 1;
-    const int la_max = basis_sets[ikind]->lmax[iset];
-    const int lb_max = basis_sets[jkind]->lmax[jset];
-    const int lp = std::min(la_max + lb_max, 19);
-    const bool has_border_mask = (border_mask_list[itask] != 0);
-    ctx->stats[has_border_mask][lp]++;
-  }
-
   ctx->create_streams();
   ctx->compute_checksum();
 
@@ -550,7 +519,6 @@ extern "C" void grid_gpu_collocate_task_list(const grid_gpu_task_list *ptr,
     */
   int lp_diff = -1;
   ctx->pab_block_.copy_associated_host_to_gpu(ctx->main_stream);
-  ctx->coef_dev_.zero(ctx->main_stream);
   ctx->calculate_all_coefficients(func, &lp_diff);
 
   for (int level = 0; level < ctx->nlevels; level++) {

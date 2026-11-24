@@ -98,8 +98,7 @@ __launch_bounds__(64) void calculate_coefficients(const kernel_params dev_) {
       continue;
     fill_smem_task_coef(dev_, task_id, task);
 
-    T *__restrict__ coef_ =
-        &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset];
+    T *__restrict__ coef_ = task_coefficients(dev_, dev_.tasks[task_id]);
 
     for (int z = tid; z < task.n1 * task.n2;
          z += blockDim.x * blockDim.y * blockDim.z)
@@ -148,8 +147,7 @@ __global__ __launch_bounds__(64) void calculate_coefficients_two_steps(
       continue;
     fill_smem_task_coef(dev_, task_id, task);
 
-    T *__restrict__ coef_ =
-        &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset];
+    T *__restrict__ coef_ = task_coefficients(dev_, dev_.tasks[task_id]);
 
     for (int z = tid; z < task.n1 * task.n2; z += nthreads)
       smem_cab[z] = 0.0;
@@ -294,8 +292,7 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
   const double r2max = task.radius * task.radius;
   const bool trim = orthogonal_ && !task.apply_border_mask;
 
-  const double *__restrict__ coef =
-      &dev_.buffers_dev.coef[glb_task.coef_offset];
+  const double *__restrict__ coef = task_coefficients(dev_, glb_task);
 
   // coefficients, cartesian or in lattice monomials
   for (int i = tid; i < ncoef; i += 64) {

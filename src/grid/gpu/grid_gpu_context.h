@@ -33,6 +33,9 @@ extern "C" {
 #include "../../offload/offload_runtime.h"
 
 namespace grid_gpu_backend {
+// Largest combined angular momentum covered by ncoset and coset_inv.
+constexpr int grid_gpu_max_l = 18;
+
 // a little helper class in the same spirit than std::vector. it must exist
 // somewhere. Maybe possible to get the same thing with std::vector and
 // specific allocator.
@@ -435,8 +438,7 @@ struct task_info {
   double rab2;
   double zeta, zetb, zetp, prefactor, off_diag_twice;
   double rab[3];
-  int lp_max{0};
-  size_t coef_offset{0};
+  int coef_index{0}; // ordinal within tasks with the same la_max + lb_max
   int la_max, lb_max, la_min, lb_min, first_coseta, first_cosetb, ncoseta,
       ncosetb, nsgfa, nsgfb, nsgf_seta, nsgf_setb, maxcoa, maxcob;
   int sgfa, sgfb, subblock_offset;
@@ -488,6 +490,8 @@ struct kernel_params {
   char lb_max_diff{0};
   enum grid_func func;
   kernel_buffers buffers_dev;
+  size_t coef_start[grid_gpu_max_l + 1]{};
+  int coef_stride[grid_gpu_max_l + 1]{};
   double **sphi_dev{nullptr};
   int ntasks{0};
   int *task_sorted_by_blocks_dev{nullptr};
