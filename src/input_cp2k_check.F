@@ -246,23 +246,35 @@ CONTAINS
 !> \param input_file the parsed input, for GLOBAL%RUN_TYPE and MOTION%MD
 !> \param force_env_sections the FORCE_EVAL sections
 !> \param iforce_eval the repetition checked
+!> \author Maximilian Graml
 ! **************************************************************************************************
    SUBROUTINE check_rtbse_linearized_input(input_file, force_env_sections, iforce_eval)
       TYPE(section_vals_type), POINTER                   :: input_file, force_env_sections
       INTEGER, INTENT(IN)                                :: iforce_eval
 
-      INTEGER                                            :: mat_exp, rtp_method, run_type, step_start
-      LOGICAL                                            :: efield, kick, kick_mag, linearized
+      CHARACTER(len=*), PARAMETER :: routineN = 'check_rtbse_linearized_input'
+
+      INTEGER                                            :: handle, mat_exp, rtp_method, run_type, &
+                                                            step_start
+      LOGICAL                                            :: efield, kick, kick_mag, linearized, &
+                                                            linearized_keyword
       TYPE(section_vals_type), POINTER                   :: dft_sec, efield_sec, rtp_sec
 
+      CALL timeset(routineN, handle)
       CALL section_vals_val_get(input_file, "GLOBAL%RUN_TYPE", i_val=run_type)
-      IF (run_type /= real_time_propagation) RETURN
-      dft_sec => section_vals_get_subs_vals3(force_env_sections, "DFT", i_rep_section=iforce_eval)
-      rtp_sec => section_vals_get_subs_vals(dft_sec, "REAL_TIME_PROPAGATION")
-      ! the condition read_rtp_section resolves to rtp_method_bse_linearized
-      CALL section_vals_val_get(rtp_sec, "RTBSE%_SECTION_PARAMETERS_", i_val=rtp_method)
-      CALL section_vals_val_get(rtp_sec, "RTBSE%LINEARIZED_BSE_PROPAGATION", l_val=linearized)
-      IF (rtp_method /= rtp_method_bse .OR. .NOT. linearized) RETURN
+      linearized = .FALSE.
+      IF (run_type == real_time_propagation) THEN
+         dft_sec => section_vals_get_subs_vals3(force_env_sections, "DFT", i_rep_section=iforce_eval)
+         rtp_sec => section_vals_get_subs_vals(dft_sec, "REAL_TIME_PROPAGATION")
+         ! the condition read_rtp_section resolves to rtp_method_bse_linearized
+         CALL section_vals_val_get(rtp_sec, "RTBSE%_SECTION_PARAMETERS_", i_val=rtp_method)
+         CALL section_vals_val_get(rtp_sec, "RTBSE%LINEARIZED_BSE_PROPAGATION", l_val=linearized_keyword)
+         linearized = rtp_method == rtp_method_bse .AND. linearized_keyword
+      END IF
+      IF (.NOT. linearized) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
 
       CALL section_vals_val_get(rtp_sec, "MAT_EXP", i_val=mat_exp)
       IF (mat_exp == do_exact) THEN
@@ -293,6 +305,7 @@ CONTAINS
                        "DFT%REAL_TIME_PROPAGATION%APPLY_DELTA_PULSE, and remove APPLY_DELTA_PULSE_MAG")
       END IF
 
+      CALL timestop(handle)
    END SUBROUTINE check_rtbse_linearized_input
 
 ! **************************************************************************************************
