@@ -117,23 +117,17 @@ def main() -> None:
                 continue
             if root.startswith("./tools/build_utils/fypp"):
                 continue
-            if root.startswith("./tools/autotools"):
-                continue
             if root.startswith("./tools/minimax_tools/1_xData"):
                 continue
             if root.startswith("./tools/fedora"):
                 continue
             if root.startswith("./data/DFTB/scc"):
                 continue
-            if root.startswith("./arch"):
-                continue
             if root.startswith("./doxygen"):
                 continue
             if root.startswith("./docs/_build"):
                 continue
             if root.startswith("./docs/CP2K_INPUT"):
-                continue
-            if root.startswith("./exts"):
                 continue
             if root.startswith("./obj"):
                 continue
@@ -195,12 +189,18 @@ def main() -> None:
             break
         sleep(args.progressbar_wait)
 
+    # Check the singular ./data/POTENTIAL file as a concatenation of the
+    # *_POTENTIALS files after their (hypothetical) processing above.
+    # This counts as 1 in the "CP2K-data" file type for the plotting below.
+    check_POTENTIAL_consistency()
+
     # Optionally print the file counts by type.
     print(" " * 100)  # Clear the \r terminated progressbar line
     checked = num_done - num_skipped
     failed = len(failed_files)
     if args.plot_file_count:
         counts_by_type: Counter[str] = Counter()
+        counts_by_type["CP2K-data"] = 1
         for fn, f in futures.items():
             if f.done() and not f.exception():
                 filetype = f.result()
@@ -302,7 +302,7 @@ def process_file(fn: str, allow_modifications: bool) -> str:
         filetype = "MarkDown"
         run_remote_tool("mdformat", fn)
 
-    if basename == "TEST_FILES.toml":
+    if re.match(r".*\.toml$", fn):
         filetype = "TOML"
         run_remote_tool("tombi", fn)
 
@@ -311,10 +311,6 @@ def process_file(fn: str, allow_modifications: bool) -> str:
         run_remote_tool("cmakeformat", fn)
         run_remote_tool("cmakelint", fn)
 
-    if re.match(r"./data/.*POTENTIALS?$", fn):
-        filetype = "CP2K-data"
-        check_data_files()
-
     if re.match(r".*/Makefile", fn):
         filetype = "Makefile"
         run_local_tool("./tools/precommit/format_makefile.py", fn)
@@ -322,6 +318,15 @@ def process_file(fn: str, allow_modifications: bool) -> str:
     if re.match(r".*\.inp$", fn):
         filetype = "CP2K-input"
         run_local_tool("./tools/precommit/format_input_file.py", fn)
+
+    if re.match(r".*\.sec$", fn):
+        if "data/xc_section" in fn or "data/forcefield_section" in fn:
+            filetype = "CP2K-input"
+            run_local_tool("./tools/precommit/format_input_file.py", fn)
+
+    if re.match(r".*\.(cif|coord|crd|gro|pdb|xyz)$", fn):
+        # Dummy filetype for plotting only
+        filetype = "Chemical Structure"
 
     run_check_file_properties(fn)
 
@@ -359,7 +364,7 @@ def run_check_file_properties(fn: str) -> None:
 
 
 # ======================================================================================
-def check_data_files() -> None:
+def check_POTENTIAL_consistency() -> None:
     potential_files = [f"./data/{x}_POTENTIALS" for x in ("GTH", "HF", "NLCC", "ALL")]
     expected_content = "".join([Path(fn).read_text() for fn in potential_files])
     if Path("./data/POTENTIAL").read_text() != expected_content:

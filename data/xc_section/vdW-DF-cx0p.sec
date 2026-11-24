@@ -6,37 +6,36 @@
 # CUTOFF_RADIUS is system dependent (~A/2) !
 # POTENTIAL_TYPE TRUNCATED for large and periodic systems!
 #
-    &XC
-      &XC_FUNCTIONAL
-        &GGA_X_LV_RPW86
-          SCALE 0.80
-        &END GGA_X_LV_RPW86
-        &PW92
-        &END PW92
-      &END XC_FUNCTIONAL
-      &HF
-        &SCREENING
-          EPS_SCHWARZ 1.0E-6
-          SCREEN_ON_INITIAL_P FALSE
-        &END
-        &MEMORY
-          EPS_STORAGE_SCALING 0.1
-        &END
-        &INTERACTION_POTENTIAL
-          POTENTIAL_TYPE TRUNCATED
-          CUTOFF_RADIUS 2.0
-          T_C_G_DATA t_c_g.dat
-        &END
-        FRACTION 0.20
-      &END
-      &vdW_POTENTIAL
-         DISPERSION_FUNCTIONAL NON_LOCAL
-         &NON_LOCAL
-           TYPE DRSLL
-           VERBOSE_OUTPUT
-           KERNEL_FILE_NAME vdW_kernel_table.dat
-           CUTOFF 50
-         &END NON_LOCAL
-      &END vdW_POTENTIAL
-    &END XC
-
+&XC
+  &HF
+    FRACTION 0.20
+    &INTERACTION_POTENTIAL
+      CUTOFF_RADIUS 2.0
+      POTENTIAL_TYPE TRUNCATED
+      T_C_G_DATA t_c_g.dat
+    &END INTERACTION_POTENTIAL
+    &MEMORY
+      EPS_STORAGE_SCALING 0.1
+    &END MEMORY
+    &SCREENING
+      EPS_SCHWARZ 1.0E-6
+      SCREEN_ON_INITIAL_P FALSE
+    &END SCREENING
+  &END HF
+  &VDW_POTENTIAL
+    DISPERSION_FUNCTIONAL NON_LOCAL
+    &NON_LOCAL
+      CUTOFF 50
+      KERNEL_FILE_NAME vdW_kernel_table.dat
+      TYPE DRSLL
+      VERBOSE_OUTPUT
+    &END NON_LOCAL
+  &END VDW_POTENTIAL
+  &XC_FUNCTIONAL
+    &GGA_X_LV_RPW86
+      SCALE 0.80
+    &END GGA_X_LV_RPW86
+    &PW92
+    &END PW92
+  &END XC_FUNCTIONAL
+&END XC
