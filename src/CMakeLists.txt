@@ -114,6 +114,7 @@ if(CP2K_USE_CUDA)
       cp2k_cuda_libs
       INTERFACE
         $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:cp2k::CUSOLVER_MP::cusolver_mp>
+        $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:CUDA::cusolver>
         CUDA::cufft CUDA::cufftw CUDA::cublas CUDA::cudart CUDA::cuda_driver)
   endif()
   if(CP2K_WITH_GPU_PROFILING)
