@@ -121,8 +121,6 @@ def main() -> None:
                 continue
             if root.startswith("./tools/fedora"):
                 continue
-            if root.startswith("./data/DFTB/scc"):
-                continue
             if root.startswith("./doxygen"):
                 continue
             if root.startswith("./docs/_build"):
