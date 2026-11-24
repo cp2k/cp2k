@@ -872,3 +872,5 @@ registry["Unfold_band1_energy"] = GenericMatcher(
 )
 
 registry["TACO_writer_header"] = TextPresenceMatcher('"software":"CP2K"')
+registry["TACO_time_step"] = GenericMatcher(r'"time_step":([^,}]+)', col=0, regex=True)
+registry["TACO_first_mass"] = GenericMatcher(r'"masses":\[([^,\]]+)', col=0, regex=True)

@@ -18,7 +18,7 @@ MODULE taco_writer
    USE cell_types, ONLY: cell_type
    USE ISO_C_BINDING, ONLY: c_associated, c_char, c_double, c_float, c_int, c_int32_t, &
                             c_int64_t, c_loc, c_null_char, c_null_ptr, c_ptr
-   USE physcon, ONLY: angstrom, evolt, femtoseconds
+   USE physcon, ONLY: angstrom, evolt, femtoseconds, massunit
 #endif
 #include "./base/base_uses.f90"
 
@@ -83,8 +83,8 @@ CONTAINS
 !> \param particle_set CP2K particle set (positions, velocities, forces, atomic kinds).
 !> \param cell       Simulation cell.
 !> \param it         Step number.
-!> \param time       Time (CP2K internal units).
-!> \param dtime      Time step (CP2K internal units).
+!> \param time       Time in femtoseconds.
+!> \param dtime      Time step in femtoseconds.
 !> \param etot       Total energy (CP2K internal units).
 ! **************************************************************************************************
 #ifdef __TACO
@@ -130,7 +130,6 @@ CONTAINS
 
       INTEGER                                            :: handle, i, k, nat
       INTEGER(c_int)                                     :: ierr
-      REAL(c_double)                                     :: tstep_ps
       REAL(c_float), ALLOCATABLE, TARGET                 :: force_c(:), pos_c(:), vel_c(:)
       REAL(c_float), TARGET                              :: box_c(3)
 
@@ -165,10 +164,8 @@ CONTAINS
       box_c(2) = REAL(SQRT(SUM(cell%hmat(:, 2)**2))*angstrom, KIND=c_float)
       box_c(3) = REAL(SQRT(SUM(cell%hmat(:, 3)**2))*angstrom, KIND=c_float)
 
-      tstep_ps = REAL(dtime*femtoseconds/1000.0_dp, KIND=c_double)
-
       ierr = taco_cp2k_write_frame(taco_handle, INT(it, c_int64_t), &
-                                   REAL(time*femtoseconds/1000.0_dp, c_double), &
+                                   REAL(time/1000.0_dp, c_double), &
                                    INT(nat, c_int32_t), c_loc(pos_c(1)), c_loc(vel_c(1)), &
                                    c_loc(force_c(1)), c_loc(box_c(1)), &
                                    REAL(etot*evolt, c_double))
@@ -216,13 +213,13 @@ CONTAINS
       ALLOCATE (symbols(nat*symbol_width))
       symbols = ' '
       DO i = 1, nat
-         masses(i) = REAL(particle_set(i)%atomic_kind%mass, KIND=c_double)
+         masses(i) = REAL(particle_set(i)%atomic_kind%mass/massunit, KIND=c_double)
          k = (i - 1)*symbol_width
          CALL taco_copy_symbol(particle_set(i)%atomic_kind%element_symbol, symbols(k + 1:k + symbol_width))
       END DO
 
-      timestep_fs = REAL(dtime*femtoseconds, KIND=c_double)
-      tstep_ps = REAL(dtime*femtoseconds/1000.0_dp, KIND=c_double)
+      timestep_fs = REAL(dtime, KIND=c_double)
+      tstep_ps = timestep_fs/1000.0_c_double
 
       taco_handle = taco_cp2k_create(c_loc(path_c(1)), INT(nat, c_int32_t), tstep_ps, &
                                      c_loc(software_c(1)), 0.0_c_double, 0.0_c_double, &
