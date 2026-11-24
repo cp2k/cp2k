@@ -722,14 +722,16 @@ CONTAINS
 !> \brief Reads the RESTART.trace header that write_restart_trace writes, through the n_eps record
 !> \param trace_unit unit of the trace, opened for reading at its start
 !> \param ios nonzero when a record could not be read
-!> \param version format version of the file; nothing after it is read when it differs from this binary's
+!> \param version format version of the file; nothing after it is read when it differs from this
+!>        binary's
 !> \param n_spin_file number of spins of the original run
 !> \param n_basis_file active-MO count (linearized) or AO count of the original run's density
 !> \param n_ao_file AO count of the original run
 !> \param dt_file time step of the original run, in atomic units
 !> \param kick_dir_file delta-kick direction of the original run
 !> \param kick_scale_file delta-kick scale of the original run
-!> \param n_eps active eigenvalues per spin in the record that follows; the caller reads it when positive
+!> \param n_eps active eigenvalues per spin in the record that follows; the caller reads it when
+!>        positive
 !> \author Maximilian Graml
 ! **************************************************************************************************
    SUBROUTINE read_restart_trace_header(trace_unit, ios, version, n_spin_file, n_basis_file, n_ao_file, &
@@ -747,6 +749,7 @@ CONTAINS
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
+      version = 0
       n_spin_file = 0
       n_basis_file = 0
       n_ao_file = 0
@@ -766,8 +769,10 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE read_restart_trace_header
 ! **************************************************************************************************
-!> \brief Checks the linearized RT-BSE restart files before the SCF: their presence, the step in .info,
-!>        the RESTART.trace header against the input, and the trace's record count. All ranks read.
+!> \brief Checks the linearized RT-BSE restart files before the SCF: their presence, the step in
+!>        .info, the RESTART.trace header against the input, and the trace's record count. All
+!>        ranks read. The names are generated outside the MD iteration level, so with
+!>        PRINT%RESTART%COMMON_ITERATION_LEVELS below 2 no file is found.
 !> \param force_env the force environment, for the input and the DFT control
 !> \param restart_found true when INITIAL_WFN is RT_RESTART and the restart files exist
 !> \author Maximilian Graml
@@ -835,10 +840,39 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
+      ! the header before the presence abort: a spin flip leaves the other spin's matrices missing,
+      ! and the spin comparison names that fix
+      IF (file_exists(file_names(2))) THEN
+         CALL open_file(file_names(2), file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
+                        unit_number=trace_unit)
+         CALL read_restart_trace_header(trace_unit, ios, version, n_spin_file, n_basis_file, n_ao_file, &
+                                        dt_file, kick_dir_file, kick_scale_file, n_eps)
+         ! the active eigenvalues close the header
+         IF (ios == 0 .AND. version == restart_trace_version .AND. n_eps > 0) READ (trace_unit, IOSTAT=ios)
+         IF (ios /= 0) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "RT_RESTART: cannot read the RESTART.trace header of "//TRIM(file_names(2))// &
+                          "; restore the restart files of one completed restart step of the run being "// &
+                          "continued, or remove DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART")
+         END IF
+         IF (version /= restart_trace_version) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "RT_RESTART: RESTART.trace format version differs from this binary's ("// &
+                          TRIM(ADJUSTL(cp_to_string(version)))//" against "// &
+                          TRIM(ADJUSTL(cp_to_string(restart_trace_version)))// &
+                          "); continue the run with the CP2K version that wrote it")
+         END IF
+         IF (n_spin_file /= n_spin) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "RT_RESTART: RESTART.trace was written for another number of spins ("// &
+                          TRIM(ADJUSTL(cp_to_string(n_spin_file)))//", this input has "// &
+                          TRIM(ADJUSTL(cp_to_string(n_spin)))//"); set DFT%UKS as in the run being continued")
+         END IF
+      END IF
       IF (n_missing > 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "RT_RESTART: restart file not found: "//TRIM(file_names(i_missing))// &
-                       "; restore the first run's restart files beside the input, or remove "// &
+                       "; restore the restart files of the run being continued under that name, or remove "// &
                        "DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART")
       END IF
       restart_found = .TRUE.
@@ -847,35 +881,17 @@ CONTAINS
                      unit_number=info_unit)
       READ (info_unit, IOSTAT=ios) sim_start
       CALL close_file(info_unit)
+      ! the writer never stores a negative step
+      IF (ios == 0) THEN
+         IF (sim_start < 0) ios = -1
+      END IF
       IF (ios /= 0) THEN
          CALL cp_abort(__LOCATION__, &
-                       "RT_RESTART: cannot read the step from "//TRIM(file_names(1))// &
-                       "; restore the restart files of one completed restart step of the first run")
+                       "RT_RESTART: cannot read a step of 0 or more from "//TRIM(file_names(1))// &
+                       "; restore the restart files of one completed restart step of the run being "// &
+                       "continued, or remove DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART")
       END IF
 
-      CALL open_file(file_names(2), file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
-                     unit_number=trace_unit)
-      CALL read_restart_trace_header(trace_unit, ios, version, n_spin_file, n_basis_file, n_ao_file, &
-                                     dt_file, kick_dir_file, kick_scale_file, n_eps)
-      ! the active eigenvalues close the header
-      IF (ios == 0 .AND. version == restart_trace_version .AND. n_eps > 0) READ (trace_unit, IOSTAT=ios)
-      IF (ios /= 0) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "RT_RESTART: cannot read the RESTART.trace header of "//TRIM(file_names(2))// &
-                       "; restore the restart files of one completed restart step of the first run")
-      END IF
-      IF (version /= restart_trace_version) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "RT_RESTART: RESTART.trace format version differs from this binary's ("// &
-                       TRIM(cp_to_string(version))//" against "//TRIM(cp_to_string(restart_trace_version))// &
-                       "); continue the run with the CP2K version that wrote it")
-      END IF
-      IF (n_spin_file /= n_spin) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "RT_RESTART: RESTART.trace was written for another number of spins ("// &
-                       TRIM(cp_to_string(n_spin_file))//", this input has "//TRIM(cp_to_string(n_spin))// &
-                       "); set DFT%UKS as in the first run")
-      END IF
       md_section => section_vals_get_subs_vals(force_env%root_section, "MOTION%MD")
       CALL section_vals_val_get(md_section, "TIMESTEP", r_val=dt_input)
       CALL section_vals_val_get(md_section, "STEPS", i_val=n_steps_input)
@@ -884,24 +900,30 @@ CONTAINS
       IF (.NOT. enforce_max_dt .AND. ABS(dt_file - dt_input) > 1.0e-12_dp*MAX(1.0_dp, ABS(dt_input))) THEN
          CALL cp_abort(__LOCATION__, &
                        "RT_RESTART: MOTION%MD%TIMESTEP differs from the original run; set it to "// &
-                       TRIM(ADJUSTL(cp_to_string(dt_file*femtoseconds, '(ES16.9)')))//" fs, or enable "// &
+                       TRIM(ADJUSTL(cp_to_string(dt_file*femtoseconds, '(ES24.16)')))//" fs, or enable "// &
                        "DFT%REAL_TIME_PROPAGATION%RTBSE%ENFORCE_MAX_DT to inherit it")
       END IF
       IF (MAXVAL(ABS(kick_dir_file - REAL(dft_control%rtp_control%delta_pulse_direction, dp))) > 1.0e-12_dp .OR. &
           ABS(kick_scale_file - dft_control%rtp_control%delta_pulse_scale) > 1.0e-12_dp) THEN
          CALL cp_abort(__LOCATION__, &
                        "RT_RESTART: delta kick differs from the stored kick; set "// &
-                       "DFT%REAL_TIME_PROPAGATION%DELTA_PULSE_DIRECTION and DELTA_PULSE_SCALE as in the first run")
+                       "DFT%REAL_TIME_PROPAGATION%DELTA_PULSE_DIRECTION to "// &
+                       TRIM(ADJUSTL(cp_to_string(NINT(kick_dir_file(1)))))//" "// &
+                       TRIM(ADJUSTL(cp_to_string(NINT(kick_dir_file(2)))))//" "// &
+                       TRIM(ADJUSTL(cp_to_string(NINT(kick_dir_file(3)))))//" and DELTA_PULSE_SCALE to "// &
+                       TRIM(ADJUSTL(cp_to_string(kick_scale_file, '(ES24.16)')))//", the stored values")
       END IF
       ! with ENFORCE_MAX_DT, initialize_maximum_timestep keeps the window STEPS*TIMESTEP at the stored step
       n_steps = n_steps_input
-      IF (enforce_max_dt .AND. dt_file > 0.0_dp) THEN
+      IF (enforce_max_dt .AND. dt_file > 0.0_dp .AND. dt_input > 0.0_dp) THEN
          n_steps = MAX(1, NINT(REAL(MAX(0, n_steps_input), dp)*dt_input/dt_file))
       END IF
       IF (sim_start >= n_steps) THEN
          CALL cp_abort(__LOCATION__, &
                        "RT_RESTART: the restart step is not below MOTION%MD%STEPS: the restart files hold step "// &
-                       TRIM(cp_to_string(sim_start))//"; raise MOTION%MD%STEPS")
+                       TRIM(ADJUSTL(cp_to_string(sim_start)))//", and this run ends after "// &
+                       TRIM(ADJUSTL(cp_to_string(n_steps)))//" steps (MOTION%MD%STEPS, or under "// &
+                       "ENFORCE_MAX_DT the window STEPS*TIMESTEP in stored time steps); raise MOTION%MD%STEPS")
       END IF
 
       ! the continuation reloads records 1 to sim_start + 1, each read with the reader's item list
@@ -917,7 +939,8 @@ CONTAINS
       IF (n_records < sim_start + 1) THEN
          CALL cp_abort(__LOCATION__, &
                        "RT_RESTART: RESTART.trace holds fewer records than the restart step needs ("// &
-                       TRIM(cp_to_string(n_records))//" for step "//TRIM(cp_to_string(sim_start))// &
+                       TRIM(ADJUSTL(cp_to_string(n_records)))//" for step "// &
+                       TRIM(ADJUSTL(cp_to_string(sim_start)))// &
                        "); a run killed while writing its restart files leaves this state: restore the "// &
                        "restart files of one completed restart step")
       END IF
@@ -1077,8 +1100,7 @@ CONTAINS
       CHARACTER(len=17), DIMENSION(4)                    :: file_labels
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: ws
 
-      ! This allows the delta kick and output of moment at time 0 in all cases
-      ! except the case when both imaginary and real parts of the density are read
+      ! a loaded density makes the driver skip the delta kick and the moments at time 0
       rtbse_env%restart_extracted = .FALSE.
       logger => cp_get_default_logger()
 

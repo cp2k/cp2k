@@ -153,6 +153,10 @@ CONTAINS
       END IF
 
       CALL initialize_maximum_timestep(rtbse_env)
+      IF (restart_found) THEN
+         ! check_restart_files_before_scf refused a restart step at or past the run's end
+         CPASSERT(rtbse_env%sim_start < rtbse_env%sim_nsteps)
+      END IF
 
       ! Restart phase 1b: load the trace prefix now that ENFORCE_MAX_DT has sized the trace arrays.
       IF (restart_found) THEN
@@ -180,13 +184,11 @@ CONTAINS
       ! gauge, then enter this run's rotating frame (rotate_rho_phase is a no-op when omega_shift=0)
       IF (restart_found) THEN
          CALL read_restart_density(rtbse_env)
-         IF (rtbse_env%restart_extracted) THEN
-            CALL apply_restart_basis_bridge(rtbse_env)
-            t_start = REAL(rtbse_env%sim_start, dp)*rtbse_env%sim_dt
-            DO i = 1, rtbse_env%n_spin
-               CALL rotate_rho_phase(rtbse_env, rtbse_env%rho(i), i, -rtbse_env%omega_shift*t_start)
-            END DO
-         END IF
+         CALL apply_restart_basis_bridge(rtbse_env)
+         t_start = REAL(rtbse_env%sim_start, dp)*rtbse_env%sim_dt
+         DO i = 1, rtbse_env%n_spin
+            CALL rotate_rho_phase(rtbse_env, rtbse_env%rho(i), i, -rtbse_env%omega_shift*t_start)
+         END DO
       END IF
       !  - calculates/populates the G0W0/KS Hamiltonian, respectively
       CALL initialize_singleparticle_hamiltonian(rtbse_env)
