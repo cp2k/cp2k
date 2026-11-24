@@ -97,6 +97,7 @@ MODULE environment
         m_energy, m_getexe, m_memory_details, m_omp_get_stacksize, m_omp_trace_issues, m_procrun
    USE message_passing,                 ONLY: mp_collect_timings,&
                                               mp_para_env_type
+   USE offload_api,                     ONLY: offload_get_device_count
    USE mp_perf_env,                     ONLY: add_mp_perf_env,&
                                               describe_mp_perf_env,&
                                               rm_mp_perf_env
@@ -1083,7 +1084,7 @@ CONTAINS
 
       CALL integral_setup_library(global_section)
       CALL fft_setup_library(globenv, global_section)
-      CALL diag_setup_library(globenv, global_section)
+      CALL diag_setup_library(globenv, global_section, para_env)
 
       SELECT CASE (fft_backend_in_use())
       CASE (FFT_LIBRARY_BACKEND_FFTW)
@@ -1200,15 +1201,24 @@ CONTAINS
 !>
 !> \param globenv ...
 !> \param global_section ...
+!> \param para_env CP2K communicator
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE diag_setup_library(globenv, global_section)
+   SUBROUTINE diag_setup_library(globenv, global_section, para_env)
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: global_section
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
-      LOGICAL                                            :: diag_lib_explicit, fallback_applied
+      INTEGER                                            :: device_count
+      LOGICAL                                            :: diag_lib_explicit, fallback_applied, stage_explicit
 
       CALL section_vals_val_get(global_section, "PREFERRED_DIAG_LIBRARY", explicit=diag_lib_explicit)
+      CALL section_vals_val_get(global_section, "ELPA_ONE_STAGE", explicit=stage_explicit)
+      device_count = 0
+      IF (globenv%diag_library == "ELPA") THEN
+         device_count = offload_get_device_count()
+         CALL para_env%min(device_count)
+      END IF
 
       CALL diag_init(diag_lib=TRIM(globenv%diag_library), &
                      fallback_applied=fallback_applied, &
@@ -1219,6 +1229,8 @@ CONTAINS
                      elpa_qr=globenv%elpa_qr, &
                      elpa_print=globenv%elpa_print, &
                      elpa_one_stage=globenv%elpa_one_stage, &
+                     elpa_auto_stage_input=.NOT. stage_explicit, &
+                     elpa_gpu_available_input=device_count > 0, &
                      dlaf_neigvec_min_input=globenv%dlaf_neigvec_min, &
                      eps_check_diag_input=globenv%eps_check_diag, &
                      direct_generalized_diagonalization_input= &

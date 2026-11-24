@@ -30,7 +30,7 @@ MODULE cp_fm_diag
    USE cp_fm_elpa, ONLY: cp_fm_diag_elpa, &
                          finalize_elpa_library, &
                          initialize_elpa_library, &
-                         set_elpa_kernel
+                         set_elpa_kernel, set_elpa_options
    USE cp_cfm_elpa, ONLY: set_elpa_c_kernel
    USE cp_fm_cusolver_api, ONLY: cp_fm_diag_cusolver, &
                                  cp_fm_general_cusolver
@@ -154,13 +154,16 @@ CONTAINS
 !> \param eps_check_diag_input ...
 !> \param direct_generalized_diagonalization_input ...
 !> \param diag_lib_explicit_input ...
+!> \param elpa_auto_stage_input choose the stage for the actual matrix and kernel
+!> \param elpa_gpu_available_input all participating ranks have an assigned device
 !> \par History
 !>      - Add support for DLA-Future (05.09.2023, RMeli)
 !> \author  MI 11.2013
 ! **************************************************************************************************
    SUBROUTINE diag_init(diag_lib, fallback_applied, elpa_kernel, elpa_c_kernel, elpa_neigvec_min_input, &
                         elpa_qr, elpa_print, elpa_one_stage, dlaf_neigvec_min_input, eps_check_diag_input, &
-                        direct_generalized_diagonalization_input, diag_lib_explicit_input)
+                        direct_generalized_diagonalization_input, diag_lib_explicit_input, &
+                        elpa_auto_stage_input, elpa_gpu_available_input)
       CHARACTER(LEN=*), INTENT(IN)                       :: diag_lib
       LOGICAL, INTENT(OUT)                               :: fallback_applied
       INTEGER, INTENT(IN)                                :: elpa_kernel
@@ -170,7 +173,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dlaf_neigvec_min_input
       REAL(KIND=dp), INTENT(IN)                          :: eps_check_diag_input
       LOGICAL, INTENT(IN), OPTIONAL :: direct_generalized_diagonalization_input, &
-         diag_lib_explicit_input
+         diag_lib_explicit_input, elpa_auto_stage_input, elpa_gpu_available_input
 
       LOGICAL, SAVE                                      :: initialized = .FALSE.
 
@@ -205,8 +208,9 @@ CONTAINS
       IF (PRESENT(diag_lib_explicit_input)) diag_lib_explicit = diag_lib_explicit_input
 
       ! Initialization of requested diagonalization library
-      IF (.NOT. initialized .AND. diag_type == FM_DIAG_TYPE_ELPA) THEN
-         CALL initialize_elpa_library(one_stage=elpa_one_stage, qr=elpa_qr, should_print=elpa_print)
+      IF (diag_type == FM_DIAG_TYPE_ELPA) THEN
+         IF (.NOT. initialized) CALL initialize_elpa_library()
+         CALL set_elpa_options(elpa_one_stage, elpa_qr, elpa_print, elpa_auto_stage_input, elpa_gpu_available_input)
          CALL set_elpa_kernel(elpa_kernel)
          IF (PRESENT(elpa_c_kernel)) CALL set_elpa_c_kernel(elpa_c_kernel)
          initialized = .TRUE.

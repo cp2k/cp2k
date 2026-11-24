@@ -35,7 +35,6 @@ MODULE input_cp2k_global
    USE cp_fm_elpa,                      ONLY: elpa_kernel_descriptions,&
                                               elpa_kernel_ids,&
                                               elpa_kernel_names,&
-                                              elpa_one_stage,&
                                               elpa_print,&
                                               elpa_qr
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get_ncol_block,&
@@ -247,10 +246,11 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ELPA_ONE_STAGE", &
-                          description="For ELPA, enable the one-stage solver (instead of the two-stage solver). "// &
-                          "Please note, ELPA_QR and ELPA_KERNEL settings may be ignored.", &
+                          description="Force the one-stage (T) or two-stage (F) ELPA solver. When omitted, "// &
+                          "CP2K chooses based on the kernel, process grid, matrix order and number of eigenvectors. "// &
+                          "ELPA_QR and two-stage kernel settings do not apply to a one-stage solve.", &
                           usage="ELPA_ONE_STAGE", &
-                          default_l_val=elpa_one_stage, lone_keyword_l_val=.TRUE.)
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

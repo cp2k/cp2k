@@ -21,7 +21,7 @@ MODULE cp_cfm_elpa
    USE cp_fm_diag_utils, ONLY: cp_cfm_redistribute_start, &
                                cp_cfm_redistribute_end, &
                                cp_fm_redistribute_info
-   USE cp_fm_elpa, ONLY: elpa_one_stage, &
+   USE cp_fm_elpa, ONLY: elpa_auto_stage, elpa_gpu_available, elpa_one_stage, elpa_select_one_stage, &
                          elpa_print
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
                            cp_fm_struct_get, &
@@ -214,13 +214,13 @@ CONTAINS
          ! Prefer GPU kernel if available.
 #if !defined(__NO_OFFLOAD_ELPA)
 #if defined(__OFFLOAD_CUDA)
-         elpa_c_kernel = ELPA_2STAGE_COMPLEX_NVIDIA_GPU
+         IF (elpa_gpu_available) elpa_c_kernel = ELPA_2STAGE_COMPLEX_NVIDIA_GPU
 #endif
 #if defined(__OFFLOAD_HIP)
-         elpa_c_kernel = ELPA_2STAGE_COMPLEX_AMD_GPU
+         IF (elpa_gpu_available) elpa_c_kernel = ELPA_2STAGE_COMPLEX_AMD_GPU
 #endif
 #if defined(__OFFLOAD_OPENCL)
-         elpa_c_kernel = ELPA_2STAGE_COMPLEX_INTEL_GPU_SYCL
+         IF (elpa_gpu_available) elpa_c_kernel = ELPA_2STAGE_COMPLEX_INTEL_GPU_SYCL
 #endif
 #endif
          ! If we could not find a suitable kernel then use ELPA_2STAGE_COMPLEX_DEFAULT.
@@ -282,7 +282,7 @@ CONTAINS
       IF (elpa_c_correctness_checked) RETURN ! one-shot per process
 
       IF (.NOT. is_block2_c_kernel(elpa_c_kernel)) RETURN ! only BLOCK2 kernels are affected
-      IF (elpa_one_stage) RETURN ! the 1-stage solver does not use kernels
+      IF (.NOT. elpa_auto_stage .AND. elpa_one_stage) RETURN ! explicit one-stage does not use BLOCK2
       elpa_c_correctness_checked = .TRUE.
 
       CALL timeset(routineN, handle)
@@ -447,6 +447,7 @@ CONTAINS
       CLASS(elpa_t), POINTER                   :: elpa_obj
       CHARACTER(len=default_string_length)     :: kernel_name
       CHARACTER(len=2*default_string_length)   :: message
+      LOGICAL                                  :: one_stage
       TYPE(mp_comm_type) :: group
       INTEGER                                  :: fallback_kernel, &
                                                   mypcol, myprow, n, &
@@ -491,6 +492,9 @@ CONTAINS
       END IF
 
       neig = SIZE(eigenvalues, 1)
+      one_stage = elpa_select_one_stage(n, neig, group%num_pe, .TRUE., elpa_c_kernel == ELPA_2STAGE_COMPLEX_NVIDIA_GPU, &
+                                        elpa_c_kernel == ELPA_2STAGE_COMPLEX_INTEL_GPU_SYCL, &
+                                        elpa_c_kernel == ELPA_2STAGE_COMPLEX_GENERIC)
       ! ELPA's QR decomposition is only available for real matrices
 
       IF (io_unit > 0 .AND. elpa_print) THEN
@@ -498,6 +502,7 @@ CONTAINS
             "ELPA| Matrix diagonalization information"
 
          kernel_name = get_elpa_c_kernel_name(elpa_c_kernel)
+         WRITE (UNIT=io_unit, FMT="(T2,A,T71,I10)") "ELPA| Solver stages ", MERGE(1, 2, one_stage)
 
          WRITE (UNIT=io_unit, FMT="(T2,A,T71,I10)") &
             "ELPA| Matrix order (NA) ", n, &
@@ -542,7 +547,7 @@ CONTAINS
       CPASSERT(success == ELPA_OK)
 
       CALL elpa_obj%set("solver", &
-                        MERGE(ELPA_SOLVER_1STAGE, ELPA_SOLVER_2STAGE, elpa_one_stage), &
+                        MERGE(ELPA_SOLVER_1STAGE, ELPA_SOLVER_2STAGE, one_stage), &
                         success)
       IF (success /= ELPA_OK) THEN
          CPABORT("Setting solver for ELPA failed")
@@ -561,7 +566,7 @@ CONTAINS
          CPASSERT(success == ELPA_OK)
       END SELECT
 
-      IF (.NOT. elpa_one_stage) THEN
+      IF (.NOT. one_stage) THEN
          ! Keep ELPA's configured default in case the requested kernel is unavailable.
          CALL elpa_obj%get("complex_kernel", fallback_kernel, success)
          CPASSERT(success == ELPA_OK)
