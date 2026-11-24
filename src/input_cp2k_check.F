@@ -22,12 +22,12 @@ MODULE input_cp2k_check
                                               cp_unit_set_release,&
                                               cp_unit_set_type
    USE input_constants,                 ONLY: &
-        do_qs, do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
-        do_thermo_same_as_part, mimic_run, negf_run, npt_f_ensemble, npt_i_ensemble, &
-        npt_ia_ensemble, rtp_method_bse, rtp_method_bse_linearized, vdw_nl_LMKLL, xc_funct_b3lyp, &
-        xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, &
-        xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_funct_xwpbe, &
-        xc_none, xc_vdw_fun_nonloc
+        do_exact, do_qs, do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, &
+        do_thermo_nose, do_thermo_same_as_part, mimic_run, negf_run, npt_f_ensemble, &
+        npt_i_ensemble, npt_ia_ensemble, real_time_propagation, rtp_method_bse, &
+        rtp_method_bse_linearized, vdw_nl_LMKLL, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, &
+        xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, &
+        xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_funct_xwpbe, xc_none, xc_vdw_fun_nonloc
    USE input_keyword_types,             ONLY: keyword_type
    USE input_parsing,                   ONLY: section_vals_parse
    USE input_section_types,             ONLY: &
@@ -134,6 +134,7 @@ CONTAINS
          section2 => section_vals_get_subs_vals(section, "ACTIVE_SPACE%XC%XC_FUNCTIONAL")
          CALL xc_functionals_expand(section2, section1)
          CALL check_properties_bse(sections, iforce_eval)
+         CALL check_rtbse_linearized_input(input_file, sections, iforce_eval)
       END DO
 
       ! additional checks for a MiMiC run
@@ -237,6 +238,38 @@ CONTAINS
       END IF
 
    END SUBROUTINE check_properties_bse
+
+! **************************************************************************************************
+!> \brief Refuses, before the SCF, the input combinations linearized RT-BSE cannot run: MAT_EXP EXACT
+!> \param input_file the parsed input, for GLOBAL%RUN_TYPE
+!> \param force_env_sections the FORCE_EVAL sections
+!> \param iforce_eval the repetition checked
+! **************************************************************************************************
+   SUBROUTINE check_rtbse_linearized_input(input_file, force_env_sections, iforce_eval)
+      TYPE(section_vals_type), POINTER                   :: input_file, force_env_sections
+      INTEGER, INTENT(IN)                                :: iforce_eval
+
+      INTEGER                                            :: mat_exp, rtp_method, run_type
+      LOGICAL                                            :: linearized
+      TYPE(section_vals_type), POINTER                   :: dft_sec, rtp_sec
+
+      CALL section_vals_val_get(input_file, "GLOBAL%RUN_TYPE", i_val=run_type)
+      IF (run_type /= real_time_propagation) RETURN
+      dft_sec => section_vals_get_subs_vals3(force_env_sections, "DFT", i_rep_section=iforce_eval)
+      rtp_sec => section_vals_get_subs_vals(dft_sec, "REAL_TIME_PROPAGATION")
+      ! the condition read_rtp_section resolves to rtp_method_bse_linearized
+      CALL section_vals_val_get(rtp_sec, "RTBSE%_SECTION_PARAMETERS_", i_val=rtp_method)
+      CALL section_vals_val_get(rtp_sec, "RTBSE%LINEARIZED_BSE_PROPAGATION", l_val=linearized)
+      IF (rtp_method /= rtp_method_bse .OR. .NOT. linearized) RETURN
+
+      CALL section_vals_val_get(rtp_sec, "MAT_EXP", i_val=mat_exp)
+      IF (mat_exp == do_exact) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Linearized RT-BSE does not support MAT_EXP EXACT, which would apply the kick "// &
+                       "generator as its exponential: set DFT%REAL_TIME_PROPAGATION%MAT_EXP to any other value")
+      END IF
+
+   END SUBROUTINE check_rtbse_linearized_input
 
 ! **************************************************************************************************
 !> \brief expand a shortcutted functional section
