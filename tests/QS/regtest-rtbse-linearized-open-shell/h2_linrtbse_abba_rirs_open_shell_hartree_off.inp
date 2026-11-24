@@ -3,9 +3,9 @@
   RUN_TYPE RT_PROPAGATION
 &END GLOBAL
 
-! Open-shell (LSD) ABBA with RI-RS Hartree+SEX: joint Liouvillian peaks + propagated alpha(0).
-! STATIC_POL| TOT must equal the closed-shell RIRS ABBA alpha(0) at matched grid (forced-LSD
-! identity), and equals 2 x the per-spin STATIC_POL| xx by spin symmetry. GRID_SELECT 2 per P-C12.
+! Open-shell (LSD) ABBA with RI-RS on the KS Hamiltonian, Hartree off and SEX on: the diagnostic's
+! SEX-only path. Without Hartree the two spin blocks do not couple, so every excitation of this
+! forced-LSD singlet appears twice (1st = 2nd), and STATIC_POL| TOT is 2 x the per-spin xx.
 &MOTION
   &MD
     ENSEMBLE NVE
