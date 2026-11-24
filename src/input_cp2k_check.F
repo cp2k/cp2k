@@ -240,9 +240,9 @@ CONTAINS
    END SUBROUTINE check_properties_bse
 
 ! **************************************************************************************************
-!> \brief Refuses, before the SCF, the input combinations linearized RT-BSE cannot run: MAT_EXP EXACT,
-!>        a DFT%EFIELD, a nonzero MOTION%MD%STEP_START_VAL, a run without the electric delta kick
-!>        or with the magnetic one
+!> \brief Refuses, before the SCF, the input combinations linearized RT-BSE cannot run:
+!>        MAT_EXP EXACT, a DFT%EFIELD, a nonzero MOTION%MD%STEP_START_VAL, a run without the
+!>        electric delta kick or with the magnetic one
 !> \param input_file the parsed input, for GLOBAL%RUN_TYPE and MOTION%MD
 !> \param force_env_sections the FORCE_EVAL sections
 !> \param iforce_eval the repetition checked
@@ -279,8 +279,8 @@ CONTAINS
       CALL section_vals_val_get(rtp_sec, "MAT_EXP", i_val=mat_exp)
       IF (mat_exp == do_exact) THEN
          CALL cp_abort(__LOCATION__, &
-                       "Linearized RT-BSE does not support MAT_EXP EXACT, which would apply the kick "// &
-                       "generator as its exponential: set DFT%REAL_TIME_PROPAGATION%MAT_EXP to any other value")
+                       "Linearized RT-BSE does not support MAT_EXP EXACT: "// &
+                       "set DFT%REAL_TIME_PROPAGATION%MAT_EXP to any other value")
       END IF
       efield_sec => section_vals_get_subs_vals(dft_sec, "EFIELD")
       CALL section_vals_get(efield_sec, explicit=efield)
@@ -292,9 +292,9 @@ CONTAINS
       CALL section_vals_val_get(input_file, "MOTION%MD%STEP_START_VAL", i_val=step_start)
       IF (step_start /= 0) THEN
          CALL cp_abort(__LOCATION__, &
-                       "Linearized RT-BSE requires MOTION%MD%STEP_START_VAL 0: its restart trace counts "// &
-                       "steps from 0, and a nonzero value may come from EXT_RESTART; continue a run with "// &
-                       "DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART")
+                       "Linearized RT-BSE requires MOTION%MD%STEP_START_VAL 0: it numbers its steps from 0 "// &
+                       "and continues a run only through DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART; "// &
+                       "a value carried in by EXT_RESTART is switched off with EXT_RESTART%RESTART_COUNTERS F")
       END IF
       ! the propagation applies only the electric kick; a magnetic one would be ignored silently
       CALL section_vals_val_get(rtp_sec, "APPLY_DELTA_PULSE", l_val=kick)
@@ -302,7 +302,7 @@ CONTAINS
       IF (.NOT. kick .OR. kick_mag) THEN
          CALL cp_abort(__LOCATION__, &
                        "Linearized RT-BSE propagates from the electric delta kick only: set "// &
-                       "DFT%REAL_TIME_PROPAGATION%APPLY_DELTA_PULSE, and remove APPLY_DELTA_PULSE_MAG")
+                       "DFT%REAL_TIME_PROPAGATION%APPLY_DELTA_PULSE T and APPLY_DELTA_PULSE_MAG F")
       END IF
 
       CALL timestop(handle)
