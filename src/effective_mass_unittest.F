@@ -93,6 +93,7 @@ PROGRAM effective_mass_unittest
                             velocity_rot, inv_mass_rot, linear_split)
    IF (.NOT. linear_split .OR. MAXVAL(ABS(velocity_rot - velocity_eigs)) > 1.0E-13_dp .OR. &
        MAXVAL(ABS(inv_mass_rot - inv_mass_eigs)) > 1.0E-13_dp) ERROR STOP "Subspace U(3) invariance failed"
+   DEALLOCATE (velocity_eigs, inv_mass_eigs, velocity_rot, inv_mass_rot)
 
    ! 3. Transitive degenerate_range, principal_masses classification, and damped/vacuum Newton step.
    CALL degenerate_range([-0.50_dp, 0.00_dp, 0.8E-5_dp, 1.6E-5_dp, 0.10_dp, 0.20_dp], 4, 1.0E-5_dp, ilo, ihi)
