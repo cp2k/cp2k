@@ -241,7 +241,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Refuses, before the SCF, the input combinations linearized RT-BSE cannot run: MAT_EXP EXACT,
-!>        a DFT%EFIELD, a nonzero MOTION%MD%STEP_START_VAL
+!>        a DFT%EFIELD, a nonzero MOTION%MD%STEP_START_VAL, a run without the electric delta kick
+!>        or with the magnetic one
 !> \param input_file the parsed input, for GLOBAL%RUN_TYPE and MOTION%MD
 !> \param force_env_sections the FORCE_EVAL sections
 !> \param iforce_eval the repetition checked
@@ -251,7 +252,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iforce_eval
 
       INTEGER                                            :: mat_exp, rtp_method, run_type, step_start
-      LOGICAL                                            :: efield, linearized
+      LOGICAL                                            :: efield, kick, kick_mag, linearized
       TYPE(section_vals_type), POINTER                   :: dft_sec, efield_sec, rtp_sec
 
       CALL section_vals_val_get(input_file, "GLOBAL%RUN_TYPE", i_val=run_type)
@@ -282,6 +283,14 @@ CONTAINS
                        "Linearized RT-BSE requires MOTION%MD%STEP_START_VAL 0: its restart trace counts "// &
                        "steps from 0, and a nonzero value may come from EXT_RESTART; continue a run with "// &
                        "DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART")
+      END IF
+      ! the propagation applies only the electric kick; a magnetic one would be ignored silently
+      CALL section_vals_val_get(rtp_sec, "APPLY_DELTA_PULSE", l_val=kick)
+      CALL section_vals_val_get(rtp_sec, "APPLY_DELTA_PULSE_MAG", l_val=kick_mag)
+      IF (.NOT. kick .OR. kick_mag) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Linearized RT-BSE propagates from the electric delta kick only: set "// &
+                       "DFT%REAL_TIME_PROPAGATION%APPLY_DELTA_PULSE, and remove APPLY_DELTA_PULSE_MAG")
       END IF
 
    END SUBROUTINE check_rtbse_linearized_input
