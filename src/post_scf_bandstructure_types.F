@@ -95,7 +95,8 @@ MODULE post_scf_bandstructure_types
                                                          do_gw_ri_rs = .FALSE., &
                                                          do_dos_pdos = .FALSE., &
                                                          do_floquet = .FALSE., &
-                                                         do_static_cohsex = .FALSE.
+                                                         do_static_cohsex = .FALSE., &
+                                                         do_spin_texture = .FALSE.
 
       ! various eigenvalues computed in GW code, some depend on k-points
       ! and have therefore three dimensions (band index, k-point, spin)
@@ -350,8 +351,14 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp)                                :: soc_window_occ = -1.0_dp
       REAL(KIND=dp)                                :: soc_window_virt = -1.0_dp
       REAL(KIND=dp)                                :: soc_window_smearing = 1.0_dp/evolt
-      INTEGER                                      :: soc_nbands_occ = -1.0_dp
-      INTEGER                                      :: soc_nbands_virt = -1.0_dp
+      REAL(KIND=dp)                                :: soc_diag_occ = -1.0_dp
+      REAL(KIND=dp)                                :: soc_diag_virt = -1.0_dp
+      ! spin texture: atoms for the layer-projected spin (SPIN_TEXTURE_ATOMS) and, after each
+      ! call of SOC_ev, the spinor-state index (in eigenval_spinor) of every column of the
+      ! spinor wavefunction matrix that holds a valid eigenvector (all 2*n_ao columns for the
+      ! untruncated SOC, the window columns for SOC_DIAG_OCC/VIRT)
+      INTEGER, DIMENSION(:), ALLOCATABLE           :: spin_texture_atoms, &
+                                                      soc_wf_state_index
 
       ! sizes: mat_V_SOC_xyz: xyz, img
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: mat_V_SOC_xyz => NULL()
@@ -564,6 +571,9 @@ CONTAINS
       CALL safe_cfm_destroy_1d(bs_env%cfm_SOC_spinor_ao)
 
       CALL auto_ri_release(bs_env%auto_ri)
+
+      IF (ALLOCATED(bs_env%spin_texture_atoms)) DEALLOCATE (bs_env%spin_texture_atoms)
+      IF (ALLOCATED(bs_env%soc_wf_state_index)) DEALLOCATE (bs_env%soc_wf_state_index)
 
       DEALLOCATE (bs_env)
 

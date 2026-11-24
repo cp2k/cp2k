@@ -94,6 +94,7 @@ MODULE post_scf_bandstructure_utils
                                               twopi,&
                                               z_one,&
                                               z_zero
+   USE mathlib,                         ONLY: diag_complex
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
    USE mo_window,                       ONLY: mo_window_type
@@ -281,8 +282,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: string_ptr
       CHARACTER(LEN=max_line_length)                     :: error_msg
-      INTEGER                                            :: handle, i, ikp
-      LOGICAL                                            :: do_evgw0
+      INTEGER                                            :: handle, i, ikp, natom
+      INTEGER, DIMENSION(:), POINTER                     :: st_atoms_ptr
+      LOGICAL                                            :: do_evgw0, st_atoms_explicit
       REAL(KIND=dp), DIMENSION(3)                        :: kpptr
       REAL(KIND=dp), DIMENSION(3, 3)                     :: cart_hmat
       TYPE(cell_type), POINTER                           :: cell
@@ -313,8 +315,21 @@ CONTAINS
       CALL section_vals_val_get(soc_sec, "SOC_WINDOW_VIRT", r_val=bs_env%soc_window_virt)
       CALL section_vals_val_get(soc_sec, "SOC_WINDOW_SMEARING", r_val=bs_env%soc_window_smearing)
 
-      CALL section_vals_val_get(soc_sec, "SOC_NBANDS_OCC", i_val=bs_env%soc_nbands_occ)
-      CALL section_vals_val_get(soc_sec, "SOC_NBANDS_VIRT", i_val=bs_env%soc_nbands_virt)
+      CALL section_vals_val_get(soc_sec, "SOC_DIAG_OCC", r_val=bs_env%soc_diag_occ)
+      CALL section_vals_val_get(soc_sec, "SOC_DIAG_VIRT", r_val=bs_env%soc_diag_virt)
+
+      CALL section_vals_val_get(soc_sec, "PRINT_SPIN_TEXTURE", l_val=bs_env%do_spin_texture)
+      bs_env%do_spin_texture = bs_env%do_spin_texture .AND. bs_env%do_soc
+      CALL section_vals_val_get(soc_sec, "SPIN_TEXTURE_ATOMS", explicit=st_atoms_explicit)
+      IF (st_atoms_explicit) THEN
+         CALL section_vals_val_get(soc_sec, "SPIN_TEXTURE_ATOMS", i_vals=st_atoms_ptr)
+         CALL get_qs_env(qs_env, natom=natom)
+         IF (ANY(st_atoms_ptr(:) < 1) .OR. ANY(st_atoms_ptr(:) > natom)) THEN
+            CPABORT("SPIN_TEXTURE_ATOMS: atom index out of range")
+         END IF
+         ALLOCATE (bs_env%spin_texture_atoms(SIZE(st_atoms_ptr)))
+         bs_env%spin_texture_atoms(:) = st_atoms_ptr(:)
+      END IF
 
       NULLIFY (dos_pdos_sec)
       dos_pdos_sec => section_vals_get_subs_vals(bs_sec, "DOS")
@@ -331,6 +346,14 @@ CONTAINS
 
       CALL section_vals_val_get(ldos_sec, "INTEGRATION", i_val=bs_env%int_ldos_xyz)
       CALL section_vals_val_get(ldos_sec, "BIN_MESH", i_vals=bs_env%bin_mesh)
+
+      ! SOC_DIAG_OCC/VIRT input checks, done here (on all ranks, before the SCF) instead of
+      ! failing hours later inside SOC_ev_truncate_mos
+      IF (bs_env%do_soc .AND. (bs_env%soc_diag_occ > 0.0_dp .OR. bs_env%soc_diag_virt > 0.0_dp)) THEN
+         IF (bs_env%do_dos_pdos .OR. bs_env%do_ldos) THEN
+            CPABORT("SOC_DIAG_OCC/VIRT: DOS/LDOS unsupported")
+         END IF
+      END IF
 
       NULLIFY (kp_bs_sec)
       kp_bs_sec => section_vals_get_subs_vals(bs_sec, "BANDSTRUCTURE_PATH")
@@ -1385,12 +1408,12 @@ CONTAINS
       ELSE
 
          IF (bs_env%n_spin == 1) THEN
-            homo = bs_env%n_occ(1)
+            homo = bs_env%n_occ_nosmear(1)
             band_edges_scf_guess%VBM = bs_env%eigenval_scf_Gamma(homo, 1)
             band_edges_scf_guess%CBM = bs_env%eigenval_scf_Gamma(homo + 1, 1)
          ELSE
-            homo_1 = bs_env%n_occ(1)
-            homo_2 = bs_env%n_occ(2)
+            homo_1 = bs_env%n_occ_nosmear(1)
+            homo_2 = bs_env%n_occ_nosmear(2)
             band_edges_scf_guess%VBM = MAX(bs_env%eigenval_scf_Gamma(homo_1, 1), &
                                            bs_env%eigenval_scf_Gamma(homo_2, 2))
             band_edges_scf_guess%CBM = MIN(bs_env%eigenval_scf_Gamma(homo_1 + 1, 1), &
@@ -1503,7 +1526,7 @@ CONTAINS
          CALL cp_cfm_create(cfm_s_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
          CALL cp_cfm_create(cfm_spinor_wf_ikp, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
 
-         homo_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
+         homo_spinor = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
 
          SELECT CASE (bs_env%n_spin)
          CASE (1)
@@ -1512,6 +1535,12 @@ CONTAINS
             n_el_spinor = REAL(bs_env%n_electron(1) + bs_env%n_electron(2), KIND=dp)
          END SELECT
 
+         ! The SOC band edges are pure accumulators (running MAX/MIN over k-points), so
+         ! they must start from sentinels. Seeding them from bs_env%band_edges_scf was
+         ! wrong: for DFT-only large-cell runs that field is never set and keeps its
+         ! default -1 Ha, so MIN(CBM, ...) stayed at -27.211 eV for the whole run.
+         ! SOC_ev_truncate_mos no longer reads these values to place its window (it uses
+         ! the k-local non-SOC HOMO/LUMO), so no seed is needed.
          band_edges_scf_SOC%VBM = -1000.0_dp
          band_edges_scf_SOC%CBM = 1000.0_dp
          band_edges_scf_SOC%DBG = 1000.0_dp
@@ -1546,6 +1575,27 @@ CONTAINS
             IF (bs_env%soc_window_occ > 0.0_dp .OR. bs_env%soc_window_virt > 0.0_dp) THEN
                WRITE (bs_env%unit_nr, '(T2,A,T71,F10.2)') 'SOC requested, SOC window smearing (eV):', &
                   bs_env%soc_window_smearing*evolt
+            END IF
+            IF (bs_env%soc_diag_occ > 0.0_dp .OR. bs_env%soc_diag_virt > 0.0_dp) THEN
+               IF (bs_env%soc_diag_occ > 0.0_dp) THEN
+                  WRITE (bs_env%unit_nr, '(T2,A,T71,F10.3)') &
+                     'SOC diagonalization truncated, SOC_DIAG_OCC below E_HOMO(k) (eV):', &
+                     bs_env%soc_diag_occ*evolt
+               ELSE
+                  WRITE (bs_env%unit_nr, '(T2,A,T71,A10)') &
+                     'SOC diagonalization truncated, SOC_DIAG_OCC below E_HOMO(k) (eV):', '       all'
+               END IF
+               IF (bs_env%soc_diag_virt > 0.0_dp) THEN
+                  WRITE (bs_env%unit_nr, '(T2,A,T71,F10.3)') &
+                     'SOC diagonalization truncated, SOC_DIAG_VIRT above E_LUMO(k) (eV):', &
+                     bs_env%soc_diag_virt*evolt
+               ELSE
+                  WRITE (bs_env%unit_nr, '(T2,A,T71,A10)') &
+                     'SOC diagonalization truncated, SOC_DIAG_VIRT above E_LUMO(k) (eV):', '       all'
+               END IF
+            ELSE
+               WRITE (bs_env%unit_nr, '(T2,A,T71,A10)') &
+                  'SOC diagonalization truncated (SOC_DIAG_OCC/VIRT):', '        no'
             END IF
          END IF
       END IF
@@ -1626,7 +1676,7 @@ CONTAINS
 
             END IF
 
-            homo = bs_env%n_occ(ispin)
+            homo = bs_env%n_occ_nosmear(ispin)
 
             band_edges_scf%VBM = MAX(band_edges_scf%VBM, eigenval(homo))
             band_edges_scf%CBM = MIN(band_edges_scf%CBM, eigenval(homo + 1))
@@ -1661,6 +1711,12 @@ CONTAINS
             ELSE IF (bs_env%do_gw .AND. print_ikp) THEN
                CALL write_SOC_eigenvalues(eigenval_spinor, ikp_for_file, ikp, bs_env, &
                                           file_name='bandstructure_DFT_plus_SOC')
+            END IF
+
+            ! spin texture of the DFT+SOC states (before cfm_spinor_wf_ikp is overwritten by GW+SOC)
+            IF (bs_env%do_spin_texture .AND. print_ikp) THEN
+               CALL compute_and_write_spin_texture(qs_env, bs_env, cfm_spinor_wf_ikp, cfm_s_ikp, &
+                                                   eigenval_spinor, ikp_for_file, ikp)
             END IF
 
             IF (bs_env%do_ldos) THEN
@@ -1724,7 +1780,7 @@ CONTAINS
       IF (bs_env%do_soc) THEN
          band_edges_scf_SOC%IDBG = band_edges_scf_SOC%CBM - band_edges_scf_SOC%VBM
          ! SOC merges both spins into 2*n_ao spinor states, each holding at most one
-         ! electron (maxocc=1); homo_spinor = n_occ(1)+n_occ(n_spin) is the total spinor
+         ! electron (maxocc=1); homo_spinor = n_occ_nosmear(1)+n_occ_nosmear(n_spin) is the total spinor
          ! electron count, same quantity SOC_ev uses to locate the occupied/unoccupied edge
          CALL get_fermi_level_1c(bs_env, eigenval_spinor_all_scf, &
                                  n_el_spinor, 1.0_dp, &
@@ -2080,7 +2136,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       !for the window truncation part
-      do_truncate = (bs_env%soc_nbands_occ > 0 .AND. bs_env%soc_nbands_virt > 0)
+      do_truncate = (bs_env%soc_diag_occ > 0.0_dp .OR. bs_env%soc_diag_virt > 0.0_dp)
 
       IF (do_truncate) THEN
          CALL SOC_ev_truncate_mos(bs_env, qs_env, ikp, eigenval_no_SOC, cfm_mos_ikp, &
@@ -2096,7 +2152,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief SOC second-variational diagonalization over the full 2*n_ao spinor space (no truncation
-!>        window) -- the SOC_NBANDS_OCC/VIRT-truncated path lives in SOC_ev_truncate_mos.
+!>        window) -- the SOC_DIAG_OCC/VIRT-truncated path lives in SOC_ev_truncate_mos.
 !> \param bs_env ...
 !> \param qs_env ...
 !> \param ikp ...
@@ -2126,7 +2182,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'SOC_ev_all_mos'
 
-      INTEGER                                            :: handle, homo_spinor, n_ao, n_E, nkind
+      INTEGER                                            :: handle, homo_spinor, i_state, n_ao, n_E, &
+                                                            nkind
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_spinor_no_SOC
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: proj_mo_on_kind_spinor
       TYPE(cp_cfm_type)                                  :: cfm_eigenvec_ikp_spinor, &
@@ -2136,7 +2193,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       n_ao = bs_env%n_ao
-      homo_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
+      homo_spinor = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
       CALL get_qs_env(qs_env, nkind=nkind)
 
       CALL cp_cfm_create(cfm_ks_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
@@ -2218,12 +2275,19 @@ CONTAINS
       band_edges%DBG = MIN(band_edges%DBG, eigenval_spinor(homo_spinor + 1) &
                            - eigenval_spinor(homo_spinor))
 
-      ! Only LDOS consumes the AO spinor wavefunctions; band energies and DOS do not.
+      ! Only LDOS and the spin texture consume the AO spinor wavefunctions.
       CALL cp_cfm_set_all(cfm_spinor_wf_ikp, z_zero)
-      IF (bs_env%do_ldos) THEN
+      IF (bs_env%do_ldos .OR. bs_env%do_spin_texture) THEN
          CALL parallel_gemm('N', 'N', 2*n_ao, 2*n_ao, 2*n_ao, z_one, &
                             cfm_mos_ikp_spinor, cfm_eigenvec_ikp_spinor, &
                             z_zero, cfm_spinor_wf_ikp)
+      END IF
+      IF (bs_env%do_spin_texture) THEN
+         IF (ALLOCATED(bs_env%soc_wf_state_index)) DEALLOCATE (bs_env%soc_wf_state_index)
+         ALLOCATE (bs_env%soc_wf_state_index(2*n_ao))
+         DO i_state = 1, 2*n_ao
+            bs_env%soc_wf_state_index(i_state) = i_state
+         END DO
       END IF
 
       CALL cp_cfm_release(cfm_ks_ikp_spinor)
@@ -2237,8 +2301,8 @@ CONTAINS
    END SUBROUTINE SOC_ev_all_mos
 
 ! **************************************************************************************************
-!> \brief SOC second-variational diagonalization truncated to a window of SOC_NBANDS_OCC occupied
-!>        and SOC_NBANDS_VIRT virtual states around the Fermi level -- the untruncated, full
+!> \brief SOC second-variational diagonalization truncated to an energy window of SOC_DIAG_OCC
+!>        occupied and SOC_DIAG_VIRT virtual states around the Fermi level -- the untruncated, full
 !>        2*n_ao spinor-space path lives in SOC_ev_all_mos.
 !> \param bs_env ...
 !> \param qs_env ...
@@ -2263,12 +2327,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'SOC_ev_truncate_mos'
 
-      INTEGER                                            :: handle, homo_spinor, homo_used, &
-                                                            mo_index_start_1, mo_index_start_2, &
-                                                            n_ao, n_window, n_window2tot, nkind, &
-                                                            nocc, nvirt
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_win_sorted, eigenval_spinor_no_SOC
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: proj_mo_on_kind_spinor
+      INTEGER :: handle, homo_used, mo_index_start_1, mo_index_start_2, n_ao, n_window, &
+         n_window2tot, nocc, nocc_sp1, nocc_sp2, nvirt, nvirt_sp1, nvirt_sp2
+      REAL(KIND=dp)                                      :: e_homo_k, e_lumo_k, e_occ_min, e_virt_max
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_win_sorted
       TYPE(cp_cfm_type)                                  :: cfm_eigenvec_ikp_spinor, &
                                                             cfm_ks_ikp_spinor, cfm_mos_ikp_spinor, &
                                                             cfm_SOC_ikp_spinor, cfm_work_ikp_spinor
@@ -2279,21 +2341,49 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       n_ao = bs_env%n_ao
-      homo_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
-      CALL get_qs_env(qs_env, nkind=nkind)
 
-      nocc = bs_env%soc_nbands_occ
-      nvirt = bs_env%soc_nbands_virt
+      ! Energy window per k-point: keep the non-SOC states in [E_HOMO(k) - SOC_DIAG_OCC, E_HOMO(k)]
+      ! and [E_LUMO(k), E_LUMO(k) + SOC_DIAG_VIRT], where E_HOMO(k)/E_LUMO(k) are the k-local
+      ! non-SOC edges at the smearing-independent electron count n_occ_nosmear. Eigenvalues are
+      ! ascending, so the counts give contiguous index ranges; both spins share one window size
+      ! (the larger of the two counts). An unset (<= 0) SOC_DIAG_OCC or SOC_DIAG_VIRT keeps all
+      ! occupied or all virtual states, respectively.
+      CPASSERT(bs_env%n_occ_nosmear(1) >= 1 .AND. bs_env%n_occ_nosmear(1) < n_ao)
+      CPASSERT(bs_env%n_occ_nosmear(2) >= 1 .AND. bs_env%n_occ_nosmear(2) < n_ao)
+      e_homo_k = MAX(eigenval_no_SOC(bs_env%n_occ_nosmear(1), ikp, 1), &
+                     eigenval_no_SOC(bs_env%n_occ_nosmear(bs_env%n_spin), ikp, bs_env%n_spin))
+      e_lumo_k = MIN(eigenval_no_SOC(bs_env%n_occ_nosmear(1) + 1, ikp, 1), &
+                     eigenval_no_SOC(bs_env%n_occ_nosmear(bs_env%n_spin) + 1, ikp, bs_env%n_spin))
+      e_occ_min = -HUGE(1.0_dp)
+      IF (bs_env%soc_diag_occ > 0.0_dp) e_occ_min = e_homo_k - bs_env%soc_diag_occ
+      e_virt_max = HUGE(1.0_dp)
+      IF (bs_env%soc_diag_virt > 0.0_dp) e_virt_max = e_lumo_k + bs_env%soc_diag_virt
+      nocc_sp1 = COUNT(eigenval_no_SOC(1:bs_env%n_occ_nosmear(1), ikp, 1) >= e_occ_min)
+      nocc_sp2 = COUNT(eigenval_no_SOC(1:bs_env%n_occ_nosmear(bs_env%n_spin), ikp, bs_env%n_spin) >= &
+                       e_occ_min)
+      nvirt_sp1 = COUNT(eigenval_no_SOC(bs_env%n_occ_nosmear(1) + 1:n_ao, ikp, 1) <= e_virt_max)
+      nvirt_sp2 = COUNT(eigenval_no_SOC(bs_env%n_occ_nosmear(bs_env%n_spin) + 1:n_ao, ikp, bs_env%n_spin) <= &
+                        e_virt_max)
+      ! safety net only: with the k-local reference both counts are >= 1 by construction
+      nocc = MAX(nocc_sp1, nocc_sp2, 1)
+      nvirt = MAX(nvirt_sp1, nvirt_sp2, 1)
+
+      IF (bs_env%unit_nr > 0) THEN
+         WRITE (bs_env%unit_nr, '(T2,A,I6,A,I6,A,I6,A,F10.3,A,F10.3,A)') &
+            'SOC_DIAG window, k-point', ikp, ':', nocc, ' occ +', nvirt, &
+            ' virt states per spin  (E_HOMO(k), E_LUMO(k) =', e_homo_k*evolt, ',', &
+            e_lumo_k*evolt, ' eV)'
+      END IF
       CPASSERT(nocc <= bs_env%n_occ_nosmear(1))
       CPASSERT(nocc <= bs_env%n_occ_nosmear(bs_env%n_spin))
       CPASSERT(nvirt <= n_ao - bs_env%n_occ_nosmear(1))
       CPASSERT(nvirt <= n_ao - bs_env%n_occ_nosmear(bs_env%n_spin))
       CPASSERT(.NOT. bs_env%do_dos_pdos)
+
       mo_index_start_1 = bs_env%n_occ_nosmear(1) - nocc + 1
       mo_index_start_2 = bs_env%n_occ_nosmear(bs_env%n_spin) - nocc + 1
       n_window = nocc + nvirt
       n_window2tot = 2*n_window
-      homo_used = 2*nocc
 
       NULLIFY (fst_ww, fst_wa, fst_mos)
       CALL cp_fm_struct_create(fst_ww, nrow_global=n_window2tot, ncol_global=n_window2tot, &
@@ -2307,11 +2397,6 @@ CONTAINS
       CALL cp_cfm_create(cfm_work_ikp_spinor, fst_wa)
       CALL cp_cfm_create(cfm_SOC_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
       CALL cp_cfm_create(cfm_mos_ikp_spinor, fst_mos)
-
-      ALLOCATE (eigenval_spinor_no_SOC(2*n_ao))
-      ALLOCATE (proj_mo_on_kind_spinor(2*n_ao, nkind))
-      ! PDOS not yet implemented -> projection is just zero -> PDOS is zero
-      proj_mo_on_kind_spinor(:, :) = 0.0_dp
 
       ! 1. get V^SOC_µν,σσ'(k_i)
       SELECT CASE (bs_env%gw_implementation)
@@ -2374,10 +2459,7 @@ CONTAINS
                          cfm_work_ikp_spinor, cfm_mos_ikp_spinor, &
                          z_zero, cfm_ks_ikp_spinor)
 
-      ! 3. remove SOC outside of energy window: not applicable here -- the truncation window
-      !    itself already restricts SOC to the states around the Fermi level
-      eigenval_spinor_no_SOC(1:n_ao) = eigenval_no_SOC(1:n_ao, ikp, 1)
-      eigenval_spinor_no_SOC(n_ao + 1:) = eigenval_no_SOC(1:n_ao, ikp, bs_env%n_spin)
+      ! 3. SOC_WINDOW_OCC/VIRT is not applied here: the SOC_DIAG window already restricts SOC
 
       ! 4. h^G0W0+SOC_nn',σσ'(k_i) = ε_nσ^G0W0(k_i) δ_nn' δ_σσ' + V^SOC_nn',σσ'(k_i)
       CALL cfm_add_on_diag(cfm_ks_ikp_spinor, &
@@ -2386,22 +2468,33 @@ CONTAINS
 
       ! 5. diagonalize h^G0W0+SOC_nn',σσ'(k_i) to get eigenvalues
       ALLOCATE (eig_win_sorted(n_window2tot))
+
       CALL cp_cfm_heevd(cfm_ks_ikp_spinor, cfm_eigenvec_ikp_spinor, eig_win_sorted)
 
-      ! 6. DOS from spinors: not supported for the truncated window (CPASSERT'd above)
-
-      ! 7. valence band max. (VBM), conduction band min. (CBM) and direct bandgap (DBG)
-      band_edges%VBM = MAX(band_edges%VBM, eig_win_sorted(homo_used))
-      band_edges%CBM = MIN(band_edges%CBM, eig_win_sorted(homo_used + 1))
-      band_edges%DBG = MIN(band_edges%DBG, eig_win_sorted(homo_used + 1) - eig_win_sorted(homo_used))
-
+      ! 6. merge window eigenvalues with the unchanged non-SOC eigenvalues outside the window
+      IF (ALLOCATED(bs_env%soc_wf_state_index)) DEALLOCATE (bs_env%soc_wf_state_index)
+      ALLOCATE (bs_env%soc_wf_state_index(n_window2tot))
       CALL fill_truncated_eigenval_spinor(eigenval_no_SOC, eig_win_sorted, ikp, bs_env%n_spin, &
                                           n_ao, mo_index_start_1, mo_index_start_2, n_window, &
-                                          n_window2tot, eigenval_spinor)
+                                          n_window2tot, eigenval_spinor, bs_env%soc_wf_state_index)
 
-      ! LDOS is unsupported in the truncated path, so AO spinors are unused.
+      ! 7. valence band max. (VBM), conduction band min. (CBM) and direct bandgap (DBG),
+      !    taken from the merged spectrum at the smearing-independent spinor electron count
+      !    (not a window-local index): SOC can move states across the occupied/virtual boundary.
+      homo_used = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
+      band_edges%VBM = MAX(band_edges%VBM, eigenval_spinor(homo_used))
+      band_edges%CBM = MIN(band_edges%CBM, eigenval_spinor(homo_used + 1))
+      band_edges%DBG = MIN(band_edges%DBG, eigenval_spinor(homo_used + 1) - eigenval_spinor(homo_used))
+
+      ! 8. spinor wavefunctions of the window states (columns 1..n_window2tot, ordered as
+      !    eig_win_sorted); only needed for the spin texture. LDOS is unsupported here.
       CALL cp_cfm_set_all(cfm_spinor_wf_ikp, z_zero)
       CPASSERT(.NOT. bs_env%do_ldos)
+      IF (bs_env%do_spin_texture) THEN
+         CALL parallel_gemm('N', 'N', 2*n_ao, n_window2tot, n_window2tot, z_one, &
+                            cfm_mos_ikp_spinor, cfm_eigenvec_ikp_spinor, &
+                            z_zero, cfm_spinor_wf_ikp)
+      END IF
 
       CALL cp_cfm_release(cfm_ks_ikp_spinor)
       CALL cp_cfm_release(cfm_SOC_ikp_spinor)
@@ -2428,101 +2521,120 @@ CONTAINS
 !> \param n_window per-spin window size
 !> \param n_window2tot total window size
 !> \param eigenval_spinor output: full repacked spinor spectrum (2*n_ao)
+!> \param win_state_index output: position in eigenval_spinor of each window eigenvalue
 ! **************************************************************************************************
    SUBROUTINE fill_truncated_eigenval_spinor(eigenval_no_SOC, eig_win_sorted, ikp, n_spin, n_ao, &
                                              mo_index_start_1, mo_index_start_2, n_window, &
-                                             n_window2tot, eigenval_spinor)
+                                             n_window2tot, eigenval_spinor, win_state_index)
       REAL(KIND=dp), DIMENSION(:, :, :)                  :: eigenval_no_SOC
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_win_sorted
       INTEGER                                            :: ikp, n_spin, n_ao, mo_index_start_1, &
                                                             mo_index_start_2, n_window, &
                                                             n_window2tot
       REAL(KIND=dp), DIMENSION(:)                        :: eigenval_spinor
+      INTEGER, DIMENSION(:)                              :: win_state_index
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_truncated_eigenval_spinor'
 
-      INTEGER                                            :: handle, i, ia, ib, idx_end, idx_start, &
-                                                            mo_index_start_1_m1, &
-                                                            mo_index_start_2_m1
+      INTEGER                                            :: handle, i, ia, ib, ic, n_above1, &
+                                                            n_above2, n_below1, n_below2, &
+                                                            n_total_above, n_total_below
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: above_merged, below_merged
 
       CALL timeset(routineN, handle)
 
-      ! verify the window was wide enough that SOC did not push a retained boundary state
-      ! past an excluded neighbor on either side -- this would invalidate the merge below
-      IF (mo_index_start_1 > 1) THEN
-         IF (eig_win_sorted(1) < eigenval_no_SOC(mo_index_start_1 - 1, ikp, 1)) THEN
-            CPABORT("SOC_NBANDS_OCC too small.")
-         END IF
-      END IF
-      IF (mo_index_start_2 > 1) THEN
-         IF (eig_win_sorted(1) < eigenval_no_SOC(mo_index_start_2 - 1, ikp, n_spin)) THEN
-            CPABORT("SOC_NBANDS_OCC too small.")
-         END IF
-      END IF
-      IF (mo_index_start_1 + n_window <= n_ao) THEN
-         IF (eig_win_sorted(n_window2tot) > eigenval_no_SOC(mo_index_start_1 + n_window, ikp, 1)) THEN
-            CPABORT("SOC_NBANDS_VIRT too small.")
-         END IF
-      END IF
-      IF (mo_index_start_2 + n_window <= n_ao) THEN
-         IF (eig_win_sorted(n_window2tot) > eigenval_no_SOC(mo_index_start_2 + n_window, ikp, n_spin)) THEN
-            CPABORT("SOC_NBANDS_VIRT too small.")
-         END IF
-      END IF
+      ! --- below-window block: merge the two already-sorted excluded-below sequences ---
+      n_below1 = mo_index_start_1 - 1
+      n_below2 = mo_index_start_2 - 1
+      n_total_below = n_below1 + n_below2
 
-      mo_index_start_1_m1 = mo_index_start_1 - 1
-      mo_index_start_2_m1 = mo_index_start_2 - 1
-
-      ia = 1
-      ib = 1
-      DO i = 1, mo_index_start_1_m1 + mo_index_start_2_m1
-         IF (ia <= mo_index_start_1_m1 .AND. ib <= mo_index_start_2_m1) THEN
+      ALLOCATE (below_merged(n_total_below))
+      ia = 1; ib = 1
+      DO i = 1, n_total_below
+         IF (ia <= n_below1 .AND. ib <= n_below2) THEN
             IF (eigenval_no_SOC(ia, ikp, 1) <= eigenval_no_SOC(ib, ikp, n_spin)) THEN
-               eigenval_spinor(i) = eigenval_no_SOC(ia, ikp, 1)
-               ia = ia + 1
+               below_merged(i) = eigenval_no_SOC(ia, ikp, 1); ia = ia + 1
             ELSE
-               eigenval_spinor(i) = eigenval_no_SOC(ib, ikp, n_spin)
-               ib = ib + 1
+               below_merged(i) = eigenval_no_SOC(ib, ikp, n_spin); ib = ib + 1
             END IF
-         ELSE IF (ia <= mo_index_start_1_m1) THEN
-            eigenval_spinor(i) = eigenval_no_SOC(ia, ikp, 1)
-            ia = ia + 1
+         ELSE IF (ia <= n_below1) THEN
+            below_merged(i) = eigenval_no_SOC(ia, ikp, 1); ia = ia + 1
          ELSE
-            eigenval_spinor(i) = eigenval_no_SOC(ib, ikp, n_spin)
-            ib = ib + 1
+            below_merged(i) = eigenval_no_SOC(ib, ikp, n_spin); ib = ib + 1
          END IF
       END DO
 
-      idx_start = mo_index_start_1_m1 + mo_index_start_2_m1 + 1
-      idx_end = mo_index_start_1_m1 + mo_index_start_2_m1 + n_window2tot
+      ! --- above-window block: merge the two already-sorted excluded-above sequences ---
+      n_above1 = n_ao - (mo_index_start_1 + n_window - 1)
+      n_above2 = n_ao - (mo_index_start_2 + n_window - 1)
+      n_total_above = n_above1 + n_above2
 
-      eigenval_spinor(idx_start:idx_end) = eig_win_sorted(:)
-
+      ALLOCATE (above_merged(n_total_above))
       ia = mo_index_start_1 + n_window
       ib = mo_index_start_2 + n_window
-      DO i = mo_index_start_1_m1 + mo_index_start_2_m1 + n_window2tot + 1, 2*n_ao
+      DO i = 1, n_total_above
          IF (ia <= n_ao .AND. ib <= n_ao) THEN
             IF (eigenval_no_SOC(ia, ikp, 1) <= eigenval_no_SOC(ib, ikp, n_spin)) THEN
-               eigenval_spinor(i) = eigenval_no_SOC(ia, ikp, 1)
-               ia = ia + 1
+               above_merged(i) = eigenval_no_SOC(ia, ikp, 1); ia = ia + 1
             ELSE
-               eigenval_spinor(i) = eigenval_no_SOC(ib, ikp, n_spin)
-               ib = ib + 1
+               above_merged(i) = eigenval_no_SOC(ib, ikp, n_spin); ib = ib + 1
             END IF
          ELSE IF (ia <= n_ao) THEN
-            eigenval_spinor(i) = eigenval_no_SOC(ia, ikp, 1)
-            ia = ia + 1
+            above_merged(i) = eigenval_no_SOC(ia, ikp, 1); ia = ia + 1
          ELSE
-            eigenval_spinor(i) = eigenval_no_SOC(ib, ikp, n_spin)
-            ib = ib + 1
+            above_merged(i) = eigenval_no_SOC(ib, ikp, n_spin); ib = ib + 1
          END IF
       END DO
 
-      DEALLOCATE (eig_win_sorted)
+      ! --- true three-way merge of below_merged, eig_win_sorted, above_merged ---
+      ! Each of the three is individually ascending, but SOC can shift a window state
+      ! past the nominal below/above boundary -- this does NOT assume
+      ! below < window < above the way a plain concatenation would; it always picks
+      ! whichever of the three current heads is smallest, so the result is correctly
+      ! ascending regardless of how far SOC pushes any state. No boundary check needed.
+      ia = 1; ib = 1; ic = 1
+      DO i = 1, 2*n_ao
+         IF (ia <= n_total_below .AND. ib <= n_window2tot .AND. ic <= n_total_above) THEN
+            IF (below_merged(ia) <= eig_win_sorted(ib) .AND. below_merged(ia) <= above_merged(ic)) THEN
+               eigenval_spinor(i) = below_merged(ia); ia = ia + 1
+            ELSE IF (eig_win_sorted(ib) <= above_merged(ic)) THEN
+               eigenval_spinor(i) = eig_win_sorted(ib); win_state_index(ib) = i; ib = ib + 1
+            ELSE
+               eigenval_spinor(i) = above_merged(ic); ic = ic + 1
+            END IF
+         ELSE IF (ia <= n_total_below .AND. ib <= n_window2tot) THEN
+            IF (below_merged(ia) <= eig_win_sorted(ib)) THEN
+               eigenval_spinor(i) = below_merged(ia); ia = ia + 1
+            ELSE
+               eigenval_spinor(i) = eig_win_sorted(ib); win_state_index(ib) = i; ib = ib + 1
+            END IF
+         ELSE IF (ia <= n_total_below .AND. ic <= n_total_above) THEN
+            IF (below_merged(ia) <= above_merged(ic)) THEN
+               eigenval_spinor(i) = below_merged(ia); ia = ia + 1
+            ELSE
+               eigenval_spinor(i) = above_merged(ic); ic = ic + 1
+            END IF
+         ELSE IF (ib <= n_window2tot .AND. ic <= n_total_above) THEN
+            IF (eig_win_sorted(ib) <= above_merged(ic)) THEN
+               eigenval_spinor(i) = eig_win_sorted(ib); win_state_index(ib) = i; ib = ib + 1
+            ELSE
+               eigenval_spinor(i) = above_merged(ic); ic = ic + 1
+            END IF
+         ELSE IF (ia <= n_total_below) THEN
+            eigenval_spinor(i) = below_merged(ia); ia = ia + 1
+         ELSE IF (ib <= n_window2tot) THEN
+            eigenval_spinor(i) = eig_win_sorted(ib); win_state_index(ib) = i; ib = ib + 1
+         ELSE
+            eigenval_spinor(i) = above_merged(ic); ic = ic + 1
+         END IF
+      END DO
+
+      DEALLOCATE (below_merged, above_merged, eig_win_sorted)
 
       CALL timestop(handle)
 
    END SUBROUTINE fill_truncated_eigenval_spinor
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param DOS ...
@@ -2821,12 +2933,12 @@ CONTAINS
          bs_env%kpoints_DOS%xkp(:, ikp)
       WRITE (iunit, '(A5,I2)') 'spin:', ispin
       WRITE (iunit, '(A)') ' '
-      WRITE (iunit, '(A5,A12,A22)') 'n', 'k', 'ϵ_nk^DFT (eV)'
+      WRITE (iunit, '(A8,A12,A22)') 'n', 'k', 'ϵ_nk^DFT (eV)'
       WRITE (iunit, '(A)') ' '
       DO i_mo = 1, bs_env%n_mo_retained
          IF (i_mo <= bs_env%n_occ(ispin)) occ_vir = 'occ'
          IF (i_mo > bs_env%n_occ(ispin)) occ_vir = 'vir'
-         WRITE (iunit, '(I5,3A,I5,F17.3)') i_mo, ' (', occ_vir, ') ', ikp_for_file, &
+         WRITE (iunit, '(I8,3A,I5,F17.3)') i_mo, ' (', occ_vir, ') ', ikp_for_file, &
             eigenval(i_mo)*evolt
       END DO
       CALL close_file(iunit)
@@ -2882,24 +2994,24 @@ CONTAINS
          IF (PRESENT(eigenval_spinor_GW)) THEN
             gw_soc_column = "ϵ_nk^"//TRIM(gw_label)//"+SOC (eV)"
             IF (PRESENT(file_name)) gw_soc_column = "ϵ_nk^G0W0+SOC (eV)"
-            WRITE (iunit, "(A5,A12,2A22)") "n", "k", "ϵ_nk^DFT+SOC (eV)", TRIM(gw_soc_column)
+            WRITE (iunit, "(A8,A12,2A22)") "n", "k", "ϵ_nk^DFT+SOC (eV)", TRIM(gw_soc_column)
          ELSE
             ! SCF+SOC eigenvalues only
-            WRITE (iunit, "(A5,A12,A22)") "n", "k", "ϵ_nk^DFT+SOC (eV)"
+            WRITE (iunit, "(A8,A12,A22)") "n", "k", "ϵ_nk^DFT+SOC (eV)"
          END IF
 
-         n_occ_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
+         n_occ_spinor = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
 
          DO i_mo = 1, SIZE(eigenval_spinor)
             IF (i_mo <= n_occ_spinor) occ_vir = 'occ'
             IF (i_mo > n_occ_spinor) occ_vir = 'vir'
             IF (PRESENT(eigenval_spinor_GW)) THEN
                ! SCF+SOC and G0W0+SOC eigenvalues
-               WRITE (iunit, "(I5,3A,I5,4F16.3,2F17.3)") i_mo, ' (', occ_vir, ') ', &
+               WRITE (iunit, "(I8,3A,I5,4F16.3,2F17.3)") i_mo, ' (', occ_vir, ') ', &
                   ikp_for_file, eigenval_spinor(i_mo)*evolt, eigenval_spinor_GW(i_mo)*evolt
             ELSE
                ! SCF+SOC eigenvalues only
-               WRITE (iunit, "(I5,3A,I5,4F16.3,F17.3)") i_mo, ' (', occ_vir, ') ', &
+               WRITE (iunit, "(I8,3A,I5,4F16.3,F17.3)") i_mo, ' (', occ_vir, ') ', &
                   ikp_for_file, eigenval_spinor(i_mo)*evolt
             END IF
          END DO
@@ -3972,5 +4084,247 @@ CONTAINS
       IF (bs_env%do_static_cohsex) label = "static COHSEX"
 
    END FUNCTION gw_flavour_label
+
+! **************************************************************************************************
+!> \brief Spin texture of the SOC spinor states at one k-point, appended to file spin_texture_SOC.
+!>        W = spinor eigenvectors in the AO basis (rows 1..n_ao: spin up), S = AO overlap,
+!>        O_1 = 1 x S, O_2 = sigma_x x S, O_3 = sigma_y x S, O_4 = sigma_z x S.
+!>        full spin   <S_a>_n   = <n|O_a|n> / <n|O_1|n>                    (units of hbar/2)
+!>        weight      w_n       = Mulliken weight of state n on SPIN_TEXTURE_ATOMS
+!>        proj. spin  <S_a>_n^A = Mulliken-projected <n|O_a|n> on SPIN_TEXTURE_ATOMS
+!>        Two-fold degenerate states (e.g. Kramers pairs of inversion-symmetric slabs) are an
+!>        arbitrary unitary mixture; with SPIN_TEXTURE_ATOMS they are rotated to the basis that
+!>        diagonalizes w: first state = most localized on the atoms, second = least localized.
+!>        Only <n|O|n> and <n|O|n+1> are needed: row sums of conj(W)*(O W) and conj(W)*(O W_shift),
+!>        W_shift(:,j) = W(:,j+1). Groups of more than two degenerate states are printed unrotated
+!>        (column deg = group size).
+!>        Only the columns of W listed in bs_env%soc_wf_state_index hold eigenvectors: all 2*n_ao
+!>        states for the untruncated SOC, the window states for SOC_DIAG_OCC/VIRT.
+!> \param qs_env ...
+!> \param bs_env ...
+!> \param cfm_spinor_wf spinor eigenvectors in the AO basis (2*n_ao rows)
+!> \param cfm_s_ao AO overlap matrix S(k) (n_ao x n_ao)
+!> \param eigenval_spinor all 2*n_ao spinor eigenvalues, ascending
+!> \param ikp_for_file ...
+!> \param ikp ...
+! **************************************************************************************************
+   SUBROUTINE compute_and_write_spin_texture(qs_env, bs_env, cfm_spinor_wf, cfm_s_ao, &
+                                             eigenval_spinor, ikp_for_file, ikp)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(cp_cfm_type)                                  :: cfm_spinor_wf, cfm_s_ao
+      REAL(KIND=dp), DIMENSION(:)                        :: eigenval_spinor
+      INTEGER                                            :: ikp_for_file, ikp
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_and_write_spin_texture'
+      REAL(KIND=dp), PARAMETER                           :: degen_tol = 1.0E-5_dp
+
+      CHARACTER(len=3)                                   :: occ_vir
+      COMPLEX(KIND=dp)                                   :: w_conj, wx, wx_shift
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: c_full, c_t1, c_t2, d_full, d_proj
+      COMPLEX(KIND=dp), DIMENSION(2, 2)                  :: M, U, V
+      INTEGER                                            :: g, handle, i_global, i_row, iop, iunit, &
+                                                            j, j_col, mu, n_ao, n_occ_spinor, &
+                                                            ncol_local, nrow_local, nspinor, nwf
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_bf, deg
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: do_proj
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_wf, mask
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: S_full, S_proj
+      REAL(KIND=dp), DIMENSION(2)                        :: w_eig
+      TYPE(cp_cfm_type)                                  :: cfm_op, cfm_w_shift, cfm_x, cfm_x_shift
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ALLOCATED(bs_env%soc_wf_state_index))
+      n_ao = bs_env%n_ao
+      nspinor = 2*n_ao
+      ! number of valid eigenvector columns of W and their eigenvalues (ascending)
+      nwf = SIZE(bs_env%soc_wf_state_index)
+      ALLOCATE (eig_wf(nwf))
+      eig_wf(:) = eigenval_spinor(bs_env%soc_wf_state_index(:))
+      do_proj = ALLOCATED(bs_env%spin_texture_atoms)
+
+      ! 1. mask(mu) = 1 if AO mu sits on one of SPIN_TEXTURE_ATOMS
+      ALLOCATE (mask(n_ao))
+      mask(:) = 0.0_dp
+      IF (do_proj) THEN
+         ALLOCATE (atom_from_bf(n_ao))
+         CALL get_atom_index_from_basis_function_index(qs_env, atom_from_bf, n_ao, "ORB")
+         DO mu = 1, n_ao
+            IF (ANY(bs_env%spin_texture_atoms(:) == atom_from_bf(mu))) mask(mu) = 1.0_dp
+         END DO
+         DEALLOCATE (atom_from_bf)
+      END IF
+
+      ! 2. W_shift(:, j) = W(:, j+1) for j < nwf, all other columns zero
+      CALL cp_cfm_create(cfm_op, cfm_spinor_wf%matrix_struct)
+      CALL cp_cfm_create(cfm_x, cfm_spinor_wf%matrix_struct)
+      CALL cp_cfm_create(cfm_x_shift, cfm_spinor_wf%matrix_struct)
+      CALL cp_cfm_create(cfm_w_shift, cfm_spinor_wf%matrix_struct)
+      CALL cp_cfm_set_all(cfm_w_shift, z_zero)
+      IF (nwf > 1) CALL cp_cfm_to_cfm(cfm_spinor_wf, cfm_w_shift, nwf - 1, source_start=2, target_start=1)
+
+      CALL cp_cfm_get_info(matrix=cfm_spinor_wf, nrow_local=nrow_local, ncol_local=ncol_local, &
+                           row_indices=row_indices, col_indices=col_indices)
+
+      ! d_full(j,op) = <j|O|j>,  c_full(j,op) = <j|O|j+1>                      (all AOs)
+      ! d_proj(j,op) = sum_{mu in A} conj(W_mu,j)   (O W)_mu,j
+      ! c_t1(j,op)   = sum_{mu in A} conj(W_mu,j)   (O W)_mu,j+1
+      ! c_t2(j,op)   = sum_{mu in A} conj(W_mu,j+1) (O W)_mu,j
+      ALLOCATE (d_full(nwf, 4), c_full(nwf, 4), d_proj(nwf, 4), c_t1(nwf, 4), c_t2(nwf, 4))
+      d_full(:, :) = z_zero
+      c_full(:, :) = z_zero
+      d_proj(:, :) = z_zero
+      c_t1(:, :) = z_zero
+      c_t2(:, :) = z_zero
+
+      DO iop = 1, 4
+         ! 3. operator O_iop in the spinor AO basis
+         CALL cp_cfm_set_all(cfm_op, z_zero)
+         SELECT CASE (iop)
+         CASE (1) ! 1 x S
+            CALL add_cfm_submat(cfm_op, cfm_s_ao, 1, 1, z_one)
+            CALL add_cfm_submat(cfm_op, cfm_s_ao, n_ao + 1, n_ao + 1, z_one)
+         CASE (2) ! sigma_x x S = [[0, S], [S, 0]]
+            CALL add_cfm_submat(cfm_op, cfm_s_ao, 1, n_ao + 1, z_one)
+            CALL add_cfm_submat(cfm_op, cfm_s_ao, n_ao + 1, 1, z_one)
+         CASE (3) ! sigma_y x S = [[0, -iS], [iS, 0]]
+            CALL add_cfm_submat(cfm_op, cfm_s_ao, 1, n_ao + 1, -gaussi)
+            CALL add_cfm_submat(cfm_op, cfm_s_ao, n_ao + 1, 1, gaussi)
+         CASE (4) ! sigma_z x S = [[S, 0], [0, -S]]
+            CALL add_cfm_submat(cfm_op, cfm_s_ao, 1, 1, z_one)
+            CALL add_cfm_submat(cfm_op, cfm_s_ao, n_ao + 1, n_ao + 1, -z_one)
+         END SELECT
+
+         ! 4. X = O W,  X_shift = O W_shift  (X_shift(:, j) = X(:, j+1)), valid columns only
+         CALL parallel_gemm('N', 'N', nspinor, nwf, nspinor, z_one, cfm_op, cfm_spinor_wf, &
+                            z_zero, cfm_x)
+         CALL parallel_gemm('N', 'N', nspinor, nwf, nspinor, z_one, cfm_op, cfm_w_shift, &
+                            z_zero, cfm_x_shift)
+
+         ! 5. local row sums (same distribution for W, W_shift, X, X_shift)
+         DO j_col = 1, ncol_local
+            j = col_indices(j_col)
+            IF (j > nwf) CYCLE
+            DO i_row = 1, nrow_local
+               i_global = row_indices(i_row)
+               mu = i_global
+               IF (mu > n_ao) mu = mu - n_ao
+               w_conj = CONJG(cfm_spinor_wf%local_data(i_row, j_col))
+               wx = w_conj*cfm_x%local_data(i_row, j_col)
+               wx_shift = w_conj*cfm_x_shift%local_data(i_row, j_col)
+               d_full(j, iop) = d_full(j, iop) + wx
+               c_full(j, iop) = c_full(j, iop) + wx_shift
+               IF (mask(mu) > 0.5_dp) THEN
+                  d_proj(j, iop) = d_proj(j, iop) + wx
+                  c_t1(j, iop) = c_t1(j, iop) + wx_shift
+                  c_t2(j, iop) = c_t2(j, iop) + &
+                                 CONJG(cfm_w_shift%local_data(i_row, j_col))*cfm_x%local_data(i_row, j_col)
+               END IF
+            END DO
+         END DO
+      END DO
+
+      CALL cfm_spinor_wf%matrix_struct%para_env%sum(d_full)
+      CALL cfm_spinor_wf%matrix_struct%para_env%sum(c_full)
+      CALL cfm_spinor_wf%matrix_struct%para_env%sum(d_proj)
+      CALL cfm_spinor_wf%matrix_struct%para_env%sum(c_t1)
+      CALL cfm_spinor_wf%matrix_struct%para_env%sum(c_t2)
+
+      ! The spinor SOC Hamiltonian (H_KS_spinor_Gamma/_kp) equals sigma_y H^SOC sigma_y, i.e. its
+      ! spinor basis is rotated by 180 deg about y. In that basis the physical spin is
+      ! sigma_y (sigma_x, sigma_y, sigma_z) sigma_y = (-sigma_x, sigma_y, -sigma_z).
+      d_full(:, 2) = -d_full(:, 2)
+      d_full(:, 4) = -d_full(:, 4)
+      c_full(:, 2) = -c_full(:, 2)
+      c_full(:, 4) = -c_full(:, 4)
+      d_proj(:, 2) = -d_proj(:, 2)
+      d_proj(:, 4) = -d_proj(:, 4)
+      c_t1(:, 2) = -c_t1(:, 2)
+      c_t1(:, 4) = -c_t1(:, 4)
+      c_t2(:, 2) = -c_t2(:, 2)
+      c_t2(:, 4) = -c_t2(:, 4)
+
+      CALL cp_cfm_release(cfm_op)
+      CALL cp_cfm_release(cfm_x)
+      CALL cp_cfm_release(cfm_x_shift)
+      CALL cp_cfm_release(cfm_w_shift)
+
+      IF (bs_env%para_env%is_source()) THEN
+
+         ! 6. degenerate groups; rotate pairs to the eigenbasis of the weight on the atoms
+         ALLOCATE (S_full(nwf, 4), S_proj(nwf, 4), deg(nwf))
+         j = 1
+         DO WHILE (j <= nwf)
+            g = 1
+            DO WHILE (j + g <= nwf)
+               IF (ABS(eig_wf(j + g) - eig_wf(j)) > degen_tol) EXIT
+               g = g + 1
+            END DO
+            deg(j:j + g - 1) = g
+
+            IF (g == 2 .AND. do_proj) THEN
+               ! 2x2 weight matrix on the atoms (Hermitian part of the Mulliken block)
+               M(1, 1) = REAL(d_proj(j, 1), KIND=dp)
+               M(2, 2) = REAL(d_proj(j + 1, 1), KIND=dp)
+               M(1, 2) = 0.5_dp*(c_t1(j, 1) + CONJG(c_t2(j, 1)))
+               M(2, 1) = CONJG(M(1, 2))
+               CALL diag_complex(M, V, w_eig)   ! ascending weight
+               U(:, 1) = V(:, 2)                ! most localized on the atoms first
+               U(:, 2) = V(:, 1)
+               DO iop = 1, 4
+                  M(1, 1) = REAL(d_full(j, iop), KIND=dp)
+                  M(2, 2) = REAL(d_full(j + 1, iop), KIND=dp)
+                  M(1, 2) = c_full(j, iop)
+                  M(2, 1) = CONJG(M(1, 2))
+                  M = MATMUL(CONJG(TRANSPOSE(U)), MATMUL(M, U))
+                  S_full(j, iop) = REAL(M(1, 1), KIND=dp)
+                  S_full(j + 1, iop) = REAL(M(2, 2), KIND=dp)
+
+                  M(1, 1) = REAL(d_proj(j, iop), KIND=dp)
+                  M(2, 2) = REAL(d_proj(j + 1, iop), KIND=dp)
+                  M(1, 2) = 0.5_dp*(c_t1(j, iop) + CONJG(c_t2(j, iop)))
+                  M(2, 1) = CONJG(M(1, 2))
+                  M = MATMUL(CONJG(TRANSPOSE(U)), MATMUL(M, U))
+                  S_proj(j, iop) = REAL(M(1, 1), KIND=dp)
+                  S_proj(j + 1, iop) = REAL(M(2, 2), KIND=dp)
+               END DO
+            ELSE
+               S_full(j:j + g - 1, :) = REAL(d_full(j:j + g - 1, :), KIND=dp)
+               S_proj(j:j + g - 1, :) = REAL(d_proj(j:j + g - 1, :), KIND=dp)
+            END IF
+            j = j + g
+         END DO
+
+         ! 7. write
+         IF (ikp_for_file == 1) THEN
+            CALL open_file("spin_texture_SOC", unit_number=iunit, file_status="REPLACE", &
+                           file_action="WRITE")
+         ELSE
+            CALL open_file("spin_texture_SOC", unit_number=iunit, file_status="OLD", &
+                           file_action="WRITE", file_position="APPEND")
+         END IF
+         WRITE (iunit, "(A)") " "
+         WRITE (iunit, "(A10,I7,A25,3F12.7)") "kpoint: ", ikp_for_file, "coordinate: ", &
+            bs_env%kpoints_DOS%xkp(:, ikp)
+         WRITE (iunit, "(A)") " "
+         WRITE (iunit, "(A5,A8,A4,A16,7A10)") "n", "", "deg", "E (eV)", "<S_x>", "<S_y>", "<S_z>", &
+            "w_A", "<S_x>_A", "<S_y>_A", "<S_z>_A"
+         n_occ_spinor = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
+         DO j = 1, nwf
+            occ_vir = 'vir'
+            IF (bs_env%soc_wf_state_index(j) <= n_occ_spinor) occ_vir = 'occ'
+            WRITE (iunit, "(I8,3A,I4,F16.6,7F10.5)") bs_env%soc_wf_state_index(j), ' (', occ_vir, &
+               ') ', deg(j), eig_wf(j)*evolt, S_full(j, 2:4)/S_full(j, 1), S_proj(j, 1), S_proj(j, 2:4)
+         END DO
+         CALL close_file(iunit)
+         DEALLOCATE (S_full, S_proj, deg)
+      END IF
+
+      DEALLOCATE (mask, eig_wf, d_full, c_full, d_proj, c_t1, c_t2)
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_and_write_spin_texture
 
 END MODULE post_scf_bandstructure_utils

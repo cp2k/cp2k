@@ -2822,24 +2822,51 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SOC_NBANDS_OCC", &
-                          description="Truncate the second-variational SOC diagonalization to this "// &
-                          "many occupied bands below the Fermi level (per spin). Must be used "// &
-                          "together with SOC_NBANDS_VIRT. Default -1 = off. ", &
-                          usage="SOC_NBANDS_OCC 2000", &
-                          default_i_val=-1)
+      CALL keyword_create(keyword, __LOCATION__, name="SOC_DIAG_OCC", &
+                          description="Truncate the second-variational SOC diagonalization at each "// &
+                          "k-point to the occupied states within this energy below the highest occupied "// &
+                          "non-SOC state of that k-point. The SOC eigenvalues of these states are merged "// &
+                          "with the unchanged non-SOC eigenvalues of all other states. Can be combined "// &
+                          "with SOC_DIAG_VIRT; if only one of the two is set, all states on the other "// &
+                          "side are kept. Not available with DOS and LDOS. Converge the window for the "// &
+                          "energy range of interest. Default -1 = off (all occupied states).", &
+                          usage="SOC_DIAG_OCC 0.5", &
+                          default_r_val=-1.0_dp, &
+                          unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SOC_NBANDS_VIRT", &
-                          description="Truncate the second-variational SOC diagonalization to this "// &
-                          "many virtual bands above the Fermi level (per spin). See SOC_NBANDS_OCC. "// &
-                          "Default -1 = off.", &
-                          usage="SOC_NBANDS_VIRT 2000", &
-                          default_i_val=-1)
+      CALL keyword_create(keyword, __LOCATION__, name="SOC_DIAG_VIRT", &
+                          description="Truncate the second-variational SOC diagonalization at each "// &
+                          "k-point to the virtual states within this energy above the lowest unoccupied "// &
+                          "non-SOC state of that k-point. See SOC_DIAG_OCC. Default -1 = off (all virtual "// &
+                          "states).", &
+                          usage="SOC_DIAG_VIRT 0.5", &
+                          default_r_val=-1.0_dp, &
+                          unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_SPIN_TEXTURE", &
+                          description="Compute the spin expectation values <S_x>, <S_y>, <S_z> "// &
+                          "(units of hbar/2) of the SOC spinor states at every band-structure "// &
+                          "k-point and write them to the file spin_texture_SOC. With "// &
+                          "SOC_DIAG_OCC/VIRT, only the states inside the SOC window are printed.", &
+                          usage="PRINT_SPIN_TEXTURE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SPIN_TEXTURE_ATOMS", &
+                          description="Atom indices (e.g. one layer of a slab) defining the "// &
+                          "Mulliken weight w_A and the atom-projected spin <S>_A printed with "// &
+                          "PRINT_SPIN_TEXTURE. Two-fold degenerate states (e.g. Kramers pairs of "// &
+                          "inversion-symmetric slabs) are rotated such that the first state of the "// &
+                          "pair is maximally localized on these atoms.", &
+                          usage="SPIN_TEXTURE_ATOMS 1 2 3", &
+                          n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
    END SUBROUTINE create_soc_section
 
 ! **************************************************************************************************
