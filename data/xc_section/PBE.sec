@@ -1,7 +1,8 @@
-#
-# PBE &XC SECTION: Test for @XCTYPE include
-#
-&XC
-  &XC_FUNCTIONAL PBE
-  &END XC_FUNCTIONAL
-&END XC
+    # CP2K_SECTION_PATH: FORCE_EVAL/DFT
+    #
+    # PBE &XC SECTION: Test for @XCTYPE include
+    #
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
