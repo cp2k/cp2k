@@ -444,6 +444,7 @@ list(
   "cell_opt_utils_unittest"
   "parallel_rng_types_unittest"
   "upf_inverse_unittest"
+  "cp_cfm_diag_unittest"
   "atom_upf_unittest"
   "xc_semilocal_unittest"
   "skala_periodic_partition_unittest"
@@ -496,6 +497,7 @@ add_executable(gemm_square_unittest common/gemm_square_unittest.F)
 add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
 add_executable(upf_inverse_unittest pseudopotentials/upf_inverse_unittest.F)
+add_executable(cp_cfm_diag_unittest fm/cp_cfm_diag_unittest.F)
 add_executable(atom_upf_unittest pseudopotentials/atom_upf_unittest.F)
 add_executable(xc_semilocal_unittest xc/xc_semilocal_unittest.F)
 add_executable(skala_periodic_partition_unittest

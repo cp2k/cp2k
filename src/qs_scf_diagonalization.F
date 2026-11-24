@@ -811,7 +811,7 @@ CONTAINS
 !$    omp_threads = omp_get_max_threads()
       ! One-rank groups use the same worker path for MPI, OpenMP and hybrid jobs.
       use_local_kpoints = kpoints%para_env_kp%num_pe == 1 .AND. .NOT. use_real_wfn
-      IF (diag_check_requested()) use_local_kpoints = .FALSE.
+      IF (diag_check_requested() .OR. diag_lib_explicit) use_local_kpoints = .FALSE.
       ib = 0
       nb = 0
       NULLIFY (scf_section)

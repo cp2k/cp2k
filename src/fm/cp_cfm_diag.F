@@ -39,6 +39,9 @@ MODULE cp_cfm_diag
    USE cp_cfm_elpa, ONLY: cp_cfm_diag_elpa, &
                           is_elpa_c_broken
    USE cp_fm_cusolver_api, ONLY: cp_cfm_general_cusolver
+#if defined(__CUSOLVERMP)
+   USE cp_fm_cusolver_api, ONLY: cp_cfm_diag_cusolver
+#endif
 #if defined(__DLAF)
    USE cp_cfm_dlaf_api, ONLY: cp_cfm_diag_gen_dlaf, &
                               cp_cfm_diag_dlaf
@@ -98,9 +101,27 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_heevd'
 
       INTEGER                                            :: handle
+#if defined(__CUSOLVERMP)
+      LOGICAL                                            :: use_cusolver
+#endif
 
       CALL timeset(routineN, handle)
 
+#if defined(__CUSOLVERMP)
+      IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. matrix%matrix_struct%nrow_global >= cusolver_n_min) THEN
+         ASSOCIATE (a => matrix%matrix_struct, z => eigenvectors%matrix_struct, grid => matrix%matrix_struct%context)
+            ! The cuSOLVERMp grid is row-major and A and Z must have aligned square tiles.
+            use_cusolver = a%nrow_block == a%ncol_block .AND. ALL(a%first_p_pos == 0) .AND. &
+                           ALL(a%descriptor(1:8) == z%descriptor(1:8))
+            IF (MINVAL(grid%num_pe) > 1) use_cusolver = use_cusolver .AND. grid%blacs2mpi(0, 1) == 1
+         END ASSOCIATE
+         IF (use_cusolver) THEN
+            CALL cp_cfm_diag_cusolver(matrix, eigenvectors, eigenvalues)
+            CALL timestop(handle)
+            RETURN
+         END IF
+      END IF
+#endif
 #if defined(__DLAF)
       IF (diag_type == FM_DIAG_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
          ! Initialize DLA-Future on-demand; if already initialized, does nothing

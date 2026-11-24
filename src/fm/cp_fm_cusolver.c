@@ -353,8 +353,9 @@ void cp_fm_cusolver_context_destroy(void **context) {
 void cp_fm_diag_cusolver(void **context, const int fortran_comm,
                          const int matrix_desc[9], const int nprow,
                          const int npcol, const int myprow, const int mypcol,
-                         const int n, const double *matrix,
-                         double *eigenvectors, double *eigenvalues) {
+                         const void *matrix, void *eigenvectors, const int ldZ,
+                         double *eigenvalues, const int neig,
+                         const int is_complex) {
 
   cp_fm_cusolver_context *ctx =
       get_context(context, fortran_comm, nprow, npcol);
@@ -363,6 +364,7 @@ void cp_fm_diag_cusolver(void **context, const int fortran_comm,
   const cusolverMpHandle_t cusolvermp_handle = ctx->handle;
   const cusolverMpGrid_t grid = ctx->grid;
 
+  const int n = matrix_desc[2];
   const int mb = matrix_desc[4];
   const int nb = matrix_desc[5];
   const int rsrc = matrix_desc[6];
@@ -373,45 +375,46 @@ void cp_fm_diag_cusolver(void **context, const int fortran_comm,
 
   const int np = cusolverMpNUMROC(n, mb, myprow, rsrc, nprow);
   const int nq = cusolverMpNUMROC(n, nb, mypcol, csrc, npcol);
-  cp_assert(np == ldA);
+  cp_assert(ldA >= np && ldZ >= np);
+  cp_assert(neig >= 0 && neig <= n);
 
   const cublasFillMode_t fill_mode = CUBLAS_FILL_MODE_UPPER;
-  const cudaDataType_t data_type = CUDA_R_64F; // double
+  const cudaDataType_t data_type = is_complex ? CUDA_C_64F : CUDA_R_64F;
+  const size_t elem_size = is_complex ? sizeof(cuDoubleComplex) : sizeof(double);
 
   cusolverMpMatrixDescriptor_t cusolvermp_matrix_desc = NULL;
   CUSOLVER_CHECK(cusolverMpCreateMatrixDesc(
-      &cusolvermp_matrix_desc, grid, data_type, n, n, mb, nb, rsrc, csrc, np));
-
-  // Allocate workspaces.
-  size_t work_dev_size, work_host_size;
-  void *DUMMY = (void *)1; // Workaround to avoid crash when passing NULL.
-  CUSOLVER_CHECK(cusolverMpSyevd_bufferSize(
-      cusolvermp_handle, "V", fill_mode, n, DUMMY, 1, 1, cusolvermp_matrix_desc,
-      NULL, NULL, 1, 1, cusolvermp_matrix_desc, data_type, &work_dev_size,
-      &work_host_size));
-
-  double *work_dev = NULL;
-  CUDA_CHECK(cudaMalloc((void **)&work_dev, work_dev_size));
-
-  double *work_host = NULL;
-  CUDA_CHECK(cudaMallocHost((void **)&work_host, work_host_size));
+      &cusolvermp_matrix_desc, grid, data_type, n, n, mb, nb, rsrc, csrc, ldA));
 
   // Upload input matrix.
-  const size_t matrix_local_size = ldA * nq * sizeof(double);
-  double *matrix_dev = NULL;
-  CUDA_CHECK(cudaMalloc((void **)&matrix_dev, matrix_local_size));
-  CUDA_CHECK(cudaMemcpyAsync(matrix_dev, matrix, matrix_local_size,
-                             cudaMemcpyHostToDevice, stream));
+  const size_t matrix_local_size = (size_t)ldA * nq * elem_size;
+  const size_t alloc_size = matrix_local_size ? matrix_local_size : elem_size;
+  void *matrix_dev = NULL;
+  CUDA_CHECK(cudaMalloc(&matrix_dev, alloc_size));
+  if (matrix_local_size) {
+    CUDA_CHECK(cudaMemcpyAsync(matrix_dev, matrix, matrix_local_size,
+                               cudaMemcpyHostToDevice, stream));
+  }
 
   // Allocate result buffers.
   int *info_dev = NULL;
   CUDA_CHECK(cudaMalloc((void **)&info_dev, sizeof(int)));
 
-  double *eigenvectors_dev = NULL;
-  CUDA_CHECK(cudaMalloc((void **)&eigenvectors_dev, matrix_local_size));
+  void *eigenvectors_dev = NULL;
+  CUDA_CHECK(cudaMalloc(&eigenvectors_dev, alloc_size));
 
   double *eigenvalues_dev = NULL;
   CUDA_CHECK(cudaMalloc((void **)&eigenvalues_dev, n * sizeof(double)));
+
+  // Older cuSOLVERMp versions need valid matrix pointers for the query.
+  size_t work_dev_size, work_host_size;
+  CUSOLVER_CHECK(cusolverMpSyevd_bufferSize(
+      cusolvermp_handle, "V", fill_mode, n, matrix_dev, 1, 1,
+      cusolvermp_matrix_desc, eigenvalues_dev, eigenvectors_dev, 1, 1,
+      cusolvermp_matrix_desc, data_type, &work_dev_size, &work_host_size));
+  void *work_dev = NULL, *work_host = NULL;
+  CUDA_CHECK(cudaMalloc(&work_dev, work_dev_size ? work_dev_size : 1));
+  CUDA_CHECK(cudaMallocHost(&work_host, work_host_size ? work_host_size : 1));
 
   // Call solver.
   CUSOLVER_CHECK(
@@ -432,10 +435,23 @@ void cp_fm_diag_cusolver(void **context, const int fortran_comm,
   cp_assert(info == 0);
 
   // Download results.
-  CUDA_CHECK(cudaMemcpyAsync(eigenvectors, eigenvectors_dev, matrix_local_size,
-                             cudaMemcpyDeviceToHost, stream));
-  CUDA_CHECK(cudaMemcpyAsync(eigenvalues, eigenvalues_dev, n * sizeof(double),
-                             cudaMemcpyDeviceToHost, stream));
+  if (np > 0 && nq > 0) {
+    if (ldZ == ldA) {
+      CUDA_CHECK(cudaMemcpyAsync(eigenvectors, eigenvectors_dev,
+                                 matrix_local_size, cudaMemcpyDeviceToHost,
+                                 stream));
+    } else {
+      CUDA_CHECK(cudaMemcpy2DAsync(eigenvectors, ldZ * elem_size,
+                                   eigenvectors_dev, ldA * elem_size,
+                                   np * elem_size, nq, cudaMemcpyDeviceToHost,
+                                   stream));
+    }
+  }
+  if (neig > 0) {
+    CUDA_CHECK(cudaMemcpyAsync(eigenvalues, eigenvalues_dev,
+                               neig * sizeof(double), cudaMemcpyDeviceToHost,
+                               stream));
+  }
 
   // Wait for download to finish.
   CUDA_CHECK(cudaStreamSynchronize(stream));

@@ -23,6 +23,7 @@ gemm_square_unittest
 memory_utilities_unittest
 message_passing_thread_unittest                          parallel
 cp_fm_diag_utils_unittest                                parallel
+cp_cfm_diag_unittest
 orbital_transformation_matrices_unittest
 optbas_frontier_orbitals_utils_unittest
 nequip_unittest                                          libtorch
