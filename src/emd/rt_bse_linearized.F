@@ -1397,6 +1397,27 @@ CONTAINS
    END SUBROUTINE update_effective_ham_MO
 
 ! **************************************************************************************************
+!> \brief The bare eigenvalue of one MO under the reference Hamiltonian: the GW quasiparticle
+!>        energy for RTBSE_HAMILTONIAN GW, the SCF eigenvalue at Gamma for KS; no first-peak shift
+!> \param rtbse_env RT-BSE environment, for the reference Hamiltonian and bs_env
+!> \param mo_index absolute MO index
+!> \param ispin spin index
+!> \return the eigenvalue in Hartree
+!> \author Maximilian Graml
+! **************************************************************************************************
+   FUNCTION bare_reference_eigenvalue(rtbse_env, mo_index, ispin) RESULT(eps)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      INTEGER, INTENT(IN)                                :: mo_index, ispin
+      REAL(KIND=dp)                                      :: eps
+
+      IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
+         eps = rtbse_env%bs_env%eigenval_GW(mo_index, 1, ispin)
+      ELSE
+         eps = rtbse_env%bs_env%eigenval_scf_Gamma(mo_index, ispin)
+      END IF
+   END FUNCTION bare_reference_eigenvalue
+
+! **************************************************************************************************
 !> \brief Single-spin Liouvillian matvec: apply L^sigma_sigma to one spin's Delta rho_MO and return
 !>        L * Delta rho_MO in MO basis, OV+VO blocks populated. Drives the n_spin=1 TDA diagnostic
 !>        and the (n_spin=1) ABBA diagnostic; the open-shell TDA path uses the array routine
@@ -1464,7 +1485,7 @@ CONTAINS
       !    convert to cfm in ham_workspace(1), accumulate [drho_in, H_eps] = drho * H - H * drho.
       !    On OV: ([drho, H])_{ia} = (eps_a - eps_i) * drho_{ia} = +eps_{ai} * drho_{ia}.
       !    On VO: -eps_{ai} * drho_{ai} (sign flips); irrelevant - driver only reads OV.
-      !    Bare GW eigenvalues (lab frame) so eigenvalues compare 1:1 to bse_full.F.
+      !    The reference Hamiltonian's bare eigenvalues (GW or KS), so eigenvalues compare 1:1 to bse_full.F.
       CALL cp_fm_get_info(rtbse_env%real_workspace_mo(1), &
                           nrow_local=nrow_local, ncol_local=ncol_local, &
                           row_indices=row_indices, col_indices=col_indices)
@@ -1476,7 +1497,7 @@ CONTAINS
             IF (i_row_global == j_col_global) THEN
                abs_mo_idx = i_row_global + rtbse_env%first_active_mo - 1
                rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = &
-                  rtbse_env%bs_env%eigenval_GW(abs_mo_idx, 1, ispin)
+                  bare_reference_eigenvalue(rtbse_env, abs_mo_idx, ispin)
             END IF
          END DO
       END DO
@@ -1605,8 +1626,8 @@ CONTAINS
       END DO
 
       ! eps^sigma commutator -> diagonal block only (eps is spin-diagonal). MUST precede the
-      ! kernel steps (add_K_MO_to_L_drho scratches MO buffers). Lab-frame bare GW eigenvalues
-      ! so they compare 1:1 to bse_full_diag.F.
+      ! kernel steps (add_K_MO_to_L_drho scratches MO buffers). The reference Hamiltonian's bare
+      ! eigenvalues (GW or KS), so they compare 1:1 to bse_full_diag.F.
       CALL cp_fm_get_info(rtbse_env%real_workspace_mo(1), &
                           nrow_local=nrow_local, ncol_local=ncol_local, &
                           row_indices=row_indices, col_indices=col_indices)
@@ -1619,7 +1640,7 @@ CONTAINS
                IF (i_row_global == j_col_global) THEN
                   abs_mo_idx = i_row_global + rtbse_env%first_active_mo - 1
                   rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = &
-                     rtbse_env%bs_env%eigenval_GW(abs_mo_idx, 1, isp)
+                     bare_reference_eigenvalue(rtbse_env, abs_mo_idx, isp)
                END IF
             END DO
          END DO
