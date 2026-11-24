@@ -137,6 +137,10 @@ def main() -> None:
                 continue
             if root.startswith("./regtesting"):
                 continue
+            if root.startswith("./spack/"):
+                continue
+            if root.startswith("./spack_cache"):
+                continue
             if root.startswith("./build"):
                 continue
             if root.startswith("./.git"):
@@ -315,13 +319,30 @@ def process_file(fn: str, allow_modifications: bool) -> str:
         filetype = "Makefile"
         run_local_tool("./tools/precommit/format_makefile.py", fn)
 
+    # Complete input files.
     if re.match(r".*\.inp$", fn):
         filetype = "CP2K-input"
         run_local_tool("./tools/precommit/format_input_file.py", fn)
 
+    # Input snippets in the data directory.
     if re.match(r".*\.sec$", fn):
         if "data/xc_section" in fn or "data/forcefield_section" in fn:
             filetype = "CP2K-input"
+            run_local_tool("./tools/precommit/format_input_file.py", fn)
+
+    # Input snippets in the tests directory
+    exclude_sec = [
+        "QS/regtest-gpw-1/blank.inc",
+        "QS/regtest-gpw-1/empty.inc",
+        "QS/regtest-gpw-1/inc_inc.inc",
+        "QS/regtest-gpw-1/scf_param.inc",
+        "Fist/regtest-11/file0.inc",
+        "Fist/regtest-11/file1.inc",
+        "Fist/regtest-11/file2.inc",
+    ]
+    if re.match(r".*?\.inc$", fn) and "tests" in fn:
+        filetype = "CP2K-input"
+        if not any(exclude in fn for exclude in exclude_sec):
             run_local_tool("./tools/precommit/format_input_file.py", fn)
 
     if re.match(r".*\.(cif|coord|crd|gro|pdb|xyz)$", fn):

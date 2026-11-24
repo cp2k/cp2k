@@ -13,7 +13,7 @@ The precommit system consists of the following tools that analyze and format the
 - [mdformat](https://github.com/executablebooks/mdformat) with
   [gfm plugin](https://github.com/hukkin/mdformat-gfm) to format Markdown scripts.
 - [cmake-format](https://github.com/cheshirekow/cmake_format) to format CMake scripts.
-- [Tombi](https://tombi-toml.github.io/tombi/) to format `TEST_FILES.toml` files.
+- [Tombi](https://tombi-toml.github.io/tombi/) to format TOML files.
 
 In contrast to the [CP2K-CI](https://github.com/cp2k/cp2k-ci) these tools process each file
 individually, which makes them much more lightweight.

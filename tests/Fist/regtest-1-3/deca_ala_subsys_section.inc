@@ -4,7 +4,7 @@
     &END CELL
     &TOPOLOGY
       CHARGE_BETA
-      COORD_FILE_NAME ../sample_pdb/deca_ala.pdb
       COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/deca_ala.pdb
     &END TOPOLOGY
   &END SUBSYS

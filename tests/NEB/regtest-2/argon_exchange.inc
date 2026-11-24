@@ -21,6 +21,7 @@
       &END EWALD
     &END POISSON
   &END MM
+
   &SUBSYS
     &CELL
       ABC 18.0 18.0 18.0
