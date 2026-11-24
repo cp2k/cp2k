@@ -240,7 +240,8 @@ CONTAINS
    END SUBROUTINE check_properties_bse
 
 ! **************************************************************************************************
-!> \brief Refuses, before the SCF, the input combinations linearized RT-BSE cannot run: MAT_EXP EXACT
+!> \brief Refuses, before the SCF, the input combinations linearized RT-BSE cannot run: MAT_EXP EXACT,
+!>        a DFT%EFIELD
 !> \param input_file the parsed input, for GLOBAL%RUN_TYPE
 !> \param force_env_sections the FORCE_EVAL sections
 !> \param iforce_eval the repetition checked
@@ -250,8 +251,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iforce_eval
 
       INTEGER                                            :: mat_exp, rtp_method, run_type
-      LOGICAL                                            :: linearized
-      TYPE(section_vals_type), POINTER                   :: dft_sec, rtp_sec
+      LOGICAL                                            :: efield, linearized
+      TYPE(section_vals_type), POINTER                   :: dft_sec, efield_sec, rtp_sec
 
       CALL section_vals_val_get(input_file, "GLOBAL%RUN_TYPE", i_val=run_type)
       IF (run_type /= real_time_propagation) RETURN
@@ -267,6 +268,13 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "Linearized RT-BSE does not support MAT_EXP EXACT, which would apply the kick "// &
                        "generator as its exponential: set DFT%REAL_TIME_PROPAGATION%MAT_EXP to any other value")
+      END IF
+      efield_sec => section_vals_get_subs_vals(dft_sec, "EFIELD")
+      CALL section_vals_get(efield_sec, explicit=efield)
+      IF (efield) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Linearized RT-BSE does not couple a DFT%EFIELD, in the length or the velocity "// &
+                       "gauge: only the delta kick is implemented; remove the EFIELD section")
       END IF
 
    END SUBROUTINE check_rtbse_linearized_input

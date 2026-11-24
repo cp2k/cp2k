@@ -1319,7 +1319,7 @@ CONTAINS
          END DO
       END DO
       ! Determine the field at current time
-      IF (rtbse_env%dft_control%apply_efield_field) THEN
+      IF (rtbse_env%dft_control%apply_efield_field .OR. rtbse_env%dft_control%apply_vector_potential) THEN
          CALL cp_abort(__LOCATION__, &
                        "Continuous/pulsed E(t) field coupling is not implemented for linearized "// &
                        "RT-BSE. Only the delta-kick (impulsive) absorption spectrum is supported; "// &
