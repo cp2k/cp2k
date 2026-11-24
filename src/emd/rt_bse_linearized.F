@@ -1110,13 +1110,13 @@ CONTAINS
 !>        Side effect: leaves rho_ao_scratch(sigma) = OV-masked AO density, which SEX reads.
 !>        With Hartree off (debug_disable_hartree) only this projection runs.
 !> \param rtbse_env RT-BSE environment
-!> \param rho_stage Per-spin MO density at the current RK4 stage
-!> \param keep_ovvo .FALSE. = OV source mask (TDA); .TRUE. = OV+VO (open-shell ABBA).
+!> \param drho_in Per-spin MO density the diagnostic applies the Liouvillian to
+!> \param keep_ovvo .FALSE. = OV source mask; .TRUE. = OV+VO (see mask_mo_block_cfm)
 !> \author Maximilian Graml
 ! **************************************************************************************************
-   SUBROUTINE build_shared_hartree_ao(rtbse_env, rho_stage, keep_ovvo)
+   SUBROUTINE build_shared_hartree_ao(rtbse_env, drho_in, keep_ovvo)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho_stage
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: drho_in
       LOGICAL, INTENT(IN)                                :: keep_ovvo
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_shared_hartree_ao'
@@ -1124,9 +1124,9 @@ CONTAINS
       INTEGER                                            :: handle, isp
 
       CALL timeset(routineN, handle)
-      ! Per spin: mask the stage density and project to AO.
+      ! Per spin: mask the density and project to AO.
       DO isp = 1, rtbse_env%n_spin
-         CALL cp_cfm_to_cfm(rho_stage(isp), rtbse_env%rho_delta_mo(isp))
+         CALL cp_cfm_to_cfm(drho_in(isp), rtbse_env%rho_delta_mo(isp))
          CALL mask_mo_block_cfm(rtbse_env, rtbse_env%rho_delta_mo(isp), isp, &
                                 keep_OV=.TRUE., keep_ovvo=keep_ovvo)
          CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_delta_mo(isp), &
