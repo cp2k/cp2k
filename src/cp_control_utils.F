@@ -3693,8 +3693,9 @@ CONTAINS
          ! Maybe RT field is applied?
          IF (.NOT. ASSOCIATED(dftc%efield_fields)) THEN
             CALL cp_abort(__LOCATION__, &
-                          "No delta pulse and no EFIELD to guess the polarizability elements from; "// &
-                          "set DFT%REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY%ELEMENT")
+                          "No delta pulse and no EFIELD to guess the polarizability elements from: "// &
+                          "set DFT%REAL_TIME_PROPAGATION%APPLY_DELTA_PULSE or add a DFT%EFIELD section, "// &
+                          "or name the elements in DFT%REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY%ELEMENT")
          END IF
          pol_vector(:) = dftc%efield_fields(1)%efield%polarisation(:)
       END IF
