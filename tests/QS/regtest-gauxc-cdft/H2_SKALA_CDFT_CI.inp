@@ -94,7 +94,8 @@
     &XC
       &XC_FUNCTIONAL
         &GAUXC
-          GRID FINE
+          ! Both states use GM3 to keep the CDFT-CI coupling test inexpensive.
+          GRID GM3
           MODEL SKALA
           PERIODIC_REFERENCE T
           PRUNING_SCHEME ROBUST
@@ -157,7 +158,7 @@
     &XC
       &XC_FUNCTIONAL
         &GAUXC
-          GRID FINE
+          GRID GM3
           MODEL SKALA
           PERIODIC_REFERENCE T
           PRUNING_SCHEME ROBUST
