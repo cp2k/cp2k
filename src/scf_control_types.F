@@ -165,7 +165,23 @@ MODULE scf_control_types
                                                mixing_coef = 0.3_dp, &
                                                prev_workfunction = -1001.0_dp, &
                                                nelec = 0.0_dp
+      ! canonical warm-up before the work-function mixing starts: warmup_steps SCF iterations;
+      ! if warmup_eps_scf > 0 it is extended until the SCF error is below warmup_eps_scf, but
+      ! to at most warmup_max_steps iterations. scf_iter counts the SCF iterations of the
+      ! run (not reset between the SCF cycles of MD/GEO_OPT, so only the first SCF has a
+      ! warm-up).
+      INTEGER                               :: warmup_steps = 1, &
+                                               warmup_max_steps = 50, &
+                                               scf_iter = 0
+      REAL(KIND=dp)                         :: warmup_eps_scf = 0.0_dp
+      LOGICAL                               :: in_warmup = .TRUE., &
+                                               wf_warned = .FALSE.
+      ! additional net charge (e, positive = fewer electrons) of the canonical warm-up steps
+      REAL(KIND=dp)                         :: warmup_charge = 0.0_dp
    END TYPE gce_type
+
+   ! |WF - TWF| (a.u.) after the warm-up above which a warning is issued (1 eV)
+   REAL(KIND=dp), PARAMETER, PUBLIC         :: gce_wf_warn_threshold = 1.0_dp/27.211386245988_dp
 
 CONTAINS
 
@@ -637,6 +653,13 @@ CONTAINS
       gce%prev_workfunction = -1001.0_dp
       gce%ref_esp = 0.0_dp
       gce%mixing_coef = 0.3_dp
+      gce%warmup_steps = 1
+      gce%warmup_max_steps = 50
+      gce%warmup_eps_scf = 0.0_dp
+      gce%in_warmup = .TRUE.
+      gce%scf_iter = 0
+      gce%wf_warned = .FALSE.
+      gce%warmup_charge = 0.0_dp
    END SUBROUTINE init_gce
 
 ! **************************************************************************************************
@@ -655,6 +678,15 @@ CONTAINS
                                    r_val=gce%target_workfunction)
          CALL section_vals_val_get(gce_section, "MIXING_COEF", &
                                    r_val=gce%mixing_coef)
+         CALL section_vals_val_get(gce_section, "WARMUP_STEPS", &
+                                   i_val=gce%warmup_steps)
+         CALL section_vals_val_get(gce_section, "WARMUP_CHARGE", &
+                                   r_val=gce%warmup_charge)
+         CALL section_vals_val_get(gce_section, "WARMUP_MAX_STEPS", &
+                                   i_val=gce%warmup_max_steps)
+         CALL section_vals_val_get(gce_section, "WARMUP_EPS_SCF", &
+                                   r_val=gce%warmup_eps_scf)
+         gce%warmup_max_steps = MAX(gce%warmup_max_steps, gce%warmup_steps)
       END IF ! do gce
    END SUBROUTINE read_gce_section
 

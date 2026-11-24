@@ -30,6 +30,7 @@ MODULE qs_mo_occupation
                                               mo_set_type,&
                                               set_mo_set
    USE scf_control_types,               ONLY: gce_type,&
+                                              gce_wf_warn_threshold,&
                                               smear_type
    USE smearing_utils,                  ONLY: SmearFixed,&
                                               SmearFixedDerivMV,&
@@ -145,9 +146,31 @@ CONTAINS
          CALL SmearFixed(all_occ, mu, kTS, all_eigval, all_nelec, &
                          smear_width, 1._dp, smear%method, xas_estate, occ_estate)
       ELSE
-         gce%prev_workfunction = gce%ref_esp - mo_array(1)%mu
-         mu = gce%ref_esp - ((1.0_dp - gce%mixing_coef)*gce%prev_workfunction + gce%mixing_coef*gce%target_workfunction)
-         CALL SmearOcc(all_occ, all_nelec, kTS, all_eigval, mu, smear_width, 1._dp, smear%method)
+         IF (gce%in_warmup) THEN
+            ! Warm-up: canonical occupation at the reference electron count (input CHARGE),
+            ! optionally shifted by GCE%WARMUP_CHARGE (fractional, e.g. from a previous GCE run).
+            ! mu and ref_esp of the initial guess are not meaningful yet; the work function of
+            ! the canonical state is stored and used as starting point of the GCE mixing.
+            xas_estate = -1
+            occ_estate = 0.0_dp
+            all_nelec = REAL(mo_array(1)%nelectron + mo_array(2)%nelectron, dp) - gce%warmup_charge
+            CALL SmearFixed(all_occ, mu, kTS, all_eigval, all_nelec, &
+                            smear_width, 1._dp, smear%method, xas_estate, occ_estate)
+            gce%prev_workfunction = gce%ref_esp - mu
+         ELSE
+            gce%prev_workfunction = gce%ref_esp - mo_array(1)%mu
+            IF (.NOT. gce%wf_warned .AND. &
+                ABS(gce%prev_workfunction - gce%target_workfunction) > gce_wf_warn_threshold) THEN
+               CALL cp_warn(__LOCATION__, "GCE: |WF-TWF| > 1 eV at the start of the work-function "// &
+                            "mixing. Large differences can drive the SCF into an unphysical, strongly "// &
+                            "charged state. If that happens, approach the target in smaller steps (restart "// &
+                            "from the previous run with GCE%WARMUP_CHARGE) or use a better start wavefunction.")
+               gce%wf_warned = .TRUE.
+            END IF
+            mu = gce%ref_esp - ((1.0_dp - gce%mixing_coef)*gce%prev_workfunction + &
+                                gce%mixing_coef*gce%target_workfunction)
+            CALL SmearOcc(all_occ, all_nelec, kTS, all_eigval, mu, smear_width, 1._dp, smear%method)
+         END IF
       END IF
 
       is_large = ABS(all_occ(1) - 1.0_dp) > smear%eps_fermi_dirac
@@ -307,6 +330,13 @@ CONTAINS
                RETURN
             END IF
          ELSE
+            IF (PRESENT(gce)) THEN
+               IF (ASSOCIATED(gce)) THEN
+                  IF (gce%do_gce) THEN
+                     CPABORT("GCE is not supported together with SMEAR%FIXED_MAGNETIC_MOMENT >= 0.")
+                  END IF
+               END IF
+            END IF
             nelec_f = mo_array(1)%n_el_f + mo_array(2)%n_el_f
             IF (ABS((mo_array(1)%n_el_f - mo_array(2)%n_el_f) - smear%fixed_mag_mom) > smear%eps_fermi_dirac*nelec_f) THEN
                mo_array(1)%n_el_f = nelec_f/2.0_dp + smear%fixed_mag_mom/2.0_dp
@@ -528,17 +558,22 @@ CONTAINS
          IF (do_gce) THEN
             smear_width = smear%smearing_width
             IF (smear%method == smear_fermi_dirac) smear_width = smear%electronic_temperature
-            IF (gce%prev_workfunction < -1000.0_dp) THEN
-               my_nelec = REAL(mo_set%nelectron, dp)
-               CALL SmearFixed(mo_set%occupation_numbers, mo_set%mu, mo_set%kTS, mo_set%eigenvalues, my_nelec, &
-                               smear_width, mo_set%maxocc, smear%method)
-               gce%prev_workfunction = -501.0_dp
-            ELSE IF (gce%prev_workfunction < -500.0_dp) THEN
-               my_nelec = REAL(mo_set%nelectron, dp)
+            IF (gce%in_warmup) THEN
+               ! Warm-up: canonical occupation at the reference electron count (input CHARGE),
+               ! optionally shifted by GCE%WARMUP_CHARGE (fractional, e.g. from a previous GCE run)
+               my_nelec = REAL(mo_set%nelectron, dp) - gce%warmup_charge
                CALL SmearFixed(mo_set%occupation_numbers, mo_set%mu, mo_set%kTS, mo_set%eigenvalues, my_nelec, &
                                smear_width, mo_set%maxocc, smear%method)
                gce%prev_workfunction = gce%ref_esp - mo_set%mu
             ELSE
+               IF (.NOT. gce%wf_warned .AND. &
+                   ABS(gce%prev_workfunction - gce%target_workfunction) > gce_wf_warn_threshold) THEN
+                  CALL cp_warn(__LOCATION__, "GCE: |WF-TWF| > 1 eV at the start of the work-function "// &
+                               "mixing. Large differences can drive the SCF into an unphysical, strongly "// &
+                               "charged state. If that happens, approach the target in smaller steps (restart "// &
+                               "from the previous run with GCE%WARMUP_CHARGE) or use a better start wavefunction.")
+                  gce%wf_warned = .TRUE.
+               END IF
                gce_mu = gce%ref_esp - ((1.0_dp - gce%mixing_coef)*gce%prev_workfunction &
                                        + gce%mixing_coef*gce%target_workfunction)
                CALL SmearOcc(mo_set%occupation_numbers, my_nelec, mo_set%kTS, mo_set%eigenvalues, gce_mu, &

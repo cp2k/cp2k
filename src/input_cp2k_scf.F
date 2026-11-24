@@ -2322,7 +2322,7 @@ CONTAINS
                           "total energy and the product of the target work function "// &
                           "and N_e^(abs,alpha).", &
                           citations=[Chai2024a], &
-                          n_keywords=3, &
+                          n_keywords=7, &
                           n_subsections=0, &
                           repeats=.FALSE.)
 
@@ -2358,6 +2358,67 @@ CONTAINS
                           type_of_var=real_t, &
                           default_r_val=0.3_dp, &
                           usage="MIXING_COEF 0.3")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="WARMUP_STEPS", &
+                          description="Number of initial SCF iterations of the run that are performed "// &
+                          "canonically at the reference charge (input CHARGE plus WARMUP_CHARGE) before the "// &
+                          "work-function mixing starts. If WARMUP_EPS_SCF is set, this is the minimum number and "// &
+                          "the warm-up continues until the SCF error is below WARMUP_EPS_SCF or WARMUP_MAX_STEPS "// &
+                          "is reached, so that the starting work function is that of a (nearly) converged "// &
+                          "density. The density-mixing history is restarted at the end of a warm-up of more than "// &
+                          "one iteration. Applies to the first SCF of the run only; later SCF cycles (GEO_OPT, "// &
+                          "MD) continue the mixing.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=integer_t, &
+                          default_i_val=1, &
+                          usage="WARMUP_STEPS 20")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="WARMUP_CHARGE", &
+                          description="Net charge (in e, positive means fewer electrons) added to the "// &
+                          "reference charge state during the canonical warm-up steps. Fractional values "// &
+                          "are allowed. Setting it to the converged GCE charge of a previous run at a nearby "// &
+                          "target work function (together with a restart from that run) makes the warm-up "// &
+                          "start close to the new target, which is needed for systems with a small "// &
+                          "capacitance where large WF-TWF differences are unstable.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=0.0_dp, &
+                          usage="WARMUP_CHARGE 0.0128")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="WARMUP_EPS_SCF", &
+                          description="If positive, the canonical warm-up is extended beyond WARMUP_STEPS until "// &
+                          "the SCF error is below this value (or WARMUP_MAX_STEPS is reached). This makes the "// &
+                          "length of the warm-up independent of the density mixing scheme and of the quality of "// &
+                          "the initial guess; recommended for large slabs started from SCF_GUESS ATOMIC or from "// &
+                          "a different charge state. The default (0) disables the criterion.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=0.0_dp, &
+                          usage="WARMUP_EPS_SCF 1.0E-4")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="WARMUP_MAX_STEPS", &
+                          description="Maximum number of canonical warm-up iterations if WARMUP_EPS_SCF is "// &
+                          "set but not reached. Values smaller than WARMUP_STEPS are raised to WARMUP_STEPS.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=integer_t, &
+                          default_i_val=50, &
+                          usage="WARMUP_MAX_STEPS 100")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

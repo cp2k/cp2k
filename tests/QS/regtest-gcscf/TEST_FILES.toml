@@ -1,5 +1,7 @@
 # runs are executed in the same order as in this file
-"Li_gcscf.inp"          = [{matcher = "E_total", tol = 1e-9, ref = -44.036008353017763}]
+"Li_gcscf.inp"          = [{matcher = "E_total", tol = 1e-9, ref = -44.036008366909719}]
 "Li_gcscf_gaussian.inp" = [{matcher = "E_total", tol = 1e-9, ref = -44.03413398259857}]
 "Li_gcscf_mp.inp"       = [{matcher = "E_total", tol = 5e-9, ref = -44.03587618735650}]
-"Li_gcscf_mv.inp"       = [{matcher = "E_total", tol = 1e-9, ref = -44.03442503430527}]
+"Li_gcscf_mv.inp"       = [{matcher = "E_total", tol = 1e-9, ref = -44.034425023030700}]
+"Li_gcscf_rks.inp"      = [{matcher = "E_total", tol = 1e-8, ref = -44.036008353394742}]
+"Li_gcscf_warmup.inp"   = [{matcher = "E_total", tol = 1e-8, ref = -44.036008350984346}]
