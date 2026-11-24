@@ -1747,9 +1747,9 @@ Ca  aug-SZV-MOLOPT-GTH-tier-1
   5.284986  -0.416183  -0.083912   0.000000   0.064960   0.000000
 
 # pseudopotential: GTH-PBE-q10 (GTH_POTENTIALS)
-# average deviation of 5 lowest BSE exc. energies of  CaF2, CaCl2, CaH2 for aug-SZV-MOLOPT-GTH-tier-2 compared to basis set limit: 0.37 eV
+# average deviation of 5 lowest BSE exc. energies of  CaF2, CaCl2, CaH2 for aug-SZV-MOLOPT-GTH-tier-2-SR compared to basis set limit: 0.37 eV
 # basis set size: 3 s-functions, 2 p-functions, 1 d-function, making in total 14 basis functions
-Ca  aug-SZV-MOLOPT-GTH-tier-2
+Ca  aug-SZV-MOLOPT-GTH-tier-2-SR
 1
 2 0 2 7 3 2 1
   0.055000   0.039132   1.342564  -0.389575  -0.000004   4.717930   0.365205
