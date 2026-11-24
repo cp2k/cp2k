@@ -1414,7 +1414,7 @@ CONTAINS
    FUNCTION bare_reference_eigenvalue(rtbse_env, mo_index, ispin) RESULT(eps)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       INTEGER, INTENT(IN)                                :: mo_index, ispin
-      REAL(KIND=dp)                                      :: eps
+      REAL(kind=dp)                                      :: eps
 
       IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
          eps = rtbse_env%bs_env%eigenval_GW(mo_index, 1, ispin)
@@ -1491,7 +1491,8 @@ CONTAINS
       !    convert to cfm in ham_workspace(1), accumulate [drho_in, H_eps] = drho * H - H * drho.
       !    On OV: ([drho, H])_{ia} = (eps_a - eps_i) * drho_{ia} = +eps_{ai} * drho_{ia}.
       !    On VO: -eps_{ai} * drho_{ai} (sign flips); irrelevant - driver only reads OV.
-      !    The reference Hamiltonian's bare eigenvalues (GW or KS), so eigenvalues compare 1:1 to bse_full.F.
+      !    The reference Hamiltonian's bare eigenvalues (GW or KS), unshifted, so eigenvalues compare
+      !    1:1 to bse_full_diag.F on the same energies and screening.
       CALL cp_fm_get_info(rtbse_env%real_workspace_mo(1), &
                           nrow_local=nrow_local, ncol_local=ncol_local, &
                           row_indices=row_indices, col_indices=col_indices)
@@ -1633,7 +1634,8 @@ CONTAINS
 
       ! eps^sigma commutator -> diagonal block only (eps is spin-diagonal). MUST precede the
       ! kernel steps (add_K_MO_to_L_drho scratches MO buffers). The reference Hamiltonian's bare
-      ! eigenvalues (GW or KS), so they compare 1:1 to bse_full_diag.F.
+      ! eigenvalues (GW or KS), unshifted, so they compare 1:1 to bse_full_diag.F on the same
+      ! energies and screening.
       CALL cp_fm_get_info(rtbse_env%real_workspace_mo(1), &
                           nrow_local=nrow_local, ncol_local=ncol_local, &
                           row_indices=row_indices, col_indices=col_indices)
