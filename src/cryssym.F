@@ -30,6 +30,7 @@ MODULE cryssym
 
    IMPLICIT NONE
    PRIVATE
+   PUBLIC :: crys_sym_lattice_rotations
    PUBLIC :: csym_type, release_csym_type, print_crys_symmetry, print_kp_symmetry
    PUBLIC :: crys_sym_gen, kpoint_gen, kpoint_gen_general
 
@@ -1928,5 +1929,53 @@ CONTAINS
       END IF
 
    END SUBROUTINE print_kp_symmetry
+
+! **************************************************************************************************
+!> \brief Cartesian point group of a fixed reference lattice, independent of atoms and k points.
+!> \param hmat Cartesian reference lattice vectors in columns.
+!> \param rotations Orthogonal rotations, starting with the identity.
+! **************************************************************************************************
+   SUBROUTINE crys_sym_lattice_rotations(hmat, rotations)
+      REAL(dp), INTENT(IN)                               :: hmat(3, 3)
+      REAL(dp), ALLOCATABLE, INTENT(OUT)                 :: rotations(:, :, :)
+
+      REAL(dp), PARAMETER :: identity(3, 3) = RESHAPE([1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp, &
+         0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp], [3, 3])
+
+      INTEGER                                            :: first, n, operation
+      INTEGER, ALLOCATABLE                               :: lattice_rotations(:, :, :)
+      REAL(dp)                                           :: delta, rotation(3, 3)
+      TYPE(csym_type)                                    :: symmetry
+
+      ! An approximate metric symmetry must not define the angular integration rule.
+      delta = 128.0_dp*EPSILON(1.0_dp)*MAX(1.0_dp, MAXVAL(ABS(hmat)))
+      CALL crys_sym_gen(symmetry, RESHAPE([0.0_dp, 0.0_dp, 0.0_dp], [3, 1]), [1], hmat, &
+                        delta=delta, use_spglib=spg_get_major_version() > 0)
+      IF (symmetry%symlib) THEN
+         ALLOCATE (lattice_rotations(3, 3, symmetry%n_operations))
+         CALL setup_spglib_operations(symmetry, lattice_rotations, n)
+      ELSE
+         CALL setup_k290_operations(symmetry)
+         n = symmetry%nrtot
+      END IF
+      first = 0
+      DO operation = 1, n
+         rotation = symmetry%rt(:, :, operation)
+         IF (MAXVAL(ABS(MATMUL(TRANSPOSE(rotation), rotation) - identity)) > 1.e-12_dp) THEN
+            first = 0
+            EXIT
+         END IF
+         IF (MAXVAL(ABS(rotation - identity)) <= 1.e-12_dp) first = operation
+      END DO
+      IF (first > 0) THEN
+         ALLOCATE (rotations, SOURCE=symmetry%rt(:, :, :n))
+         rotations(:, :, first) = rotations(:, :, 1)
+         rotations(:, :, 1) = identity
+      ELSE
+         ALLOCATE (rotations(3, 3, 1))
+         rotations(:, :, 1) = identity
+      END IF
+      CALL release_csym_type(symmetry)
+   END SUBROUTINE crys_sym_lattice_rotations
 
 END MODULE cryssym

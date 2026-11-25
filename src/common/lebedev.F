@@ -91,6 +91,10 @@ MODULE lebedev
    REAL(KIND=dp), DIMENSION(max_np/3) :: w = 0.0_dp
    REAL(KIND=dp), DIMENSION(max_np)   :: r = 0.0_dp
 
+   REAL(dp), PARAMETER :: cartesian_identity(3, 3) = RESHAPE( &
+                          [one, zero, zero, zero, one, zero, zero, zero, one], [3, 3])
+
+   PUBLIC :: lebedev_average_points
    PUBLIC :: lebedev_grid
 
    PUBLIC :: deallocate_lebedev_grids, get_number_of_lebedev_grid, init_lebedev_grids
@@ -845,5 +849,74 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE init_lebedev_grids
+
+! **************************************************************************************************
+!> \brief Orthogonal operations with integer entries permute the base Lebedev rule.
+!> \param rotation Orthogonal Cartesian operation.
+!> \return Whether it is a signed permutation.
+! **************************************************************************************************
+   PURE LOGICAL FUNCTION cubic_rotation(rotation) RESULT(cubic)
+      REAL(dp), INTENT(IN)                               :: rotation(3, 3)
+
+      cubic = MAXVAL(ABS(rotation - ANINT(rotation))) <= 1.e-12_dp
+   END FUNCTION cubic_rotation
+
+! **************************************************************************************************
+!> \brief Average a borrowed Lebedev rule without changing its total weight.
+!> \param original_directions Cartesian unit directions.
+!> \param original_weights Weights of the original rule.
+!> \param directions New Cartesian unit directions.
+!> \param weights New weights in the original normalization.
+!> \param rotations Optional orthogonal reference group with identity first.
+! **************************************************************************************************
+   SUBROUTINE lebedev_average_points(original_directions, original_weights, directions, weights, rotations)
+      REAL(dp), INTENT(IN)                               :: original_directions(:, :), &
+                                                            original_weights(:)
+      REAL(dp), ALLOCATABLE, INTENT(OUT)                 :: directions(:, :), weights(:)
+      REAL(dp), INTENT(IN), OPTIONAL                     :: rotations(:, :, :)
+
+      REAL(dp), PARAMETER                                :: tolerance = 1.e-12_dp
+
+      INTEGER                                            :: first, last, n, operation, other, unique
+      INTEGER, ALLOCATABLE                               :: representative(:)
+      REAL(dp)                                           :: relative(3, 3)
+
+      CPASSERT(SIZE(original_directions, 1) == 3)
+      CPASSERT(SIZE(original_directions, 2) == SIZE(original_weights))
+      IF (.NOT. PRESENT(rotations)) THEN
+         ALLOCATE (directions, SOURCE=original_directions)
+         ALLOCATE (weights, SOURCE=original_weights)
+         RETURN
+      END IF
+      CPASSERT(SIZE(rotations, 3) > 0)
+      CPASSERT(ALL(SHAPE(rotations(:, :, 1)) == 3))
+      CPASSERT(MAXVAL(ABS(rotations(:, :, 1) - cartesian_identity)) <= tolerance)
+      ALLOCATE (representative(SIZE(rotations, 3)))
+      representative(1) = 1
+      unique = 1
+      DO operation = 2, SIZE(rotations, 3)
+         ASSOCIATE (rotation => rotations(:, :, operation))
+            relative = MATMUL(TRANSPOSE(rotation), rotation) - cartesian_identity
+            CPASSERT(MAXVAL(ABS(relative)) <= tolerance)
+            DO other = 1, unique
+               relative = MATMUL(TRANSPOSE(rotations(:, :, representative(other))), rotation)
+               IF (cubic_rotation(relative)) EXIT
+            END DO
+         END ASSOCIATE
+         IF (other <= unique) CYCLE
+         unique = unique + 1
+         representative(unique) = operation
+      END DO
+      n = SIZE(original_weights)
+      ALLOCATE (directions(3, n*unique), weights(n*unique))
+      directions(:, :n) = original_directions
+      weights(:n) = original_weights/REAL(unique, dp)
+      DO other = 2, unique
+         first = 1 + n*(other - 1)
+         last = n*other
+         directions(:, first:last) = MATMUL(rotations(:, :, representative(other)), original_directions)
+         weights(first:last) = weights(:n)
+      END DO
+   END SUBROUTINE lebedev_average_points
 
 END MODULE lebedev

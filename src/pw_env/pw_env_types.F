@@ -59,6 +59,7 @@ MODULE pw_env_types
 !> \param auxbas_pw_pool a pool that allocates grids in the auxiliary basis
 !> \param auxbas_rs_desc real space grid in the auxiliary basis, be careful
 !>        in parallel nsmax is chosen with multigrid in mind!
+!> \param real_grid_interpolation Whether multigrid transfer splits real Nyquist modes.
 !> \note
 !>      be careful in parallel nsmax for the rs_grids is chosen with
 !>      multigrid in mind! (well not as of this writing but...)
@@ -83,6 +84,7 @@ MODULE pw_env_types
       TYPE(section_vals_type), POINTER            :: interp_section => NULL()
       ! store current cell, used to rebuild lazily.
       REAL(KIND=dp), DIMENSION(3, 3)          :: cell_hmat = -1.0_dp
+      LOGICAL                                     :: real_grid_interpolation = .FALSE.
    END TYPE pw_env_type
 
 CONTAINS

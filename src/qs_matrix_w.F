@@ -54,6 +54,7 @@ MODULE qs_matrix_w
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_upf_inverse_scf,              ONLY: qs_upf_inverse_scf_active
    USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
 
@@ -87,7 +88,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_matrix_w'
 
       INTEGER                                            :: handle, is, ispin, nao, nspin
-      LOGICAL                                            :: do_kpoints, has_unit_metric
+      LOGICAL                                            :: do_kpoints, has_unit_metric, symmetrize
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_w, &
                                                             mo_derivs, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -118,7 +119,7 @@ CONTAINS
                CALL get_qs_env(qs_env, &
                                matrix_w_kp=matrix_w_kp, &
                                matrix_ks_kp=matrix_ks_kp, &
-                               matrix_s_kp=matrix_s_kp, &
+                               matrix_metric_kp=matrix_s_kp, &
                                sab_orb=sab_nl, &
                                mos=mos, &
                                dft_control=dft_control, &
@@ -164,7 +165,7 @@ CONTAINS
             CALL get_qs_env(qs_env, &
                             matrix_w=matrix_w, &
                             matrix_ks=matrix_ks, &
-                            matrix_s=matrix_s, &
+                            matrix_metric=matrix_s, &
                             mo_derivs=mo_derivs, &
                             scf_control=scf_control, &
                             mos=mos, &
@@ -173,6 +174,9 @@ CONTAINS
 
             CALL qs_rho_get(rho, rho_ao=rho_ao)
 
+            ! The UPF overlap response needs a Hermitian energy-weighted density at finite OT tolerance.
+            symmetrize = .FALSE.
+            IF (scf_control%use_ot) symmetrize = qs_upf_inverse_scf_active(qs_env%ks_env)
             nspin = SIZE(mos)
             DO ispin = 1, nspin
                mo_set => mos(ispin)
@@ -183,7 +187,7 @@ CONTAINS
                         CALL dbcsr_set(matrix_w(ispin)%matrix, 0.0_dp)
                      ELSE
                         CALL calculate_w_matrix_ot(mo_set, mo_derivs(ispin)%matrix, &
-                                                   matrix_w(ispin)%matrix, matrix_s(1)%matrix)
+                                                   matrix_w(ispin)%matrix, matrix_s(1)%matrix, symmetrize)
                      END IF
                   ELSE
                      CALL calculate_w_matrix(mo_set=mo_set, &
@@ -194,7 +198,7 @@ CONTAINS
                ELSE
                   IF (scf_control%use_ot) THEN
                      CALL calculate_w_matrix_ot(mo_set, mo_derivs(ispin)%matrix, &
-                                                matrix_w(ispin)%matrix, matrix_s(1)%matrix)
+                                                matrix_w(ispin)%matrix, matrix_s(1)%matrix, symmetrize)
                   ELSE
                      CALL calculate_w_matrix(mo_set, matrix_w(ispin)%matrix)
                   END IF
