@@ -23,11 +23,9 @@ MODULE input_cp2k_colvar
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE fparser,                         ONLY: docf
    USE generic_function_input,          ONLY: create_function_section
-   USE input_constants,                 ONLY: gaussian,&
-                                              numerical,&
-                                              rmsd_all,&
-                                              rmsd_list,&
-                                              rmsd_weightlist
+   USE input_constants,                 ONLY: &
+        apt_pop, func_diff, func_sum, gaussian, mulliken_pop, numerical, rmsd_all, rmsd_list, &
+        rmsd_weightlist
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -235,6 +233,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_voronoiipz_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_colvar_charge_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -2311,5 +2313,100 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_voronoiipz_section
+
+! **************************************************************************************************
+!> \brief Collective variables specifying population charge based on overlap matrix.
+!>        This subroutine calculates the density function perturbation theory
+!>        with analytic nuclear gradient of molecular orbital coefficients.
+!> \param section the section to be created
+!> \date  09.2024
+!> \author Rangsiman Ketkaew
+! **************************************************************************************************
+   SUBROUTINE create_colvar_charge_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, &
+                          name="CHARGE", &
+                          description="Section to define partial charge as collective variables.", &
+                          n_keywords=1, &
+                          n_subsections=0, &
+                          repeats=.FALSE.)
+
+      NULLIFY (keyword, subsection)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="GROUP_1", &
+                          variants=["CHUNK_1"], &
+                          description="Specifies the indexes of atoms in the group 1 defining the total charge "// &
+                          "of the group Q1", &
+                          usage="GROUP_1 {integer} {integer} {integer} ..", &
+                          n_var=-1, &
+                          type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="GROUP_2", &
+                          variants=["CHUNK_2"], &
+                          description="Specifies the indexes of atoms in the group 2 defining the total charge "// &
+                          "of the group Q2", &
+                          usage="GROUP_2 {integer} {integer} {integer} ..", &
+                          n_var=-1, &
+                          type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="POPULATION", &
+                          variants=["POP"], &
+                          description="Specifies the population method calculating the partial charge. "// &
+                          "There are two options that are available: MULLIKEN and APT.", &
+                          usage="POPULATION MULLIKEN | APT", &
+                          enum_c_vals=s2a("MULLIKEN", "APT"), &
+                          enum_i_vals=[mulliken_pop, apt_pop], &
+                          enum_desc=s2a("Use Mulliken population", &
+                                        "Use APT population"), &
+                          n_var=1, &
+                          default_i_val=mulliken_pop)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="FUNCTION", &
+                          variants=["FUNC"], &
+                          description="Function to operate between Q1 and Q2. Use DIFF for difference "// &
+                          "between Q1 and Q2. Use SUM for summation of Q1 and Q2.", &
+                          usage="FUNCTION DIFF | SUM", &
+                          enum_c_vals=s2a("DIFF", "SUM"), &
+                          enum_i_vals=[func_diff, func_sum], &
+                          enum_desc=s2a("Charge difference", &
+                                        "Charge summation"), &
+                          n_var=1, &
+                          default_i_val=func_diff)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="PRINT_LEVEL", &
+                          variants=["PRINT"], &
+                          description="Depth of information printing", &
+                          usage="PRINT_LEVEL {integer}", &
+                          default_i_val=1, &
+                          n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Must be present in each colvar and handled properly
+      CALL create_point_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_colvar_charge_section
+
+! **************************************************************************************************
 
 END MODULE input_cp2k_colvar

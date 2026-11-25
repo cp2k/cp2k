@@ -537,3 +537,4 @@ ATOM/regtest-libxc                                          libxc
 QS/regtest-fde
 QS/regtest-wfn-restart
 Fist/regtest-plumed2                                        plumed2
+Fist/regtest-17

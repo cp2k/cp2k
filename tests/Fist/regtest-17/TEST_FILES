@@ -1,0 +1,5 @@
+# 1D-metadyn (charge)
+h2o-mtd-charge.inp                                     126    1.0E-6          0.503543
+# 2D-metadyn (charge & distance)
+h2o-mtd-charge-dist.inp                                126    1.0E-6          0.503615
+#EOF

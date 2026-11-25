@@ -77,6 +77,7 @@ list(
   casino_utils.F
   cc4s_export.F
   cell_methods.F
+  colvar_elec_utils.F
   colvar_methods.F
   colvar_utils.F
   commutator_rpnl.F
