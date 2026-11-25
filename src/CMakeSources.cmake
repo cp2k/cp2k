@@ -1224,6 +1224,8 @@ list(
   motion/dimer_methods.F
   motion/dimer_types.F
   motion/dimer_utils.F
+  motion/fire_minimizer.F
+  motion/fire_optimizer.F
   motion/free_energy_methods.F
   motion/geo_opt.F
   motion/glbopt_callback.F
@@ -1239,6 +1241,7 @@ list(
   motion/helium_types.F
   motion/helium_worm.F
   motion/input_cp2k_constraints.F
+  motion/input_cp2k_fire.F
   motion/input_cp2k_free_energy.F
   motion/input_cp2k_md.F
   motion/input_cp2k_motion.F

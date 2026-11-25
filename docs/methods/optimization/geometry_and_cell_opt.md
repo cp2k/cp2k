@@ -200,6 +200,15 @@ trust radius for quasi-Newton methods and the line-search settings for conjugate
   structures, noisy forces or stresses, or systems where quasi-Newton steps are unstable. Each CG
   optimization step involves a line search along the search direction, which can require several
   force evaluations and make `CG` more expensive than `BFGS`.
+- `FIRE` and `FIRE2` use fictitious dynamics with an adaptive timestep and no line search or Hessian
+  approximation. `FIRE2` also corrects overshooting with a half-step back and a new force
+  evaluation. Reduce [TIMESTEP](#CP2K_INPUT.MOTION.GEO_OPT.FIRE.TIMESTEP) or
+  [MAX_STEP](#CP2K_INPUT.MOTION.GEO_OPT.FIRE.MAX_STEP) if steps are too large. For `CELL_OPT`,
+  [CELL_MASS_FACTOR](#CP2K_INPUT.MOTION.CELL_OPT.FIRE.CELL_MASS_FACTOR) controls the relative
+  response of the cell. Restarts resume from the saved structure with zero fictitious velocity. The
+  same optimizers are available for Cartesian NEB via
+  [OPT_TYPE](#CP2K_INPUT.MOTION.BAND.OPTIMIZE_BAND.OPT_TYPE). For FIRE in NEB, images are not
+  rotated or reparametrized during optimization.
 
 For `CG`, the one-dimensional minimization along each search direction is controlled by
 [CG/LINE_SEARCH](#CP2K_INPUT.MOTION.GEO_OPT.CG.LINE_SEARCH). The

@@ -195,6 +195,10 @@ registry["Ssdimer_joint_force_norm"] = GenericMatcher(
 )
 registry["Ssdimer_completed"] = TextPresenceMatcher("GEOMETRY OPTIMIZATION COMPLETED")
 registry["M011"] = GenericMatcher(r"ENERGY| Total FORCE_EVAL", col=9)
+registry["Geometry_optimization_converged"] = TextPresenceMatcher(
+    "GEOMETRY OPTIMIZATION COMPLETED"
+)
+registry["NEB_optimization_converged"] = TextPresenceMatcher("BAND TASK COMPLETED")
 registry["FIST_periodic_dipole_x"] = GenericMatcher(
     r"MM_DIPOLE| Moment [a.u.]", col=4, first=True
 )

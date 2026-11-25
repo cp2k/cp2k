@@ -27,8 +27,10 @@ MODULE input_cp2k_neb
                                               medium_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
-        band_diis_opt, band_md_opt, do_b_neb, do_ci_neb, do_d_neb, do_eb, do_it_neb, &
-        do_rep_blocked, do_rep_interleaved, do_sm, pot_neb_fe, pot_neb_full, pot_neb_me
+        band_diis_opt, band_fire2_opt, band_fire_opt, band_md_opt, do_b_neb, do_ci_neb, do_d_neb, &
+        do_eb, do_it_neb, do_rep_blocked, do_rep_interleaved, do_sm, pot_neb_fe, pot_neb_full, &
+        pot_neb_me
+   USE input_cp2k_fire,                 ONLY: create_fire_section
    USE input_cp2k_thermostats,          ONLY: create_coord_section,&
                                               create_velocity_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -410,13 +412,15 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="OPT_TYPE", &
                           description="Specifies the type optimizer used for the band", &
-                          usage="OPT_TYPE (MD|DIIS)", &
+                          usage="OPT_TYPE (MD|DIIS|FIRE|FIRE2)", &
                           default_i_val=band_diis_opt, &
                           enum_c_vals=s2a("MD", &
-                                          "DIIS"), &
+                                          "DIIS", "FIRE", "FIRE2"), &
                           enum_desc=s2a("Molecular dynamics-based optimizer", &
-                                        "Coupled steepest descent / direct inversion in the iterative subspace"), &
-                          enum_i_vals=[band_md_opt, band_diis_opt])
+                                        "Coupled steepest descent / direct inversion in the iterative subspace", &
+                                        "Fast inertial relaxation for Cartesian NEB", &
+                                        "FIRE 2.0 for Cartesian NEB"), &
+                          enum_i_vals=[band_md_opt, band_diis_opt, band_fire_opt, band_fire2_opt])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -588,6 +592,9 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+      CALL create_fire_section(subsection, band_opt=.TRUE., cell_opt=.FALSE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
    END SUBROUTINE create_opt_band_section

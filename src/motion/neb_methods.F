@@ -21,7 +21,9 @@
 !>         Extension to a subspace of collective variables
 ! **************************************************************************************************
 MODULE neb_methods
-   USE bibliography,                    ONLY: Sheppard2012,&
+   USE bibliography,                    ONLY: Bitzek2006,&
+                                              Guenole2020,&
+                                              Sheppard2012,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_sym_none,&
                                               cell_type
@@ -40,18 +42,20 @@ MODULE neb_methods
    USE f77_interface,                   ONLY: f_env_add_defaults,&
                                               f_env_rm_defaults,&
                                               f_env_type
+   USE fire_minimizer,                  ONLY: fire_init,&
+                                              fire_parameters_type,&
+                                              fire_prepare_step,&
+                                              fire_state_type,&
+                                              fire_step
    USE force_env_types,                 ONLY: force_env_get,&
                                               use_fist_force,&
                                               use_qs_force
    USE global_types,                    ONLY: global_environment_type
    USE header,                          ONLY: band_header
-   USE input_constants,                 ONLY: band_diis_opt,&
-                                              band_md_opt,&
-                                              do_ci_neb,&
-                                              do_it_neb,&
-                                              do_rep_blocked,&
-                                              do_sm,&
-                                              pot_neb_full
+   USE input_constants,                 ONLY: &
+        band_diis_opt, band_fire2_opt, band_fire_opt, band_md_opt, do_ci_neb, do_it_neb, &
+        do_rep_blocked, do_sm, pot_neb_full
+   USE input_cp2k_fire,                 ONLY: read_fire_section
    USE input_section_types,             ONLY: section_type,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -248,6 +252,8 @@ CONTAINS
             diis_section => section_vals_get_subs_vals(neb_section, "OPTIMIZE_BAND%DIIS")
             CALL neb_diis(rep_env, neb_env, coords, vels, forces, particle_set, output_unit, &
                           diis_section, logger, globenv)
+         CASE (band_fire_opt, band_fire2_opt)
+            CALL neb_fire(rep_env, neb_env, coords, vels, forces, particle_set, output_unit, logger, globenv)
          END SELECT
          ! Release force_eval
          CALL f_env_rm_defaults(f_env, ierr)
@@ -412,6 +418,116 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE neb_md
+
+! **************************************************************************************************
+!> \brief Relax a Cartesian band using its effective NEB force as a single vector.
+!> \param rep_env replica force evaluation environment
+!> \param neb_env band environment
+!> \param coords band coordinates
+!> \param vels band velocity storage used for frame alignment
+!> \param forces effective NEB forces
+!> \param particle_set particles
+!> \param output_unit band output
+!> \param logger logger
+!> \param globenv global environment
+! **************************************************************************************************
+   SUBROUTINE neb_fire(rep_env, neb_env, coords, vels, forces, particle_set, output_unit, logger, globenv)
+      TYPE(replica_env_type), POINTER                    :: rep_env
+      TYPE(neb_type), POINTER                            :: neb_env
+      TYPE(neb_var_type), POINTER                        :: coords, vels, forces
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER, INTENT(IN)                                :: output_unit
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(global_environment_type), POINTER             :: globenv
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'neb_fire'
+
+      INTEGER                                            :: handle, istep, iw, max_steps, ndof
+      LOGICAL                                            :: converged, fire2, should_stop, stalled
+      REAL(KIND=dp), ALLOCATABLE                         :: distances(:), energies(:), step(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: old_coords(:, :)
+      TYPE(fire_parameters_type)                         :: params
+      TYPE(fire_state_type)                              :: state
+      TYPE(neb_var_type), POINTER                        :: dcoords
+      TYPE(section_vals_type), POINTER                   :: fire_section
+
+      CALL timeset(routineN, handle)
+      IF (neb_env%use_colvar .OR. neb_env%id_type == do_sm .OR. neb_env%reparametrize_frames) THEN
+         CPABORT("FIRE and FIRE2 require a Cartesian NEB without frame reparametrization.")
+      END IF
+      iw = cp_print_key_unit_nr(logger, neb_env%neb_section, "REPLICA_INFO", extension=".replicaLog")
+      fire_section => section_vals_get_subs_vals(neb_env%neb_section, "OPTIMIZE_BAND%FIRE")
+      CALL read_fire_section(fire_section, params)
+      CALL section_vals_val_get(fire_section, "MAX_STEPS", i_val=max_steps)
+      IF (max_steps < 1) CPABORT("BAND FIRE: MAX_STEPS must be positive.")
+      fire2 = neb_env%opt_type == band_fire2_opt
+      neb_env%opt_type_label = MERGE("FIRE2", "FIRE ", fire2)
+      CALL cite_reference(Bitzek2006)
+      IF (fire2) CALL cite_reference(Guenole2020)
+      ndof = SIZE(coords%wrk)
+      CALL fire_init(state, params, ndof, ndof, fire2)
+
+      NULLIFY (dcoords)
+      CALL neb_var_create(dcoords, neb_env)
+      ALLOCATE (step(ndof), old_coords(SIZE(coords%wrk, 1), SIZE(coords%wrk, 2)))
+      ALLOCATE (energies(neb_env%number_of_replica), distances(neb_env%number_of_replica - 1))
+      CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels, &
+                           output_unit, distances, neb_env%number_of_replica)
+      ! As for DIIS, align the initial frames only, so the optimizer stays in one coordinate system.
+      CALL evaluate_band()
+      CALL dump_neb_info(neb_env=neb_env, coords=coords, forces=forces, particle_set=particle_set, &
+                         logger=logger, istep=0, energies=energies, distances=distances, output_unit=output_unit)
+      converged = check_convergence(neb_env, dcoords, forces, logger)
+
+      DO istep = 1, max_steps
+         IF (converged) EXIT
+         CALL fire_prepare_step(state, RESHAPE(forces%wrk, [ndof]), step, stalled)
+         IF (stalled) THEN
+            IF (output_unit > 0) WRITE (output_unit, '(T2,A)') &
+               "FIRE2 stopped after repeated velocity resets without convergence."
+            EXIT
+         END IF
+         CALL cp_iterate(logger%iter_info, iter_nr=istep)
+         neb_env%istep = istep
+         old_coords(:, :) = coords%wrk
+         IF (ANY(step /= 0.0_dp)) THEN
+            coords%wrk = coords%wrk + RESHAPE(step, coords%size_wrk)
+            CALL evaluate_band()
+         END IF
+         CALL fire_step(state, RESHAPE(forces%wrk, [ndof]), step)
+         IF (ANY(step /= 0.0_dp)) THEN
+            coords%wrk = coords%wrk + RESHAPE(step, coords%size_wrk)
+            CALL evaluate_band()
+         END IF
+         dcoords%wrk = coords%wrk - old_coords
+         CALL dump_neb_info(neb_env=neb_env, coords=coords, forces=forces, particle_set=particle_set, &
+                            logger=logger, istep=istep, energies=energies, distances=distances, output_unit=output_unit)
+         converged = check_convergence(neb_env, dcoords, forces, logger)
+         CALL external_control(should_stop, "NEB", globenv=globenv)
+         IF (should_stop) EXIT
+      END DO
+      IF (converged .AND. output_unit > 0) THEN
+         WRITE (UNIT=output_unit, FMT="(/,T2,A)") REPEAT("*", 79)
+         WRITE (UNIT=output_unit, FMT="(T2,A,T32,A,T78,A)") "***", "BAND TASK COMPLETED", "***"
+         WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", 79)
+      END IF
+      CALL dump_neb_final(neb_env, energies, coords, particle_set, logger, output_unit, converged)
+      CALL neb_var_release(dcoords)
+      CALL cp_print_key_finished_output(iw, logger, neb_env%neb_section, "REPLICA_INFO")
+      CALL timestop(handle)
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief Update image distances and evaluate the effective force on the band.
+! **************************************************************************************************
+      SUBROUTINE evaluate_band()
+         CALL reorient_images(.FALSE., particle_set, coords, vels, output_unit, &
+                              distances, neb_env%number_of_replica)
+         neb_env%avg_distance = NORM2(distances)/SQRT(REAL(SIZE(distances), KIND=dp))
+         CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces, particle_set, iw)
+      END SUBROUTINE evaluate_band
+   END SUBROUTINE neb_fire
 
 ! **************************************************************************************************
 !> \brief DIIS type optimization NEB
