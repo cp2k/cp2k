@@ -252,101 +252,6 @@ CONTAINS
    END SUBROUTINE dbcsr_to_dense
 
 ! **************************************************************************************************
-!> \brief Fill two dense matrices from two identically distributed DBCSR matrices in one iterator pass.
-!> \param dbcsr_a ...
-!> \param dense_a ...
-!> \param dbcsr_b ...
-!> \param dense_b ...
-!> \param replicated ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_to_dense_pair(dbcsr_a, dense_a, dbcsr_b, dense_b, replicated)
-      USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
-                              dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
-                              dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, &
-                              dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_type_antisymmetric, &
-                              dbcsr_type_symmetric
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_a
-      REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: dense_a
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_b
-      REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: dense_b
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: replicated
-
-      CHARACTER                                          :: matrix_type_a, matrix_type_b
-      INTEGER :: col_start, col_start_b, icol, icol_b, irow, irow_b, izero, ncol, ncol_b, ncols, &
-         nrow, nrow_b, nrows, numnodes, row_start, row_start_b
-      LOGICAL                                            :: has_symmetry_a, has_symmetry_b, &
-                                                            transposed_a, transposed_b
-      REAL(c_double), POINTER                            :: block_a(:, :), block_b(:, :)
-      REAL(KIND=dp)                                      :: symmetry_sign_a, symmetry_sign_b
-      TYPE(dbcsr_distribution_type)                      :: dist
-      TYPE(dbcsr_iterator_type)                          :: iter_a, iter_b
-
-      CALL dbcsr_get_info(dbcsr_a%matrix, nfullrows_total=nrows, nfullcols_total=ncols, &
-                          distribution=dist)
-      CALL dbcsr_distribution_get(dist, numnodes=numnodes)
-      IF (PRESENT(replicated)) replicated = (numnodes == 1)
-      matrix_type_a = dbcsr_get_matrix_type(dbcsr_a%matrix)
-      matrix_type_b = dbcsr_get_matrix_type(dbcsr_b%matrix)
-      has_symmetry_a = matrix_type_a == dbcsr_type_symmetric .OR. &
-                       matrix_type_a == dbcsr_type_antisymmetric
-      has_symmetry_b = matrix_type_b == dbcsr_type_symmetric .OR. &
-                       matrix_type_b == dbcsr_type_antisymmetric
-      symmetry_sign_a = MERGE(-1.0_dp, 1.0_dp, matrix_type_a == dbcsr_type_antisymmetric)
-      symmetry_sign_b = MERGE(-1.0_dp, 1.0_dp, matrix_type_b == dbcsr_type_antisymmetric)
-
-      IF (.NOT. ALLOCATED(dense_a)) THEN
-         ALLOCATE (dense_a(nrows, ncols))
-      ELSE IF (.NOT. ALL(SHAPE(dense_a) == [nrows, ncols])) THEN
-         DEALLOCATE (dense_a)
-         ALLOCATE (dense_a(nrows, ncols))
-      END IF
-      IF (.NOT. ALLOCATED(dense_b)) THEN
-         ALLOCATE (dense_b(nrows, ncols))
-      ELSE IF (.NOT. ALL(SHAPE(dense_b) == [nrows, ncols])) THEN
-         DEALLOCATE (dense_b)
-         ALLOCATE (dense_b(nrows, ncols))
-      END IF
-
-!$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(dbcsr_a, dbcsr_b, dense_a, dense_b, has_symmetry_a, has_symmetry_b, ncols, &
-!$OMP        symmetry_sign_a, symmetry_sign_b) &
-!$OMP PRIVATE(iter_a, iter_b, irow, icol, irow_b, icol_b, izero, block_a, block_b, transposed_a, &
-!$OMP         transposed_b, row_start, col_start, row_start_b, col_start_b, nrow, ncol, nrow_b, &
-!$OMP         ncol_b)
-!$OMP DO SCHEDULE(STATIC)
-      DO izero = 1, ncols
-         dense_a(:, izero) = 0._dp
-         dense_b(:, izero) = 0._dp
-      END DO
-!$OMP END DO
-!$OMP BARRIER
-      CALL dbcsr_iterator_readonly_start(iter_a, dbcsr_a%matrix, dynamic=.TRUE.)
-      CALL dbcsr_iterator_readonly_start(iter_b, dbcsr_b%matrix, dynamic=.TRUE.)
-      DO WHILE (dbcsr_iterator_blocks_left(iter_a))
-         CPASSERT(dbcsr_iterator_blocks_left(iter_b))
-         CALL dbcsr_iterator_next_block(iter_a, irow, icol, block_a, transposed=transposed_a, &
-                                        row_size=nrow, col_size=ncol, row_offset=row_start, &
-                                        col_offset=col_start)
-         CALL dbcsr_iterator_next_block(iter_b, irow_b, icol_b, block_b, transposed=transposed_b, &
-                                        row_size=nrow_b, col_size=ncol_b, row_offset=row_start_b, &
-                                        col_offset=col_start_b)
-         CPASSERT(irow_b == irow .AND. icol_b == icol)
-         CPASSERT(nrow_b == nrow .AND. ncol_b == ncol)
-         CALL copy_block_to_dense(dense_a, block_a, transposed_a, symmetry_sign_a, has_symmetry_a, &
-                                  irow, icol, row_start, col_start, nrow, ncol)
-         CALL copy_block_to_dense(dense_b, block_b, transposed_b, symmetry_sign_b, has_symmetry_b, &
-                                  irow, icol, row_start_b, col_start_b, nrow_b, ncol_b)
-      END DO
-      CPASSERT(.NOT. dbcsr_iterator_blocks_left(iter_b))
-      CALL dbcsr_iterator_stop(iter_a)
-      CALL dbcsr_iterator_stop(iter_b)
-!$OMP END PARALLEL
-
-   END SUBROUTINE dbcsr_to_dense_pair
-
-! **************************************************************************************************
 !> \brief Fill a DBCSR matrix from a dense symmetric matrix with full upper block structure.
 !>        This creates all upper-triangular blocks, not just those present in a template,
 !>        reusing the target matrix when its shape already matches.
@@ -1924,8 +1829,8 @@ CONTAINS
             ! scalar <- rho_ao(1, :) + rho_ao(2, :)
             ! zeta   <- rho_ao(1, :) - rho_ao(2, :)
             CALL timeset("gauxc_density_dense", density_handle)
-            CALL dbcsr_to_dense_pair(rho_ao(1, img), cache%density_scalar, rho_ao(2, img), &
-                                     cache%density_zeta, replicated=replicated)
+            CALL dbcsr_to_dense(rho_ao(1, img), cache%density_scalar, replicated=replicated)
+            CALL dbcsr_to_dense(rho_ao(2, img), cache%density_zeta, replicated=replicated)
             IF (.NOT. replicated) THEN
                CALL para_env%sum(cache%density_scalar)
                CALL para_env%sum(cache%density_zeta)
