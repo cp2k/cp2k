@@ -427,18 +427,20 @@ CONTAINS
 !> \param bmatrix positive definite overlap, may be overwritten
 !> \param eigenvectors lowest eigenvectors as columns
 !> \param eigenvalues requested prefix of the spectrum in ascending order
+!> \param selected_backend backend already selected for these matrix layouts
 !> \param work square workspace for solvers that cannot write directly into the MO layout
 !> \param lowest_subset compute only the requested lowest eigenpairs with ScaLAPACK when available
 !> \par History
 !>      12.2024 Added DLA-Future support [Rocco Meli]
 ! **************************************************************************************************
-   SUBROUTINE cp_cfm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work, lowest_subset)
+   SUBROUTINE cp_cfm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work, lowest_subset, selected_backend)
 
       TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix
       TYPE(cp_cfm_type), INTENT(IN), TARGET              :: eigenvectors
       REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
       TYPE(cp_cfm_type), INTENT(IN), TARGET              :: work
       LOGICAL, INTENT(IN), OPTIONAL                      :: lowest_subset
+      INTEGER, INTENT(IN), OPTIONAL                      :: selected_backend
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_geeig'
 
@@ -452,7 +454,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       nmo = SIZE(eigenvalues)
-      backend = generalized_backend(amatrix%matrix_struct, bmatrix%matrix_struct, work%matrix_struct)
+      IF (PRESENT(selected_backend)) THEN
+         backend = selected_backend
+      ELSE
+         backend = generalized_backend(amatrix%matrix_struct, bmatrix%matrix_struct, work%matrix_struct)
+      END IF
 #if defined(__parallel)
       IF (PRESENT(lowest_subset)) THEN
          IF (lowest_subset .AND. nmo < amatrix%matrix_struct%nrow_global) backend = FM_DIAG_TYPE_SCALAPACK

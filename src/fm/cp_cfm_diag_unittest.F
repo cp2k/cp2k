@@ -10,7 +10,7 @@ PROGRAM cp_cfm_diag_unittest
    USE cp_cfm_diag, ONLY: cp_cfm_geeig, cp_cfm_heevd
    USE cp_cfm_types, ONLY: cp_cfm_create, cp_cfm_get_submatrix, cp_cfm_release, &
                            cp_cfm_set_submatrix, cp_cfm_type
-   USE cp_fm_diag, ONLY: FM_DIAG_TYPE_CUSOLVER, FM_DIAG_TYPE_DEFAULT, FM_DIAG_TYPE_SCALAPACK, cusolver_n_min, &
+   USE cp_fm_diag, ONLY: FM_DIAG_LOCAL, FM_DIAG_TYPE_CUSOLVER, FM_DIAG_TYPE_DEFAULT, FM_DIAG_TYPE_SCALAPACK, cusolver_n_min, &
                          diag_type, direct_generalized_diagonalization
    USE cp_fm_struct, ONLY: cp_fm_struct_create, cp_fm_struct_release, cp_fm_struct_type
    USE kinds, ONLY: dp
@@ -40,6 +40,8 @@ PROGRAM cp_cfm_diag_unittest
    direct_generalized_diagonalization = .TRUE.
    CALL check_solve(cusolver_n_min, .TRUE., cusolver_n_min - 3)
    CALL check_solve(cusolver_n_min, .TRUE.)
+   ! A solver already selected by the SCF driver must also be used on a GPU build.
+   IF (para_env%num_pe == 1) CALL check_solve(cusolver_n_min, .TRUE., selected_backend=FM_DIAG_LOCAL)
    CALL mp_world_finalize()
    DEALLOCATE (para_env)
 
@@ -50,11 +52,12 @@ CONTAINS
 !> \param n matrix order
 !> \param generalized solve the generalized eigenproblem
 !> \param nvec number of requested eigenvectors, all by default
+!> \param selected_backend solver already chosen by the caller
 ! **************************************************************************************************
-   SUBROUTINE check_solve(n, generalized, nvec)
+   SUBROUTINE check_solve(n, generalized, nvec, selected_backend)
       INTEGER, INTENT(IN)                                :: n
       LOGICAL, INTENT(IN)                                :: generalized
-      INTEGER, INTENT(IN), OPTIONAL                      :: nvec
+      INTEGER, INTENT(IN), OPTIONAL                      :: nvec, selected_backend
 
       REAL(KIND=dp), PARAMETER                           :: tol = 1.0E-11_dp
 
@@ -122,7 +125,7 @@ CONTAINS
          END IF
          CALL cp_cfm_set_submatrix(a, z)
          CALL cp_cfm_set_submatrix(b, sz)
-         CALL cp_cfm_geeig(a, b, vec, eval(:nev), work)
+         CALL cp_cfm_geeig(a, b, vec, eval(:nev), work, selected_backend=selected_backend)
          CALL cp_cfm_release(work)
          CALL cp_cfm_release(b)
       ELSE
@@ -137,7 +140,8 @@ CONTAINS
 
       expect_gpu = diag_type == FM_DIAG_TYPE_CUSOLVER .AND. n >= cusolver_n_min .AND. device_count > 0
       IF (expect_gpu .AND. para_env%num_pe > 1) expect_gpu = grid%cusolver_devices_ok == 1
-      IF (C_ASSOCIATED(grid%cusolver_context) .NEQV. expect_gpu) ERROR STOP "Wrong complex standard eigensolver"
+      IF (PRESENT(selected_backend)) expect_gpu = selected_backend == FM_DIAG_TYPE_CUSOLVER
+      IF (C_ASSOCIATED(grid%cusolver_context) .NEQV. expect_gpu) ERROR STOP "Wrong complex eigensolver"
       CALL cp_cfm_get_submatrix(vec, z(:, :nev))
       sz(:, :nev) = MATMUL(s, z(:, :nev))
       IF (ANY(eval(2:nev) < eval(:nev - 1))) ERROR STOP "Eigenvalues are not ordered"

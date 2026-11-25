@@ -56,12 +56,13 @@ MODULE qs_scf_diagonalization
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
-   USE cp_fm_diag,                      ONLY: FM_DIAG_REDUCED,&
+   USE cp_fm_diag,                      ONLY: FM_DIAG_LOCAL,&
+                                              FM_DIAG_REDUCED,&
                                               choose_eigv_solver,&
                                               cp_fm_geeig,&
                                               cp_fm_geeig_canon,&
                                               generalized_backend,&
-                                              prefer_local_kpoint_solver
+                                              local_kpoint_workers_allowed
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
                                               fm_pool_create_fm,&
                                               fm_pool_get_el_struct,&
@@ -324,8 +325,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
 
-      INTEGER                                            :: cdiis_cholesky_method, cdiis_ncall, &
-                                                            ispin, nspin
+      INTEGER                                            :: backend, cdiis_cholesky_method, &
+                                                            cdiis_ncall, ispin, nspin
       LOGICAL                                            :: cdiis_step, do_level_shift, owns_ortho, &
                                                             use_adiis, use_cdiis, use_jacobi, &
                                                             use_subspace_fock
@@ -511,12 +512,17 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspin
-            IF (generalized_backend(scf_env%scf_work1(ispin)%matrix_struct, cached_overlap=.TRUE.) /= FM_DIAG_REDUCED .AND. &
-                scf_control%level_shift == 0.0_dp .AND. &
-                scf_control%diagonalization%eps_jacobi <= 0.0_dp .AND. scf_env%cholesky_method /= cholesky_dbcsr) THEN
+            backend = FM_DIAG_REDUCED
+            IF (scf_control%level_shift == 0.0_dp .AND. scf_control%diagonalization%eps_jacobi <= 0.0_dp .AND. &
+                scf_env%cholesky_method /= cholesky_dbcsr) THEN
+               backend = generalized_backend(scf_env%scf_work1(ispin)%matrix_struct, scf_env%scf_work2%matrix_struct, &
+                                             cached_overlap=.TRUE.)
+            END IF
+            IF (backend /= FM_DIAG_REDUCED) THEN
                ! The AO overlap is spin independent; its direct driver can overwrite this dense copy.
                CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, scf_env%scf_work2, scf_env%fm_copy_plan(0), check_plan=.TRUE.)
-               CALL cp_fm_geeig(scf_env%scf_work1(ispin), scf_env%scf_work2, mos(ispin)%mo_coeff, mos(ispin)%eigenvalues)
+               CALL cp_fm_geeig(scf_env%scf_work1(ispin), scf_env%scf_work2, mos(ispin)%mo_coeff, &
+                                mos(ispin)%eigenvalues, selected_backend=backend)
             ELSE
                IF (do_level_shift) THEN
                   CALL eigensolver(matrix_ks_fm=scf_env%scf_work1(ispin), &
@@ -721,7 +727,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: coeffs
       REAL(dp), POINTER :: effective_u(:, :), adiis_u(:, :)
-      INTEGER :: cdiis_ncall, handle, ib, ikp, ispin, kplocal, kpmax, &
+      INTEGER :: backend, cdiis_ncall, handle, ib, ikp, ispin, kplocal, kpmax, &
                  nb, nkp, nspin, omp_threads, nworkers
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
@@ -823,8 +829,10 @@ CONTAINS
 
       CALL fm_pool_create_fm(ao_ao_fm_pool, fmlocal)
       CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
-      use_local_kpoints = .NOT. use_real_wfn .AND. &
-                          prefer_local_kpoint_solver(kpoints%para_env_kp%num_pe, matrix_struct)
+      use_local_kpoints = .NOT. use_real_wfn .AND. local_kpoint_workers_allowed(matrix_struct%para_env%num_pe)
+      ! H(k), S(k) and the square solver workspace use the same group layout.
+      backend = generalized_backend(matrix_struct, local_workers=use_local_kpoints)
+      use_local_kpoints = use_local_kpoints .AND. backend == FM_DIAG_LOCAL
 
       IF (use_real_wfn) THEN
          CALL cp_fm_create(rksmat, matrix_struct)
@@ -985,10 +993,10 @@ CONTAINS
                   IF (scf_env%cholesky_method == cholesky_off) THEN
                      CALL cp_fm_geeig_canon(rksmat, rsmat, mo_coeff, eigenvalues, fmlocal, scf_control%eps_eigval)
                   ELSE
-                     CALL cp_fm_geeig(rksmat, rsmat, mo_coeff, eigenvalues, fmlocal)
+                     CALL cp_fm_geeig(rksmat, rsmat, mo_coeff, eigenvalues, fmlocal, selected_backend=backend)
                   END IF
                ELSE
-                  CALL kp_solve_complex(kp%mos(ispin), workspace(1), scf_env, scf_control, use_adiis, .FALSE.)
+                  CALL kp_solve_complex(kp%mos(ispin), workspace(1), scf_env, scf_control, use_adiis, backend)
                END IF
             END DO
          END DO
@@ -1171,7 +1179,7 @@ CONTAINS
                   CALL qs_diis_b_calc_err_kp(kpoints%scf_diis_buffer, ib, kp%mos, work%cksmat, work%csmat, &
                                              ispin, ikp, work%cmos, local=.TRUE., gemm_ctx=work%gemm_ctx)
                ELSE
-                  CALL kp_solve_complex(kp%mos(ispin), work, scf_env, scf_control, use_adiis, .TRUE.)
+                  CALL kp_solve_complex(kp%mos(ispin), work, scf_env, scf_control, use_adiis)
                END IF
             END DO
          END DO
@@ -1217,17 +1225,20 @@ CONTAINS
 !> \param scf_env SCF settings
 !> \param scf_control SCF control
 !> \param use_adiis apply the candidate shift
-!> \param local select the one-rank local solver; otherwise honor the configured backend
+!> \param backend solver selected for the group; omit on workers with a private LAPACK workspace
 ! **************************************************************************************************
-   SUBROUTINE kp_solve_complex(mos, work, scf_env, scf_control, use_adiis, local)
+   SUBROUTINE kp_solve_complex(mos, work, scf_env, scf_control, use_adiis, backend)
       TYPE(mo_set_type), INTENT(INOUT)                   :: mos
       TYPE(kp_diag_workspace_type), INTENT(INOUT)        :: work
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
-      LOGICAL, INTENT(IN)                                :: use_adiis, local
+      LOGICAL, INTENT(IN)                                :: use_adiis
+      INTEGER, INTENT(IN), OPTIONAL                      :: backend
 
+      LOGICAL                                            :: local
       REAL(KIND=dp), POINTER                             :: eigenvalues(:)
 
+      local = .NOT. PRESENT(backend)
       CALL get_mo_set(mos, eigenvalues=eigenvalues)
       IF (use_adiis) CALL shift_candidate_complex(work%cksmat, work%csmat, mos, work%cmos, work%cwork, &
                                                   adiis_candidate_shift(scf_env), local, work%gemm_ctx)
@@ -1243,7 +1254,7 @@ CONTAINS
          IF (local) THEN
             CALL cp_cfm_geeig_local(work%cksmat, work%csmat, mos%cmo_coeff, eigenvalues, ws=work%solver)
          ELSE
-            CALL cp_cfm_geeig(work%cksmat, work%csmat, mos%cmo_coeff, eigenvalues, work%cwork)
+            CALL cp_cfm_geeig(work%cksmat, work%csmat, mos%cmo_coeff, eigenvalues, work%cwork, selected_backend=backend)
          END IF
       END IF
    END SUBROUTINE kp_solve_complex
@@ -3176,7 +3187,7 @@ CONTAINS
       ! one-rank k-point groups refine their k points locally, without a
       ! transfer round; a diag check, a convergence-only probe and an
       ! explicitly selected diagonalization library keep the rounds
-      use_local_kpoints = prefer_local_kpoint_solver(kpoints%para_env_kp%num_pe) .AND. .NOT. my_check_moconv_only
+      use_local_kpoints = local_kpoint_workers_allowed(kpoints%para_env_kp%num_pe) .AND. .NOT. my_check_moconv_only
       CALL kp_diag_setup(qs_env, kpoints, nspin, matrix_ks_kp, matrix_s_kp, fmwork, op_ctx, &
                          matrix_struct)
 

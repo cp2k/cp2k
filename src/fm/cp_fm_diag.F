@@ -127,7 +127,7 @@ MODULE cp_fm_diag
    ! Public subroutines
    PUBLIC :: choose_eigv_solver, &
              cusolver_selected, generalized_backend, generalized_backend_name, &
-             aligned_columns, prefer_local_kpoint_solver, &
+             aligned_columns, local_kpoint_workers_allowed, &
              cp_fm_block_jacobi, &
              cp_fm_power, &
              cp_fm_syevd, &
@@ -161,12 +161,13 @@ CONTAINS
 !> \param b optional overlap layout, assumed to match a if omitted
 !> \param work optional full-size eigenvector workspace layout
 !> \param cached_overlap whether the SCF driver already reuses its overlap decomposition
+!> \param local_workers independent one-rank matrices can use private LAPACK workspaces
 !> \return direct backend or FM_DIAG_REDUCED for a CP2K Cholesky reduction
 ! **************************************************************************************************
-   INTEGER FUNCTION generalized_backend(a, b, work, cached_overlap) RESULT(backend)
+   INTEGER FUNCTION generalized_backend(a, b, work, cached_overlap, local_workers) RESULT(backend)
       TYPE(cp_fm_struct_type), INTENT(IN)                :: a
       TYPE(cp_fm_struct_type), INTENT(IN), OPTIONAL      :: b, work
-      LOGICAL, INTENT(IN), OPTIONAL                      :: cached_overlap
+      LOGICAL, INTENT(IN), OPTIONAL                      :: cached_overlap, local_workers
 
       INTEGER                                            :: n, nranks
       LOGICAL                                            :: cached
@@ -178,8 +179,7 @@ CONTAINS
       cached = .FALSE.
       IF (PRESENT(cached_overlap)) cached = cached_overlap
 
-      SELECT CASE (diag_type)
-      CASE (FM_DIAG_TYPE_CUSOLVER)
+      IF (diag_type == FM_DIAG_TYPE_CUSOLVER) THEN
          IF (direct_generalized_diagonalization .OR. (.NOT. cached .AND. nranks <= 2) .OR. &
              (cached .AND. nranks == 1 .AND. n >= 1248)) THEN
             IF (cusolver_selected(a, work, b)) THEN
@@ -189,6 +189,15 @@ CONTAINS
          END IF
          ! Keep the ordinary distributed fallback when ranks cannot use separate GPUs.
          IF (nranks > 1) RETURN
+      END IF
+
+      IF (PRESENT(local_workers)) THEN
+         IF (local_workers) THEN
+            backend = FM_DIAG_LOCAL
+            RETURN
+         END IF
+      END IF
+      SELECT CASE (diag_type)
       CASE (FM_DIAG_TYPE_DLAF)
          IF (n >= dlaf_neigvec_min) THEN
             IF (direct_generalized_diagonalization) backend = FM_DIAG_TYPE_DLAF
@@ -243,20 +252,15 @@ CONTAINS
    END FUNCTION aligned_columns
 
 ! **************************************************************************************************
-!> \brief Keep small independent k-point solves on the local LAPACK worker.
+!> \brief Whether a k-point group can use private one-rank LAPACK workspaces.
 !> \param nranks group size
-!> \param layout matrix layout, if a full diagonalization is being performed
-!> \return whether the local LAPACK solver is preferred
+!> \return true when neither explicit solver selection nor numerical checks require the common driver
 ! **************************************************************************************************
-   LOGICAL FUNCTION prefer_local_kpoint_solver(nranks, layout) RESULT(use_local)
+   LOGICAL FUNCTION local_kpoint_workers_allowed(nranks) RESULT(use_local)
       INTEGER, INTENT(IN)                                :: nranks
-      TYPE(cp_fm_struct_type), INTENT(IN), OPTIONAL      :: layout
 
       use_local = nranks == 1 .AND. .NOT. diag_lib_explicit .AND. .NOT. diag_check_requested()
-      IF (use_local .AND. PRESENT(layout)) THEN
-         use_local = (auto_generalized .OR. direct_generalized_diagonalization) .AND. .NOT. cusolver_selected(layout)
-      END IF
-   END FUNCTION prefer_local_kpoint_solver
+   END FUNCTION local_kpoint_workers_allowed
 
 ! **************************************************************************************************
 !> \brief Whether the configured cuSOLVER backend can solve on this matrix distribution.
@@ -1658,14 +1662,16 @@ CONTAINS
 !> \param bmatrix positive definite overlap, may be overwritten
 !> \param eigenvectors lowest eigenvectors as columns
 !> \param eigenvalues requested prefix of the spectrum in ascending order
+!> \param selected_backend backend already selected for these matrix layouts
 !> \param work optional square workspace for solvers that cannot write directly into the MO layout
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work)
+   SUBROUTINE cp_fm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work, selected_backend)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: amatrix, bmatrix
       TYPE(cp_fm_type), INTENT(IN), TARGET               :: eigenvectors
       REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL, TARGET     :: work
+      INTEGER, INTENT(IN), OPTIONAL                      :: selected_backend
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_geeig'
 
@@ -1681,7 +1687,11 @@ CONTAINS
       nmo = SIZE(eigenvalues)
       work_layout => amatrix%matrix_struct
       IF (PRESENT(work)) work_layout => work%matrix_struct
-      backend = generalized_backend(amatrix%matrix_struct, bmatrix%matrix_struct, work_layout)
+      IF (PRESENT(selected_backend)) THEN
+         backend = selected_backend
+      ELSE
+         backend = generalized_backend(amatrix%matrix_struct, bmatrix%matrix_struct, work_layout)
+      END IF
       IF ((backend == FM_DIAG_LOCAL .OR. backend == FM_DIAG_TYPE_CUSOLVER) .AND. &
           aligned_columns(amatrix%matrix_struct, eigenvectors%matrix_struct, nmo)) THEN
          vectors => eigenvectors
