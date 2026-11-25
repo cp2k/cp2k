@@ -71,7 +71,12 @@ void offload_init(void) {
 int offload_get_device_count(void) {
   int count = 0;
 #if defined(__OFFLOAD_CUDA)
-  OFFLOAD_CHECK(cudaGetDeviceCount(&count));
+  cudaError_t status = cudaGetDeviceCount(&count);
+  if (status == cudaErrorNoDevice) {
+    (void)cudaGetLastError();
+    return 0;
+  }
+  OFFLOAD_CHECK(status);
 #elif defined(__OFFLOAD_HIP)
   OFFLOAD_CHECK(hipGetDeviceCount(&count));
 #elif defined(__OFFLOAD_OPENCL)

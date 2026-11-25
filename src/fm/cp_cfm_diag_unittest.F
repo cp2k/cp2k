@@ -21,14 +21,16 @@ PROGRAM cp_cfm_diag_unittest
 
    IMPLICIT NONE
 
+   INTEGER :: device_count
    TYPE(mp_para_env_type), POINTER :: para_env
 
    ALLOCATE (para_env)
    CALL mp_world_init(para_env)
    diag_type = FM_DIAG_TYPE_DEFAULT
+   device_count = 0
 #if defined(__CUSOLVERMP)
-   IF (offload_get_device_count() < 1) ERROR STOP "No visible device for cuSOLVERMp"
-   CALL offload_set_chosen_device(MOD(para_env%mepos, offload_get_device_count()))
+   device_count = offload_get_device_count()
+   IF (device_count > 0) CALL offload_set_chosen_device(MOD(para_env%mepos, device_count))
 #endif
    direct_generalized_diagonalization = .FALSE.
    cusolver_n_min = 64
@@ -132,7 +134,7 @@ CONTAINS
          CALL cp_cfm_heevd(a, vec, eval)
       END IF
 
-      expect_gpu = diag_type == FM_DIAG_TYPE_CUSOLVER .AND. n >= cusolver_n_min
+      expect_gpu = diag_type == FM_DIAG_TYPE_CUSOLVER .AND. n >= cusolver_n_min .AND. device_count > 0
       IF (expect_gpu .AND. para_env%num_pe > 1) expect_gpu = grid%cusolver_devices_ok == 1
       IF (C_ASSOCIATED(grid%cusolver_context) .NEQV. expect_gpu) ERROR STOP "Wrong complex standard eigensolver"
       CALL cp_cfm_get_submatrix(vec, z(:, :nev))
