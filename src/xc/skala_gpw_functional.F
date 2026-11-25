@@ -2555,21 +2555,22 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau
 
-      INTEGER                                            :: i, nroute_grad_per_point, &
-                                                            nroute_recv_points, &
-                                                            nroute_send_points, partition, &
-                                                            selected_device
+      INTEGER :: i, isub, max_rows, nroute_grad_per_point, nroute_recv_points, nroute_send_points, &
+         nsubchunks, partition, row0, selected_device, spin_dim
       INTEGER, ALLOCATABLE, DIMENSION(:) :: route_grad_return_recv_counts, &
          route_grad_return_recv_displs, route_grad_return_send_counts, &
-         route_grad_return_send_displs
-      LOGICAL                                            :: collapse_spin_grads, fp64, use_cuda
-      REAL(KIND=dp)                                      :: exc
-      REAL(KIND=dp), ALLOCATABLE                         :: density_grad(:, :), grad_grad(:, :, :), &
-                                                            kin_grad(:, :), recv_grad_buffer(:), &
-                                                            send_grad_buffer(:)
+         route_grad_return_send_displs, sub_atom_begin, sub_atom_count, sub_row_begin, &
+         sub_row_count
+      LOGICAL                                            :: collapse_spin_grads, fp64, &
+                                                            response_atom_chunks, use_cuda
+      REAL(KIND=dp), ALLOCATABLE :: density_grad(:, :), grad_grad(:, :, :), kin_grad(:, :), &
+         recv_grad_buffer(:), resp_density(:, :), resp_grad(:, :, :), resp_kin(:, :), &
+         send_grad_buffer(:)
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sub_density, sub_kin
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: sub_grad
       TYPE(section_vals_type), POINTER                   :: native_section
-      TYPE(skala_gpw_feature_type)                       :: direction, reference
-      TYPE(torch_tensor_type)                            :: directions(3), exc_tensor, responses(3)
+      TYPE(skala_gpw_feature_type)                       :: dir_sub, direction, ref_sub, reference
+      TYPE(torch_tensor_type)                            :: directions(3), exc_sub_t, sub_resp(3)
       TYPE(xc_rho_set_type)                              :: rho1_set
 
       fp64 = .TRUE.
@@ -2609,15 +2610,71 @@ CONTAINS
                                    requires_grad=.TRUE., weights=weights, atom_partition=partition, &
                                    use_atom_chunks=.TRUE., cuda_device=selected_device)
       collapse_spin_grads = reference%uses_collapsed_rks_dynamic
+      spin_dim = 2
+      IF (collapse_spin_grads) spin_dim = 1
+      ! The response is the Hessian-vector of a sum of per-atom contributions, so it
+      ! is block-diagonal per chunk row. Split this rank's chunk into row subchunks to
+      ! bound peak memory and accumulate each subchunk's feature gradients.
+      CALL read_skala_native_controls(xc_section, response_atom_chunks, max_rows)
+      nsubchunks = 0
       IF (reference%chunk_feature_count > 0) THEN
-         CALL skala_torch_model_get_exc(skala_state%model, reference%inputs, &
-                                        reference%grid_weights_t, exc_tensor, exc)
-         CALL torch_tensor_hessian_vector(exc_tensor, &
-                                          [reference%density_t, reference%grad_t, reference%kin_t], &
-                                          directions, responses, to_host=.TRUE.)
+         IF (max_rows == -1) THEN
+            max_rows = auto_atom_chunk_max_rows(reference, rho1_r(1)%pw_grid%para%group)
+         END IF
+         IF (max_rows == 0) THEN
+            nsubchunks = 1
+            ALLOCATE (sub_atom_begin(1), sub_atom_count(1), sub_row_begin(1), sub_row_count(1))
+            sub_atom_begin(1) = reference%chunk_atom_begin
+            sub_atom_count(1) = reference%chunk_natom
+            sub_row_begin(1) = 1
+            sub_row_count(1) = reference%chunk_feature_count
+         ELSE
+            CALL skala_gpw_atom_subchunk_layout(max_rows, sub_atom_begin, sub_atom_count, &
+                                                sub_row_begin, sub_row_count)
+            nsubchunks = SIZE(sub_atom_begin)
+         END IF
+         ! Route the direction subchunks through the independent clones.
+         direction%density_t = directions(1)
+         direction%grad_t = directions(2)
+         direction%kin_t = directions(3)
+         direction%owns_dynamic_tensors = .FALSE.
+         ALLOCATE (resp_density(reference%chunk_feature_count, spin_dim), &
+                   resp_grad(reference%chunk_feature_count, 3, spin_dim), &
+                   resp_kin(reference%chunk_feature_count, spin_dim))
+         resp_density = 0.0_dp
+         resp_grad = 0.0_dp
+         resp_kin = 0.0_dp
+         DO isub = 1, nsubchunks
+            CALL skala_gpw_feature_build_atom_subchunk_bounds(reference, ref_sub, &
+                                                              sub_atom_begin(isub), sub_atom_count(isub), &
+                                                              sub_row_begin(isub), sub_row_count(isub))
+            CALL skala_gpw_feature_build_atom_subchunk_bounds(direction, dir_sub, &
+                                                              sub_atom_begin(isub), sub_atom_count(isub), &
+                                                              sub_row_begin(isub), sub_row_count(isub))
+            CALL skala_torch_model_get_exc_device(skala_state%model, ref_sub%inputs, &
+                                                  ref_sub%grid_weights_t, exc_sub_t)
+            CALL torch_tensor_hessian_vector(exc_sub_t, &
+                                             [ref_sub%density_t, ref_sub%grad_t, ref_sub%kin_t], &
+                                             [dir_sub%density_t, dir_sub%grad_t, dir_sub%kin_t], &
+                                             sub_resp, to_host=.TRUE.)
+            NULLIFY (sub_density, sub_grad, sub_kin)
+            CALL torch_tensor_data_ptr(sub_resp(1), sub_density)
+            CALL torch_tensor_data_ptr(sub_resp(2), sub_grad)
+            CALL torch_tensor_data_ptr(sub_resp(3), sub_kin)
+            row0 = sub_row_begin(isub) - 1
+            resp_density(row0 + 1:row0 + sub_row_count(isub), :) = sub_density
+            resp_grad(row0 + 1:row0 + sub_row_count(isub), :, :) = sub_grad
+            resp_kin(row0 + 1:row0 + sub_row_count(isub), :) = sub_kin
+            DO i = 1, SIZE(sub_resp)
+               CALL torch_tensor_release(sub_resp(i))
+            END DO
+            CALL torch_tensor_release(exc_sub_t)
+            CALL skala_gpw_feature_release(ref_sub)
+            CALL skala_gpw_feature_release(dir_sub)
+         END DO
       END IF
 
-      ! Route each chunk's Hessian feature gradients back to the grid-point owners.
+      ! Route the chunk feature gradients back to the grid-point owners.
       nroute_recv_points = SUM(reference%route_point_recv_counts)
       nroute_send_points = SIZE(reference%route_send_local_rows)
       nroute_grad_per_point = ngrad_per_point
@@ -2630,8 +2687,8 @@ CONTAINS
          route_grad_return_recv_counts, route_grad_return_recv_displs, &
          send_grad_buffer, recv_grad_buffer)
       IF (reference%chunk_feature_count > 0) THEN
-         CALL pack_atom_chunk_grads(reference, send_grad_buffer, collapse_spin_grads, &
-                                    derivatives=responses)
+         CALL pack_atom_chunk_values(reference, send_grad_buffer, collapse_spin_grads, &
+                                     resp_density, resp_grad, resp_kin)
       END IF
       CALL rho1_r(1)%pw_grid%para%group%alltoall(send_grad_buffer, &
                                                  route_grad_return_send_counts, route_grad_return_send_displs, recv_grad_buffer, &
@@ -2649,10 +2706,8 @@ CONTAINS
                   route_grad_return_send_counts, route_grad_return_send_displs, &
                   route_grad_return_recv_counts, route_grad_return_recv_displs)
       IF (reference%chunk_feature_count > 0) THEN
-         DO i = 1, SIZE(responses)
-            CALL torch_tensor_release(responses(i))
-         END DO
-         CALL torch_tensor_release(exc_tensor)
+         DEALLOCATE (resp_density, resp_grad, resp_kin, &
+                     sub_atom_begin, sub_atom_count, sub_row_begin, sub_row_count)
       END IF
       DO i = 1, SIZE(directions)
          CALL torch_tensor_release(directions(i))
@@ -2763,6 +2818,68 @@ CONTAINS
       END IF
 
    END SUBROUTINE pack_atom_chunk_grads
+
+! **************************************************************************************************
+!> \brief Pack chunk-level Hessian feature gradients into the point-routed buffer.
+!> \param features ...
+!> \param TARGET ...
+!> \param collapse_spin_grads ...
+!> \param density_values ...
+!> \param grad_values ...
+!> \param kin_values ...
+! **************************************************************************************************
+   SUBROUTINE pack_atom_chunk_values(features, TARGET, collapse_spin_grads, &
+                                     density_values, grad_values, kin_values)
+      TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: target
+      LOGICAL, INTENT(IN)                                :: collapse_spin_grads
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: density_values
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: grad_values
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: kin_values
+
+      INTEGER                                            :: base, feature_pos, irow, &
+                                                            ngrad_buffer_per_point, point_pos, &
+                                                            target_points
+
+      ngrad_buffer_per_point = ngrad_per_point
+      IF (collapse_spin_grads) ngrad_buffer_per_point = ncollapsed_grad_per_point
+      CPASSERT(MOD(SIZE(TARGET), ngrad_buffer_per_point) == 0)
+      target_points = SIZE(TARGET)/ngrad_buffer_per_point
+      CPASSERT(target_points == SIZE(features%route_chunk_offsets) - 1)
+
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(collapse_spin_grads, density_values, features, grad_values, kin_values, &
+!$OMP        ngrad_buffer_per_point, TARGET, target_points) &
+!$OMP PRIVATE(base, feature_pos, irow, point_pos)
+      DO point_pos = 1, target_points
+         base = ngrad_buffer_per_point*(point_pos - 1)
+         TARGET(base + 1:base + ngrad_buffer_per_point) = 0.0_dp
+         DO feature_pos = features%route_chunk_offsets(point_pos), &
+            features%route_chunk_offsets(point_pos + 1) - 1
+            irow = features%route_chunk_rows(feature_pos)
+            CPASSERT(irow >= 1 .AND. irow <= features%chunk_feature_count)
+            IF (collapse_spin_grads) THEN
+               TARGET(base + 1) = TARGET(base + 1) + 0.5_dp*density_values(irow, 1)
+               TARGET(base + 2) = TARGET(base + 2) + 0.5_dp*grad_values(irow, 1, 1)
+               TARGET(base + 3) = TARGET(base + 3) + 0.5_dp*grad_values(irow, 2, 1)
+               TARGET(base + 4) = TARGET(base + 4) + 0.5_dp*grad_values(irow, 3, 1)
+               TARGET(base + 5) = TARGET(base + 5) + 0.5_dp*kin_values(irow, 1)
+            ELSE
+               TARGET(base + 1:base + 2) = TARGET(base + 1:base + 2) + density_values(irow, :)
+               TARGET(base + 3) = TARGET(base + 3) + grad_values(irow, 1, 1)
+               TARGET(base + 4) = TARGET(base + 4) + grad_values(irow, 2, 1)
+               TARGET(base + 5) = TARGET(base + 5) + grad_values(irow, 3, 1)
+               TARGET(base + 6) = TARGET(base + 6) + grad_values(irow, 1, 2)
+               TARGET(base + 7) = TARGET(base + 7) + grad_values(irow, 2, 2)
+               TARGET(base + 8) = TARGET(base + 8) + grad_values(irow, 3, 2)
+               TARGET(base + 9:base + 10) = TARGET(base + 9:base + 10) + kin_values(irow, :)
+            END IF
+         END DO
+      END DO
+!$OMP END PARALLEL DO
+
+   END SUBROUTINE pack_atom_chunk_values
 
 ! **************************************************************************************************
 !> \brief Scatter routed atom-chunk gradients into local grid-row order.
