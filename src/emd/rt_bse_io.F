@@ -881,11 +881,11 @@ CONTAINS
       CALL open_file(file_names(1), file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
                      unit_number=info_unit)
       READ (info_unit, IOSTAT=ios) sim_start
-      CALL close_file(info_unit)
       ! the writer never stores a negative step
       IF (ios == 0) THEN
          IF (sim_start < 0) ios = -1
       END IF
+      CALL close_file(info_unit)
       IF (ios /= 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "RT_RESTART: "//TRIM(file_names(1))//" holds no valid restart step; restore your "// &
