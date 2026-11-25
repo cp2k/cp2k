@@ -2561,8 +2561,7 @@ CONTAINS
          route_grad_return_recv_displs, route_grad_return_send_counts, &
          route_grad_return_send_displs, sub_atom_begin, sub_atom_count, sub_row_begin, &
          sub_row_count
-      LOGICAL                                            :: collapse_spin_grads, fp64, &
-                                                            response_atom_chunks, use_cuda
+      LOGICAL                                            :: collapse_spin_grads, fp64, use_cuda
       REAL(KIND=dp), ALLOCATABLE :: density_grad(:, :), grad_grad(:, :, :), kin_grad(:, :), &
          recv_grad_buffer(:), resp_density(:, :), resp_grad(:, :, :), resp_kin(:, :), &
          send_grad_buffer(:)
@@ -2615,7 +2614,14 @@ CONTAINS
       ! The response is the Hessian-vector of a sum of per-atom contributions, so it
       ! is block-diagonal per chunk row. Split this rank's chunk into row subchunks to
       ! bound peak memory and accumulate each subchunk's feature gradients.
-      CALL read_skala_native_controls(xc_section, response_atom_chunks, max_rows)
+      max_rows = -1
+      IF (ASSOCIATED(native_section)) THEN
+         CALL section_vals_val_get(native_section, "ATOM_CHUNK_MAX_ROWS", i_val=max_rows)
+      END IF
+      IF (max_rows < -1) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "SKALA_NATIVE%ATOM_CHUNK_MAX_ROWS must be -1, zero, or positive.")
+      END IF
       nsubchunks = 0
       IF (reference%chunk_feature_count > 0) THEN
          IF (max_rows == -1) THEN
@@ -2723,14 +2729,12 @@ CONTAINS
 !> \param features ...
 !> \param TARGET ...
 !> \param collapse_spin_grads ...
-!> \param derivatives ...
 ! **************************************************************************************************
-   SUBROUTINE pack_atom_chunk_grads(features, TARGET, collapse_spin_grads, derivatives)
+   SUBROUTINE pack_atom_chunk_grads(features, TARGET, collapse_spin_grads)
       TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: target
       LOGICAL, INTENT(IN), OPTIONAL                      :: collapse_spin_grads
-      TYPE(torch_tensor_type), INTENT(IN), OPTIONAL      :: derivatives(3)
 
       INTEGER                                            :: base, feature_pos, irow, &
                                                             ngrad_buffer_per_point, point_pos, &
@@ -2746,14 +2750,8 @@ CONTAINS
       IF (my_collapse_spin_grads) ngrad_buffer_per_point = ncollapsed_grad_per_point
 
       NULLIFY (chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
-      IF (PRESENT(derivatives)) THEN
-         CALL torch_tensor_data_ptr(derivatives(1), chunk_density_grad)
-         CALL torch_tensor_data_ptr(derivatives(2), chunk_grad_grad)
-         CALL torch_tensor_data_ptr(derivatives(3), chunk_kin_grad)
-      ELSE
-         CALL get_feature_grad_views(features, density_grad_t, grad_grad_t, kin_grad_t, &
-                                     chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
-      END IF
+      CALL get_feature_grad_views(features, density_grad_t, grad_grad_t, kin_grad_t, &
+                                  chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
       CPASSERT(MOD(SIZE(TARGET), ngrad_buffer_per_point) == 0)
       target_points = SIZE(TARGET)/ngrad_buffer_per_point
       CPASSERT(SIZE(chunk_density_grad, 1) == features%chunk_feature_count)
@@ -2811,11 +2809,9 @@ CONTAINS
       END DO
 !$OMP END PARALLEL DO
 
-      IF (.NOT. PRESENT(derivatives)) THEN
-         CALL torch_tensor_release(density_grad_t)
-         CALL torch_tensor_release(grad_grad_t)
-         CALL torch_tensor_release(kin_grad_t)
-      END IF
+      CALL torch_tensor_release(density_grad_t)
+      CALL torch_tensor_release(grad_grad_t)
+      CALL torch_tensor_release(kin_grad_t)
 
    END SUBROUTINE pack_atom_chunk_grads
 
