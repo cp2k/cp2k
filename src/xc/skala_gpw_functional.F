@@ -63,9 +63,8 @@ MODULE skala_gpw_functional
         torch_grad_pool_clear, torch_model_metadata_clear, torch_pinned_finish, &
         torch_pinned_release, torch_pinned_reserve, torch_set_default_threads, &
         torch_stream_synchronize, torch_tensor_accumulate, torch_tensor_backward_scalar, &
-        torch_tensor_clone, torch_tensor_data_ptr, torch_tensor_from_array, &
-        torch_tensor_gather_rows, torch_tensor_grad, torch_tensor_grad_batch, &
-        torch_tensor_grad_batch3, torch_tensor_grad_batch3_deferred, &
+        torch_tensor_clone, torch_tensor_data_ptr, torch_tensor_from_array, torch_tensor_grad, &
+        torch_tensor_grad_batch, torch_tensor_grad_batch3, torch_tensor_grad_batch3_deferred, &
         torch_tensor_grad_batch_deferred, torch_tensor_hessian_vector, torch_tensor_item_double, &
         torch_tensor_narrow, torch_tensor_release, torch_tensor_set_requires_grad, &
         torch_tensor_to_device_leaf, torch_tensor_type, torch_use_cuda
@@ -2556,15 +2555,21 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau
 
-      INTEGER                                            :: i, partition, selected_device
-      LOGICAL                                            :: fp64, use_cuda
+      INTEGER                                            :: i, nroute_grad_per_point, &
+                                                            nroute_recv_points, &
+                                                            nroute_send_points, partition, &
+                                                            selected_device
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: route_grad_return_recv_counts, &
+         route_grad_return_recv_displs, route_grad_return_send_counts, &
+         route_grad_return_send_displs
+      LOGICAL                                            :: collapse_spin_grads, fp64, use_cuda
       REAL(KIND=dp)                                      :: exc
       REAL(KIND=dp), ALLOCATABLE                         :: density_grad(:, :), grad_grad(:, :, :), &
-                                                            kin_grad(:, :)
+                                                            kin_grad(:, :), recv_grad_buffer(:), &
+                                                            send_grad_buffer(:)
       TYPE(section_vals_type), POINTER                   :: native_section
       TYPE(skala_gpw_feature_type)                       :: direction, reference
-      TYPE(torch_tensor_type)                            :: compact(3), directions(3), exc_tensor, &
-                                                            responses(3)
+      TYPE(torch_tensor_type)                            :: directions(3), exc_tensor, responses(3)
       TYPE(xc_rho_set_type)                              :: rho1_set
 
       fp64 = .TRUE.
@@ -2589,40 +2594,69 @@ CONTAINS
       CALL ensure_model_context(xc_section, rho1_r(1)%pw_grid%para%group, &
                                 use_cuda, selected_device, higher_derivatives=.TRUE.)
       CALL torch_use_cuda(use_cuda)
-      IF (skala_state%layout_mode_known .AND. .NOT. skala_state%layout_mode_full) THEN
-         CALL skala_gpw_features_release_cache()
-      END IF
+      ! Response uses the atom-chunk layout so only the atoms routed to this rank
+      ! are materialized: peak memory scales with the chunk, not the full grid.
+      CALL skala_gpw_features_release_cache()
 
       CALL skala_gpw_fxc_prep(rho1_set, rho1_r, tau1_r, xc_section, pw_pool)
       CALL skala_gpw_feature_build(direction, rho1_set, rho1_r, particle_set, cell, &
                                    requires_grad=.FALSE., weights=weights, atom_partition=partition, &
-                                   cuda_device=selected_device)
+                                   use_atom_chunks=.TRUE., cuda_device=selected_device)
       CALL torch_tensor_clone(direction%density_t, directions(1))
       CALL torch_tensor_clone(direction%grad_t, directions(2))
       CALL torch_tensor_clone(direction%kin_t, directions(3))
       CALL skala_gpw_feature_build(reference, rho0_set, rho1_r, particle_set, cell, &
                                    requires_grad=.TRUE., weights=weights, atom_partition=partition, &
-                                   cuda_device=selected_device)
-      CALL skala_torch_model_get_exc(skala_state%model, reference%inputs, reference%grid_weights_t, exc_tensor, exc)
-      CALL torch_tensor_hessian_vector(exc_tensor, &
-                                       [reference%density_t, reference%grad_t, reference%kin_t], &
-                                       directions, responses, to_host=.FALSE.)
-      DO i = 1, SIZE(responses)
-         CALL torch_tensor_gather_rows(responses(i), reference%local_feature_rows, compact(i))
-         CALL torch_tensor_release(responses(i))
-      END DO
+                                   use_atom_chunks=.TRUE., cuda_device=selected_device)
+      collapse_spin_grads = reference%uses_collapsed_rks_dynamic
+      IF (reference%chunk_feature_count > 0) THEN
+         CALL skala_torch_model_get_exc(skala_state%model, reference%inputs, &
+                                        reference%grid_weights_t, exc_tensor, exc)
+         CALL torch_tensor_hessian_vector(exc_tensor, &
+                                          [reference%density_t, reference%grad_t, reference%kin_t], &
+                                          directions, responses, to_host=.TRUE.)
+      END IF
+
+      ! Route each chunk's Hessian feature gradients back to the grid-point owners.
+      nroute_recv_points = SUM(reference%route_point_recv_counts)
+      nroute_send_points = SIZE(reference%route_send_local_rows)
+      nroute_grad_per_point = ngrad_per_point
+      IF (collapse_spin_grads) nroute_grad_per_point = ncollapsed_grad_per_point
+      CALL prepare_route_exchange( &
+         reference%route_point_recv_counts, reference%route_point_recv_displs, &
+         reference%route_point_send_counts, reference%route_point_send_displs, &
+         nroute_grad_per_point, nroute_recv_points, nroute_send_points, &
+         route_grad_return_send_counts, route_grad_return_send_displs, &
+         route_grad_return_recv_counts, route_grad_return_recv_displs, &
+         send_grad_buffer, recv_grad_buffer)
+      IF (reference%chunk_feature_count > 0) THEN
+         CALL pack_atom_chunk_grads(reference, send_grad_buffer, collapse_spin_grads, &
+                                    derivatives=responses)
+      END IF
+      CALL rho1_r(1)%pw_grid%para%group%alltoall(send_grad_buffer, &
+                                                 route_grad_return_send_counts, route_grad_return_send_displs, recv_grad_buffer, &
+                                                 route_grad_return_recv_counts, route_grad_return_recv_displs)
       ALLOCATE (density_grad(reference%nflat_local, 2), &
                 grad_grad(reference%nflat_local, 3, 2), &
                 kin_grad(reference%nflat_local, 2))
-      CALL fetch_local_feature_grads(reference, density_grad, grad_grad, kin_grad, compact)
+      CALL scatter_routed_atom_chunk_grads(reference, recv_grad_buffer, collapse_spin_grads, &
+                                           density_grad, grad_grad, kin_grad)
       CALL build_vxc_from_feature_grads(fxc_rho, fxc_tau, rho1_r, pw_pool, &
                                         density_grad, grad_grad, kin_grad, &
                                         section_get_ival(xc_section, "XC_GRID%XC_DERIV"))
-      DO i = 1, SIZE(compact)
-         CALL torch_tensor_release(compact(i))
+
+      DEALLOCATE (density_grad, grad_grad, kin_grad, send_grad_buffer, recv_grad_buffer, &
+                  route_grad_return_send_counts, route_grad_return_send_displs, &
+                  route_grad_return_recv_counts, route_grad_return_recv_displs)
+      IF (reference%chunk_feature_count > 0) THEN
+         DO i = 1, SIZE(responses)
+            CALL torch_tensor_release(responses(i))
+         END DO
+         CALL torch_tensor_release(exc_tensor)
+      END IF
+      DO i = 1, SIZE(directions)
          CALL torch_tensor_release(directions(i))
       END DO
-      CALL torch_tensor_release(exc_tensor)
       CALL skala_gpw_feature_release(direction)
       CALL skala_gpw_feature_release(reference)
       CALL xc_rho_set_release(rho1_set)
@@ -2634,12 +2668,14 @@ CONTAINS
 !> \param features ...
 !> \param TARGET ...
 !> \param collapse_spin_grads ...
+!> \param derivatives ...
 ! **************************************************************************************************
-   SUBROUTINE pack_atom_chunk_grads(features, TARGET, collapse_spin_grads)
+   SUBROUTINE pack_atom_chunk_grads(features, TARGET, collapse_spin_grads, derivatives)
       TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: target
       LOGICAL, INTENT(IN), OPTIONAL                      :: collapse_spin_grads
+      TYPE(torch_tensor_type), INTENT(IN), OPTIONAL      :: derivatives(3)
 
       INTEGER                                            :: base, feature_pos, irow, &
                                                             ngrad_buffer_per_point, point_pos, &
@@ -2655,8 +2691,14 @@ CONTAINS
       IF (my_collapse_spin_grads) ngrad_buffer_per_point = ncollapsed_grad_per_point
 
       NULLIFY (chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
-      CALL get_feature_grad_views(features, density_grad_t, grad_grad_t, kin_grad_t, &
-                                  chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
+      IF (PRESENT(derivatives)) THEN
+         CALL torch_tensor_data_ptr(derivatives(1), chunk_density_grad)
+         CALL torch_tensor_data_ptr(derivatives(2), chunk_grad_grad)
+         CALL torch_tensor_data_ptr(derivatives(3), chunk_kin_grad)
+      ELSE
+         CALL get_feature_grad_views(features, density_grad_t, grad_grad_t, kin_grad_t, &
+                                     chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
+      END IF
       CPASSERT(MOD(SIZE(TARGET), ngrad_buffer_per_point) == 0)
       target_points = SIZE(TARGET)/ngrad_buffer_per_point
       CPASSERT(SIZE(chunk_density_grad, 1) == features%chunk_feature_count)
@@ -2714,9 +2756,11 @@ CONTAINS
       END DO
 !$OMP END PARALLEL DO
 
-      CALL torch_tensor_release(density_grad_t)
-      CALL torch_tensor_release(grad_grad_t)
-      CALL torch_tensor_release(kin_grad_t)
+      IF (.NOT. PRESENT(derivatives)) THEN
+         CALL torch_tensor_release(density_grad_t)
+         CALL torch_tensor_release(grad_grad_t)
+         CALL torch_tensor_release(kin_grad_t)
+      END IF
 
    END SUBROUTINE pack_atom_chunk_grads
 
