@@ -5,9 +5,8 @@
 
 FROM docker.io/ubuntu:26.04
 
-# Install libtorch and a matching BLAS from the distribution so that the
-# toolchain does not download libtorch. The distro libtorch is linked against
-# the system BLAS.
+# Install libtorch and a matching BLAS from the distribution so that
+# the toolchain does not download libtorch.
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update -qq && \
     apt-get install -qq --no-install-recommends \

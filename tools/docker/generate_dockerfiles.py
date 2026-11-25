@@ -8,6 +8,15 @@ import sys
 from pathlib import Path
 from typing import Any
 
+# Toolchain options that disable all libtorch-dependent features. Used by images
+# that keep MPI (MPICH) but must not link a libtorch built against OpenMPI.
+WITHOUT_LIBTORCH = dict(
+    with_libtorch="no",
+    with_gauxc="no",
+    with_deepmd="no",
+    with_skala_ftorch="no",
+)
+
 
 # ======================================================================================
 def main() -> None:
@@ -17,29 +26,38 @@ def main() -> None:
 
     for version in "sdbg", "ssmp", "pdbg", "psmp":
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
-            mpi_mode = "mpich" if version.startswith("p") else "no"
-            f.write(install_deps_toolchain(mpi_mode=mpi_mode))
+            if version in ("sdbg", "ssmp"):
+                # Serial build with libtorch, but no MPI.
+                f.write(install_deps_toolchain(mpi_mode="no"))
+            elif version == "pdbg":
+                # Debug build with libtorch; use the same OpenMPI as libtorch.
+                f.write(install_deps_toolchain(system_openmpi=True))
+            else:
+                # Keep an MPICH build, but without libtorch.
+                f.write(install_deps_toolchain(mpi_mode="mpich", **WITHOUT_LIBTORCH))
             f.write(regtest("toolchain", version))
 
     with OutputFile(f"Dockerfile.test_psmp_4ranks", args.check) as f:
         testopts = f"--ompthreads=1 --mpiranks=4"
-        f.write(install_deps_toolchain())
+        f.write(install_deps_toolchain(system_openmpi=True))
         f.write(regtest("toolchain", "psmp", testopts=testopts))
 
     with OutputFile(f"Dockerfile.test_generic_psmp", args.check) as f:
-        f.write(install_deps_toolchain(target_cpu="generic"))
+        f.write(install_deps_toolchain(target_cpu="generic", system_openmpi=True))
         f.write(regtest("toolchain_generic", "psmp"))
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
-        f.write(install_deps_toolchain(mpi_mode="openmpi"))
+        f.write(install_deps_toolchain(mpi_mode="openmpi", system_openmpi=True))
         f.write(regtest("toolchain", "psmp"))
 
     with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
-        f.write(install_deps_toolchain(base_image="fedora:44"))
+        f.write(install_deps_toolchain(base_image="fedora:44", **WITHOUT_LIBTORCH))
         f.write(regtest("toolchain", "psmp"))
 
     with OutputFile(f"Dockerfile.test_rawhide-pdbg", args.check) as f:
-        f.write(install_deps_toolchain(base_image="fedora:rawhide"))
+        f.write(
+            install_deps_toolchain(base_image="fedora:rawhide", **WITHOUT_LIBTORCH)
+        )
         f.write(regtest("toolchain", "pdbg"))
 
     for version in "ssmp", "psmp":
@@ -330,11 +348,11 @@ def main() -> None:
     # End Spack/CMake based tester
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
-        f.write(install_deps_toolchain())
+        f.write(install_deps_toolchain(**WITHOUT_LIBTORCH))
         f.write(regtest("toolchain_asan", "psmp", "--timeout 400"))
 
     with OutputFile(f"Dockerfile.test_coverage", args.check) as f:
-        f.write(install_deps_toolchain())
+        f.write(install_deps_toolchain(**WITHOUT_LIBTORCH))
         f.write(coverage())
 
     for gcc_version in 9, 10, 11, 12, 13, 14, 15, 16:
@@ -354,7 +372,7 @@ def main() -> None:
         f.write(regtest("toolchain_arm64", "psmp"))
 
     with OutputFile(f"Dockerfile.test_performance", args.check) as f:
-        f.write(install_deps_toolchain())
+        f.write(install_deps_toolchain(system_openmpi=True))
         f.write(performance("toolchain"))
 
     with OutputFile(f"Dockerfile.test_cuda_A40", args.check) as f:
@@ -372,11 +390,11 @@ def main() -> None:
         f.write(test_build(f"toolchain_hip_Mi100", "psmp"))
 
     with OutputFile(f"Dockerfile.test_conventions", args.check) as f:
-        f.write(install_deps_toolchain())
+        f.write(install_deps_toolchain(**WITHOUT_LIBTORCH))
         f.write(conventions())
 
     with OutputFile(f"Dockerfile.test_manual", args.check) as f:
-        f.write(install_deps_toolchain())
+        f.write(install_deps_toolchain(system_openmpi=True))
         f.write(manual())
 
     with OutputFile(f"Dockerfile.test_precommit", args.check) as f:
@@ -595,28 +613,35 @@ RUN ./build_cp2k.sh {profile} {version}
 
 
 # ======================================================================================
-def install_distro_libtorch(base_image: str) -> str:
+def install_distro_libtorch(base_image: str, with_openmpi: bool = False) -> str:
+    if with_openmpi:
+        header = (
+            "# Install libtorch, a matching BLAS and OpenMPI from the distribution\n"
+            "# so that the toolchain does not download libtorch and both CP2K and\n"
+            "# libtorch use the same MPI implementation.\n"
+        )
+    else:
+        header = (
+            "# Install libtorch and a matching BLAS from the distribution so that\n"
+            "# the toolchain does not download libtorch.\n"
+        )
     if "fedora" in base_image:
+        mpi_pkgs = "    openmpi \\\n    openmpi-devel \\\n" if with_openmpi else ""
         return rf"""
-# Install libtorch and a matching BLAS from the distribution so that the
-# toolchain does not download libtorch. The distro libtorch is linked against
-# the system BLAS.
-RUN dnf -qy install \
+{header}RUN dnf -qy install \
     libtorch-devel \
     openblas-devel \
-    && dnf clean -q all
+{mpi_pkgs}    && dnf clean -q all
 """
     if "ubuntu" in base_image:
+        mpi_pkgs = "    openmpi-bin \\\n    libopenmpi-dev \\\n" if with_openmpi else ""
         return rf"""
-# Install libtorch and a matching BLAS from the distribution so that the
-# toolchain does not download libtorch. The distro libtorch is linked against
-# the system BLAS.
-RUN export DEBIAN_FRONTEND=noninteractive && \
+{header}RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update -qq && \
     apt-get install -qq --no-install-recommends \
     libopenblas-dev \
     libtorch-dev \
-    && rm -rf /var/lib/apt/lists/*
+{mpi_pkgs}    && rm -rf /var/lib/apt/lists/*
 """
     sys.exit(f"\nERROR: Cannot install libtorch from a distro package on {base_image}\n")
 
@@ -627,17 +652,25 @@ def install_deps_toolchain(
     mpi_mode: str = "mpich",
     with_dbcsr: str = "",  # enabled by default
     with_gcc: str = "system",
+    system_openmpi: bool = False,
     **kwargs: str,
 ) -> str:
     output = f"\nFROM docker.io/{base_image}\n\n"
     if kwargs.get("with_libtorch", "system") not in ("no", "__DONTUSE__"):
-        output += install_distro_libtorch(base_image).lstrip("\n")
+        output += install_distro_libtorch(
+            base_image, with_openmpi=system_openmpi
+        ).lstrip("\n")
         # Provide the distro libtorch and BLAS to the toolchain and keep the
         # libtorch-dependent features enabled (as --install-all used to do).
         kwargs.setdefault("with_libtorch", "system")
         kwargs.setdefault("with_openblas", "system")
         kwargs.setdefault("with_gauxc", "install")
         kwargs.setdefault("with_deepmd", "install")
+        if system_openmpi:
+            # Use the same (distro) OpenMPI that the distro libtorch links
+            # against, instead of installing MPICH.
+            mpi_mode = "openmpi"
+            kwargs.setdefault("with_openmpi", "system")
     output += install_toolchain(
         base_image=base_image,
         install_all="",
