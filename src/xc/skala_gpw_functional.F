@@ -63,12 +63,12 @@ MODULE skala_gpw_functional
         torch_grad_pool_clear, torch_model_metadata_clear, torch_pinned_finish, &
         torch_pinned_release, torch_pinned_reserve, torch_set_default_threads, &
         torch_stream_synchronize, torch_tensor_accumulate, torch_tensor_backward_scalar, &
-        torch_tensor_data_ptr, torch_tensor_from_array, torch_tensor_gather_rows, &
-        torch_tensor_grad, torch_tensor_grad_batch, torch_tensor_grad_batch3, &
-        torch_tensor_grad_batch3_deferred, torch_tensor_grad_batch_deferred, &
-        torch_tensor_hessian_vector, torch_tensor_item_double, torch_tensor_narrow, &
-        torch_tensor_release, torch_tensor_set_requires_grad, torch_tensor_to_device_leaf, &
-        torch_tensor_type, torch_use_cuda
+        torch_tensor_clone, torch_tensor_data_ptr, torch_tensor_from_array, &
+        torch_tensor_gather_rows, torch_tensor_grad, torch_tensor_grad_batch, &
+        torch_tensor_grad_batch3, torch_tensor_grad_batch3_deferred, &
+        torch_tensor_grad_batch_deferred, torch_tensor_hessian_vector, torch_tensor_item_double, &
+        torch_tensor_narrow, torch_tensor_release, torch_tensor_set_requires_grad, &
+        torch_tensor_to_device_leaf, torch_tensor_type, torch_use_cuda
    USE xc_input_constants,              ONLY: skala_gapw_atom_composite_grid,&
                                               skala_gapw_common_grid,&
                                               skala_gapw_cp2k_default,&
@@ -2597,9 +2597,9 @@ CONTAINS
       CALL skala_gpw_feature_build(direction, rho1_set, rho1_r, particle_set, cell, &
                                    requires_grad=.FALSE., weights=weights, atom_partition=partition, &
                                    cuda_device=selected_device)
-      directions(1) = direction%density_t
-      directions(2) = direction%grad_t
-      directions(3) = direction%kin_t
+      CALL torch_tensor_clone(direction%density_t, directions(1))
+      CALL torch_tensor_clone(direction%grad_t, directions(2))
+      CALL torch_tensor_clone(direction%kin_t, directions(3))
       CALL skala_gpw_feature_build(reference, rho0_set, rho1_r, particle_set, cell, &
                                    requires_grad=.TRUE., weights=weights, atom_partition=partition, &
                                    cuda_device=selected_device)
@@ -2611,7 +2611,6 @@ CONTAINS
          CALL torch_tensor_gather_rows(responses(i), reference%local_feature_rows, compact(i))
          CALL torch_tensor_release(responses(i))
       END DO
-      CALL skala_gpw_feature_release(direction)
       ALLOCATE (density_grad(reference%nflat_local, 2), &
                 grad_grad(reference%nflat_local, 3, 2), &
                 kin_grad(reference%nflat_local, 2))
@@ -2621,8 +2620,10 @@ CONTAINS
                                         section_get_ival(xc_section, "XC_GRID%XC_DERIV"))
       DO i = 1, SIZE(compact)
          CALL torch_tensor_release(compact(i))
+         CALL torch_tensor_release(directions(i))
       END DO
       CALL torch_tensor_release(exc_tensor)
+      CALL skala_gpw_feature_release(direction)
       CALL skala_gpw_feature_release(reference)
       CALL xc_rho_set_release(rho1_set)
       CALL torch_use_cuda(use_cuda)
