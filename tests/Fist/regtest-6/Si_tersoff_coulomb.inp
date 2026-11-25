@@ -1,0 +1,90 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT Si_tersoff_coulomb
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      MULTIPLE_POTENTIAL T
+      SHIFT_CUTOFF F
+      &CHARGE
+        ATOM SiA
+        CHARGE 1.0
+      &END CHARGE
+      &CHARGE
+        ATOM SiB
+        CHARGE 1.0
+      &END CHARGE
+      # Zero-amplitude LJ keeps the charges active alongside Tersoff.
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS SiA SiA
+          EPSILON [hartree] 0.0
+          RCUT [angstrom] 8.0
+          SIGMA [angstrom] 2.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS SiA SiB
+          EPSILON [hartree] 0.0
+          RCUT [angstrom] 8.0
+          SIGMA [angstrom] 2.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS SiB SiB
+          EPSILON [hartree] 0.0
+          RCUT [angstrom] 8.0
+          SIGMA [angstrom] 2.0
+        &END LENNARD-JONES
+        &TERSOFF
+          ATOMS SiA SiA
+          RCUT [angstrom] 8.0
+        &END TERSOFF
+        &TERSOFF
+          ATOMS SiA SiB
+          RCUT [angstrom] 8.0
+        &END TERSOFF
+        &TERSOFF
+          ATOMS SiB SiB
+          RCUT [angstrom] 8.0
+        &END TERSOFF
+      &END NONBONDED
+      &SPLINE
+        EPS_SPLINE 1.0E-10
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES ON
+      NDIGITS 16
+    &END FORCES
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC [bohr] 40.0 40.0 40.0
+      PERIODIC NONE
+    &END CELL
+    # Beyond the Tersoff cutoff: E = 1/8 and F1x = -1/64 in atomic units.
+    &COORD
+      UNIT bohr
+      SiA 5.0 5.0 5.0
+      SiB 13.0 5.0 5.0
+    &END COORD
+    &KIND SiA
+      ELEMENT Si
+    &END KIND
+    &KIND SiB
+      ELEMENT Si
+    &END KIND
+    &TOPOLOGY
+      CONN_FILE_FORMAT OFF
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

@@ -13,6 +13,10 @@
 "Si_tersoff_3.inp"          = [{matcher = "M002", tol = 1.0E-14, ref = -0.759727944846E+01}]
 "C_tersoff.inp"             = [{matcher = "M002", tol = 1.0E-14, ref = -0.971545611681E+02}]
 "SiH_tersoff.inp"           = [{matcher = "M002", tol = 1.0E-14, ref = -0.343343965527E+01}]
+"Si_tersoff_coulomb.inp"    = [
+  {matcher = "M011", tol = 1.0E-12, ref = 0.125},
+  {matcher = "FIST_atom_1_force_x", tol = 1.0E-12, ref = -0.015625},
+]
 # New grouping colvar
 "ethene_colv1_g.inp"        = [{matcher = "M002", tol = 8e-10, ref = 0.0064656266809200004}]
 "ethene_colv2_g.inp"        = [{matcher = "M002", tol = 3e-10, ref = 0.017674386846599999}]
