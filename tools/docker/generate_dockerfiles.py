@@ -10,7 +10,7 @@ from typing import Any
 
 # Toolchain options that disable all libtorch-dependent features. Used by images
 # that keep MPI (MPICH) but must not link a libtorch built against OpenMPI.
-WITHOUT_LIBTORCH = dict(
+WITHOUT_LIBTORCH: dict[str, Any] = dict(
     with_libtorch="no",
     with_gauxc="no",
     with_deepmd="no",
@@ -55,9 +55,7 @@ def main() -> None:
         f.write(regtest("toolchain", "psmp"))
 
     with OutputFile(f"Dockerfile.test_rawhide-pdbg", args.check) as f:
-        f.write(
-            install_deps_toolchain(base_image="fedora:rawhide", **WITHOUT_LIBTORCH)
-        )
+        f.write(install_deps_toolchain(base_image="fedora:rawhide", **WITHOUT_LIBTORCH))
         f.write(regtest("toolchain", "pdbg"))
 
     for version in "ssmp", "psmp":
@@ -362,7 +360,7 @@ def main() -> None:
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
         base_img = "arm64v8/ubuntu:26.04"
-        libs = dict(
+        libs: dict[str, Any] = dict(
             with_libtorch="no",
             with_skala_ftorch="no",
             with_deepmd="no",
@@ -643,7 +641,9 @@ def install_distro_libtorch(base_image: str, with_openmpi: bool = False) -> str:
     libtorch-dev \
 {mpi_pkgs}    && rm -rf /var/lib/apt/lists/*
 """
-    sys.exit(f"\nERROR: Cannot install libtorch from a distro package on {base_image}\n")
+    sys.exit(
+        f"\nERROR: Cannot install libtorch from a distro package on {base_image}\n"
+    )
 
 
 # ======================================================================================

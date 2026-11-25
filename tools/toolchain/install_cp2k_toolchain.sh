@@ -1245,6 +1245,7 @@ fi
 # Features built on top of libtorch can only be activated when libtorch itself
 # has been provided. They never trigger a libtorch download.
 if [ "${with_libtorch}" = "__DONTUSE__" ]; then
+  ml_pkg_with=""
   for ml_pkg in gauxc skala_ftorch deepmd; do
     eval "ml_pkg_with=\${with_${ml_pkg}}"
     if [ "${ml_pkg_with}" != "__DONTUSE__" ]; then
