@@ -65,7 +65,7 @@
       H 3.37 3.0 3.0
     &END COORD
     &KIND H
-      BASIS_SET RI_AUX RI_aug-DZVP-MOLOPT-ae_N_RI_009_s_p_d_f_g_h_i_3_2_0_0_0_0_0_error_4.4e-05
+      BASIS_SET RI_AUX RI_aug-DZVP-MOLOPT-ae_N_RI_009_3s2p_error_4.4e-05
       POTENTIAL ALL
       &BASIS ORB
         2
