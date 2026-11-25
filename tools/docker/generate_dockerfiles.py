@@ -595,6 +595,33 @@ RUN ./build_cp2k.sh {profile} {version}
 
 
 # ======================================================================================
+def install_distro_libtorch(base_image: str) -> str:
+    if "fedora" in base_image:
+        return rf"""
+# Install libtorch and a matching BLAS from the distribution so that the
+# toolchain does not download libtorch. The distro libtorch is linked against
+# the system BLAS.
+RUN dnf -qy install \
+    libtorch-devel \
+    openblas-devel \
+    && dnf clean -q all
+"""
+    if "ubuntu" in base_image:
+        return rf"""
+# Install libtorch and a matching BLAS from the distribution so that the
+# toolchain does not download libtorch. The distro libtorch is linked against
+# the system BLAS.
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update -qq && \
+    apt-get install -qq --no-install-recommends \
+    libopenblas-dev \
+    libtorch-dev \
+    && rm -rf /var/lib/apt/lists/*
+"""
+    sys.exit(f"\nERROR: Cannot install libtorch from a distro package on {base_image}\n")
+
+
+# ======================================================================================
 def install_deps_toolchain(
     base_image: str = "ubuntu:26.04",
     mpi_mode: str = "mpich",
@@ -603,6 +630,14 @@ def install_deps_toolchain(
     **kwargs: str,
 ) -> str:
     output = f"\nFROM docker.io/{base_image}\n\n"
+    if kwargs.get("with_libtorch", "system") not in ("no", "__DONTUSE__"):
+        output += install_distro_libtorch(base_image).lstrip("\n")
+        # Provide the distro libtorch and BLAS to the toolchain and keep the
+        # libtorch-dependent features enabled (as --install-all used to do).
+        kwargs.setdefault("with_libtorch", "system")
+        kwargs.setdefault("with_openblas", "system")
+        kwargs.setdefault("with_gauxc", "install")
+        kwargs.setdefault("with_deepmd", "install")
     output += install_toolchain(
         base_image=base_image,
         install_all="",

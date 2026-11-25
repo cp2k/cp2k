@@ -194,8 +194,8 @@ GauXC can be used to evaluate selected exchange-correlation functionals through 
 integrator.
 
 - Libtorch is required for Skala support. See the [Torch section](#torch-pytorch-c-library) for how
-  to provide a matching libtorch; the libtorch installed automatically by the toolchain is a
-  prebuilt package for a specific GPU and CUDA version and is not guaranteed to be optimal.
+  to provide a matching libtorch. The toolchain does not download libtorch, and GauXC/Skala cannot
+  be enabled unless a libtorch has been provided explicitly.
 - Pass `-DCP2K_USE_GAUXC=ON` to CMake to enable GauXC. An MPI-enabled CP2K build requires a GauXC
   installation built with MPI support.
 - The toolchain marks its pinned GauXC as containing the OneDFT gradient correction from PR #222.
@@ -213,9 +213,9 @@ Skala/FTorch provides the machine learning based density functional Skala.
 
 - Pass `-DCP2K_USE_SKALA_FTORCH=ON` to CMake to enable Skala/FTorch support.
 - Requires FTorch, Skala, and libtorch libraries to be installed and available. See the
-  [Torch section](#torch-pytorch-c-library) for how to provide a matching libtorch; the libtorch
-  installed automatically by the toolchain is a prebuilt package for a specific GPU and CUDA version
-  and is not guaranteed to be optimal.
+  [Torch section](#torch-pytorch-c-library) for how to provide a matching libtorch. The toolchain
+  does not download libtorch, so Skala/FTorch can only be enabled when a libtorch has been provided
+  explicitly.
 
 ## PEXSI (low scaling SCF method)
 
@@ -328,12 +328,15 @@ GauXC Skala models.
 - For GPU acceleration, choose a LibTorch distribution compatible with the available backend and
   hardware, such as CUDA for an NVIDIA GPU or ROCm for a supported AMD GPU. Refer to the PyTorch
   installation page for current platform, driver, and runtime requirements.
-- The toolchain installs a prebuilt libtorch when `--with-libtorch=install` (or simply
-  `--with-libtorch`) is used. This package is selected for a specific platform, and for a specific
-  GPU and CUDA version, so it is highly recommended to provide your own matching libtorch instead:
-  `--with-libtorch=system` searches for an existing libtorch in the system paths (it does **not**
-  install libtorch), while `--with-libtorch=<path-to-libtorch>` uses a libtorch that you installed
-  or built yourself. Otherwise poor performance is expected and the calculation may even fail.
+- The toolchain does **not** download or install libtorch. It must be provided either via
+  `--with-libtorch=system`, which searches for an existing libtorch in the system paths, or via
+  `--with-libtorch=<path-to-libtorch>`, which uses a libtorch that you installed or built yourself.
+  Since libtorch bundles and exports its own BLAS/LAPACK symbols, the BLAS/LAPACK library must be
+  provided in the same way (system or path). Requesting an installation of BLAS/LAPACK together with
+  libtorch is rejected by the toolchain.
+- Features that are built on top of libtorch (GauXC/Skala, Skala/FTorch, DeePMD-kit and the
+  NequIP/Allegro interfaces) can only be enabled when a libtorch has been provided as described
+  above. They never trigger a libtorch download.
 - This only applies to the toolchain-based build. The Spack-based build via `make_cp2k.sh` installs
   a matching libtorch (with CUDA support when `--gpu_model` is set) itself, so no manual libtorch
   installation is needed there.

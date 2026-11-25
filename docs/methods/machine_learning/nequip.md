@@ -52,27 +52,28 @@ the CP2K regression tests directory:
 Running NequIP or Allegro requires compiling CP2K with the LibTorch library. Versions of LibTorch
 (2.4 through 2.7) are supported.
 
-For CP2K binaries running on CPUs, installing the toolchain using the flag `--with-libtorch` is
-sufficient.
+For CP2K binaries running on CPUs, the toolchain must be pointed at an existing libtorch with
+`--with-libtorch=system` or `--with-libtorch=<path-to-libtorch>`; the toolchain no longer downloads
+libtorch. The BLAS/LAPACK library has to be provided in the same way (system or path).
 
 To benefit from GPU acceleration, either compile LibTorch from scratch or download the precompiled
 LibTorch library for CUDA from [PyTorch](https://pytorch.org) and provide the appropriate path to
 the toolchain script:
 
 ```shell
-./install_cp2k_toolchain.sh --with-libtorch=<path-to-libtorch-cuda>
+./install_cp2k_toolchain.sh --with-libtorch=<path-to-libtorch-cuda> --with-openblas=system
 
 ```
 
 ```{warning}
-The libtorch installed automatically by the toolchain (`--with-libtorch=install`) is a prebuilt
-package selected for a specific platform, and for a specific GPU and CUDA version. It is highly
-recommended to provide your own matching libtorch instead:
+The toolchain does not download libtorch. It must be provided by the user:
 
 - `--with-libtorch=system` searches for an existing libtorch in the system paths.
 - `--with-libtorch=<path-to-libtorch>` uses a libtorch that you installed or built yourself.
 
-Otherwise poor performance is expected and the calculation may even fail.
+Since libtorch bundles and exports its own BLAS/LAPACK symbols, the BLAS/LAPACK library must be
+provided in the same way (system or path); requesting an installation of BLAS/LAPACK together with
+libtorch is rejected. Without a provided libtorch, NequIP/Allegro cannot be enabled.
 
 This only applies to the toolchain-based build. The Spack-based build via `make_cp2k.sh` installs a
 matching libtorch itself, so no manual libtorch installation is needed there.

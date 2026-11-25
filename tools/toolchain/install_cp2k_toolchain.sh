@@ -101,7 +101,9 @@ OPTIONS:
                           download. Nevertheless, use this option at your own
                           risk.
   --install-all           Set value of all --with-PKG options to "install"
-                          (except --with-intel, --with-intelmpi, --with-amd).
+                          (except --with-intel, --with-intelmpi, --with-amd,
+                          and the libtorch-based --with-libtorch, --with-gauxc,
+                          --with-skala-ftorch and --with-deepmd).
                           By default, GNU compiler and MPICH are installed.
                           AFTER this option on the command line, you can set
                           specific --with-PKG options to another value again
@@ -255,12 +257,15 @@ Specific options of --with-PKG:
                           DFT (pure and hybrid functionals) calculations.
                           Default = install
   --with-gauxc            Enable GauXC for external exchange-correlation
-                          integration. Installing GauXC with Skala
-                          support also enables libtorch and installs Skala.
+                          integration. GauXC with Skala support requires a
+                          libtorch provided via --with-libtorch=system or
+                          --with-libtorch=<path>; Skala is installed on demand.
                           Default = no
   --with-skala-ftorch     Enable Skala neural network density functional
-                          via ftorch. This also installs Skala and libtorch. 
-                          Use either this option or --with-gauxc, not both.
+                          via ftorch. This requires a libtorch provided via
+                          --with-libtorch=system or --with-libtorch=<path>,
+                          and installs Skala on demand. Use either this option
+                          or --with-gauxc, not both.
                           Default = no 
   --with-eigen            Enable Eigen3; required by libint and SIRIUS.
                           Default = no
@@ -295,7 +300,8 @@ Specific options of --with-PKG:
                           Default = no
   --with-deepmd           Enable interface to DeePMD-kit library.
                           This does not include other DeepModeling utilities
-                          like DP-GEN or dpdata.
+                          like DP-GEN or dpdata. Requires a libtorch provided
+                          via --with-libtorch=system or --with-libtorch=<path>.
                           Default = no
   --with-gsl              Enable the GNU scientific library (GSL).
                           This package is required for PLUMED and SIRIUS.
@@ -306,6 +312,11 @@ Specific options of --with-PKG:
   --with-libtorch         Enable libtorch as a machine learning framework.
                           This package is required for NequIP and Allegro, and
                           also for installing DeePMD-kit.
+                          libtorch is never downloaded by the toolchain; it must
+                          be provided either via --with-libtorch=system or via
+                          --with-libtorch=<path>. When libtorch is provided, the
+                          BLAS/LAPACK library has to be provided in the same way
+                          (system or path); requesting to install it is an error.
                           Default = no
   --with-plumed           Enable interface to the PLUMED library for enhanced
                           sampling methods.
@@ -617,7 +628,11 @@ while [ $# -ge 1 ]; do
           [ "${ii}" != "amd" ] &&
           [ "${ii}" != "mkl" ] &&
           [ "${ii}" != "acml" ] &&
-          [ "${ii}" != "cusolvermp" ]; then
+          [ "${ii}" != "cusolvermp" ] &&
+          [ "${ii}" != "libtorch" ] &&
+          [ "${ii}" != "gauxc" ] &&
+          [ "${ii}" != "skala_ftorch" ] &&
+          [ "${ii}" != "deepmd" ]; then
           eval "with_${ii}=__INSTALL__"
         fi
       done
@@ -1196,16 +1211,48 @@ if [ "${with_plumed}" = "__INSTALL__" ]; then
   [ "${with_fftw}" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
 fi
 
-if [ "${with_deepmd}" = "__INSTALL__" ]; then
-  [ "${with_libtorch}" = "__DONTUSE__" ] && with_libtorch="__INSTALL__"
+# libtorch is never downloaded by the toolchain. It has to be supplied by the
+# user either from the system paths or from an explicit installation prefix.
+if [ "${with_libtorch}" = "__INSTALL__" ]; then
+  report_error ${LINENO} \
+    "Installing (downloading) libtorch is no longer supported. Provide an
+existing libtorch via --with-libtorch=system or --with-libtorch=<path>."
 fi
 
-if [ "${with_gauxc}" = "__INSTALL__" ]; then
-  [ "${with_libtorch}" = "__DONTUSE__" ] && with_libtorch="__INSTALL__"
+# libtorch bundles its own BLAS and exports those symbols globally. To avoid
+# symbol clashes, BLAS/LAPACK has to come from the same (external) numerical
+# stack and must not be installed by the toolchain alongside libtorch.
+if [ "${with_libtorch}" != "__DONTUSE__" ]; then
+  case "${MATH_MODE}" in
+    mkl) math_mode_with="${with_mkl}" ;;
+    acml) math_mode_with="${with_acml}" ;;
+    openblas) math_mode_with="${with_openblas}" ;;
+    *) math_mode_with="__DONTUSE__" ;;
+  esac
+  if [ "${math_mode_with}" = "__INSTALL__" ]; then
+    report_error ${LINENO} \
+      "libtorch requires an externally provided BLAS/LAPACK library, but
+${MATH_MODE} was requested to be installed. Provide ${MATH_MODE} via system or
+a path as well, or do not use libtorch."
+  elif [ "${math_mode_with}" = "__DONTUSE__" ]; then
+    report_error ${LINENO} \
+      "libtorch requires an externally provided BLAS/LAPACK library, but no
+${MATH_MODE} installation was provided. Provide ${MATH_MODE} via system or a
+path as well, or do not use libtorch."
+  fi
 fi
 
-if [ "${with_skala_ftorch}" = "__INSTALL__" ]; then
-  [ "${with_libtorch}" = "__DONTUSE__" ] && with_libtorch="__INSTALL__"
+# Features built on top of libtorch can only be activated when libtorch itself
+# has been provided. They never trigger a libtorch download.
+if [ "${with_libtorch}" = "__DONTUSE__" ]; then
+  for ml_pkg in gauxc skala_ftorch deepmd; do
+    eval "ml_pkg_with=\${with_${ml_pkg}}"
+    if [ "${ml_pkg_with}" != "__DONTUSE__" ]; then
+      report_error ${LINENO} \
+        "The '${ml_pkg}' feature requires libtorch. Provide it via
+--with-libtorch=system or --with-libtorch=<path>, or disable '${ml_pkg}'."
+    fi
+  done
 fi
 
 # MKL may provide the FFTW3 interface and ScaLAPACK/BLACS. Resolve these
@@ -1229,14 +1276,6 @@ if [ "${MATH_MODE}" = "mkl" ]; then
     echo "Using MKL-vendored ScaLAPACK"
     with_scalapack="__DONTUSE__"
     export MKL_SCALAPACK="yes"
-  fi
-  # Block libtorch installation because of compatibility issue
-  if [ "${with_libtorch}" = "__INSTALL__" ]; then
-    report_error ${LINENO} \
-      "Installing prebuilt libtorch is disabled for oneMKL builds due to known
-conflicts between bundled and externally linked oneMKL libraries. Please provide
-a compatible libtorch installation via --with-libtorch=system or
---with-libtorch=<path>."
   fi
 fi
 
