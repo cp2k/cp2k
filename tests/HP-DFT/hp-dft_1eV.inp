@@ -33,7 +33,7 @@
       ADDED_MOS -1
       CHOLESKY INVERSE
       EPS_DIIS 1.0E-01
-      EPS_SCF 1.0E-05
+      EPS_SCF 1.0E-07
       MAX_SCF 500
       SCF_GUESS ATOMIC
       &DIAGONALIZATION
@@ -46,7 +46,7 @@
         NBROYDEN 8
       &END MIXING
       &OUTER_SCF
-        EPS_SCF 1.0E-05
+        EPS_SCF 1.0E-07
         MAX_SCF 60
       &END OUTER_SCF
     &END SCF
