@@ -131,11 +131,12 @@ CONTAINS
       REAL(dp)                                           :: accuracy, available_GB, chunk_volume, &
                                                             max_chunk, pair_GB, round_size, &
                                                             start_time, t_loop, threshold
-      REAL(dp), ALLOCATABLE :: accumulator(:, :), ao_envelope(:, :), ao_max(:, :), &
-         atom_position(:, :), buffer_out(:), buffer_P(:), buffer_ref(:), buffer_sel(:), &
-         buffer_unique(:), buffer_w(:), charge(:), charge_thread(:), cutoffs(:), gathered(:), &
-         received(:), recv_data(:), ri_bound(:), ri_centers(:, :, :), ri_envelope(:, :), &
-         send_data(:), U_atom(:, :, :)
+      REAL(dp), ALLOCATABLE :: ao_envelope(:, :), ao_max(:, :), atom_position(:, :), &
+         buffer_out(:), buffer_P(:), buffer_ref(:), buffer_sel(:), buffer_unique(:), buffer_w(:), &
+         charge(:), charge_thread(:), cutoffs(:), gathered(:), received(:), recv_data(:), &
+         ri_bound(:), ri_centers(:, :, :), ri_envelope(:, :), send_data(:), U_atom(:, :, :)
+      REAL(dp), ALLOCATABLE, TARGET                      :: accumulator(:, :)
+      REAL(dp), CONTIGUOUS, POINTER                      :: accumulator_one_column(:, :)
       TYPE(analytic_pair_type), ALLOCATABLE              :: pairs(:)
       TYPE(ao_image_type), ALLOCATABLE                   :: images(:)
       TYPE(gw_3c_ctx_type)                               :: ctx
@@ -374,7 +375,9 @@ CONTAINS
          recv_counts(irank + 1) = INT(n_values)
       END DO
       ALLOCATE (received(recv_counts(team + 1)))
-      CALL cross_comm%sum_scatter(accumulator, received, recv_counts)
+      ! sum_scatter takes the send buffer as one column (its serial branch copies only column 1).
+      accumulator_one_column(1:SIZE(accumulator), 1:1) => accumulator
+      CALL cross_comm%sum_scatter(accumulator_one_column, received, recv_counts)
       CALL cross_comm%free()
       DEALLOCATE (accumulator)
       ! Within the group, every rank receives the columns of all group ranks for its own l rows.
