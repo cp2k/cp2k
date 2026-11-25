@@ -11,11 +11,24 @@ FROM docker.io/ubuntu:26.04
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update -qq && \
     apt-get install -qq --no-install-recommends \
+    binutils \
     libopenblas-dev \
     libtorch-dev \
     openmpi-bin \
     libopenmpi-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# TEMPORARY DIAGNOSTIC: report the distro libtorch version and C++ ABI so the
+# CI log tells us whether the undefined-symbol failure is an ABI mismatch.
+RUN set -eu; \
+    for f in /usr/lib/*/libtorch_cpu.so*; do \
+      [ -e "$f" ] || continue; \
+      echo "== distro libtorch_cpu: $f"; \
+      objdump -T "$f" | c++filt | grep -m2 -E 'freeze_module_inplace|torch::jit::load' || true; \
+      printf 'distro libtorch cxx11 symbol count: '; objdump -T "$f" | grep -c '__cxx11' || true; \
+      break; \
+    done; \
+    ls -l /usr/lib/*/libkineto* 2>/dev/null || echo 'no libkineto'
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
 COPY ./tools/toolchain/install_requirements*.sh ./

@@ -623,24 +623,39 @@ def install_distro_libtorch(base_image: str, with_openmpi: bool = False) -> str:
             "# Install libtorch and a matching BLAS from the distribution so that\n"
             "# the toolchain does not download libtorch.\n"
         )
+    diagnostic = r"""
+# TEMPORARY DIAGNOSTIC: report the distro libtorch version and C++ ABI so the
+# CI log tells us whether the undefined-symbol failure is an ABI mismatch.
+RUN set -eu; \
+    for f in /usr/lib/*/libtorch_cpu.so*; do \
+      [ -e "$f" ] || continue; \
+      echo "== distro libtorch_cpu: $f"; \
+      objdump -T "$f" | c++filt | grep -m2 -E 'freeze_module_inplace|torch::jit::load' || true; \
+      printf 'distro libtorch cxx11 symbol count: '; objdump -T "$f" | grep -c '__cxx11' || true; \
+      break; \
+    done; \
+    ls -l /usr/lib/*/libkineto* 2>/dev/null || echo 'no libkineto'
+"""
     if "fedora" in base_image:
         mpi_pkgs = "    openmpi \\\n    openmpi-devel \\\n" if with_openmpi else ""
         return rf"""
 {header}RUN dnf -qy install \
+    binutils \
     libtorch-devel \
     openblas-devel \
 {mpi_pkgs}    && dnf clean -q all
-"""
+{diagnostic}"""
     if "ubuntu" in base_image:
         mpi_pkgs = "    openmpi-bin \\\n    libopenmpi-dev \\\n" if with_openmpi else ""
         return rf"""
 {header}RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update -qq && \
     apt-get install -qq --no-install-recommends \
+    binutils \
     libopenblas-dev \
     libtorch-dev \
 {mpi_pkgs}    && rm -rf /var/lib/apt/lists/*
-"""
+{diagnostic}"""
     sys.exit(
         f"\nERROR: Cannot install libtorch from a distro package on {base_image}\n"
     )
