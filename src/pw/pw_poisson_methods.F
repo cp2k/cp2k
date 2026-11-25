@@ -15,7 +15,7 @@ MODULE pw_poisson_methods
    USE cp_log_handling, ONLY: cp_to_string
    USE dielectric_methods, ONLY: dielectric_compute
    USE kinds, ONLY: dp
-   USE mathconstants, ONLY: fourpi
+   USE mathconstants, ONLY: fourpi, gaussi
    USE mt_util, ONLY: MT0D, &
                       MT1D, &
                       MT2D, mt2d_kernel_strain
@@ -42,7 +42,6 @@ MODULE pw_poisson_methods
                        pw_grid_release, &
                        pw_grid_retain
    USE pw_methods, ONLY: pw_copy, &
-                         pw_derive, &
                          pw_integral_ab, &
                          pw_transfer, pw_multiply_with
    USE pw_poisson_types, ONLY: &
@@ -1219,6 +1218,27 @@ CONTAINS
       END SUBROUTINE mt2d_hartree_stress_${kind}$
    #:endfor
 
+! **************************************************************************************************
+!> \brief Fill all three reciprocal Hartree derivatives on the source grid in one pass.
+!> \param potential reciprocal Hartree potential
+!> \param gradient three fields allocated from the same PW pool as potential
+! **************************************************************************************************
+   SUBROUTINE hartree_gradient_g(potential, gradient)
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: potential
+      TYPE(pw_c1d_gs_type), DIMENSION(3), INTENT(INOUT)  :: gradient
+
+      INTEGER                                            :: axis, ig
+
+!$OMP PARALLEL DO IF(SIZE(potential%array) >= 8192) DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(potential,gradient) PRIVATE(axis)
+      DO ig = 1, SIZE(potential%array)
+         DO axis = 1, 3
+            gradient(axis)%array(ig) = gaussi*(potential%array(ig)*potential%pw_grid%g(axis, ig))
+         END DO
+      END DO
+!$OMP END PARALLEL DO
+   END SUBROUTINE hartree_gradient_g
+
    #:for kind in ["c1d_gs", "r3d_rs"]
       SUBROUTINE calc_stress_and_gradient_${kind}$ (poisson_env, rhog, ehartree, rhog_aux, h_stress, dvhartree)
          TYPE(pw_poisson_type), INTENT(IN) :: poisson_env
@@ -1231,10 +1251,17 @@ CONTAINS
          CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_set'
 
          REAL(KIND=dp) :: ffa
-         INTEGER :: alpha, beta, n(3), handle, i
+         INTEGER :: alpha, beta, handle, i
          LOGICAL :: calculate_stress
          TYPE(pw_c1d_gs_type) :: dvg(3), dvg_aux(3)
          TYPE(pw_pool_type), POINTER                        :: pw_pool
+
+         calculate_stress = PRESENT(h_stress)
+         IF (calculate_stress .AND. poisson_env%used_grid == use_gs_grid) THEN
+            ! MT2D uses the strain derivative of its kernel, not the Maxwell stress.
+            calculate_stress = poisson_env%green_fft%method /= MT2D
+         END IF
+         IF (.NOT. (calculate_stress .OR. PRESENT(dvhartree))) RETURN
 
          CALL timeset(routineN, handle)
 
@@ -1242,16 +1269,12 @@ CONTAINS
 
          DO i = 1, 3
             CALL pw_pool%create_pw(dvg(i))
-            n = 0
-            n(i) = 1
-            CALL pw_copy(rhog, dvg(i))
-            CALL pw_derive(dvg(i), n)
-            IF (PRESENT(rhog_aux)) THEN
+            IF (calculate_stress .AND. PRESENT(rhog_aux)) THEN
                CALL pw_pool%create_pw(dvg_aux(i))
-               CALL pw_copy(rhog_aux, dvg_aux(i))
-               CALL pw_derive(dvg_aux(i), n)
             END IF
          END DO
+         CALL hartree_gradient_g(rhog, dvg)
+         IF (calculate_stress .AND. PRESENT(rhog_aux)) CALL hartree_gradient_g(rhog_aux, dvg_aux)
          ! save the derivatives
          IF (PRESENT(dvhartree)) THEN
             DO i = 1, 3
@@ -1260,12 +1283,6 @@ CONTAINS
          END IF
          ! Calculate the contribution to the stress tensor this is only the contribution from
          ! the Greens FUNCTION and the volume factor of the plane waves
-         calculate_stress = PRESENT(h_stress)
-         IF (calculate_stress .AND. poisson_env%used_grid == use_gs_grid) THEN
-            ! MT2D is contracted against the original density by the caller.
-            ! Its kernel derivative does not obey the Maxwell K**2 identity.
-            calculate_stress = poisson_env%green_fft%method /= MT2D
-         END IF
          IF (calculate_stress) THEN
             CPASSERT(PRESENT(ehartree))
             ffa = -1.0_dp/fourpi
@@ -1347,7 +1364,7 @@ CONTAINS
 
          DO i = 1, 3
             CALL pw_pool%give_back_pw(dvg(i))
-            IF (PRESENT(rhog_aux)) THEN
+            IF (calculate_stress .AND. PRESENT(rhog_aux)) THEN
                CALL pw_pool%give_back_pw(dvg_aux(i))
             END IF
          END DO
