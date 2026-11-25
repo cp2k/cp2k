@@ -26,7 +26,6 @@ MODULE gw_auto_ri_generate_RI_basis
                                               coulomb_integral_init,&
                                               coulomb_operator_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_cfm_types,                    ONLY: cp_cfm_get_submatrix
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
         dbcsr_distribution_type, dbcsr_finalize, dbcsr_put_block, dbcsr_release, dbcsr_type, &
@@ -44,6 +43,7 @@ MODULE gw_auto_ri_generate_RI_basis
                                               cp_fm_release,&
                                               cp_fm_type
    USE generic_os_integrals,            ONLY: int_operators_r12_ab_os
+   USE gw_ri_rs_small_cell_full_kp_lattice,ONLY: owned_mo_coefficients
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_short,&
@@ -245,7 +245,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_AA_optimized_RI_basis'
 
-      INTEGER :: handle, iatom, ikind, max_nAO_kind, max_nRI_kind, nAO_kind, natom, nkind, &
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: coefficients(:, :, :, :)
+      INTEGER :: handle, iatom, ikind, max_nAO_kind, max_nRI_kind, nAO_kind, natom, nkind, nkp, &
          nRI_kind, RI_size_opt_AA_requested, root_rank
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of_atom, sizes_opt_RI_AA
       REAL(KIND=dp)                                      :: target_norm
@@ -288,6 +289,14 @@ CONTAINS
          DEALLOCATE (M_PQ)
       END DO
 
+      IF (bs_env%do_periodic) THEN
+         nkp = bs_env%nkp_scf_desymm
+         CPASSERT(nkp > 0)
+         CPASSERT(ALLOCATED(bs_env%cfm_mo_coeff_kp))
+         CPASSERT(SIZE(bs_env%cfm_mo_coeff_kp, 1) >= nkp)
+         CALL owned_mo_coefficients(bs_env, bs_env%cfm_mo_coeff_kp(:nkp, :), coefficients)
+      END IF
+
       bs_env%auto_ri%sizes_opt_RI = 0
       DO iatom = 1, natom
          root_rank = MODULO(iatom - 1, bs_env%para_env%num_pe)
@@ -298,7 +307,7 @@ CONTAINS
          M_PQ(:, :) = M_PQ_by_kind(1:nRI_kind, 1:nRI_kind, ikind)
          ! Eqs. (3)-(5): form B^{A,C}, B^{A,X}, and their weighted sum B^A.
          IF (bs_env%do_periodic) THEN
-            CALL compute_B_ij_AA_kaveraged(bs_env, iatom, root_rank, &
+            CALL compute_B_ij_AA_kaveraged(bs_env, iatom, root_rank, coefficients, &
                                            Int_3c(1:nAO_kind, 1:nAO_kind, 1:nRI_kind, ikind), &
                                            M_PQ, B_PQ, target_norm, X_Pi)
          ELSE
@@ -308,8 +317,7 @@ CONTAINS
          END IF
          DEALLOCATE (M_PQ)
          IF (root_rank /= bs_env%para_env%mepos) THEN
-            DEALLOCATE (B_PQ)
-            IF (ALLOCATED(X_Pi)) DEALLOCATE (X_Pi)
+            IF (ALLOCATED(B_PQ)) DEALLOCATE (B_PQ)
             CYCLE
          END IF
          ! Eq. (6): solve B^A U^A = M^A U^A λ^A.
@@ -326,6 +334,7 @@ CONTAINS
          U_Pp_A(1:SIZE(U_Pp_A_atom, 1), 1:SIZE(U_Pp_A_atom, 2), iatom) = U_Pp_A_atom
          DEALLOCATE (U_Pp_A_atom, eigenval, B_PQ)
       END DO
+      IF (ALLOCATED(coefficients)) DEALLOCATE (coefficients)
       CALL bs_env%para_env%sum(bs_env%auto_ri%sizes_opt_RI)
       CALL bs_env%para_env%sum(U_Pp_A)
       CALL bs_env%para_env%sum(eigenval_AA)
@@ -1833,28 +1842,33 @@ CONTAINS
 !> \param bs_env ...
 !> \param iatom ...
 !> \param root_rank ...
+!> \param coefficients MO coefficients for the cyclically owned SCF k points
 !> \param Int_3c ...
 !> \param M_PQ ...
 !> \param B_ij ...
 !> \param target_norm ...
 !> \param X_Pi inverse metric factor defining the orthonormal RI coordinates
 ! **************************************************************************************************
-   SUBROUTINE compute_B_ij_AA_kaveraged(bs_env, iatom, root_rank, Int_3c, M_PQ, &
+   SUBROUTINE compute_B_ij_AA_kaveraged(bs_env, iatom, root_rank, coefficients, Int_3c, M_PQ, &
                                         B_ij, target_norm, X_Pi)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, INTENT(IN)                                :: iatom, root_rank
+      COMPLEX(KIND=dp), INTENT(IN)                       :: coefficients(:, :, :, :)
       REAL(KIND=dp), CONTIGUOUS, INTENT(IN)              :: Int_3c(:, :, :), M_PQ(:, :)
       REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: B_ij(:, :)
       REAL(KIND=dp), INTENT(OUT)                         :: target_norm
       REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: X_Pi(:, :)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_B_ij_AA_kaveraged'
+      INTEGER, PARAMETER                                 :: d_empty = 2, d_frontier = 4, d_occ = 1, &
+                                                            d_occ_exchange = 3
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: C_mu_n(:, :), D_empty(:, :), &
-                                                            D_frontier(:, :), D_occ(:, :), &
-                                                            D_occ_exchange(:, :)
-      INTEGER                                            :: first, handle, i, ikp, ispin, nAO, nRI, &
+      COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: density(:, :, :)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: density_buffer(:, :)
+      INTEGER                                            :: first, handle, i, ikp, ikp_local, ispin, &
+                                                            last, my_rank, n_ao, n_rank, n_ri, &
                                                             nstates, rank
+      LOGICAL                                            :: on_owner
       REAL(KIND=dp)                                      :: CBM, E_F, exchange_norm, &
                                                             transition_norm, VBM, weight
       REAL(KIND=dp), ALLOCATABLE                         :: B_exchange(:, :), B_spin(:, :), &
@@ -1863,36 +1877,33 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ALLOCATED(bs_env%cfm_mo_coeff_kp))
       CPASSERT(ALLOCATED(bs_env%eigenval_scf))
       CPASSERT(ASSOCIATED(bs_env%kpoints_scf_desymm))
-      CPASSERT(bs_env%nkp_scf_desymm > 0)
-      CPASSERT(SIZE(bs_env%cfm_mo_coeff_kp, 1) >= bs_env%nkp_scf_desymm)
       CPASSERT(SIZE(bs_env%eigenval_scf, 2) >= bs_env%nkp_scf_desymm)
 
-      nAO = bs_env%sizes_AO(iatom)
-      nRI = bs_env%auto_ri%sizes_ref_RI(iatom)
+      n_ao = bs_env%sizes_AO(iatom)
+      n_ri = bs_env%auto_ri%sizes_ref_RI(iatom)
       nstates = bs_env%n_mo_retained
       CPASSERT(nstates > 0 .AND. nstates <= SIZE(bs_env%eigenval_scf, 1))
+      CPASSERT(nstates <= SIZE(coefficients, 2))
       CPASSERT(ALL(bs_env%n_occ(1:bs_env%n_spin) > 0))
       CPASSERT(ALL(bs_env%n_occ(1:bs_env%n_spin) < nstates))
       first = 1 + SUM(bs_env%sizes_AO(:iatom - 1))
-      CALL compute_reference_M_PQ_inv_factor(M_PQ, X_Pi, rank)
-      ALLOCATE (Int_3c_metric(nAO, nAO, rank))
-      Int_3c_metric(:, :, :) = RESHAPE(MATMUL(RESHAPE(Int_3c, [nAO*nAO, nRI]), X_Pi), [nAO, nAO, rank])
-      ALLOCATE (B_ij(rank, rank), source=0.0_dp)
-      ALLOCATE (B_exchange(rank, rank), B_spin(rank, rank), B_transition(rank, rank), &
-                C_mu_n(nAO, nstates), weights(nstates), &
-                D_empty(nAO, nAO), D_frontier(nAO, nAO), &
-                D_occ(nAO, nAO), D_occ_exchange(nAO, nAO))
-      B_exchange = 0.0_dp
-      B_transition = 0.0_dp
+      last = first + n_ao - 1
+      my_rank = bs_env%para_env%mepos
+      n_rank = bs_env%para_env%num_pe
+      on_owner = my_rank == root_rank
+      IF (on_owner) THEN
+         CALL compute_reference_M_PQ_inv_factor(M_PQ, X_Pi, rank)
+         ALLOCATE (Int_3c_metric(n_ao, n_ao, rank))
+         Int_3c_metric(:, :, :) = RESHAPE(MATMUL(RESHAPE(Int_3c, [n_ao*n_ao, n_ri]), X_Pi), [n_ao, n_ao, rank])
+         ALLOCATE (B_ij(rank, rank), B_exchange(rank, rank), B_spin(rank, rank), B_transition(rank, rank), SOURCE=0.0_dp)
+      END IF
+      ALLOCATE (density(n_ao, n_ao, 4), weights(nstates))
+      density_buffer(1:n_ao, 1:4*n_ao) => density
 
       DO ispin = 1, bs_env%n_spin
-         D_empty = z_zero
-         D_frontier = z_zero
-         D_occ = z_zero
-         D_occ_exchange = z_zero
+         density(:, :, :) = z_zero
          VBM = MAXVAL(bs_env%eigenval_scf(bs_env%n_occ(ispin), 1:bs_env%nkp_scf_desymm, ispin))
          CBM = MINVAL(bs_env%eigenval_scf(bs_env%n_occ(ispin) + 1, 1:bs_env%nkp_scf_desymm, ispin))
          IF (.NOT. ieee_is_finite(VBM) .OR. .NOT. ieee_is_finite(CBM) .OR. CBM <= VBM) THEN
@@ -1900,36 +1911,32 @@ CONTAINS
          END IF
          E_F = 0.5_dp*(VBM + CBM)
 
-         DO ikp = 1, bs_env%nkp_scf_desymm
-            CALL cp_cfm_get_submatrix(bs_env%cfm_mo_coeff_kp(ikp, ispin), C_mu_n, &
-                                      start_row=first, n_rows=nAO, n_cols=nstates)
-            IF (bs_env%para_env%mepos == root_rank) THEN
-               weights(:) = 1.0_dp/ABS(bs_env%eigenval_scf(1:nstates, ikp, ispin) - E_F)
-               weight = bs_env%kpoints_scf_desymm%wkp(ikp)
-               CALL accumulate_AA_density_matrices( &
-                  C_mu_n, bs_env%eigenval_scf(1:nstates, ikp, ispin), &
-                  weights, bs_env%n_occ(ispin), weight, VBM, CBM, &
-                  bs_env%auto_ri%occ_energy_window, &
-                  D_occ, D_empty, D_occ_exchange, D_frontier)
-            END IF
+         DO ikp_local = 1, SIZE(coefficients, 3)
+            ikp = (ikp_local - 1)*n_rank + my_rank + 1
+            weights(:) = 1.0_dp/ABS(bs_env%eigenval_scf(1:nstates, ikp, ispin) - E_F)
+            weight = bs_env%kpoints_scf_desymm%wkp(ikp)
+            CALL accumulate_AA_density_matrices( &
+               coefficients(first:last, :nstates, ikp_local, ispin), bs_env%eigenval_scf(1:nstates, ikp, ispin), &
+               weights, bs_env%n_occ(ispin), weight, VBM, CBM, bs_env%auto_ri%occ_energy_window, &
+               density(:, :, d_occ), density(:, :, d_empty), density(:, :, d_occ_exchange), density(:, :, d_frontier))
          END DO
-         IF (bs_env%para_env%mepos == root_rank) THEN
-            CALL contract_B_PQ_density(Int_3c_metric, D_empty, D_occ, B_spin)
+         ! Sum both densities over k before forming the bilinear target on the atom owner.
+         IF (n_rank > 1) CALL bs_env%para_env%sum(density_buffer, root_rank)
+         IF (on_owner) THEN
+            CALL contract_B_PQ_density(Int_3c_metric, density(:, :, d_empty), density(:, :, d_occ), B_spin)
             B_transition(:, :) = B_transition + B_spin
-            CALL contract_B_PQ_density(Int_3c_metric, D_frontier, D_occ_exchange, B_spin)
+            CALL contract_B_PQ_density(Int_3c_metric, density(:, :, d_frontier), density(:, :, d_occ_exchange), B_spin)
             B_exchange(:, :) = B_exchange + B_spin
          END IF
       END DO
 
-      IF (bs_env%para_env%mepos == root_rank) THEN
+      IF (on_owner) THEN
          transition_norm = SUM([(B_transition(i, i), i=1, rank)])
          exchange_norm = SUM([(B_exchange(i, i), i=1, rank)])
          CALL normalize_transition_and_exchange_targets(B_transition, B_exchange, &
                                                         transition_norm, exchange_norm, target_norm)
          B_ij(:, :) = B_transition
       END IF
-      DEALLOCATE (B_exchange, B_spin, B_transition, C_mu_n, weights, &
-                  D_empty, D_frontier, D_occ, D_occ_exchange)
       CALL timestop(handle)
 
    END SUBROUTINE compute_B_ij_AA_kaveraged

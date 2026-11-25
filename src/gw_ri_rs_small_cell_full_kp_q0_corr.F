@@ -49,7 +49,8 @@ MODULE gw_ri_rs_small_cell_full_kp_q0_corr
                                               gamma_correction_type,&
                                               gwkp_type
    USE gw_utils_fm,                     ONLY: local_complex_power
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE kpoint_coulomb_2c,               ONLY: add_ewald_reciprocal,&
                                               build_2c_coulomb_matrix_kp_dense
    USE kpoint_lattice_fft,              ONLY: k_grid_to_cell_fft
@@ -70,13 +71,17 @@ MODULE gw_ri_rs_small_cell_full_kp_q0_corr
                                               get_pseudo_inverse_diag,&
                                               inv_3x3,&
                                               vector_product
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_split_type_shared,&
+                                              mp_comm_type,&
+                                              mp_mem_avail_per_rank_GB,&
+                                              mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_moments,                      ONLY: build_local_moment_matrix_rs_img
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -92,6 +97,7 @@ MODULE gw_ri_rs_small_cell_full_kp_q0_corr
 
    ! Below |a*L| = taylor_switch, radial phase moments use their Taylor series.
    REAL(KIND=dp), PARAMETER :: taylor_switch = 1.0E-4_dp
+   INTEGER, PARAMETER :: gamma_reduce_elements = INT(32.0_dp*1024.0_dp**2/complex_bytes)
 
 CONTAINS
 
@@ -187,11 +193,10 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE :: dipole(:, :, :, :, :), eps_P_cartesian(:, :), &
          F_external(:, :), F_response_cartesian(:, :), F_zero(:, :), metric_ref_zero(:, :), &
          metric_rows(:, :), metric_zero(:, :), pi_cartesian(:, :), response_cartesian(:, :), &
-         schur_cartesian(:, :), time_chi(:, :, :), time_head(:, :, :), time_wing(:, :, :), &
-         V_sqrt_zero(:, :)
+         schur_cartesian(:, :), time_head(:, :, :), time_response(:, :, :), V_sqrt_zero(:, :)
       INTEGER                                            :: first_row, handle, i_cartesian, &
                                                             i_direction, iq, j_cartesian, j_w, &
-                                                            n_angular, n_directions
+                                                            n_angular, n_directions, n_grid
       INTEGER, ALLOCATABLE                               :: metric_cells(:, :)
       LOGICAL                                            :: is_slab
       REAL(KIND=dp)                                      :: q_norm, slab_b(3, 2), volume
@@ -266,12 +271,14 @@ CONTAINS
                 F_response_cartesian(bs_env%n_RI, 3))
       ALLOCATE (gwkp_env%gamma_correction%wing_cartesian(bs_env%ri_rs%n_grid_points, 3, &
                                                          bs_env%num_time_freq_points))
+      n_grid = bs_env%ri_rs%n_grid_points
       CALL accumulate_time_state(bs_env, gwkp_env%psi_lm_k, dipole, volume, first_row, &
-                                 time_chi, time_wing, time_head)
-      CALL metric_grid_rows(gwkp_env%Z_lP_zero(:, 2:, 1), F_zero, first_row, SIZE(time_chi, 1), metric_rows)
+                                 time_response, time_head)
+      CALL metric_grid_rows(gwkp_env%Z_lP_zero(:, 2:, 1), F_zero, first_row, SIZE(time_response, 1), metric_rows)
       DO j_w = 1, bs_env%num_time_freq_points
-         CALL gamma_ao_time_response(bs_env, time_chi, time_wing, time_head, metric_rows, first_row, &
-                                     j_w, eps_P_cartesian, pi_cartesian, response_cartesian)
+         CALL gamma_ao_time_response(bs_env, time_response(:, :n_grid, :), time_response(:, n_grid + 1:, :), &
+                                     time_head, metric_rows, first_row, j_w, &
+                                     eps_P_cartesian, pi_cartesian, response_cartesian)
          CALL zgemm('C', 'N', 3, 3, bs_env%n_RI, CMPLX(fourpi, 0.0_dp, dp), &
                     eps_P_cartesian, bs_env%n_RI, response_cartesian, bs_env%n_RI, &
                     z_zero, schur_cartesian, 3)
@@ -314,7 +321,7 @@ CONTAINS
       CALL gamma_corr_cell_integrals(bs_env, directions, angular_weights, angular_radii, q_mesh, &
                                      shell_weights, head_response, gwkp_env%gamma_correction)
       DEALLOCATE (angular_radii, angular_weights, directions, head_response, q_mesh, shell_weights)
-      DEALLOCATE (time_chi, time_wing, time_head, metric_rows)
+      DEALLOCATE (time_response, time_head, metric_rows)
       DEALLOCATE (F_external)
 
       DEALLOCATE (dipole, &
@@ -1038,9 +1045,8 @@ CONTAINS
 !> B_ll'(tau)=sum_k f_k conjg(Gocc_ll') Gvir_ll'.
 !> E_lc(tau)=sum_kia f_k conjg(psi_li) psi_la d_ia,c exp[-Delta_ia*tau].
 !> P_cd(tau)=sum_kia f_k conjg(d_ia,c) d_ia,d exp[-Delta_ia*tau].
-!> Each rank owns disjoint rows of B and E; only the small P is replicated.
-!> A k-owner broadcasts its orbitals once, then all ranks process owned rows.
-!> No RI-pair by transition tensor or replicated grid-pair cache is formed.
+!> Each k-owner broadcasts within its group. Groups compute partial sums of B and E,
+!> then reduce them across groups and distribute disjoint rows. The small P is replicated.
 !> The cache is created once and reused for all frequencies. The existing
 !> minimax cosine transform approximates 2*Delta/(Delta**2+omega**2);
 !> its relative kernel error is checked independently of the iterative solve.
@@ -1049,57 +1055,197 @@ CONTAINS
 !> \param dipole ...
 !> \param volume ...
 !> \param first_row First owned grid row.
-!> \param chi_tau Owned grid rows of B(tau).
-!> \param wing_tau Owned grid rows of E(tau).
+!> \param response_tau Owned grid rows of B(tau) followed by the three columns of E(tau).
 !> \param head_tau P(tau).
 ! **************************************************************************************************
-   SUBROUTINE accumulate_time_state(bs_env, psi, dipole, volume, first_row, chi_tau, wing_tau, head_tau)
+   SUBROUTINE accumulate_time_state(bs_env, psi, dipole, volume, first_row, response_tau, head_tau)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       COMPLEX(KIND=dp), INTENT(IN)                       :: psi(:, :, :, :), dipole(:, :, :, :, :)
       REAL(KIND=dp), INTENT(IN)                          :: volume
       INTEGER, INTENT(OUT)                               :: first_row
-      COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: chi_tau(:, :, :), wing_tau(:, :, :), &
-                                                            head_tau(:, :, :)
+      COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT), TARGET :: response_tau(:, :, :)
+      COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: head_tau(:, :, :)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'accumulate_time_state'
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: gamma_corr(:, :, :), orbitals(:, :)
-      INTEGER                                            :: c, handle, k, local_k, n_grid, n_rows, &
-                                                            n_time, no, nv, owner, spin
+      COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: partial(:, :, :)
+      INTEGER :: c, first_group_row, group, group_size, handle, k, local_k, n_grid, n_groups, n_k, &
+         n_rank, n_rows, n_time, no, nv, owner, rank, row_rank, spin
+      INTEGER, ALLOCATABLE                               :: rank_slot(:)
+      TYPE(mp_comm_type)                                 :: column_env
+      TYPE(mp_comm_type), TARGET                         :: group_env
+
+      CLASS(mp_comm_type), POINTER                       :: k_comm
 
       CALL timeset(routineN, handle)
 
       CPASSERT(volume > 0.0_dp)
       n_grid = bs_env%ri_rs%n_grid_points
       n_time = bs_env%num_time_freq_points
-      CALL block_range(n_grid, bs_env%para_env%mepos, bs_env%para_env%num_pe, first_row, n_rows)
-      ALLOCATE (chi_tau(n_rows, n_grid, n_time), wing_tau(n_rows, 3, n_time), &
-                head_tau(3, 3, n_time), SOURCE=z_zero)
+      n_k = bs_env%nkp_scf_desymm
+      n_rank = bs_env%para_env%num_pe
+      rank = bs_env%para_env%mepos
+      ALLOCATE (rank_slot(0:n_rank - 1))
+      n_groups = 1
+      IF (n_rank > 1 .AND. n_k > 1) THEN
+         BLOCK
+            INTEGER :: g, i, largest_group, leader, n_mo, n_occ, node_ranks, rows, smallest_group
+            INTEGER, ALLOCATABLE :: k_prefix(:), node_leaders(:), order(:)
+            INTEGER(KIND=int_8), ALLOCATABLE :: node_keys(:)
+            REAL(KIND=dp) :: available_GB, best_cost, broadcast_bytes, bytes_per_row, calc_workspace, cost, &
+                           dipole_elements(bs_env%n_spin), final_bytes, group_bytes, imbalance, reduction_bytes, reduction_workspace
+            TYPE(mp_comm_type) :: node_env
+
+            ! Order ranks by shared-memory node, preserving rank order within each node.
+            CALL node_env%from_split_type(bs_env%para_env, mp_comm_split_type_shared, key=rank)
+            leader = rank
+            CALL node_env%min(leader)
+            node_ranks = node_env%num_pe
+            CALL node_env%free()
+            CALL bs_env%para_env%max(node_ranks)
+            ! On multiple nodes, concurrent column reductions share the network link of a node.
+            IF (node_ranks == n_rank) node_ranks = 1
+            ALLOCATE (node_leaders(n_rank), node_keys(n_rank), order(n_rank), k_prefix(0:n_rank))
+            CALL bs_env%para_env%allgather(leader, node_leaders)
+            node_keys(:) = INT(node_leaders, int_8)*INT(n_rank, int_8) + [(INT(i, int_8), i=0, n_rank - 1)]
+            CALL sort(node_keys, n_rank, order)
+            k_prefix(0) = 0
+            DO i = 1, n_rank
+               owner = order(i) - 1
+               rank_slot(owner) = i - 1
+               k_prefix(i) = k_prefix(i - 1) + n_k/n_rank + MERGE(1, 0, owner < MODULO(n_k, n_rank))
+            END DO
+
+            CALL mp_mem_avail_per_rank_GB(bs_env%para_env, available_GB)
+            n_mo = bs_env%n_mo_retained
+            n_occ = MAXVAL(bs_env%n_occ(:bs_env%n_spin))
+            dipole_elements(:) = 3.0_dp*REAL(bs_env%n_occ(:bs_env%n_spin), dp)* &
+                                 REAL(n_mo - bs_env%n_occ(:bs_env%n_spin), dp)
+            broadcast_bytes = complex_bytes*(REAL(n_grid, dp)*REAL(n_mo, dp)*REAL(bs_env%n_spin, dp) + SUM(dipole_elements))
+            bytes_per_row = complex_bytes*REAL(n_grid + 3, dp)*REAL(n_time, dp)
+            final_bytes = bytes_per_row*REAL(1 + (n_grid - 1)/n_rank, dp)
+            best_cost = broadcast_bytes*REAL(n_k, dp)
+            DO g = 2, MIN(n_rank, n_k)
+               IF (MODULO(n_rank, g) /= 0) CYCLE
+               group_size = n_rank/g
+               smallest_group = MINVAL(k_prefix(group_size:n_rank:group_size) - k_prefix(0:n_rank - group_size:group_size))
+               IF (smallest_group == 0) CYCLE
+               largest_group = MAXVAL(k_prefix(group_size:n_rank:group_size) - k_prefix(0:n_rank - group_size:group_size))
+               rows = 1 + (n_grid - 1)/group_size
+               IF (rows > gamma_reduce_elements) CYCLE
+               group_bytes = bytes_per_row*REAL(rows, dp)
+               calc_workspace = complex_bytes*(REAL(rows, dp)*(2.0_dp*REAL(n_grid, dp) + REAL(n_mo + n_occ, dp)) + &
+                                               REAL(n_grid, dp)*REAL(n_mo, dp) + MAXVAL(dipole_elements))
+               reduction_workspace = final_bytes + MIN(group_bytes, complex_bytes*REAL(gamma_reduce_elements, dp))
+               ! Use the same half-of-available-memory budget as other GW stages for extra grouping.
+               IF (group_bytes + MAX(calc_workspace, reduction_workspace) > 0.5E9_dp*available_GB) CYCLE
+               reduction_bytes = final_bytes*REAL(g - 1, dp)*REAL(node_ranks, dp)
+               imbalance = MAX(1.0_dp, REAL(rows, dp)*REAL(largest_group, dp)*REAL(n_rank, dp)/ &
+                               (REAL(n_grid, dp)*REAL(n_k, dp)))
+               cost = imbalance*(MERGE(broadcast_bytes*REAL(largest_group, dp), 0.0_dp, group_size > 1) + reduction_bytes)
+               IF (cost >= best_cost) CYCLE
+               n_groups = g
+               best_cost = cost
+            END DO
+         END BLOCK
+      END IF
+
+      ! A single group uses the original communicator and its rank order.
+      IF (n_groups == 1) rank_slot(:) = [(owner, owner=0, n_rank - 1)]
+      group_size = n_rank/n_groups
+      group = rank_slot(rank)/group_size
+      row_rank = MODULO(rank_slot(rank), group_size)
+      k_comm => bs_env%para_env
+      IF (n_groups > 1 .AND. group_size > 1) THEN
+         CALL group_env%from_split(bs_env%para_env, group, key=row_rank)
+         k_comm => group_env
+      END IF
+      IF (bs_env%unit_nr > 0) THEN
+         WRITE (bs_env%unit_nr, '(T2,A,I0,A,I0,A)') 'GW Gamma response: ', n_groups, &
+            ' k group(s) of ', group_size, ' MPI rank(s)'
+      END IF
+      CALL block_range(n_grid, row_rank, group_size, first_group_row, n_rows)
+      ALLOCATE (partial(n_rows, n_grid + 3, n_time), head_tau(3, 3, n_time), SOURCE=z_zero)
       CALL validate_time_transform(bs_env)
       DO spin = 1, bs_env%n_spin
          no = bs_env%n_occ(spin)
          nv = bs_env%n_mo_retained - no
          CPASSERT(nv >= 0)
          IF (no == 0 .OR. nv == 0) CYCLE
-         ALLOCATE (orbitals(bs_env%ri_rs%n_grid_points, no + nv), gamma_corr(no, nv, 3))
-         DO k = 1, bs_env%nkp_scf_desymm
-            owner = MODULO(k - 1, bs_env%para_env%num_pe)
-            IF (bs_env%para_env%mepos == owner) THEN
-               local_k = (k - 1)/bs_env%para_env%num_pe + 1
+         ALLOCATE (orbitals(n_grid, no + nv), gamma_corr(no, nv, 3))
+         DO k = 1, n_k
+            owner = MODULO(k - 1, n_rank)
+            IF (rank_slot(owner)/group_size /= group) CYCLE
+            IF (rank == owner) THEN
+               local_k = (k - 1)/n_rank + 1
                CPASSERT(local_k <= SIZE(psi, 3))
                orbitals(:, :) = psi(:, 1:no + nv, local_k, spin)
                DO c = 1, 3
                   gamma_corr(:, :, c) = -gaussi*dipole(spin, local_k, c, 1:no, 1:nv)/SQRT(volume)
                END DO
             END IF
-            CALL bs_env%para_env%bcast(orbitals, owner)
-            CALL bs_env%para_env%bcast(gamma_corr, owner)
+            IF (group_size > 1) THEN
+               CALL k_comm%bcast(orbitals, MODULO(rank_slot(owner), group_size))
+               CALL k_comm%bcast(gamma_corr, MODULO(rank_slot(owner), group_size))
+            END IF
             CALL accumulate_k_time_rows(bs_env, orbitals, gamma_corr, k, spin, owner, &
-                                        first_row, chi_tau, wing_tau, head_tau)
+                                        first_group_row, partial, head_tau)
          END DO
          DEALLOCATE (orbitals, gamma_corr)
       END DO
+      NULLIFY (k_comm)
+      IF (n_groups > 1 .AND. group_size > 1) CALL group_env%free()
       CALL bs_env%para_env%sum(head_tau)
+
+      IF (n_groups == 1) THEN
+         first_row = first_group_row
+         CALL MOVE_ALLOC(partial, response_tau)
+      ELSE
+         BLOCK
+            CHARACTER(LEN=*), PARAMETER :: reduce_name = 'reduce_gamma_time_rows'
+            COMPLEX(KIND=dp), ALLOCATABLE, TARGET :: send_buffer(:)
+            COMPLEX(KIND=dp), CONTIGUOUS, POINTER :: local_matrix(:, :), packed(:, :), recv(:), source(:, :)
+            INTEGER :: batch_cols, g, n_rows_local, offset, reduce_handle, rows
+            INTEGER :: counts(0:n_groups - 1), starts(0:n_groups - 1), widths(0:n_groups - 1)
+            INTEGER(KIND=int_8) :: first_col, i_col, last_col, n_cols
+
+            CALL timeset(reduce_name, reduce_handle)
+            CALL column_env%from_split(bs_env%para_env, row_rank, key=group)
+            ! Subdivide each group's row block among the ranks of this column communicator.
+            DO g = 0, n_groups - 1
+               CALL block_range(n_grid, row_rank*n_groups + g, n_rank, starts(g), widths(g))
+            END DO
+            first_row = starts(group)
+            n_rows_local = widths(group)
+            ALLOCATE (response_tau(n_rows_local, n_grid + 3, n_time))
+            IF (n_rows > 0 .AND. n_time > 0) THEN
+               n_cols = INT(n_grid + 3, int_8)*INT(n_time, int_8)
+               batch_cols = INT(MIN(n_cols, INT(gamma_reduce_elements/n_rows, int_8)))
+               ALLOCATE (send_buffer(n_rows*batch_cols))
+               source(1:n_rows, 1:n_cols) => partial
+               local_matrix(1:n_rows_local, 1:n_cols) => response_tau
+               starts(:) = starts - first_group_row + 1
+               DO first_col = 1_int_8, n_cols, INT(batch_cols, int_8)
+                  last_col = MIN(n_cols, first_col + INT(batch_cols - 1, int_8))
+                  counts(:) = widths*INT(last_col - first_col + 1_int_8)
+                  offset = 0
+                  DO g = 0, n_groups - 1
+                     rows = widths(g)
+                     DO i_col = first_col, last_col
+                        send_buffer(offset + 1:offset + rows) = source(starts(g):starts(g) + rows - 1, i_col)
+                        offset = offset + rows
+                     END DO
+                  END DO
+                  packed(1:offset, 1:1) => send_buffer(:offset)
+                  recv(1:counts(group)) => local_matrix(:, first_col:last_col)
+                  CALL column_env%sum_scatter(packed, recv, counts)
+               END DO
+            END IF
+            CALL column_env%free()
+            CALL timestop(reduce_handle)
+         END BLOCK
+      END IF
 
       CALL timestop(handle)
 
@@ -1117,17 +1263,15 @@ CONTAINS
 !> \param spin ...
 !> \param owner ...
 !> \param first_row ...
-!> \param chi_tau ...
-!> \param wing_tau ...
+!> \param response_tau Group-local rows of the body and wing contributions.
 !> \param head_tau ...
 ! **************************************************************************************************
    SUBROUTINE accumulate_k_time_rows(bs_env, orbitals, gamma_corr, k, spin, owner, &
-                                     first_row, chi_tau, wing_tau, head_tau)
+                                     first_row, response_tau, head_tau)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       COMPLEX(KIND=dp), INTENT(IN)                       :: orbitals(:, :), gamma_corr(:, :, :)
       INTEGER, INTENT(IN)                                :: k, spin, owner, first_row
-      COMPLEX(KIND=dp), INTENT(INOUT)                    :: chi_tau(:, :, :), wing_tau(:, :, :), &
-                                                            head_tau(:, :, :)
+      COMPLEX(KIND=dp), INTENT(INOUT)                    :: response_tau(:, :, :), head_tau(:, :, :)
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: block(:, :), go(:, :), gv(:, :), &
                                                             scaled(:, :)
@@ -1143,7 +1287,7 @@ CONTAINS
       nv = bs_env%n_mo_retained - no
       CPASSERT(nv >= 0)
       ng = bs_env%ri_rs%n_grid_points
-      nr = SIZE(chi_tau, 1)
+      nr = SIZE(response_tau, 1)
       first = first_row
       last = first + nr - 1
       mid = 0.5_dp*(gwkp_env%eigenvalues_G(no, k, spin) + gwkp_env%eigenvalues_G(no + 1, k, spin))
@@ -1165,12 +1309,12 @@ CONTAINS
                        orbitals, ng, z_zero, go, nr)
             CALL zgemm('N', 'C', nr, ng, nv, z_one, scaled(1, no + 1), nr, &
                        orbitals(:, no + 1:), ng, z_zero, gv, nr)
-            chi_tau(:, :, t) = chi_tau(:, :, t) + weight*CONJG(go)*gv
+            response_tau(:, :ng, t) = response_tau(:, :ng, t) + weight*CONJG(go)*gv
             DO c = 1, 3
                CALL zgemm('N', 'T', nr, no, nv, z_one, scaled(1, no + 1), nr, &
                           gamma_corr(:, :, c), no, z_zero, block, nr)
-               wing_tau(:, c, t) = wing_tau(:, c, t) + &
-                                   weight*SUM(CONJG(scaled(:, 1:no))*block, DIM=2)
+               response_tau(:, ng + c, t) = response_tau(:, ng + c, t) + &
+                                            weight*SUM(CONJG(scaled(:, 1:no))*block, DIM=2)
             END DO
          END IF
          IF (bs_env%para_env%mepos == owner) THEN

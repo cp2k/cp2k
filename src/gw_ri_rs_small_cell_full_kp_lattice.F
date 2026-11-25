@@ -76,7 +76,6 @@ MODULE gw_ri_rs_small_cell_full_kp_lattice
              gamma_auxiliary_charges, &
              grid_pair_indices, &
              grid_pair_gemm_panel, &
-             grid_pair_upper_multiply, &
              grid_pair_shift, &
              grid_pair_stencil_weight, &
              image_weight, &
@@ -171,38 +170,6 @@ CONTAINS
          panel(row, col) = CMPLX(REAL(panel(row, col), dp), 0.0_dp, dp)
       END DO
    END SUBROUTINE grid_pair_gemm_panel
-
-! **************************************************************************************************
-!> \brief Y=U Z with U=triu(H,1)+diag(H)/2, so that H=U+U^H.
-!> Hermitian projections reconstruct the adjoint after contraction, saving the lower multiply.
-!> \param n grid points
-!> \param nrhs right-hand sides
-!> \param pairs packed upper triangle of H
-!> \param Z dense right-hand sides
-!> \param Y result
-!> \param panel reusable thread-local workspace
-! **************************************************************************************************
-   SUBROUTINE grid_pair_upper_multiply(n, nrhs, pairs, Z, Y, panel)
-      INTEGER, INTENT(IN)                                :: n, nrhs
-      COMPLEX(KIND=dp), INTENT(IN)                       :: pairs(:), Z(n, nrhs)
-      COMPLEX(KIND=dp), INTENT(OUT) :: Y(n, nrhs), panel(n, MIN(grid_pair_panel_cols, n))
-
-      INTEGER                                            :: col, first, j, offset, width
-
-      CPASSERT(SIZE(pairs, KIND=int_8) == INT(n, int_8)*(n + 1)/2)
-      Y = z_zero
-      DO first = 1, n, grid_pair_panel_cols
-         width = MIN(grid_pair_panel_cols, n - first + 1)
-         DO col = 1, width
-            j = first + col - 1
-            offset = INT(INT(j, int_8)*INT(j - 1, int_8)/2_int_8)
-            panel(1:j - 1, col) = pairs(offset + 1:offset + j - 1)
-            panel(j, col) = CMPLX(0.5_dp*REAL(pairs(offset + j), dp), 0.0_dp, dp)
-            panel(j + 1:first + width - 1, col) = z_zero
-         END DO
-         CALL zgemm('N', 'N', first + width - 1, nrhs, width, z_one, panel, n, Z(first, 1), n, z_one, Y, n)
-      END DO
-   END SUBROUTINE grid_pair_upper_multiply
 
 ! **************************************************************************************************
 !> \brief Finite-supercell image weight, averaged over equidistant pair centers.
