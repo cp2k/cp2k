@@ -188,10 +188,9 @@ CONTAINS
 !> \brief ...
 !> \param dbcsr_mat ...
 !> \param dense_mat ...
-!> \param para_env ...
 !> \param replicated ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat, para_env, replicated)
+   SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat, replicated)
       USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
                               dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
                               dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, &
@@ -200,7 +199,6 @@ CONTAINS
       TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_mat
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: dense_mat
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       LOGICAL, INTENT(OUT), OPTIONAL                     :: replicated
 
       CHARACTER                                          :: matrix_type
@@ -259,10 +257,9 @@ CONTAINS
 !> \param dense_a ...
 !> \param dbcsr_b ...
 !> \param dense_b ...
-!> \param para_env ...
 !> \param replicated ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_to_dense_pair(dbcsr_a, dense_a, dbcsr_b, dense_b, para_env, replicated)
+   SUBROUTINE dbcsr_to_dense_pair(dbcsr_a, dense_a, dbcsr_b, dense_b, replicated)
       USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
                               dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
                               dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, &
@@ -274,7 +271,6 @@ CONTAINS
       TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_b
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: dense_b
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       LOGICAL, INTENT(OUT), OPTIONAL                     :: replicated
 
       CHARACTER                                          :: matrix_type_a, matrix_type_b
@@ -1917,8 +1913,7 @@ CONTAINS
          have_zeta = .FALSE.
          IF (params%nspins == 1) THEN
             CALL timeset("gauxc_density_dense", density_handle)
-            CALL dbcsr_to_dense(rho_ao(1, img), cache%density_scalar, para_env, &
-                                replicated=replicated)
+            CALL dbcsr_to_dense(rho_ao(1, img), cache%density_scalar, replicated=replicated)
             IF (.NOT. replicated) THEN
                CALL para_env%sum(cache%density_scalar)
             END IF
@@ -1930,7 +1925,7 @@ CONTAINS
             ! zeta   <- rho_ao(1, :) - rho_ao(2, :)
             CALL timeset("gauxc_density_dense", density_handle)
             CALL dbcsr_to_dense_pair(rho_ao(1, img), cache%density_scalar, rho_ao(2, img), &
-                                     cache%density_zeta, para_env, replicated=replicated)
+                                     cache%density_zeta, replicated=replicated)
             IF (.NOT. replicated) THEN
                CALL para_env%sum(cache%density_scalar)
                CALL para_env%sum(cache%density_zeta)
