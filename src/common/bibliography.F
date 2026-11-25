@@ -98,7 +98,7 @@ MODULE bibliography
                             Hedin1965, Hybertsen1986, Tyagi2024, Tyagi2026, &
                             Hanasaki2025, Graml2026, Tan2025, Broyden1965, Johnson1988, Kerker1981, &
                             FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
-                            KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
+                            KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, &
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
                             Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
                             Cances2000, Herbst2022, Zhang2025, Zhang2026, Gresch2017, Soluyanov2011, Dixon2023, Doll2025, &
@@ -2351,13 +2351,6 @@ CONTAINS
                          "Orbitals", &
                          source="J. Chem. Theory Comput.", volume="20", pages="3894", &
                          year=2024, doi="10.1021/acs.jctc.4c00235")
-
-      CALL add_reference(key=Schreder2024_2, &
-                         authors=s2a("L. Schreder", "S. Luber"), &
-                         title="Propagated (fragment) Pipek–Mezey Wannier functions in "// &
-                         "real-time time-dependent density functional theory", &
-                         source="J. Chem. Phys.", volume="160", pages="214117", &
-                         year=2024, doi="10.1063/5.0203442")
 
       CALL add_reference(key=Lindh1995, &
                          authors=s2a("R. Lindh", "A. Bernhardsson", "G. Karlström", "P.-Å. Malmqvist"), &

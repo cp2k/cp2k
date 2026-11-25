@@ -88,8 +88,8 @@ CONTAINS
       INTEGER                                            :: handle, icoeff, ispin, max_moment, &
                                                             mystate, ns, nspins, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: lstates, marked_states_spin
-      LOGICAL                                            :: com_nl, do_homo, do_mixed, magnetic, &
-                                                            vel_reprs
+      LOGICAL                                            :: com_nl, do_homo, do_mixed, do_wc, &
+                                                            magnetic, vel_reprs
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: scenter
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
@@ -109,8 +109,12 @@ CONTAINS
       loc_print_section => section_vals_get_subs_vals(loc_section, "PRINT")
       do_homo = qs_loc_env%localized_wfn_control%do_homo
       do_mixed = qs_loc_env%localized_wfn_control%do_mixed
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                                           "WANNIER_STATES"), cp_p_file)) THEN
+      ! the Wannier centres are needed for WANNIER_STATES and LOCALIZED_MOMENTS
+      do_wc = BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
+                                               "WANNIER_STATES"), cp_p_file) .OR. &
+              BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
+                                               "LOCALIZED_MOMENTS"), cp_p_file)
+      IF (do_wc) THEN
          CALL get_qs_env(qs_env=qs_env, WannierCentres=wc)
          IF (.NOT. ASSOCIATED(wc)) THEN
             ALLOCATE (wc(dft_control%nspins))
@@ -230,8 +234,7 @@ CONTAINS
          CALL calculate_molecular_moments(qs_env, qs_loc_env, mo_local, loc_print_section, molecule_set)
       END IF
       !
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                                           "WANNIER_STATES"), cp_p_file)) THEN
+      IF (do_wc) THEN
          CALL set_qs_env(qs_env=qs_env, WannierCentres=wc)
       END IF
       !

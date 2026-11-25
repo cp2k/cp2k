@@ -5,10 +5,7 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE input_cp2k_loc
-   USE bibliography,                    ONLY: Hunt2003,&
-                                              Schreder2021,&
-                                              Schreder2024_1,&
-                                              Schreder2024_2
+   USE bibliography,                    ONLY: Hunt2003
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -65,8 +62,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="LOCALIZE", &
                           description="Use one of the available methods to define the localization"// &
                           " and possibly to optimize it to a minimum or a maximum.", &
-                          n_keywords=8, n_subsections=0, repeats=.FALSE., &
-                          citations=[Schreder2021])
+                          n_keywords=8, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="controls the activation of the MOS localization procedure", &
@@ -162,9 +158,9 @@ CONTAINS
                        "Steepest descent minimization of an approximate l1 norm", &
                        "Using a direct minimisation approacha", &
                        "Use QR factorization", &
-                       "Using the Cardoso-Souloumiac algorithm for complex matrices"), &
-         default_i_val=do_loc_jacobi, &
-         citations=[Schreder2021, Schreder2024_2])
+                       "Jacobi rotations with Cardoso-Souloumiac angles, only real rotations "// &
+                       "of the real orbitals are applied. Not available with OPERATOR PIPEK"), &
+         default_i_val=do_loc_jacobi)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -251,8 +247,7 @@ CONTAINS
                           usage="OPERATOR (BERRY|BOYS|PIPEK)", &
                           enum_c_vals=s2a("BERRY", "BOYS", "PIPEK"), &
                           enum_i_vals=[op_loc_berry, op_loc_boys, op_loc_pipek], &
-                          default_i_val=op_loc_berry, &
-                          citations=[Schreder2024_2])
+                          default_i_val=op_loc_berry)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -345,8 +340,7 @@ CONTAINS
       CALL cp_print_key_section_create(subsection, __LOCATION__, name="LOCALIZED_MOMENTS", &
                                        description="Section controlling the calculation of "// &
                                        "localized moments", &
-                                       print_level=debug_print_level + 1, filename="__STD_OUT__", &
-                                       citations=[Schreder2021, Schreder2024_1])
+                                       print_level=debug_print_level + 1, filename="__STD_OUT__")
       !
       CALL keyword_create(keyword, __LOCATION__, &
                           name="MAX_MOMENT", &
