@@ -474,12 +474,12 @@ CONTAINS
                      ! nonbond is? (or the reverse). We'd better impose
                      ! consistency.
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
-                     fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
+                     fist_nonbond_env%ij_kind_full_fac(jdim, idim) = 0.5_dp
                   END IF
                   IF (ANY(potparm%pot(idim, jdim)%pot%type == siepmann_type)) THEN
                      ! TODO:see tersoff_type
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
-                     fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
+                     fist_nonbond_env%ij_kind_full_fac(jdim, idim) = 0.5_dp
                   END IF
                   IF (ANY(potparm%pot(idim, jdim)%pot%type == ace_type)) THEN
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
@@ -487,23 +487,23 @@ CONTAINS
                   END IF
                   IF (ANY(potparm%pot(idim, jdim)%pot%type == gal_type)) THEN
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
-                     fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
+                     fist_nonbond_env%ij_kind_full_fac(jdim, idim) = 0.5_dp
                   END IF
                   IF (ANY(potparm%pot(idim, jdim)%pot%type == gal21_type)) THEN
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
-                     fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
+                     fist_nonbond_env%ij_kind_full_fac(jdim, idim) = 0.5_dp
                   END IF
                   IF (ANY(potparm%pot(idim, jdim)%pot%type == nequip_type)) THEN
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
-                     fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
+                     fist_nonbond_env%ij_kind_full_fac(jdim, idim) = 0.5_dp
                   END IF
                   IF (ANY(potparm%pot(idim, jdim)%pot%type == mace_type)) THEN
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
-                     fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
+                     fist_nonbond_env%ij_kind_full_fac(jdim, idim) = 0.5_dp
                   END IF
                   IF (ANY(potparm%pot(idim, jdim)%pot%type == allegro_type)) THEN
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
-                     fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
+                     fist_nonbond_env%ij_kind_full_fac(jdim, idim) = 0.5_dp
                   END IF
                ELSE
                   ! In case we don't use potparm for initialization let's account
