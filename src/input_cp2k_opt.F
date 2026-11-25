@@ -269,10 +269,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="READ_EMBED_POT_CUBE", &
-                          description="Read the embedding potential  "// &
-                          "(restart) from the cube file. Whitespace-separated cube values are accepted. If "// &
-                          "adjacent values are written without whitespace, each value must occupy a "// &
-                          "13-character E13.5 field.", &
+                          description="Read the embedding potential (restart) from a cube file "// &
+                          "with whitespace-separated grid values.", &
                           usage="READ_EMBED_POT_CUBE .FALSE.", default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -287,9 +285,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EMBED_CUBE_FILE_NAME", &
                           description="Root of the file name where to read the embedding "// &
-                          "potential (guess) as a cube. Whitespace-separated cube values are accepted. If "// &
-                          "adjacent values are written without whitespace, each value must occupy a "// &
-                          "13-character E13.5 field.", &
+                          "potential (guess) as a cube with whitespace-separated grid values.", &
                           usage="EMBED_CUBE_FILE_NAME <FILENAME>", &
                           type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
@@ -297,9 +293,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EMBED_SPIN_CUBE_FILE_NAME", &
                           description="Root of the file name where to read the spin part "// &
-                          "of the embedding potential (guess) as a cube. Whitespace-separated cube values are "// &
-                          "accepted. If adjacent values are written without whitespace, each value must occupy "// &
-                          "a 13-character E13.5 field.", &
+                          "of the embedding potential (guess) as a cube with whitespace-separated grid values.", &
                           usage="EMBED_SPIN_CUBE_FILE_NAME <FILENAME>", &
                           type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)

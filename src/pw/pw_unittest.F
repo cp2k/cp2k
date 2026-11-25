@@ -6,6 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 PROGRAM pw_unittest
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE kinds,                           ONLY: dp
@@ -32,9 +34,9 @@ PROGRAM pw_unittest
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
-                                              pw_r1d_gs_type
-   USE realspace_grid_cube,             ONLY: cube_read_values,&
-                                              cube_value_format,&
+                                              pw_r1d_gs_type,&
+                                              pw_r3d_rs_type
+   USE realspace_grid_cube,             ONLY: cube_to_pw,&
                                               cube_values_format
 
    IMPLICIT NONE
@@ -60,43 +62,50 @@ PROGRAM pw_unittest
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Preserve three-digit cube exponents and parse adjacent values across z-slices.
+!> \brief Check cube precision and read data with variable field widths and line wrapping.
 ! **************************************************************************************************
    SUBROUTINE check_cube_values()
-      CHARACTER(LEN=13)                                  :: value
-      CHARACTER(LEN=79)                                  :: values
-      CHARACTER(LEN=92)                                  :: slice_values
-      REAL(KIND=dp), DIMENSION(6)                        :: buffer, reference
-      REAL(KIND=dp), DIMENSION(7)                        :: slice_buffer, slice_reference
+      CHARACTER(LEN=*), PARAMETER :: fixture = "pw_unittest_free_format.cube"
+      INTEGER, PARAMETER                                 :: n = 5
 
-      WRITE (value, cube_value_format) 3.33004E-101_dp
-      IF (INDEX(value, "E-101") <= 0) THEN
-         ERROR STOP "Cube value format must preserve three-digit negative exponents."
-      END IF
+      INTEGER                                            :: first, i, j, unit_nr
+      REAL(KIND=dp)                                      :: cell(3, 3), reference(n**3)
+      TYPE(pw_grid_type), POINTER                        :: grid
+      TYPE(pw_r3d_rs_type)                               :: pw
 
-      reference = [0.0_dp, -0.91458E-35_dp, 3.33004E-101_dp, &
-                   -1.32487E-103_dp, 1.0_dp, -1.0_dp]
-      WRITE (values(1:78), cube_values_format) reference
-      values(79:79) = NEW_LINE("C")
-      IF (INDEX(values, "E-101") <= 0) THEN
-         ERROR STOP "Cube line format must preserve E-101."
+      reference = [(REAL(i, dp), i=1, SIZE(reference))]
+      reference(:2) = [-3.33004E-101_dp, -1.32487E-103_dp]
+      IF (para_env%is_source()) THEN
+         CALL open_file(fixture, unit_nr, file_status="REPLACE", file_action="WRITE")
+         WRITE (unit_nr, '(A)') "pw_unittest", "", "0 0 0 0", "5 1 0 0", "5 0 1 0", "5 0 0 1"
+         WRITE (unit_nr, cube_values_format) reference(:2)
+         WRITE (unit_nr, '(A)') ""
+         WRITE (unit_nr, '(A,*(I0,A1))') "3.0D0 ", (i, ACHAR(9), i=4, SIZE(reference))
+         CALL close_file(unit_nr)
       END IF
-      IF (INDEX(values, "E-103") <= 0) THEN
-         ERROR STOP "Cube line format must preserve E-103."
-      END IF
-      CALL cube_read_values(values, buffer)
-      IF (MAXVAL(ABS(buffer - reference)) > 1.0E-12_dp) THEN
-         ERROR STOP "Cube reader must parse adjacent explicit-exponent values."
-      END IF
+      CALL para_env%sync()
 
-      slice_reference(1:6) = reference
-      slice_reference(7) = 0.27183E-123_dp
-      WRITE (slice_values(1:78), cube_values_format) slice_reference(1:6)
-      slice_values(79:79) = NEW_LINE("C")
-      WRITE (slice_values(80:92), cube_value_format) slice_reference(7)
-      CALL cube_read_values(slice_values, slice_buffer)
-      IF (MAXVAL(ABS(slice_buffer - slice_reference)) > 1.0E-12_dp) THEN
-         ERROR STOP "Cube reader must parse multi-line z-slices."
+      NULLIFY (grid)
+      cell = 0.0_dp
+      DO i = 1, 3
+         cell(i, i) = REAL(n, dp)
+      END DO
+      CALL pw_grid_create(grid, para_env, cell, npts=[n, n, n], fft_usage=.FALSE.)
+      CALL pw%create(grid)
+      CALL cube_to_pw(pw, fixture, 1.0_dp, para_env%num_pe > 1, silent=.TRUE.)
+      DO i = grid%bounds_local(1, 1), grid%bounds_local(2, 1)
+         DO j = grid%bounds_local(1, 2), grid%bounds_local(2, 2)
+            first = ((i - grid%bounds(1, 1))*n + j - grid%bounds(1, 2))*n + 1
+            IF (.NOT. ALL(ABS(pw%array(i, j, :)/reference(first:first + n - 1) - 1.0_dp) <= 4*EPSILON(1.0_dp))) THEN
+               ERROR STOP "Incorrect cube values."
+            END IF
+         END DO
+      END DO
+      CALL pw%release()
+      CALL pw_grid_release(grid)
+      IF (para_env%is_source()) THEN
+         CALL open_file(fixture, unit_nr, file_status="OLD")
+         CALL close_file(unit_nr, file_status="DELETE")
       END IF
    END SUBROUTINE check_cube_values
 

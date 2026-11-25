@@ -31,6 +31,7 @@ MODULE qs_external_density
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_set,&
                                               qs_rho_type
+   USE realspace_grid_cube,             ONLY: cube_reader_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                               realspace_grid_type,&
                                               rs_grid_create,&
@@ -153,14 +154,15 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cube_density'
 
-      INTEGER                                            :: extunit, handle, i, igrid_level, j, k, &
-                                                            nat, ndum, output_unit
+      INTEGER                                            :: extunit, handle, i, igrid_level, j, nat, &
+                                                            ndum, output_unit
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
                                                             ubounds, ubounds_local
       LOGICAL                                            :: grid_mismatch
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buffer
       REAL(kind=dp), DIMENSION(3)                        :: cube_origin, voxel
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
+      TYPE(cube_reader_type)                             :: reader
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -246,9 +248,7 @@ CONTAINS
 
          DO i = lbounds(1), ubounds(1)
             DO j = lbounds(2), ubounds(2)
-               IF (my_rank == 0) THEN
-                  READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
-               END IF
+               IF (my_rank == 0) CALL reader%read(extunit, buffer)
                CALL gid%bcast(buffer, 0)
                IF ((lbounds_local(1) <= i) .AND. (i <= ubounds_local(1)) .AND. &
                    (lbounds_local(2) <= j) .AND. (j <= ubounds_local(2))) THEN

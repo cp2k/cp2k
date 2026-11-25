@@ -113,7 +113,7 @@ CONTAINS
     ENDDO
     DO I1=1,cube%npoints(1),stride
        DO I2=1,cube%npoints(2),stride
-        WRITE(iunit,'(6(1X,ES12.4E3))') (cube%grid(I1,I2,I3)*mult_fact,I3=1,cube%npoints(3),stride)
+        WRITE(iunit,'(6(1X,ES13.5E3))') (cube%grid(I1,I2,I3)*mult_fact,I3=1,cube%npoints(3),stride)
        ENDDO
     ENDDO
   END SUBROUTINE write_cube
@@ -152,11 +152,8 @@ CONTAINS
     DO I1=1,cube%Natom
        READ(iunit,'(I5,4f12.6)') cube%Zatom(I1),cube%auxfield(I1),cube%coords(:,I1)
     ENDDO
-    DO I1=1,cube%npoints(1)
-       DO I2=1,cube%npoints(2)
-        READ(iunit,'(6E13.5)') (cube%grid(I1,I2,I3),I3=1,cube%npoints(3))
-       ENDDO
-    ENDDO
+    ! Read the whole grid in cube order so line breaks can occur between any two values.
+    READ(iunit,*) (((cube%grid(I1,I2,I3),I3=1,cube%npoints(3)),I2=1,cube%npoints(2)),I1=1,cube%npoints(1))
   END SUBROUTINE read_cube
 
 !-------------------------------------------------------------------------------

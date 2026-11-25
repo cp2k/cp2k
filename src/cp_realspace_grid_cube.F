@@ -123,15 +123,7 @@ CONTAINS
 
       LOGICAL                                            :: parallel_read
 
-      ! Determine whether to use MPI I/O for reading cube filename
-      parallel_read = .TRUE.
-      ! Parallel routine falls back to stream read in serial mode,
-      ! but it has slight overhead compared to sequential read
-      ! Therefore, we use sequential version in serial mode
-      IF (grid%pw_grid%para%group%num_pe == 1) parallel_read = .FALSE.
-      ! Check if MPI I/O was disabled in GLOBAL section
-      IF (.NOT. cp_mpi_io_get()) parallel_read = .FALSE.
-
+      parallel_read = grid%pw_grid%para%group%num_pe > 1 .AND. cp_mpi_io_get()
       CALL cube_to_pw(grid, filename, scaling, parallel_read, silent=silent)
 
    END SUBROUTINE cp_cube_to_pw
