@@ -54,7 +54,7 @@
       COORD_FILE_NAME ../../Fist/sample_pdb/water_2.pdb
     &END TOPOLOGY
     &VELOCITY
-      PINT_UNIT angstrom*au_t^-1
+      UNIT angstrom*au_t^-1
       -0.0001703635        0.0001057879       -0.0001039065
       -0.0013286679        0.0009794322       -0.0005052689
       -0.0000130060        0.0003866107        0.0011277453

@@ -74,10 +74,10 @@ MODULE physcon
 
    PRIVATE
 
-   PUBLIC :: a_bohr, a_fine, a_mass, angstrom, atm, bar, bohr, boltzmann, c_light_au, &
-             debye, e_charge, e_gfactor, e_mass, evolt, femtoseconds, h_bar, &
-             hertz, joule, kcalmol, kelvin, kjmol, massunit, mu_perm, n_avogadro, newton, &
-             p_mass, pascal, picoseconds, seconds, vibfac, wavenumbers, c_light
+   PUBLIC :: a_bohr, a_fine, a_mass, angstrom, angfs, atm, bar, bohr, boltzmann, &
+             c_light_au, debye, e_charge, e_gfactor, e_mass, evolt, femtoseconds, h_bar, &
+             hertz, joule, kcalmol, kelvin, kjmol, massunit, ms, mu_perm, n_avogadro, &
+             newton, p_mass, pascal, picoseconds, seconds, vibfac, wavenumbers, c_light
 
    PUBLIC :: write_physcon
 
@@ -179,6 +179,12 @@ MODULE physcon
    ! [a.u.] -> [atm]
    REAL(KIND=dp), PARAMETER :: atm = pascal/1.013250E+5_dp
 
+   ! [a.u.] -> [m/s] (velocity)
+   REAL(KIND=dp), PARAMETER :: ms = c_light*a_fine
+
+   ! [a.u.] -> [angstrom/fs] (velocity)
+   REAL(KIND=dp), PARAMETER :: angfs = ms*1.0E-5_dp
+
    ! [a.u.] -> [eV]
    REAL(KIND=dp), PARAMETER :: evolt = joule/e_charge
 
@@ -225,7 +231,7 @@ CONTAINS
          "***             http://physics.nist.gov/constants"
 
       WRITE (UNIT=output_unit, FMT="(/,T2,A,T61,ES20.14)") &
-         "Speed of light in vacuum [m/s]", c_light
+         "Speed of light in vacuum (c) [m/s]", c_light
       WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
          "Magnetic constant or permeability of vacuum [N/A**2]", mu_perm
       WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
@@ -251,7 +257,7 @@ CONTAINS
       WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
          "Boltzmann constant [J/K]", boltzmann
       WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
-         "Atomic mass unit [kg]", a_mass
+         "Atomic mass unit (u) [kg]", a_mass
       WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
          "Bohr radius [m]", a_bohr
 
@@ -262,6 +268,7 @@ CONTAINS
 
       WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
          "[u] -> [a.u.]", massunit, &
+         "[c] -> [a.u.]", c_light_au, &
          "[Angstrom] -> [Bohr] = [a.u.]", bohr, &
          "[a.u.] = [Bohr] -> [Angstrom]", angstrom, &
          "[a.u.] -> [s]", seconds, &
@@ -274,6 +281,8 @@ CONTAINS
          "[a.u.] -> [Pa]", pascal, &
          "[a.u.] -> [bar]", bar, &
          "[a.u.] -> [atm]", atm, &
+         "[a.u.] -> [m/s]", ms, &
+         "[a.u.] -> [Angstrom/fs]", angfs, &
          "[a.u.] -> [eV]", evolt, &
          "[a.u.] -> [Hz]", hertz, &
          "[a.u.] -> [1/cm] (wave numbers)", wavenumbers, &
