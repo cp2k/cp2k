@@ -12,6 +12,7 @@
 !> \author Frederick Stein
 ! **************************************************************************************************
 MODULE xc_util
+   USE mathconstants, ONLY: gaussi
    USE pw_methods, ONLY: pw_axpy, &
                          pw_copy, &
                          pw_derive, &
@@ -125,11 +126,20 @@ CONTAINS
       TYPE(pw_r3d_rs_type), DIMENSION(3), INTENT(INOUT)         :: gradient
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id
 
-      INTEGER                                            :: idir
+      INTEGER                                            :: idir, ig
 
       DO idir = 1, 3
          CALL pw_zero(gradient(idir))
-         CALL xc_pw_derive(pw_r, tmp_g, gradient(idir), idir, xc_deriv_method_id, pw_g=pw_g)
+         IF (xc_deriv_method_id == xc_deriv_pw .AND. ASSOCIATED(pw_g%pw_grid, tmp_g%pw_grid)) THEN
+!$OMP PARALLEL DO IF(SIZE(pw_g%array) >= 8192) DEFAULT(NONE) SHARED(pw_g,tmp_g,idir) SCHEDULE(STATIC)
+            DO ig = 1, SIZE(pw_g%array)
+               tmp_g%array(ig) = gaussi*(pw_g%array(ig)*pw_g%pw_grid%g(idir, ig))
+            END DO
+!$OMP END PARALLEL DO
+            CALL pw_transfer(tmp_g, gradient(idir))
+         ELSE
+            CALL xc_pw_derive(pw_r, tmp_g, gradient(idir), idir, xc_deriv_method_id, pw_g=pw_g)
+         END IF
       END DO
 
    END SUBROUTINE xc_pw_gradient
@@ -206,7 +216,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_divergence'
 
-      INTEGER                                            :: handle, idir
+      INTEGER                                            :: handle, idir, ig
 
       CALL timeset(routineN, handle)
 
@@ -218,8 +228,18 @@ CONTAINS
       IF (ASSOCIATED(vxc_g%pw_grid)) CALL pw_zero(vxc_g)
 
       DO idir = 1, 3
-         CALL xc_pw_derive(pw_to_deriv(idir), tmp_g, vxc_r, idir, xc_deriv_method_id, copy_to_vxcr=.FALSE.)
-         IF (ASSOCIATED(tmp_g%pw_grid) .AND. ASSOCIATED(vxc_g%pw_grid)) CALL pw_axpy(tmp_g, vxc_g)
+         IF (xc_deriv_method_id == xc_deriv_pw .AND. ASSOCIATED(tmp_g%pw_grid, vxc_g%pw_grid)) THEN
+            CALL pw_transfer(pw_to_deriv(idir), tmp_g)
+!$OMP PARALLEL DO IF(SIZE(tmp_g%array) >= 8192) DEFAULT(NONE) SHARED(tmp_g,vxc_g,idir) SCHEDULE(STATIC)
+            DO ig = 1, SIZE(tmp_g%array)
+               tmp_g%array(ig) = gaussi*(tmp_g%array(ig)*tmp_g%pw_grid%g(idir, ig))
+               vxc_g%array(ig) = vxc_g%array(ig) + tmp_g%array(ig)
+            END DO
+!$OMP END PARALLEL DO
+         ELSE
+            CALL xc_pw_derive(pw_to_deriv(idir), tmp_g, vxc_r, idir, xc_deriv_method_id, copy_to_vxcr=.FALSE.)
+            IF (ASSOCIATED(tmp_g%pw_grid) .AND. ASSOCIATED(vxc_g%pw_grid)) CALL pw_axpy(tmp_g, vxc_g)
+         END IF
       END DO
 
       IF (ASSOCIATED(vxc_g%pw_grid)) THEN
