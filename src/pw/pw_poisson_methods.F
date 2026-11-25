@@ -1198,10 +1198,13 @@ CONTAINS
                ! The Maxwell K**2 identity holds for K=4*pi/G**2.
                ! For MT2D use -1/2 rho_aux* rho dK/dstrain instead. The PW
                ! integral supplies volume, reciprocal multiplicity and MPI sum.
+!$OMP PARALLEL DO IF(grid%ngpts_cut_local >= 8192) DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(grid,iz,poisson_env,weighted_g,rho_g,alpha,beta) PRIVATE(kernel,strain)
                DO ig = 1, grid%ngpts_cut_local
                   CALL mt2d_kernel_strain(grid%g(:, ig), iz, poisson_env%green_fft%slab_size, kernel, strain)
                   weighted_g%array(ig) = rho_g%array(ig)*strain(alpha, beta)
                END DO
+!$OMP END PARALLEL DO
                IF (PRESENT(aux_density)) THEN
                   h_stress(alpha, beta) = h_stress(alpha, beta) &
                                           - 0.5_dp*pw_integral_ab(rho_aux_g, weighted_g)

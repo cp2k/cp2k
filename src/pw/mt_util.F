@@ -9,7 +9,8 @@
 MODULE mt_util
    USE bibliography,                    ONLY: Martyna1999,&
                                               cite_reference
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE mathconstants,                   ONLY: fourpi,&
                                               oorootpi,&
                                               pi
@@ -152,17 +153,22 @@ CONTAINS
          ! Get rid of the analytical FT of the erf(a*r)/r
          !
          alpha2 = alpha*alpha
+!$OMP PARALLEL DO IF(screen_function%pw_grid%ngpts_cut_local >= 8192) DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(screen_function,alpha2) PRIVATE(g2,g3d)
          DO ig = screen_function%pw_grid%first_gne0, screen_function%pw_grid%ngpts_cut_local
             g2 = screen_function%pw_grid%gsq(ig)
             g3d = fourpi/g2
             screen_function%array(ig) = screen_function%array(ig) - g3d*EXP(-g2/(4.0E0_dp*alpha2))
          END DO
+!$OMP END PARALLEL DO
          IF (screen_function%pw_grid%have_g0) THEN
             screen_function%array(1) = screen_function%array(1) + fourpi/(4.0E0_dp*alpha2)
          END IF
       CASE (MT2D)
          iz = special_dimension ! iz is the direction with NO PBC
          zlength = slab_size ! zlength is the thickness of the cell
+!$OMP PARALLEL DO IF(screen_function%pw_grid%ngpts_cut_local >= 8192) DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(screen_function,iz,zlength) PRIVATE(gz,g2,gxy,g3d)
          DO ig = screen_function%pw_grid%first_gne0, screen_function%pw_grid%ngpts_cut_local
             gz = screen_function%pw_grid%g(iz, ig)
             g2 = screen_function%pw_grid%gsq(ig)
@@ -170,6 +176,7 @@ CONTAINS
             g3d = fourpi/g2
             screen_function%array(ig) = -g3d*COS(gz*zlength/2.0_dp)*EXP(-gxy*zlength/2.0_dp)
          END DO
+!$OMP END PARALLEL DO
          IF (screen_function%pw_grid%have_g0) screen_function%array(1) = pi*zlength*zlength/2.0_dp
       CASE (MT1D)
          iz = special_dimension ! iz is the direction with PBC
@@ -194,7 +201,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mt0din'
 
-      INTEGER                                            :: handle, i, ii, j, jj, k, kk
+      INTEGER                                            :: handle, i, j, k
       INTEGER, DIMENSION(:), POINTER                     :: glb
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
       REAL(KIND=dp)                                      :: dx, dy, dz, fact, omega, r, r2, x, y, &
@@ -215,30 +222,27 @@ CONTAINS
       dx = grid%dr(1)
       dy = grid%dr(2)
       dz = grid%dr(3)
-      kk = bo(1, 3)
+!$OMP PARALLEL DO IF(SIZE(Vloc%array,KIND=int_8) >= 8192) DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(Vloc,bo,glb,dx,dy,dz,box,box2,alpha,fact) PRIVATE(j,i,x,y,z,y2,z2,r,r2)
       DO k = bo(1, 3), bo(2, 3)
          z = REAL(k - glb(3), dp)*dz; IF (z > box2(3)) z = box(3) - z
          z2 = z*z
-         jj = bo(1, 2)
          DO j = bo(1, 2), bo(2, 2)
             y = REAL(j - glb(2), dp)*dy; IF (y > box2(2)) y = box(2) - y
             y2 = y*y
-            ii = bo(1, 1)
             DO i = bo(1, 1), bo(2, 1)
                x = REAL(i - glb(1), dp)*dx; IF (x > box2(1)) x = box(1) - x
                r2 = x*x + y2 + z2
                r = SQRT(r2)
                IF (r > 1.0E-10_dp) THEN
-                  Vloc%array(ii, jj, kk) = erf(alpha*r)/r*fact
+                  Vloc%array(i, j, k) = erf(alpha*r)/r*fact
                ELSE
-                  Vloc%array(ii, jj, kk) = 2.0_dp*alpha*oorootpi*fact
+                  Vloc%array(i, j, k) = 2.0_dp*alpha*oorootpi*fact
                END IF
-               ii = ii + 1
             END DO
-            jj = jj + 1
          END DO
-         kk = kk + 1
       END DO
+!$OMP END PARALLEL DO
       CALL timestop(handle)
    END SUBROUTINE Mt0din
 
