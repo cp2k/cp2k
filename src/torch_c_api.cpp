@@ -1409,7 +1409,7 @@ void torch_c_tensor_hessian_vector(const torch_c_tensor_t *tensor,
         count > 0 && tensor->numel() == 1,
         "Hessian-vector evaluation requires a scalar and input tensors");
     std::vector<torch::Tensor> variables;
-    std::vector<torch::Tensor> active_variables;
+    std::vector<int> active_indices;
     std::vector<torch::Tensor> active_directions;
     for (int i = 0; i < count; i++) {
       TORCH_CHECK(inputs[i]->requires_grad() &&
@@ -1419,26 +1419,32 @@ void torch_c_tensor_hessian_vector(const torch_c_tensor_t *tensor,
                   "shapes and devices");
       variables.push_back(*inputs[i]);
       if (directions[i]->count_nonzero().item<int64_t>() != 0) {
-        active_variables.push_back(*inputs[i]);
+        active_indices.push_back(i);
         active_directions.push_back(directions[i]->detach());
       }
     }
-    std::vector<torch::Tensor> first(active_variables.size());
-    if (tensor->requires_grad() && !active_variables.empty()) {
-      first = torch::autograd::grad({*tensor}, active_variables, {}, true, true,
-                                    true);
-    }
-    torch::Tensor contraction;
-    for (size_t i = 0; i < first.size(); i++) {
-      if (first[i].defined() && first[i].requires_grad()) {
-        auto term = (first[i] * active_directions[i]).sum();
-        contraction = contraction.defined() ? contraction + term : term;
-      }
-    }
+    // Accumulate the Hessian-vector product one input at a time.  This keeps at
+    // most one first-order (create_graph) result alive instead of holding the
+    // first-order gradients for every input simultaneously, lowering peak
+    // memory for the full-grid response at the cost of one backward per input.
     std::vector<torch::Tensor> second(count);
-    if (contraction.defined()) {
-      second = torch::autograd::grad({contraction}, variables, {}, false, false,
-                                     true);
+    if (tensor->requires_grad()) {
+      for (size_t a = 0; a < active_indices.size(); ++a) {
+        std::vector<torch::Tensor> first = torch::autograd::grad(
+            {*tensor}, {variables[active_indices[a]]}, {}, true, true, true);
+        if (first.empty() || !first[0].defined() || !first[0].requires_grad())
+          continue;
+        auto term = (first[0] * active_directions[a]).sum();
+        std::vector<torch::Tensor> partial =
+            torch::autograd::grad({term}, variables, {}, true, false, true);
+        term = torch::Tensor();
+        first.clear();
+        for (int j = 0; j < count; j++) {
+          if (partial[j].defined())
+            second[j] =
+                second[j].defined() ? second[j] + partial[j] : partial[j];
+        }
+      }
     }
     for (int i = 0; i < count; i++) {
       auto response = second[i].defined() ? second[i].detach()
