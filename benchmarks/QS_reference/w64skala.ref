@@ -1,0 +1,202 @@
+ DBCSR| CPU Multiplication driver                                           BLAS (U)
+ DBCSR| Multrec recursion limit                                              512 (U)
+ DBCSR| Multiplication stack size                                           1000 (D)
+ DBCSR| Maximum elements for images                                    UNLIMITED (U)
+ DBCSR| Multiplicative factor virtual images                                   1 (U)
+ DBCSR| Use multiplication densification                                       T (D)
+ DBCSR| Multiplication size stacks                                             3 (U)
+ DBCSR| Use memory pool for CPU allocation                                     F (U)
+ DBCSR| Number of 3D layers                                               SINGLE (U)
+ DBCSR| Use MPI memory allocation                                              F (U)
+ DBCSR| Use RMA algorithm                                                      F (U)
+ DBCSR| Use Communication thread                                               T (U)
+ DBCSR| Communication thread load                                             87 (D)
+ DBCSR| MPI: My process id                                                     0
+ DBCSR| MPI: Number of processes                                              32
+ DBCSR| OMP: Current number of threads                                         1
+ DBCSR| OMP: Max number of threads                                             1
+ DBCSR| Split modifier for TAS multiplication algorithm                  1.0E+00 (U)
+
+
+  **** **** ******  **  PROGRAM STARTED AT               2026-11-25 01:08:51.142
+ ***** ** ***  *** **   PROGRAM STARTED ON                                cn0647
+ **    ****   ******    PROGRAM STARTED BY                             <unknown>
+ ***** **    ** ** **   PROGRAM PROCESS ID                               1440021
+  **** **  *******  **  PROGRAM STARTED IN                                 /work
+
+ CP2K| version string:                 CP2K version 2026.2 (Development Version)
+ CP2K| source code revision number:                                      70363bb
+ CP2K| cp2kflags: omp libint fftw3 libxc libxc_gpu gauxc gauxc_mpi gauxc_onedft 
+ CP2K|            gauxc_onedft_gradients gauxc_host skala parallel scalapack mpi
+ CP2K|            i_f08 spglib openblas libdftd4 s_dftd3 mctc-lib tblite sirius
+ CP2K|             libtorch hdf5 libwignernj
+ CP2K| is freely available from                            https://www.cp2k.org/
+ CP2K| Program compiled at                                   2026-10-21 15:48:28
+ CP2K| Program compiled on                                                      
+ CP2K| Program compiled with                                  GCC version 15.3.0
+ CP2K| Program compiled for                                               x86_64
+ CP2K| Data directory path                               /opt/cp2k/src/cp2k/data
+ CP2K| Input file name                                              w64skala.inp
+
+ GLOBAL| Force Environment number                                              1
+ GLOBAL| Basis set file name                                    BASIS_MOLOPT_UZH
+ GLOBAL| Potential file name                                       POTENTIAL_UZH
+ GLOBAL| MM Potential file name                                     MM_POTENTIAL
+ GLOBAL| Coordinate file name                                           geom.xyz
+ GLOBAL| Method name                                                        CP2K
+ GLOBAL| Project name                                                     H2O-64
+ GLOBAL| Run type                                                             MD
+ GLOBAL| FFT library                                                       FFTW3
+ GLOBAL| Diagonalization library                                       ScaLAPACK
+ GLOBAL| Cholesky decomposition library                                ScaLAPACK
+ GLOBAL| DGEMM library                                                      BLAS
+ GLOBAL| Direct generalized diagonalization requested                          F
+ GLOBAL| Orthonormality check for eigenvectors                          DISABLED
+ GLOBAL| Matrix multiplication library                                 ScaLAPACK
+ GLOBAL| All-to-all communication in single precision                          F
+ GLOBAL| Grid backend                                                       AUTO
+ GLOBAL| Global print level                                                  LOW
+ GLOBAL| MPI I/O enabled                                                       T
+ GLOBAL| Total number of message passing processes                            32
+ GLOBAL| Number of distributed systems (nodes)                                 1
+ GLOBAL| Number of threads for this process                                    1
+ GLOBAL| This output is from process                                           0
+ GLOBAL| OpenMP stack size per thread (OMP_STACKSIZE)                       512M
+ GLOBAL| CPU model name                          AMD EPYC 9655 96-Core Processor
+
+ MEMORY| system memory details [Kb]
+ MEMORY|                        rank 0           min           max       average
+ MEMORY| MemTotal            791033996     791033996     791033996     791033996
+ MEMORY| MemFree             746948640     746948640     746948640     746948640
+ MEMORY| Buffers                    24            24            24            24
+ MEMORY| Cached               10499960      10499960      10499960      10499960
+ MEMORY| Slab                  2206556       2206556       2206556       2206556
+ MEMORY| SReclaimable           801392        801392        801392        801392
+ MEMORY| MemLikelyFree       758250016     758250016     758250016     758250016
+
+
+ 
+ MD| ***************************************************************************
+ MD| Step number                                                              10
+ MD| Time [fs]                                                          5.000000
+ MD| Conserved quantity [hartree]                            -0.110226524870E+04
+ MD| ---------------------------------------------------------------------------
+ MD|                                          Instantaneous             Averages
+ MD| CPU time per MD step [s]                    257.267169           330.121639
+ MD| Energy drift per atom [K]          -0.128975841326E+01  -0.126617701599E+01
+ MD| Potential energy [hartree]         -0.110254639833E+04  -0.110254088443E+04
+ MD| Kinetic energy [hartree]            0.281149634496E+00   0.275645213698E+00
+ MD| Temperature [K]                             309.877581           303.810717
+ MD| ***************************************************************************
+ MD| Estimated peak process memory after this step [MiB]                    2286
+
+
+
+ -------------------------------------------------------------------------------
+ -                                                                             -
+ -                                GRID STATISTICS                              -
+ -                                                                             -
+ -------------------------------------------------------------------------------
+ LP    KERNEL             BACKEND                              COUNT     PERCENT
+ 4     collocate ortho    CPU                                 379095      14.76%
+ 4     integrate ortho    CPU                                 368268      14.34%
+ 2     collocate ortho    CPU                                 286554      11.16%
+ 5     integrate ortho    CPU                                 272784      10.62%
+ 3     integrate ortho    CPU                                 264173      10.29%
+ 3     collocate ortho    CPU                                 261957      10.20%
+ 5     collocate ortho    CPU                                 261957      10.20%
+ 2     integrate ortho    CPU                                 259855      10.12%
+ 6     integrate ortho    CPU                                 108413       4.22%
+ 6     collocate ortho    CPU                                  92541       3.60%
+ 7     integrate ortho    CPU                                   8611       0.34%
+ 0     collocate general  CPU                                   2112       0.08%
+ 1     integrate general  CPU                                   2112       0.08%
+ -------------------------------------------------------------------------------
+
+ -------------------------------------------------------------------------------
+ -                                                                             -
+ -                          OFFLOAD MEMPOOL STATISTICS                         -
+ -                                                                             -
+ -------------------------------------------------------------------------------
+ Memory consumption                Number of allocations  Used [MiB]  Size [MiB]
+ Host                                                 18          16  1793713086882
+ -------------------------------------------------------------------------------
+
+ MEMORY| Estimated peak process memory [MiB]                                2286
+
+ -------------------------------------------------------------------------------
+ -                                                                             -
+ -                         MESSAGE PASSING PERFORMANCE                         -
+ -                                                                             -
+ -------------------------------------------------------------------------------
+
+ ROUTINE             CALLS      AVE VOLUME [Bytes]
+ MP_Group                4
+ MP_Bcast             3279                   9073.
+ MP_Allreduce        13560                2350248.
+ MP_Sync                22
+ MP_Alltoall          4217                2701833.
+ MP_SendRecv         23312                  78128.
+ MP_ISendRecv        21948                  82912.
+ MP_Wait             42696
+ MP_comm_split          18
+ MP_ISend            18772                 202232.
+ MP_IRecv            18772                 202232.
+ -------------------------------------------------------------------------------
+
+
+
+
+ -------------------------------------------------------------------------------
+ -                                                                             -
+ -                                T I M I N G                                  -
+ -                                                                             -
+ -------------------------------------------------------------------------------
+ SUBROUTINE                       CALLS  ASD         SELF TIME        TOTAL TIME
+                                MAXIMUM       AVERAGE  MAXIMUM  AVERAGE  MAXIMUM
+ CP2K                                 1  1.0    0.050    0.052 3301.502 3301.502
+ qs_mol_dyn_low                       1  2.0    0.011    0.011 3301.231 3301.237
+ qs_forces                           11  3.9    0.002    0.002 3301.170 3301.173
+ rebuild_ks_matrix                  118  8.5    0.000    0.000 3263.042 3263.061
+ qs_ks_build_kohn_sham_matrix       118  9.5    0.023    0.025 3263.042 3263.061
+ calculate_vxc_atom                 118 10.5 2737.156 2934.240 3218.927 3219.036
+ velocity_verlet                     10  3.0    0.004    0.004 2670.086 2670.087
+ qs_energies                         11  4.9    0.009    0.009 2659.325 2659.325
+ scf_env_do_scf                      11  5.9    0.001    0.003 2654.900 2654.900
+ qs_ks_update_qs_env                120  7.8    0.001    0.001 2622.004 2622.020
+ scf_env_do_scf_inner_loop          107  6.8    0.004    0.011 2335.568 2335.568
+ qs_ks_update_qs_env_forces          11  4.9    0.000    0.000  641.076  641.080
+ mp_sum_d                          5177 11.4  199.682  480.878  199.682  480.878
+ init_scf_loop                       13  6.8    0.002    0.002  319.323  319.324
+ skala_atom_torch_backward          118 11.5  131.086  141.233  131.086  141.233
+ skala_atom_torch_forward           118 11.5    0.006    0.008   70.588   75.924
+ torch_model_forward_mol_tensor     118 12.5   70.582   75.918   70.582   75.918
+ mp_sum_dm                          740  7.2   29.515   56.731   29.515   56.731
+ mp_sum_dm3                         708 11.5   45.458   46.540   45.458   46.540
+ sum_up_and_integrate               118 10.5    0.004    0.005   42.180   42.191
+ integrate_v_rspace                 236 11.5    0.005    0.005   42.133   42.147
+ grid_integrate_task_list           236 12.5   36.297   37.150   36.297   37.150
+ qs_rho_update_rho_low              118  7.9    0.001    0.001   32.801   32.802
+ calculate_rho_elec                 236  8.9    0.051    0.055   32.800   32.801
+ grid_collocate_task_list           236  9.9   26.919   27.823   26.919   27.823
+ fft_wrap_pw1pw2                   3079 12.2    0.029    0.032    8.658    8.778
+ fft_wrap_pw1pw2_200               1663 13.2    0.573    0.762    8.006    8.154
+ fft3d_ps                          3079 14.2    3.906    4.533    6.797    7.234
+ density_rs2pw                      236  9.9    0.006    0.007    5.568    6.639
+ potential_pw2rs                    236 12.5    0.009    0.009    4.625    4.644
+ xc_pw_derive                       708 12.0    0.003    0.004    4.183    4.316
+ transfer_rs2pw                     955 10.9    0.008    0.009    2.850    4.072
+ mp_alltoall_z22v                  3079 16.2    2.210    3.852    2.210    3.852
+ init_scf_run                        11  5.9    0.002    0.002    3.373    3.373
+ scf_env_initial_rho_setup           11  6.9    0.000    0.001    3.371    3.371
+ mp_waitany                       18772 14.1    2.058    3.304    2.058    3.304
+ -------------------------------------------------------------------------------
+
+ The number of warnings for this run is : 1
+ 
+ -------------------------------------------------------------------------------
+  **** **** ******  **  PROGRAM ENDED AT                 2026-11-25 02:03:55.449
+ ***** ** ***  *** **   PROGRAM RAN ON                                    cn0647
+ **    ****   ******    PROGRAM RAN BY                                 <unknown>
+ ***** **    ** ** **   PROGRAM PROCESS ID                               1440021
+  **** **  *******  **  PROGRAM STOPPED IN                                 /work
