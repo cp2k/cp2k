@@ -40,7 +40,6 @@ FLAG_EXCEPTIONS = (
     r"M_",
     r"XC_MAJOR_VERSION",
     r"XC_MINOR_VERSION",
-    r"NDEBUG",
     r"M_PI",
     r"FTN_NO_DEFAULT_INIT",
     r"_OPENMP",
@@ -50,7 +49,6 @@ FLAG_EXCEPTIONS = (
     r"__COMPILE_REVISION",
     r"__CRAY_PM_FAKE_ENERGY",
     r"__DATA_DIR",
-    r"__FORCE_USE_FAST_MATH",
     r"__INTEL_LLVM_COMPILER",
     r"__INTEL_COMPILER",
     r"OFFLOAD_BUFFER_MEMPOOL",
@@ -347,6 +345,9 @@ def check_file(path: pathlib.Path) -> List[str]:
         if flag == "_OMP_H" and fn_ext == ".cu":
             continue
         if flag == "FLEXIBLE" and fn_ext == ".top":  # GROMACS top file
+            continue
+        if flag == "NDEBUG":
+            warnings += [f"{path}: Flag '{flag}' is not allowed"]
             continue
         if flag not in get_src_cmakelists_txt():
             warnings += [
