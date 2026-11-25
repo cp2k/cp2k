@@ -98,7 +98,7 @@ __launch_bounds__(64) void calculate_coefficients(const kernel_params dev_) {
       continue;
     fill_smem_task_coef(dev_, task_id, task);
 
-    T *__restrict__ coef_ = task_coefficients(dev_, dev_.tasks[task_id]);
+    T *__restrict__ coef_ = &dev_.buffers_dev.coef[dev_.coef_offsets[task_id]];
 
     for (int z = tid; z < task.n1 * task.n2;
          z += blockDim.x * blockDim.y * blockDim.z)
@@ -147,7 +147,7 @@ __global__ __launch_bounds__(64) void calculate_coefficients_two_steps(
       continue;
     fill_smem_task_coef(dev_, task_id, task);
 
-    T *__restrict__ coef_ = task_coefficients(dev_, dev_.tasks[task_id]);
+    T *__restrict__ coef_ = &dev_.buffers_dev.coef[dev_.coef_offsets[task_id]];
 
     for (int z = tid; z < task.n1 * task.n2; z += nthreads)
       smem_cab[z] = 0.0;
@@ -265,7 +265,8 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
   // the gaussian along x and y is tabulated
   constexpr bool tables_ = axis_aligned_ && !chunked_;
 
-  const task_info &glb_task = dev_.tasks[dev_.first_task + block_index()];
+  const int task_id = dev_.first_task + block_index();
+  const task_info &glb_task = dev_.tasks[task_id];
   if (sep_skip_task<chunked_>(glb_task, mc))
     return;
 
@@ -280,7 +281,7 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
   double *E = C + ncoset(lp_max); // [erows][ls]
 
   __shared__ smem_task_reduced<double, double3> task;
-  fill_smem_task_reduced(dev_, dev_.first_task + block_index(), task);
+  fill_smem_task_reduced(dev_, task_id, task);
   if (tid == 0) {
     setup_task_cube_center<double, double3, distributed__>(dev_, task);
   }
@@ -292,7 +293,8 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
   const double r2max = task.radius * task.radius;
   const bool trim = orthogonal_ && !task.apply_border_mask;
 
-  const double *__restrict__ coef = task_coefficients(dev_, glb_task);
+  const double *__restrict__ coef =
+      &dev_.buffers_dev.coef[dev_.coef_offsets[task_id]];
 
   // coefficients, cartesian or in lattice monomials
   for (int i = tid; i < ncoef; i += 64) {
@@ -492,6 +494,7 @@ void context_info::calculate_all_coefficients(const enum grid_func func,
 
   *lp_diff = smem_params.lp_diff();
   init_constant_memory();
+  prepare_coef_workspace(smem_params.lp_diff());
   prepare_cab_workspace(ldiffs.la_max_diff, ldiffs.lb_max_diff);
 
   // kernel parameters

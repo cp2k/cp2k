@@ -33,9 +33,6 @@ extern "C" {
 #include "../../offload/offload_runtime.h"
 
 namespace grid_gpu_backend {
-// Largest combined angular momentum covered by ncoset and coset_inv.
-constexpr int grid_gpu_max_l = 18;
-
 // a little helper class in the same spirit than std::vector. it must exist
 // somewhere. Maybe possible to get the same thing with std::vector and
 // specific allocator.
@@ -438,7 +435,6 @@ struct task_info {
   double rab2;
   double zeta, zetb, zetp, prefactor, off_diag_twice;
   double rab[3];
-  int coef_index{0}; // ordinal within tasks with the same la_max + lb_max
   int la_max, lb_max, la_min, lb_min, first_coseta, first_cosetb, ncoseta,
       ncosetb, nsgfa, nsgfb, nsgf_seta, nsgf_setb, maxcoa, maxcob;
   int sgfa, sgfb, subblock_offset;
@@ -490,8 +486,7 @@ struct kernel_params {
   char lb_max_diff{0};
   enum grid_func func;
   kernel_buffers buffers_dev;
-  size_t coef_start[grid_gpu_max_l + 1]{};
-  int coef_stride[grid_gpu_max_l + 1]{};
+  const size_t *coef_offsets{nullptr};
   double **sphi_dev{nullptr};
   int ntasks{0};
   int *task_sorted_by_blocks_dev{nullptr};
@@ -526,6 +521,9 @@ public:
   gpu_vector<int> block_offsets_dev;
   gpu_vector<int> cab_block_offset_dev;
   gpu_vector<double> coef_dev_;
+  gpu_vector<size_t> coef_offsets_dev_;
+  std::vector<int> task_lp_; // basis angular momentum la_max + lb_max per task
+  int coef_lp_diff_{-1};
   gpu_vector<double> cab_dev_;
   // largest basis set la_max / lb_max of the tasks of each block (-1 for an
   // empty block), used to size the cab workspace of each block
@@ -575,6 +573,8 @@ public:
         block_offsets_dev{std::move(other.block_offsets_dev)},
         cab_block_offset_dev{std::move(other.cab_block_offset_dev)},
         coef_dev_{std::move(other.coef_dev_)},
+        coef_offsets_dev_{std::move(other.coef_offsets_dev_)},
+        task_lp_{std::move(other.task_lp_)}, coef_lp_diff_{other.coef_lp_diff_},
         cab_dev_{std::move(other.cab_dev_)},
         block_la_max_{std::move(other.block_la_max_)},
         block_lb_max_{std::move(other.block_lb_max_)},
@@ -647,6 +647,9 @@ public:
       block_offsets_dev = std::move(other.block_offsets_dev);
       cab_block_offset_dev = std::move(other.cab_block_offset_dev);
       coef_dev_ = std::move(other.coef_dev_);
+      coef_offsets_dev_ = std::move(other.coef_offsets_dev_);
+      task_lp_ = std::move(other.task_lp_);
+      coef_lp_diff_ = other.coef_lp_diff_;
       cab_dev_ = std::move(other.cab_dev_);
       block_la_max_ = std::move(other.block_la_max_);
       block_lb_max_ = std::move(other.block_lb_max_);
@@ -702,6 +705,9 @@ public:
     block_offsets_dev.reset();
     cab_block_offset_dev.reset();
     coef_dev_.reset();
+    coef_offsets_dev_.reset();
+    task_lp_.clear();
+    coef_lp_diff_ = -1;
     cab_dev_.reset();
     block_la_max_.clear();
     block_lb_max_.clear();
@@ -821,6 +827,7 @@ public:
     }
   }
   void calculate_all_coefficients(const enum grid_func func, int *lp_diff);
+  void prepare_coef_workspace(const int lp_diff);
   void prepare_cab_workspace(const int la_max_diff, const int lb_max_diff);
 
 private:

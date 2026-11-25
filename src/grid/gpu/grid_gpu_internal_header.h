@@ -61,12 +61,9 @@ struct orbital {
 };
 static_assert(sizeof(orbital) == 3, "orbital is expected to be packed");
 
-__device__ inline double *task_coefficients(const kernel_params &params,
-                                            const task_info &task) {
-  const int lp = task.la_max + task.lb_max;
-  return params.buffers_dev.coef + params.coef_start[lp] +
-         static_cast<size_t>(task.coef_index) * params.coef_stride[lp];
-}
+// largest angular momentum covered by the tables of the backend (ncoset,
+// coset_inv). It bounds la + lb of every operation.
+constexpr int grid_gpu_max_l = 18;
 
 __constant__ orbital coset_inv[1330];
 

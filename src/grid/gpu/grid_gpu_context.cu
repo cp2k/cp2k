@@ -76,18 +76,7 @@ context_info::set_kernel_parameters(const int level,
     params.grid_border_width_ = grid_[level].border_width();
   }
 
-  // The operation is known here, unlike at task-list creation. smem_params
-  // already checked its maximum angular momentum against grid_gpu_max_l.
-  // Tasks with the same basis angular momentum can therefore share a stride.
-  size_t total = 0;
-  const int diff = smem_params.lp_diff();
-  for (int lp = 0; lp <= smem_params.lp_max() - diff; ++lp) {
-    const int stride = static_cast<int>(align_up_elems(ncoset(lp + diff), 4));
-    params.coef_start[lp] = total;
-    params.coef_stride[lp] = stride;
-    total += static_cast<size_t>(stride) * (stats[0][lp] + stats[1][lp]);
-  }
-  coef_dev_.resize(total);
+  params.coef_offsets = coef_offsets_dev_.data();
   params.buffers_dev.coef = coef_dev_.data();
   params.buffers_dev.hab_block = hab_block_.data();
   params.buffers_dev.virial = calculate_virial ? virial_.data() : nullptr;
@@ -98,6 +87,27 @@ context_info::set_kernel_parameters(const int level,
   params.cab_block_offset_dev = this->cab_block_offset_dev.data();
   params.sphi_dev = this->sphi_dev.data();
   return params;
+}
+
+/*******************************************************************************
+ * \brief Lay out the coefficient buffer in task-list order. Each task needs
+ *        ncoset(la_max + lb_max + lp_diff) entries aligned to four doubles.
+ ******************************************************************************/
+void context_info::prepare_coef_workspace(const int lp_diff) {
+  if (coef_lp_diff_ == lp_diff)
+    return;
+
+  size_t total = 0;
+  std::vector<size_t> offsets(ntasks);
+  for (int i = 0; i < ntasks; ++i) {
+    offsets[i] = total;
+    total += align_up_elems(ncoset(task_lp_[i] + lp_diff), 4);
+  }
+
+  coef_dev_.resize(total);
+  coef_offsets_dev_.resize(ntasks);
+  coef_offsets_dev_.copy_to_gpu(offsets);
+  coef_lp_diff_ = lp_diff;
 }
 
 /*******************************************************************************
@@ -219,6 +229,8 @@ extern "C" void grid_gpu_create_task_list(
 
   std::vector<grid_gpu_backend::task_info> tasks_host(ntasks);
 
+  ctx->task_lp_.resize(ntasks);
+  ctx->coef_lp_diff_ = -1;
   memset(ctx->stats, 0, sizeof(ctx->stats));
   int lmax_ = 0;
 
@@ -324,9 +336,9 @@ extern "C" void grid_gpu_create_task_list(
             ? (tasks_host[i].sgfa * tasks_host[i].nsgfb + tasks_host[i].sgfb)
             : (tasks_host[i].sgfb * tasks_host[i].nsgfa + tasks_host[i].sgfa);
 
-    const int lp = std::min(la_max_basis + lb_max_basis, 19);
-    tasks_host[i].coef_index = ctx->stats[0][lp] + ctx->stats[1][lp];
-    ctx->stats[tasks_host[i].border_mask != 0][lp]++;
+    ctx->task_lp_[i] = la_max_basis + lb_max_basis;
+    ctx->stats[tasks_host[i].border_mask != 0]
+              [std::min(ctx->task_lp_[i], 19)]++;
 
     auto &grid = ctx->grid_[tasks_host[i].level];
     // compute the cube properties
