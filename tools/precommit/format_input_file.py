@@ -9,6 +9,13 @@ from typing import List, Tuple, Iterator
 
 VERBATIM_SECTIONS = ["COORD", "TRAINING_SET"]
 
+# Indentation per section level
+INDENT = "  "
+
+# Comment defining the parent sections of an input file fragment, e.g. a file
+# included via @INCLUDE, like "# CP2K_SECTION_PATH: FORCE_EVAL/DFT"
+SECTION_PATH_RE = re.compile(r"^[#!]\s*CP2K_SECTION_PATH:\s*(\S+)", re.IGNORECASE)
+
 
 # ======================================================================================
 def separate_comment(line: str) -> Tuple[str, str]:
@@ -32,7 +39,7 @@ def format_line(line: str) -> str:
 def indent(lines: List[str]) -> List[str]:
     output = []
     for line in lines:
-        output.append(f"  {line}")
+        output.append(f"{INDENT}{line}")
     return output
 
 
@@ -157,6 +164,26 @@ def parse_children(lines_iter: Iterator[str]) -> List[Child]:
 
 
 # ======================================================================================
+def get_base_indent(lines: List[str]) -> str:
+    """Return the indentation of the top sections and keywords.
+
+    The indentation is given by one INDENT per parent section in the
+    CP2K_SECTION_PATH comment if present. Otherwise, the indentation of the first
+    non-comment line is kept, which is needed for input file fragments included
+    via @INCLUDE.
+    """
+    for line in lines:
+        m = SECTION_PATH_RE.match(line.strip())
+        if m:
+            return INDENT * len(m.group(1).strip("/").split("/"))
+    for line in lines:
+        body, _ = separate_comment(line)
+        if body:
+            return line[: len(line) - len(line.lstrip())].expandtabs()
+    return ""
+
+
+# ======================================================================================
 def main() -> None:
     if len(sys.argv) != 2:
         print("Usage: format_input_file.py <file>")
@@ -164,8 +191,9 @@ def main() -> None:
 
     # Parse input file.
     input_file = Path(sys.argv[1])
-    lines_iter = iter(input_file.read_text(encoding="utf8").split("\n"))
-    children = parse_children(lines_iter)
+    lines = input_file.read_text(encoding="utf8").split("\n")
+    base_indent = get_base_indent(lines)
+    children = parse_children(iter(lines))
 
     # Sort the top sections, but always put &GLOBAL first and &FORCE_EVAL last.
     if not any(isinstance(c, Preprocessor) for c in children):
@@ -178,6 +206,9 @@ def main() -> None:
         output += c.render(verbatim=False)
         if isinstance(c, Section):
             output.append("")  # Insert empty line after each top section.
+
+    # Indent everything according to the base indentation
+    output = [f"{base_indent}{line}" if line else line for line in output]
 
     # Write output back to file
     input_file.write_text("\n".join(output), encoding="utf8")

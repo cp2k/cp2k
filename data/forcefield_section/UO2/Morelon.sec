@@ -1,3 +1,4 @@
+    # CP2K_SECTION_PATH: FORCE_EVAL/MM
     # https://doi.org/10.1080/1478643031000091454
     # https://doi.org/10.1557/opl.2012.520
     # https://doi.org/10.1103/PhysRevB.85.184103
@@ -13,8 +14,8 @@
       &END CHARGE
       &NONBONDED
         &BUCK4RANGES
-          ATOMS O O
           A [eV] 11272.6
+          ATOMS O O
           B [Angstrom^-1] 1/0.1363
           C [eV*Angstrom^6] 134.0
           R1 [Angstrom] 1.2
@@ -25,15 +26,15 @@
           RCUT [Angstrom] 10.4
         &END BUCK4RANGES
         &WILLIAMS
-          ATOMS O U
           A [eV] 566.498
+          ATOMS O U
           B [Angstrom^-1] 1/0.42056
           C [eV*Angstrom^6] 0.0
           RCUT [Angstrom] 10.4
         &END WILLIAMS
         &WILLIAMS
-          ATOMS U U
           A [eV] 0.0
+          ATOMS U U
           B [Angstrom^-1] 0.0
           C [eV*Angstrom^6] 0.0
           RCUT [Angstrom] 10.4

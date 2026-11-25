@@ -3,6 +3,7 @@
   PROJECT quadratic-neon
   RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD QUICKSTEP
   &DFT
@@ -17,9 +18,9 @@
       POISSON_SOLVER MT
     &END POISSON
     &QS
-      METHOD GPW
       EPS_DEFAULT 1.0E-12
       EPS_PPNL 1.0E-14
+      METHOD GPW
     &END QS
     &SCF
       EPS_SCF 1.0E-9
@@ -36,13 +37,13 @@
   &END DFT
   &PROPERTIES
     &QUADRATIC_PSEUDOSPECTRUM ON
-      SOLVER ${QUADRATIC_SOLVER}
-      POSITION [angstrom] 3.0 3.0 3.0
       ENERGY [hartree] -0.1
+      EPS_EIGEN 1.0E-9
       KAPPA [hartree*bohr^-1] 0.1
       NSTATES 4
-      EPS_EIGEN 1.0E-9
+      POSITION [angstrom] 3.0 3.0 3.0
       SOC T
+      SOLVER ${QUADRATIC_SOLVER}
     &END QUADRATIC_PSEUDOSPECTRUM
   &END PROPERTIES
   &SUBSYS

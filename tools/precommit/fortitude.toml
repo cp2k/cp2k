@@ -1,69 +1,69 @@
 include = ["*.F", "*.f90", "*.F90"]
 
 [check]
-line-length = 132
+line-length   = 132
 force-exclude = true
 # CP2K forbids FORALL even though it is valid in Fortran 2008. OB071 needs
 # f2018 or later; the compiler separately enforces CP2K's language standard.
-target-std = "f2018"
+target-std    = "f2018"
 extend-select = [
-    "default-public-accessibility",
-    "multiple-modules",
-    "program-with-module",
-    "magic-io-unit",
+  "default-public-accessibility",
+  "multiple-modules",
+  "program-with-module",
+  "magic-io-unit",
 ]
 
 # Also see https://fortitude.readthedocs.io/en/stable/rules
 # Keep the AST STAT check: CP2K requires checking in the very next statement,
 # whereas C181 only checks that the status is checked in the same scope.
 ignore = [
-    "non-standard-file-extension",
-    "implicit-external-procedures", # requires Fortran 2018
-    "missing-intent",
-    "bad-quote-string",
-    "literal-kind",
-    "assumed-size",
-    "assumed-size-character-intent",
-    "interface-implicit-typing",
-    "missing-default-case",
-    "external-procedure",
-    "superfluous-save",
-    "bare-decimal", # leave numeric-literal formatting to prettify
-    "incorrect-keyword-case", # prettify also uses mixed-case names such as Null
-    "missing-intrinsic", # CP2K requires ONLY, not the INTRINSIC modifier
+  "non-standard-file-extension",
+  "implicit-external-procedures",  # requires Fortran 2018
+  "missing-intent",
+  "bad-quote-string",
+  "literal-kind",
+  "assumed-size",
+  "assumed-size-character-intent",
+  "interface-implicit-typing",
+  "missing-default-case",
+  "external-procedure",
+  "superfluous-save",
+  "bare-decimal",  # leave numeric-literal formatting to prettify
+  "incorrect-keyword-case",  # prettify also uses mixed-case names such as Null
+  "missing-intrinsic",  # CP2K requires ONLY, not the INTRINSIC modifier
 ]
 
 # ==============================================================================
 # The following files can not be parsed by Fortitude.
 # Usually because Fortran statements are inter-leafed with pre-processor macros.
 exclude = [
-    "local_gemm_api.F",
-    "ai_contraction_sphi.F",
-    "dbt_array_list_methods.F",
-    "cp_cfm_basic_linalg.F",
-    "cp_cfm_diag.F",
-    "cp_fm_basic_linalg.F",
-    "cp_fm_cholesky.F",
-    "cp_fm_diag.F",
-    "message_passing.F",
-    "cp_cfm_cholesky.F",
-    "pw_methods.F",
-    "xc_libxc_wrap.F",
-    "dbt_tas_util.F",
+  "local_gemm_api.F",
+  "ai_contraction_sphi.F",
+  "dbt_array_list_methods.F",
+  "cp_cfm_basic_linalg.F",
+  "cp_cfm_diag.F",
+  "cp_fm_basic_linalg.F",
+  "cp_fm_cholesky.F",
+  "cp_fm_diag.F",
+  "message_passing.F",
+  "cp_cfm_cholesky.F",
+  "pw_methods.F",
+  "xc_libxc_wrap.F",
+  "dbt_tas_util.F",
 ]
 
 # ==============================================================================
 [check.per-file-ignores]
 # These test drivers keep their private helper module in the same source file.
-"kubo_unittest.F" = ["program-with-module"]
+"kubo_unittest.F"               = ["program-with-module"]
 "spectral_localizer_unittest.F" = ["program-with-module"]
-"qs_local_properties.F" = ["unreachable-statement"]
-"semi_empirical_int_ana.F" = ["misleading-inline-if-semicolon"]
-"fftw3_lib.F" = ["misleading-inline-if-semicolon"]
-"eri_mme_lattice_summation.F" = ["trailing-whitespace"]
-"pilaenv_hack.F" = ["procedure-not-in-module"]
-"semi_empirical_int_debug.F" = ["procedure-not-in-module"]
-"dft_plus_u.F" = ["trailing-backslash"]
-"qs_linres_current.F" = ["trailing-backslash"]
+"qs_local_properties.F"         = ["unreachable-statement"]
+"semi_empirical_int_ana.F"      = ["misleading-inline-if-semicolon"]
+"fftw3_lib.F"                   = ["misleading-inline-if-semicolon"]
+"eri_mme_lattice_summation.F"   = ["trailing-whitespace"]
+"pilaenv_hack.F"                = ["procedure-not-in-module"]
+"semi_empirical_int_debug.F"    = ["procedure-not-in-module"]
+"dft_plus_u.F"                  = ["trailing-backslash"]
+"qs_linres_current.F"           = ["trailing-backslash"]
 
 #EOF

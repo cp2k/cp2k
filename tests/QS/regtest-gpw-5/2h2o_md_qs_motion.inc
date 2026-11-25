@@ -2,53 +2,53 @@
   &MD
     ENSEMBLE ${ENSEMBLE}
     STEPS ${STEPS}
-    TIMESTEP ${TIMESTEP}
     TEMPERATURE 150.0
-    &THERMOSTAT
-      REGION MASSIVE 
-      &NOSE
-        LENGTH 6
-        YOSHIDA 3
-        TIMECON  [wavenumber_t] 2300
-        MTS 2
-      &END NOSE
-    &END
+    TIMESTEP ${TIMESTEP}
     &PRINT ON
       &ENERGY
+        FILENAME =${BASE_NAME}-${ID}.ener
         &EACH
           MD 1
         &END EACH
-        FILENAME =${BASE_NAME}-${ID}.ener
       &END ENERGY
     &END PRINT
+    &THERMOSTAT
+      REGION MASSIVE
+      &NOSE
+        LENGTH 6
+        MTS 2
+        TIMECON [wavenumber_t] 2300
+        YOSHIDA 3
+      &END NOSE
+    &END THERMOSTAT
   &END MD
   &PRINT
-    &TRAJECTORY ON
-      &EACH
-        MD 2
-      &END EACH
-      FILENAME =${BASE_NAME}-${ID}.xyz 
-      FORMAT XYZ
-    &END TRAJECTORY
-    &VELOCITIES OFF
-      &EACH
-        MD 2
-      &END EACH
-      FILENAME =${BASE_NAME}-${ID}_vel.xyz 
-      FORMAT XYZ
-    &END VELOCITIES
     &FORCES OFF
+      FILENAME =${BASE_NAME}-${ID}_force.xyz
+      FORMAT XYZ
       &EACH
         MD 2
       &END EACH
-      FILENAME =${BASE_NAME}-${ID}_force.xyz 
-      FORMAT XYZ
     &END FORCES
     &RESTART ON
+      FILENAME =${BASE_NAME}-${ID}.restart
       &EACH
         MD 1000
       &END EACH
-      FILENAME =${BASE_NAME}-${ID}.restart 
     &END RESTART
+    &TRAJECTORY ON
+      FILENAME =${BASE_NAME}-${ID}.xyz
+      FORMAT XYZ
+      &EACH
+        MD 2
+      &END EACH
+    &END TRAJECTORY
+    &VELOCITIES OFF
+      FILENAME =${BASE_NAME}-${ID}_vel.xyz
+      FORMAT XYZ
+      &EACH
+        MD 2
+      &END EACH
+    &END VELOCITIES
   &END PRINT
 &END MOTION

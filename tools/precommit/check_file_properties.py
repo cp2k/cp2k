@@ -40,7 +40,6 @@ FLAG_EXCEPTIONS = (
     r"M_",
     r"XC_MAJOR_VERSION",
     r"XC_MINOR_VERSION",
-    r"NDEBUG",
     r"M_PI",
     r"FTN_NO_DEFAULT_INIT",
     r"_OPENMP",
@@ -50,7 +49,6 @@ FLAG_EXCEPTIONS = (
     r"__COMPILE_REVISION",
     r"__CRAY_PM_FAKE_ENERGY",
     r"__DATA_DIR",
-    r"__FORCE_USE_FAST_MATH",
     r"__INTEL_LLVM_COMPILER",
     r"__INTEL_COMPILER",
     r"OFFLOAD_BUFFER_MEMPOOL",
@@ -237,6 +235,15 @@ def check_file(path: pathlib.Path) -> List[str]:
     ):
         warnings += [f"{path}: contains tab character"]
 
+    # An xyz file for chemical structure starts with an integer number
+    # of atoms on the first line, whether single- or multi-framed.
+    if fn_ext == ".xyz":
+        first_line = content.split("\n")[0]
+        if not re.match(r"^\s*\d+$", first_line):
+            warnings += [
+                f"{path}: XYZ file does not start with number of atoms on first line"
+            ]
+
     if fn_ext == ".cu" and "#if defined(_OMP_H)\n#error" not in content:
         warnings += [f"{path}: misses check against OpenMP usage"]
 
@@ -338,6 +345,9 @@ def check_file(path: pathlib.Path) -> List[str]:
         if flag == "_OMP_H" and fn_ext == ".cu":
             continue
         if flag == "FLEXIBLE" and fn_ext == ".top":  # GROMACS top file
+            continue
+        if flag == "NDEBUG":
+            warnings += [f"{path}: Flag '{flag}' is not allowed"]
             continue
         if flag not in get_src_cmakelists_txt():
             warnings += [

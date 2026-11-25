@@ -1,23 +1,24 @@
-# vdW-DF-cx: K. Berland and P. Hyldgaard, Exchange functional that tests
-# the robustness of the plasmon descripion of the van der Waals density
-# functional, Physical Review B 89, 035412 (2014).
-#
-# CUTOFF should be optimised for accuracy and efficiency
-#
+    # CP2K_SECTION_PATH: FORCE_EVAL/DFT
+    # vdW-DF-cx: K. Berland and P. Hyldgaard, Exchange functional that tests
+    # the robustness of the plasmon descripion of the van der Waals density
+    # functional, Physical Review B 89, 035412 (2014).
+    #
+    # CUTOFF should be optimised for accuracy and efficiency
+    #
     &XC
+      &VDW_POTENTIAL
+        DISPERSION_FUNCTIONAL NON_LOCAL
+        &NON_LOCAL
+          CUTOFF 50
+          KERNEL_FILE_NAME vdW_kernel_table.dat
+          TYPE DRSLL
+          VERBOSE_OUTPUT
+        &END NON_LOCAL
+      &END VDW_POTENTIAL
       &XC_FUNCTIONAL
         &GGA_X_LV_RPW86
         &END GGA_X_LV_RPW86
         &PW92
         &END PW92
       &END XC_FUNCTIONAL
-      &vdW_POTENTIAL
-         DISPERSION_FUNCTIONAL NON_LOCAL
-         &NON_LOCAL
-           TYPE DRSLL
-           VERBOSE_OUTPUT
-           KERNEL_FILE_NAME vdW_kernel_table.dat
-           CUTOFF 50
-         &END NON_LOCAL
-      &END vdW_POTENTIAL
     &END XC

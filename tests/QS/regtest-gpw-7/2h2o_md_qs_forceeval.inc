@@ -1,119 +1,114 @@
 &FORCE_EVAL
   METHOD ${METHOD}
-   &DFT
+  &DFT
     BASIS_SET_FILE_NAME ${PATH_BASIS}
     POTENTIAL_FILE_NAME ${PATH_POTENTIAL}
-   CHARGE  0 
-   &MGRID
-     COMMENSURATE
-     CUTOFF 280
-   &END MGRID
-   &SCF
-     MAX_SCF            20
-     EPS_SCF            ${EPS_SCF}
-     SCF_GUESS          ${SCF_GUESS} 
-     &OUTER_SCF
-       EPS_SCF            5.0E-7
-       MAX_SCF            20
-     &END OUTER_SCF
-     &OT T
-       PRECONDITIONER FULL_ALL
-       #MINIMIZER        CG
-       #LINESEARCH       3PNT
-       #LINESEARCH       GOLD
-       MINIMIZER        DIIS
-       N_DIIS           7
-       #ROTATION
-     &END OT
-     &PRINT SILENT
-       &PROGRAM_RUN_INFO SILENT
-       &END PROGRAM_RUN_INFO
-     &END PRINT
-   &END SCF
-   &QS
-     EPS_DEFAULT         1.0E-12
-     EXTRAPOLATION       PS
-     EXTRAPOLATION_ORDER 3
-   &END QS
-   &XC
-     &XC_GRID
-       XC_SMOOTH_RHO NN10
-       XC_DERIV      SPLINE2_SMOOTH
-     &END XC_GRID
-     &XC_FUNCTIONAL ${DFT} 
-     &END XC_FUNCTIONAL
-     &VDW_POTENTIAL
-       DISPERSION_FUNCTIONAL PAIR_POTENTIAL
-       &PAIR_POTENTIAL
-         TYPE DFTD2
-         REFERENCE_FUNCTIONAL ${DFT}
-       &END PAIR_POTENTIAL
-     &END VDW_POTENTIAL
-   &END XC
-   &POISSON
-    POISSON_SOLVER MT
-    &MT
-     ALPHA 7.0
-     REL_CUTOFF 2.0
-    &END
-   PERIODIC NONE   
-   &END POISSON
-   @IF ${WAN}==T
-   &LOCALIZE T
-     METHOD CRAZY
-   &END LOCALIZE 
-     &PRINT
-       &LOCALIZATION
-         &MOLECULAR_DIPOLES 
-          &EACH
-            GEO_OPT 1
-          &END EACH
-          REFERENCE ZERO
+    CHARGE 0
+    &MGRID
+      COMMENSURATE
+      CUTOFF 280
+    &END MGRID
+    &SCF
+      EPS_SCF ${EPS_SCF}
+      MAX_SCF 20
+      SCF_GUESS ${SCF_GUESS}
+      &OT T
+        #MINIMIZER        CG
+        #LINESEARCH       3PNT
+        #LINESEARCH       GOLD
+        MINIMIZER DIIS
+        N_DIIS 7
+        PRECONDITIONER FULL_ALL
+        #ROTATION
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 5.0E-7
+        MAX_SCF 20
+      &END OUTER_SCF
+      &PRINT SILENT
+        &PROGRAM_RUN_INFO SILENT
+        &END PROGRAM_RUN_INFO
+      &END PRINT
+    &END SCF
+    &QS
+      EPS_DEFAULT 1.0E-12
+      EXTRAPOLATION PS
+      EXTRAPOLATION_ORDER 3
+    &END QS
+    &XC
+      &VDW_POTENTIAL
+        DISPERSION_FUNCTIONAL PAIR_POTENTIAL
+        &PAIR_POTENTIAL
+          REFERENCE_FUNCTIONAL ${DFT}
+          TYPE DFTD2
+        &END PAIR_POTENTIAL
+      &END VDW_POTENTIAL
+      &XC_FUNCTIONAL ${DFT}
+      &END XC_FUNCTIONAL
+      &XC_GRID
+        XC_DERIV SPLINE2_SMOOTH
+        XC_SMOOTH_RHO NN10
+      &END XC_GRID
+    &END XC
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+      &MT
+        ALPHA 7.0
+        REL_CUTOFF 2.0
+      &END MT
+    &END POISSON
+    @IF ${WAN}==T
+    &LOCALIZE T
+      METHOD CRAZY
+    &END LOCALIZE
+    &PRINT
+      &LOCALIZATION
+        &MOLECULAR_DIPOLES
           FILENAME =${BASE_NAME}-${ID}.moldip
-         &END MOLECULAR_DIPOLES 
-         &TOTAL_DIPOLE 
+          REFERENCE ZERO
           &EACH
             GEO_OPT 1
           &END EACH
-          REFERENCE ZERO
+        &END MOLECULAR_DIPOLES
+        &TOTAL_DIPOLE
           FILENAME =${BASE_NAME}-${ID}.dip
-         &END TOTAL_DIPOLE
-         &WANNIER_CENTERS
+          REFERENCE ZERO
           &EACH
-      MD 2  
-    &END EACH
-          IONS+CENTERS T
+            GEO_OPT 1
+          &END EACH
+        &END TOTAL_DIPOLE
+        &WANNIER_CENTERS
           FILENAME =${BASE_NAME}-${ID}_wan.xyz
-         &END WANNIER_CENTERS
-       &END LOCALIZATION
-     &END PRINT
-   @ENDIF
-     &PRINT
-       &MOMENTS
-         &EACH
-           MD 1
-         &END EACH
-         FILENAME =${BASE_NAME}-${ID}.dipole
-         MAX_MOMENT 1
-         REFERENCE COM
-         PERIODIC F
-       &END MOMENTS
+          IONS+CENTERS T
+          &EACH
+            MD 2
+          &END EACH
+        &END WANNIER_CENTERS
+      &END LOCALIZATION
     &END PRINT
-  &END
- 
+    @ENDIF
+    &PRINT
+      &MOMENTS
+        FILENAME =${BASE_NAME}-${ID}.dipole
+        MAX_MOMENT 1
+        PERIODIC F
+        REFERENCE COM
+        &EACH
+          MD 1
+        &END EACH
+      &END MOMENTS
+    &END PRINT
+  &END DFT
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
       PERIODIC NONE
     &END CELL
     &COORD
- H     0.000000     0.000000     0.000000
- H     0.000000     0.000000     0.780000
+      H     0.000000     0.000000     0.000000
+      H     0.000000     0.000000     0.780000
     &END COORD
-    &VELOCITY
-    2.3618058285504007E-05    1.1208686661557631E-04   -1.9047367705860110E-05
-    5.0344761330951013E-04    2.0833711996145576E-04    8.0587494601059521E-04
-    &END VELOCITY
     &KIND O
       BASIS_SET TZV2P-GTH
       POTENTIAL GTH-${DFT}-q6
@@ -122,5 +117,9 @@
       BASIS_SET TZV2P-GTH
       POTENTIAL GTH-${DFT}-q1
     &END KIND
+    &VELOCITY
+      2.3618058285504007E-05    1.1208686661557631E-04   -1.9047367705860110E-05
+      5.0344761330951013E-04    2.0833711996145576E-04    8.0587494601059521E-04
+    &END VELOCITY
   &END SUBSYS
 &END FORCE_EVAL
