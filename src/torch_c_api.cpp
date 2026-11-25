@@ -1708,7 +1708,12 @@ void torch_c_model_read_metadata(const char *filename, const char *key,
   {
     std::lock_guard<std::mutex> lock(model_metadata_mutex);
     auto &entry = model_metadata_cache[filename_key];
-    entry.stamp = stamp;
+    if (entry.stamp != stamp) {
+      // The file changed; drop metadata cached for the previous revision so it
+      // cannot be served under the new stamp.
+      entry.files.clear();
+      entry.stamp = stamp;
+    }
     entry.files[key] = content_str;
   }
   copy_string_to_c_buffer(content_str, content, length);
