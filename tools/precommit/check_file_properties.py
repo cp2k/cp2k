@@ -237,6 +237,15 @@ def check_file(path: pathlib.Path) -> List[str]:
     ):
         warnings += [f"{path}: contains tab character"]
 
+    # An xyz file for chemical structure starts with an integer number
+    # of atoms on the first line, whether single- or multi-framed.
+    if fn_ext == ".xyz":
+        first_line = content.split("\n")[0]
+        if not re.match(r"^\s*\d+$", first_line):
+            warnings += [
+                f"{path}: XYZ file does not start with number of atoms on first line"
+            ]
+
     if fn_ext == ".cu" and "#if defined(_OMP_H)\n#error" not in content:
         warnings += [f"{path}: misses check against OpenMP usage"]
 

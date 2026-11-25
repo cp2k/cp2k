@@ -4,7 +4,6 @@ The precommit system consists of the following tools that analyze and format the
 
 - [doxify](../doxify/) to add Doxygen templates.
 - [prettify](../prettify/) to format Fortran files.
-- [analyze_src](../conventions/analyze_src.py) to check copyright banners and a few other things.
 - [ast.parse](https://docs.python.org/3/library/ast.html) to check Python syntax.
 - [clang-format](https://clang.llvm.org/docs/ClangFormat.html) to format C, Cuda, and OpenCL files.
 - [black](https://github.com/psf/black) to format Python scripts.
@@ -14,6 +13,13 @@ The precommit system consists of the following tools that analyze and format the
   [gfm plugin](https://github.com/hukkin/mdformat-gfm) to format Markdown scripts.
 - [cmake-format](https://github.com/cheshirekow/cmake_format) to format CMake scripts.
 - [Tombi](https://tombi-toml.github.io/tombi/) to format TOML files.
+
+This directory also includes several scripts for additional checks:
+
+- [`check_file_properties.py`](./check_file_properties.py) to verify copyright header, preprocessor
+  flags, unicode characters and other things.
+- [`format_input_file.py`](./format_input_file.py) to format CP2K input files and snippets.
+- [`format_makefile.py`](./format_makefile.py) to format Makefiles.
 
 In contrast to the [CP2K-CI](https://github.com/cp2k/cp2k-ci) these tools process each file
 individually, which makes them much more lightweight.

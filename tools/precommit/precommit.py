@@ -328,7 +328,7 @@ def process_file(fn: str, allow_modifications: bool) -> str:
             filetype = "CP2K-input"
             run_local_tool("./tools/precommit/format_input_file.py", fn)
 
-    # Input snippets in the tests directory
+    # Input snippets in the tests directory.
     exclude_sec = [
         "QS/regtest-gpw-1/blank.inc",
         "QS/regtest-gpw-1/empty.inc",
@@ -343,8 +343,8 @@ def process_file(fn: str, allow_modifications: bool) -> str:
         if not any(exclude in fn for exclude in exclude_sec):
             run_local_tool("./tools/precommit/format_input_file.py", fn)
 
+    # Dummy filetype for plotting only.
     if re.match(r".*\.(cif|coord|crd|gro|pdb|xyz)$", fn):
-        # Dummy filetype for plotting only
         filetype = "Chemical Structure"
 
     run_check_file_properties(fn)
