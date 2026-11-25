@@ -13,6 +13,7 @@
 "H2-emd-efield.inp"              = [{matcher = "M002", tol = 4e-11, ref = -0.875919394990}]
 "H2-emd-efield-ramp.inp"         = [{matcher = "M002", tol = 3e-11, ref = -0.870454978299}]
 "H2-emd-efield-ramp-plateau.inp" = [{matcher = "M002", tol = 3e-11, ref = -0.862388928238}]
+"H2-emd-efield-ramp-in-only.inp" = [{matcher = "M002", tol = 3e-11, ref = -0.880597980392}]
 "H2-emd-efield-custom.inp"       = [{matcher = "M002", tol = 1e-10, ref = -0.880578765459}]
 "H2-rtp_ETRS_ARNOLDI.inp"        = [{matcher = "E_total", tol = 3e-10, ref = -0.8805676355}]
 "H2-emd_ETRS_ARNOLDI.inp"        = [{matcher = "E_total", tol = 1e-10, ref = -17.08579286310021}]
