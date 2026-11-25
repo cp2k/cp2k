@@ -12,7 +12,6 @@
 MODULE rt_propagation_methods
    USE bibliography,                    ONLY: Kolafa2004,&
                                               Kuhne2007,&
-                                              Schreder2021,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
@@ -923,8 +922,6 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
-
-      CALL cite_reference(Schreder2021)
 
       NULLIFY (auxbas_pw_pool, dft_control, dft_section, input, loc_print_section, &
                loc_section, logger, marked_states, mo_coeff, mo_eigenvalues, mos, &

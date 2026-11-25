@@ -16,8 +16,6 @@
 !> \author CJM (04.2003)
 ! **************************************************************************************************
 MODULE qs_localization_methods
-   USE bibliography,                    ONLY: Schreder2024_2,&
-                                              cite_reference
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
@@ -75,7 +73,7 @@ MODULE qs_localization_methods
    IMPLICIT NONE
    PUBLIC :: initialize_weights, crazy_rotations, &
              direct_mini, rotate_orbitals, approx_l1_norm_sd, jacobi_rotations, scdm_qrfact, zij_matrix, &
-             jacobi_cg_edf_ls, cardoso_souloumiac, cardoso_souloumiac_pipek
+             jacobi_cg_edf_ls, cardoso_souloumiac
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_localization_methods'
 
@@ -3192,125 +3190,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cardoso_souloumiac
-
-! **************************************************************************************************
-!> \brief Pipek-Mezey version of the Cardoso-Souloumiac PADE algorithm for complex-valued matrices.
-!> \param zij spread operator matrices
-!> \param vec complex vectors to be localised
-!> \param sweeps counts number of sweeps required
-!> \param max_iter maximum number iterations
-!> \param eps numerical tolerance
-!> \param out_each how often to print info
-!> \par History
-!>      2020-04 created [LS]
-!> \author Lukas Schreder
-! **************************************************************************************************
-   SUBROUTINE cardoso_souloumiac_pipek(zij, vec, sweeps, max_iter, eps, out_each)
-
-      TYPE(cp_cfm_type), POINTER                         :: zij(:, :), vec
-      INTEGER                                            :: sweeps, max_iter
-      REAL(dp)                                           :: eps
-      INTEGER                                            :: out_each
-
-      CHARACTER(*), PARAMETER :: routineN = 'cardoso_souloumiac_pipek'
-
-      COMPLEX(dp)                                        :: c_spread, s
-      COMPLEX(dp), POINTER                               :: qii(:), qij(:), qji(:), qjj(:)
-      INTEGER                                            :: handle, i, j, k, n_dim, n_states, &
-                                                            output_unit
-      REAL(dp)                                           :: c, old_spread, spread, t1, t2, tol
-      TYPE(cp_cfm_type), POINTER                         :: c_zij(:), rmat
-
-      CALL timeset(routineN, handle)
-
-      CALL cite_reference(Schreder2024_2)
-
-      n_dim = SIZE(zij)
-
-      ALLOCATE (rmat)
-      CALL cp_cfm_create(rmat, zij(1, 1)%matrix_struct)
-
-      CALL cp_cfm_set_all(rmat, (0.0_dp, 0.0_dp), (1.0_dp, 0.0_dp))
-      ALLOCATE (c_zij(n_dim), qii(n_dim), qij(n_dim), qji(n_dim), qjj(n_dim))
-
-      ! build Qij matrix
-      DO k = 1, n_dim
-         c_zij(k) = zij(k, 1)
-      END DO
-
-      CALL cp_cfm_get_info(c_zij(1), ncol_global=n_states)
-
-      tol = 1.0e10_dp
-      c_spread = (0.0_dp, 0.0_dp)
-      DO k = 1, n_dim
-         DO i = 1, n_states
-            CALL cp_cfm_get_element(c_zij(k), i, i, s)
-            c_spread = c_spread + s*s
-         END DO
-      END DO
-      spread = REAL(c_spread)
-      old_spread = spread
-
-      sweeps = 0
-      output_unit = cp_logger_get_default_unit_nr()
-      WRITE (output_unit, "(T4,A )") " Localization by iterative Jacobi rotation using "// &
-         "Cardoso-Souloumiac angles"
-      WRITE (output_unit, "(T4,A )") " and Pipek-Mezey spread functional"
-
-      IF (output_unit > 0 .AND. MODULO(sweeps, out_each) == 0) THEN
-         WRITE (output_unit, "(T4,A,I7,A,E12.4,A,E12.4,A,F8.3)") &
-            "Iteration:", sweeps, " Functional", spread, " Tolerance:", tol, " Time:", 0.0_dp
-      END IF
-
-      DO WHILE (tol >= eps .AND. sweeps < max_iter)
-         t1 = m_walltime()
-         sweeps = sweeps + 1
-
-         DO i = 1, n_states
-            DO j = i + 1, n_states
-               DO k = 1, n_dim
-                  CALL cp_cfm_get_element(c_zij(k), i, i, qii(k))
-                  CALL cp_cfm_get_element(c_zij(k), i, j, qij(k))
-                  CALL cp_cfm_get_element(c_zij(k), j, i, qji(k))
-                  CALL cp_cfm_get_element(c_zij(k), j, j, qjj(k))
-               END DO
-               CALL get_cardoso_angles(qii, qij, qji, qjj, c, s, vec%matrix_struct)
-               DO k = 1, n_dim
-                  CALL cp_cfm_rot_cols(c_zij(k), i, j, c, REAL(s))
-                  CALL cp_cfm_rot_rows(c_zij(k), i, j, c, REAL(s))
-               END DO
-               CALL cp_cfm_rot_cols(rmat, i, j, c, REAL(s))
-            END DO
-         END DO
-
-         c_spread = (0.0_dp, 0.0_dp)
-         DO i = 1, n_states
-            DO k = 1, n_dim
-               CALL cp_cfm_get_element(c_zij(k), i, i, s)
-               c_spread = c_spread + s*s
-            END DO
-         END DO
-         spread = REAL(c_spread)
-
-         tol = ABS(spread - old_spread)
-         old_spread = spread
-         t2 = m_walltime()
-         IF (output_unit > 0 .AND. MODULO(sweeps, out_each) == 0) THEN
-            WRITE (output_unit, "(T4,A,I7,A,E12.4,A,E12.4,A,F8.3)") &
-               "Iteration:", sweeps, " Functional", spread, " Tolerance:", tol, " Time:", t2 - t1
-         END IF
-      END DO
-
-      CALL rotate_orbitals_cfm(rmat, vec)
-
-      ! c_zij(k) was assigned (shallow copy of zij(k,1)); do not release contents
-      DEALLOCATE (c_zij, qii, qij, qji, qjj)
-      CALL cp_cfm_release(rmat)
-      DEALLOCATE (rmat)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE cardoso_souloumiac_pipek
 
 ! **************************************************************************************************
 !> \brief calculates the Jacobi angles needed in serial Cardoso-Souloumiac diagonalisation

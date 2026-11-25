@@ -147,11 +147,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cite_reference(Schreder2021)
-      IF (max_moment > 1 .OR. magnetic .OR. vel_reprs .OR. com_nl) THEN
-         CALL cite_reference(Schreder2024_1)
-      END IF
-
       logger => cp_get_default_logger()
 
       NULLIFY (cell, dft_control, matrix_s, molecule_set, qs_kind_set, sab_orb)
@@ -377,10 +372,7 @@ CONTAINS
 
          CALL cp_fm_release(or_fm)
          CALL cp_fm_struct_release(o_struct)
-
-         CALL para_env%sum(rmom(:, 1))
-         IF (magnetic) CALL para_env%sum(mmom)
-         IF (vel_reprs) CALL para_env%sum(rmom_vel)
+         ! the traces from trace_op_in_mo are already global, no sum over the ranks
 
          DO iatom = first_atom, first_atom + natom - 1
             ria = pbc(particle_set(iatom)%r - rcc, cell) + rcc

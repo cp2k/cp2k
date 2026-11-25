@@ -33,11 +33,8 @@
         &LOCALIZED_MOMENTS
           ADD_LAST NUMERIC
           COMMON_ITERATION_LEVELS 5
-          COM_NL .TRUE.
           FILENAME __STD_OUT__
-          MAGNETIC .TRUE.
           MAX_MOMENT 1
-          VEL_REPRS .TRUE.
         &END LOCALIZED_MOMENTS
         &WANNIER_CENTERS
           ADD_LAST NUMERIC

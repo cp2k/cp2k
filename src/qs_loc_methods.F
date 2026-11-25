@@ -105,8 +105,8 @@ MODULE qs_loc_methods
                                               loc_coeff_index,&
                                               qs_loc_env_type
    USE qs_localization_methods,         ONLY: &
-        approx_l1_norm_sd, cardoso_souloumiac, cardoso_souloumiac_pipek, crazy_rotations, &
-        direct_mini, jacobi_cg_edf_ls, jacobi_rotations, rotate_orbitals, scdm_qrfact, zij_matrix
+        approx_l1_norm_sd, cardoso_souloumiac, crazy_rotations, direct_mini, jacobi_cg_edf_ls, &
+        jacobi_rotations, rotate_orbitals, scdm_qrfact, zij_matrix
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
@@ -363,12 +363,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_pipek'
 
-      INTEGER                                            :: handle, iatom, idim1, idim2, isgf, ldz, &
-                                                            max_iter, nao, natom, ncol, nmoloc, &
-                                                            out_each, output_unit, sweeps
+      INTEGER                                            :: handle, iatom, isgf, ldz, max_iter, nao, &
+                                                            natom, ncol, nmoloc, out_each, &
+                                                            output_unit, sweeps
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgf
       REAL(dp)                                           :: eps
-      TYPE(cp_cfm_type), POINTER                         :: complex_vectors, my_zij_cfm_set(:, :)
       TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pool
       TYPE(cp_fm_type)                                   :: opvec
       TYPE(cp_fm_type), POINTER                          :: ov_fm
@@ -453,29 +452,7 @@ CONTAINS
       CASE (do_loc_direct)
          CPABORT("Direct and Pipek not implemented.")
       CASE (do_loc_cs)
-         ALLOCATE (my_zij_cfm_set(SIZE(zij_fm_set, 1), SIZE(zij_fm_set, 2)))
-         DO idim1 = 1, SIZE(zij_fm_set, 1)
-            DO idim2 = 1, SIZE(zij_fm_set, 2)
-               CALL cp_cfm_create(my_zij_cfm_set(idim1, idim2), zij_fm_set(idim1, idim2)%matrix_struct)
-               CALL cp_fm_to_cfm(msourcer=zij_fm_set(idim1, idim2), mtarget=my_zij_cfm_set(idim1, idim2))
-            END DO
-         END DO
-         ALLOCATE (complex_vectors)
-         CALL cp_cfm_create(complex_vectors, vectors%matrix_struct)
-         CALL cp_fm_to_cfm(msourcer=vectors, mtarget=complex_vectors)
-
-         CALL cardoso_souloumiac_pipek(my_zij_cfm_set, complex_vectors, sweeps, max_iter, eps, out_each)
-
-         CALL cp_cfm_to_fm(complex_vectors, mtargetr=vectors)
-         CALL cp_cfm_release(complex_vectors)
-         DEALLOCATE (complex_vectors)
-         DO idim1 = 1, SIZE(my_zij_cfm_set, 1)
-            DO idim2 = 1, SIZE(my_zij_cfm_set, 2)
-               CALL cp_cfm_release(my_zij_cfm_set(idim1, idim2))
-            END DO
-         END DO
-         DEALLOCATE (my_zij_cfm_set)
-
+         CPABORT("Cardoso-Souloumiac and Pipek not implemented.")
       CASE (do_loc_none)
          IF (output_unit > 0) WRITE (output_unit, '(A,I6,A)') " No MOS localization applied "
       CASE DEFAULT

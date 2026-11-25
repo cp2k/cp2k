@@ -47,6 +47,7 @@ MODULE rt_propagation
    USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_exch_scaling_none,&
                                               do_admm_purify_none,&
+                                              do_loc_none,&
                                               real_time_propagation,&
                                               use_restart_wfn,&
                                               use_rt_restart,&
@@ -385,10 +386,10 @@ CONTAINS
          "MOLECULAR_STATES ", "MOLECULAR_MOMENTS", "LOCALIZED_MOMENTS", "WANNIER_STATES   "]
 
       INTEGER                                            :: aspc_order, handle, i_iter, i_step, &
-                                                            ikey, max_iter, max_steps, &
+                                                            ikey, loc_method, max_iter, max_steps, &
                                                             output_unit, unit_nr
-      LOGICAL                                            :: explicit, loc_print, moments_read, &
-                                                            should_stop
+      LOGICAL                                            :: explicit, loc_print, magnetic, &
+                                                            moments_read, should_stop, vel_reprs
       REAL(Kind=dp)                                      :: eps_ener, time_iter_start, &
                                                             time_iter_stop, used_time
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -450,6 +451,18 @@ CONTAINS
                       "LIST_UNOCCUPIED are ignored). The localized properties (Wannier centers and "// &
                       "spreads, dipoles, moments) can deviate strongly from those of the time-dependent "// &
                       "density, compare e.g. LOCALIZE%PRINT%TOTAL_DIPOLE with DFT%PRINT%MOMENTS.")
+         ! Operators that couple the real and imaginary parts need a unitary localization of
+         ! the complex MOs, which is not implemented
+         print_key => section_vals_get_subs_vals(loc_print_section, "LOCALIZED_MOMENTS")
+         CALL section_vals_get(print_key, explicit=explicit)
+         CALL section_vals_val_get(print_key, "MAGNETIC", l_val=magnetic)
+         CALL section_vals_val_get(print_key, "VEL_REPRS", l_val=vel_reprs)
+         CALL section_vals_val_get(input, "DFT%LOCALIZE%METHOD", i_val=loc_method)
+         IF (explicit .AND. (magnetic .OR. vel_reprs) .AND. loc_method /= do_loc_none) THEN
+            CALL cp_abort(__LOCATION__, "LOCALIZE%PRINT%LOCALIZED_MOMENTS with MAGNETIC or "// &
+                          "VEL_REPRS is not implemented along RTP with a localization method: "// &
+                          "the localization of the complex propagated MOs is not implemented")
+         END IF
       END IF
 
       ! Add the zero iteration moments to the moment trace
