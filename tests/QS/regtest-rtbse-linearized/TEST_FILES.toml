@@ -4,6 +4,12 @@
   {matcher = "LinRTBSE_3rd_excit_ener", tol = 1e-04, ref = 39.559},
   {matcher = "LinRTBSE_static_pol_xx", tol = 1e-03, ref = 0.8486735267}
 ]
+"h2_linrtbse_tda_ks.inp"                          = [
+  {matcher = "LinRTBSE_1st_excit_ener", tol = 1e-04, ref = 8.6363},
+  {matcher = "LinRTBSE_2nd_excit_ener", tol = 1e-04, ref = 19.9550},
+  {matcher = "LinRTBSE_3rd_excit_ener", tol = 1e-04, ref = 29.9832},
+  {matcher = "LinRTBSE_static_pol_xx", tol = 1e-03, ref = 0.4317370517}
+]
 "h2_linrtbse_abba.inp"                            = [
   {matcher = "LinRTBSE_1st_excit_ener", tol = 1e-04, ref = 16.8474},
   {matcher = "LinRTBSE_2nd_excit_ener", tol = 1e-04, ref = 29.0421},

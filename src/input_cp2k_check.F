@@ -22,12 +22,12 @@ MODULE input_cp2k_check
                                               cp_unit_set_release,&
                                               cp_unit_set_type
    USE input_constants,                 ONLY: &
-        do_qs, do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
-        do_thermo_same_as_part, mimic_run, negf_run, npt_f_ensemble, npt_i_ensemble, &
-        npt_ia_ensemble, rtp_method_bse, rtp_method_bse_linearized, vdw_nl_LMKLL, xc_funct_b3lyp, &
-        xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, &
-        xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_funct_xwpbe, &
-        xc_none, xc_vdw_fun_nonloc
+        do_exact, do_qs, do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, &
+        do_thermo_nose, do_thermo_same_as_part, mimic_run, negf_run, npt_f_ensemble, &
+        npt_i_ensemble, npt_ia_ensemble, real_time_propagation, rtp_method_bse, &
+        rtp_method_bse_linearized, vdw_nl_LMKLL, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, &
+        xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, &
+        xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_funct_xwpbe, xc_none, xc_vdw_fun_nonloc
    USE input_keyword_types,             ONLY: keyword_type
    USE input_parsing,                   ONLY: section_vals_parse
    USE input_section_types,             ONLY: &
@@ -134,6 +134,7 @@ CONTAINS
          section2 => section_vals_get_subs_vals(section, "ACTIVE_SPACE%XC%XC_FUNCTIONAL")
          CALL xc_functionals_expand(section2, section1)
          CALL check_properties_bse(sections, iforce_eval)
+         CALL check_rtbse_linearized_input(input_file, sections, iforce_eval)
       END DO
 
       ! additional checks for a MiMiC run
@@ -237,6 +238,75 @@ CONTAINS
       END IF
 
    END SUBROUTINE check_properties_bse
+
+! **************************************************************************************************
+!> \brief Refuses, before the SCF, the input combinations linearized RT-BSE cannot run:
+!>        MAT_EXP EXACT, a DFT%EFIELD, a nonzero MOTION%MD%STEP_START_VAL, a run without the
+!>        electric delta kick or with the magnetic one
+!> \param input_file the parsed input, for GLOBAL%RUN_TYPE and MOTION%MD
+!> \param force_env_sections the FORCE_EVAL sections
+!> \param iforce_eval the repetition checked
+!> \author Maximilian Graml
+! **************************************************************************************************
+   SUBROUTINE check_rtbse_linearized_input(input_file, force_env_sections, iforce_eval)
+      TYPE(section_vals_type), POINTER                   :: input_file, force_env_sections
+      INTEGER, INTENT(IN)                                :: iforce_eval
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'check_rtbse_linearized_input'
+
+      INTEGER                                            :: handle, mat_exp, rtp_method, run_type, &
+                                                            step_start
+      LOGICAL                                            :: efield, kick, kick_mag, linearized, &
+                                                            linearized_keyword
+      TYPE(section_vals_type), POINTER                   :: dft_sec, efield_sec, rtp_sec
+
+      CALL timeset(routineN, handle)
+      CALL section_vals_val_get(input_file, "GLOBAL%RUN_TYPE", i_val=run_type)
+      linearized = .FALSE.
+      IF (run_type == real_time_propagation) THEN
+         dft_sec => section_vals_get_subs_vals3(force_env_sections, "DFT", i_rep_section=iforce_eval)
+         rtp_sec => section_vals_get_subs_vals(dft_sec, "REAL_TIME_PROPAGATION")
+         ! the condition read_rtp_section resolves to rtp_method_bse_linearized
+         CALL section_vals_val_get(rtp_sec, "RTBSE%_SECTION_PARAMETERS_", i_val=rtp_method)
+         CALL section_vals_val_get(rtp_sec, "RTBSE%LINEARIZED_BSE_PROPAGATION", l_val=linearized_keyword)
+         linearized = rtp_method == rtp_method_bse .AND. linearized_keyword
+      END IF
+      IF (.NOT. linearized) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      CALL section_vals_val_get(rtp_sec, "MAT_EXP", i_val=mat_exp)
+      IF (mat_exp == do_exact) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Linearized RT-BSE does not support MAT_EXP EXACT: "// &
+                       "set DFT%REAL_TIME_PROPAGATION%MAT_EXP to any other value")
+      END IF
+      efield_sec => section_vals_get_subs_vals(dft_sec, "EFIELD")
+      CALL section_vals_get(efield_sec, explicit=efield)
+      IF (efield) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Linearized RT-BSE does not couple a DFT%EFIELD, in the length or the velocity "// &
+                       "gauge: only the delta kick is implemented; remove the EFIELD section")
+      END IF
+      CALL section_vals_val_get(input_file, "MOTION%MD%STEP_START_VAL", i_val=step_start)
+      IF (step_start /= 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Linearized RT-BSE requires MOTION%MD%STEP_START_VAL 0: it numbers its steps from 0 "// &
+                       "and continues a run only through DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART; "// &
+                       "a value carried in by EXT_RESTART is switched off with EXT_RESTART%RESTART_COUNTERS F")
+      END IF
+      ! the propagation applies only the electric kick; a magnetic one would be ignored silently
+      CALL section_vals_val_get(rtp_sec, "APPLY_DELTA_PULSE", l_val=kick)
+      CALL section_vals_val_get(rtp_sec, "APPLY_DELTA_PULSE_MAG", l_val=kick_mag)
+      IF (.NOT. kick .OR. kick_mag) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Linearized RT-BSE propagates from the electric delta kick only: set "// &
+                       "DFT%REAL_TIME_PROPAGATION%APPLY_DELTA_PULSE T and APPLY_DELTA_PULSE_MAG F")
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE check_rtbse_linearized_input
 
 ! **************************************************************************************************
 !> \brief expand a shortcutted functional section

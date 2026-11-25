@@ -79,9 +79,9 @@ MODULE rt_bse_linearized
                                               propagate_density,&
                                               rho_metric
    USE rt_bse_io,                       ONLY: &
-        check_restart_eps_consistency, output_field, output_moments, output_mos_contravariant, &
-        output_restart_linearized, print_timestep_info, read_restart_C, read_restart_density, &
-        read_restart_info, read_restart_trace
+        check_restart_eps_consistency, check_restart_files_before_scf, output_field, &
+        output_moments, output_mos_contravariant, output_restart_linearized, print_timestep_info, &
+        read_restart_C, read_restart_density, read_restart_info, read_restart_trace
    USE rt_bse_ri_rs,                    ONLY: compute_hartree_ri_rs,&
                                               compute_hartree_ri_rs_complex,&
                                               compute_hartree_ri_rs_from_diag,&
@@ -117,6 +117,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'run_propagation_linearized_bse'
 
       INTEGER                                            :: handle, i, j
+      LOGICAL                                            :: restart_found
       REAL(kind=dp)                                      :: t_phys, t_start, timestep_walltime, &
                                                             timestep_walltime_start
       REAL(kind=dp), DIMENSION(2)                        :: enum_im, enum_re
@@ -127,6 +128,9 @@ CONTAINS
       ! Per-spin (alpha/beta) electron numbers; only 1:n_spin entries are used.
 
       CALL timeset(routineN, handle)
+
+      ! the restart files are checked against the input before the SCF and GW
+      CALL check_restart_files_before_scf(force_env, restart_found)
 
       CALL cp_warn(__LOCATION__, &
                    "Linearized RT-BSE is under active development. Make sure you understand "// &
@@ -144,17 +148,14 @@ CONTAINS
 
       ! Restart phase 1a: read sim_start + the original run's dt (from the trace header) BEFORE
       ! ENFORCE_MAX_DT, so the continuation inherits that dt instead of a window-dependent one.
-      IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
+      IF (restart_found) THEN
          CALL read_restart_info(rtbse_env)
       END IF
 
       CALL initialize_maximum_timestep(rtbse_env)
 
       ! Restart phase 1b: load the trace prefix now that ENFORCE_MAX_DT has sized the trace arrays.
-      IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
-         IF (rtbse_env%sim_start >= rtbse_env%sim_nsteps) THEN
-            CPABORT("RT_RESTART: restart step >= STEPS - increase MOTION%MD%STEPS")
-         END IF
+      IF (restart_found) THEN
          CALL read_restart_trace(rtbse_env)
       END IF
 
@@ -177,15 +178,13 @@ CONTAINS
 
       ! Restart phase 2: overwrite rho from the lab-frame restart files, bridge into this run's MO
       ! gauge, then enter this run's rotating frame (rotate_rho_phase is a no-op when omega_shift=0)
-      IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
+      IF (restart_found) THEN
          CALL read_restart_density(rtbse_env)
-         IF (rtbse_env%restart_extracted) THEN
-            CALL apply_restart_basis_bridge(rtbse_env)
-            t_start = REAL(rtbse_env%sim_start, dp)*rtbse_env%sim_dt
-            DO i = 1, rtbse_env%n_spin
-               CALL rotate_rho_phase(rtbse_env, rtbse_env%rho(i), i, -rtbse_env%omega_shift*t_start)
-            END DO
-         END IF
+         CALL apply_restart_basis_bridge(rtbse_env)
+         t_start = REAL(rtbse_env%sim_start, dp)*rtbse_env%sim_dt
+         DO i = 1, rtbse_env%n_spin
+            CALL rotate_rho_phase(rtbse_env, rtbse_env%rho(i), i, -rtbse_env%omega_shift*t_start)
+         END DO
       END IF
       !  - calculates/populates the G0W0/KS Hamiltonian, respectively
       CALL initialize_singleparticle_hamiltonian(rtbse_env)
@@ -413,7 +412,7 @@ CONTAINS
              rtbse_env%sim_dt_restart > 0.0_dp) THEN
             ! Continuation: dt is frozen in the trace, so inherit it and only rescale the step count
             ! to the requested window. Recomputing dt from the (longer) window would desync the trace
-            ! time-grid and trip the continuation guard in read_restart_trace.
+            ! time-grid.
             rtbse_env%sim_dt = rtbse_env%sim_dt_restart
             n_steps_new = MAX(1, NINT(total_time/rtbse_env%sim_dt))
             rtbse_env%sim_nsteps = n_steps_new
@@ -1103,20 +1102,21 @@ CONTAINS
    END SUBROUTINE do_rk4_stage
 
 ! **************************************************************************************************
-!> \brief Builds the spin-summed complex Hartree potential in AO, once per RK4 stage (AO-RI or RI-RS).
+!> \brief Builds the spin-summed complex Hartree potential in AO for the open-shell Liouvillian
+!>        diagnostic (AO-RI or RI-RS).
 !>        rho_total = spin_degeneracy * sum_sigma (OV-masked rho^sigma -> AO); hartree_total_ao =
-!>        V_H[rho_total]. update_effective_ham_MO back-transforms it with each spin's C, so this
+!>        V_H[rho_total]. apply_liouvillian_to_drho back-transforms it with each spin's C, so this
 !>        single call feeds every spin block - the cross-spin Hartree coupling of open shell.
-!>        Side effect: leaves rho_ao_scratch(sigma) = OV-masked AO density (recomputed per spin in
-!>        update_effective_ham_MO; built here only to form the sum).
+!>        Side effect: leaves rho_ao_scratch(sigma) = OV-masked AO density, which SEX reads.
+!>        With Hartree off (debug_disable_hartree) only this projection runs.
 !> \param rtbse_env RT-BSE environment
-!> \param rho_stage Per-spin MO density at the current RK4 stage
-!> \param keep_ovvo .FALSE. = OV source mask (TDA); .TRUE. = OV+VO (open-shell ABBA).
+!> \param drho_in Per-spin MO density the diagnostic applies the Liouvillian to
+!> \param keep_ovvo .FALSE. = OV source mask; .TRUE. = OV+VO (see mask_mo_block_cfm)
 !> \author Maximilian Graml
 ! **************************************************************************************************
-   SUBROUTINE build_shared_hartree_ao(rtbse_env, rho_stage, keep_ovvo)
+   SUBROUTINE build_shared_hartree_ao(rtbse_env, drho_in, keep_ovvo)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho_stage
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: drho_in
       LOGICAL, INTENT(IN)                                :: keep_ovvo
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_shared_hartree_ao'
@@ -1124,32 +1124,35 @@ CONTAINS
       INTEGER                                            :: handle, isp
 
       CALL timeset(routineN, handle)
-      ! Per spin: mask the stage density and project to AO.
+      ! Per spin: mask the density and project to AO.
       DO isp = 1, rtbse_env%n_spin
-         CALL cp_cfm_to_cfm(rho_stage(isp), rtbse_env%rho_delta_mo(isp))
+         CALL cp_cfm_to_cfm(drho_in(isp), rtbse_env%rho_delta_mo(isp))
          CALL mask_mo_block_cfm(rtbse_env, rtbse_env%rho_delta_mo(isp), isp, &
                                 keep_OV=.TRUE., keep_ovvo=keep_ovvo)
          CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_delta_mo(isp), &
                                                    rtbse_env%rho_ao_scratch(isp), isp)
       END DO
-      ! Sum: rho_total = spin_degeneracy * sum_isp rho_ao_scratch(isp).
-      CALL cp_cfm_set_all(rtbse_env%rho_total_ao_scratch, CMPLX(0.0_dp, 0.0_dp, kind=dp))
-      DO isp = 1, rtbse_env%n_spin
-         CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_total_ao_scratch, &
-                                   CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), &
-                                   rtbse_env%rho_ao_scratch(isp))
-      END DO
-      ! One complex Hartree contraction on the summed density. RI backend = kernel choice: both
-      ! get_hartree_complex and compute_hartree_ri_rs_complex take AO x AO in/out and are spin-blind,
-      ! so the spin-summed cross-spin density feeds whichever kernel is active.
-      IF (rtbse_env%rirs_kernel) THEN
-         ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'[ρ^total]  (RI-RS)
-         CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_total_ao_scratch, &
-                                            rtbse_env%hartree_total_ao)
-      ELSE
-         ! V^H_λσ = sum_PQ (λσ|P) V_PQ [sum_µν (µν|Q) ρ^total_µν]  (AO-RI)
-         CALL get_hartree_complex(rtbse_env, rtbse_env%rho_total_ao_scratch, &
-                                  rtbse_env%hartree_total_ao, 1)
+      ! with Hartree off the two Hartree buffers are not allocated, and only SEX reads the projection
+      IF (.NOT. rtbse_env%debug_disable_hartree) THEN
+         ! Sum: rho_total = spin_degeneracy * sum_isp rho_ao_scratch(isp).
+         CALL cp_cfm_set_all(rtbse_env%rho_total_ao_scratch, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+         DO isp = 1, rtbse_env%n_spin
+            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_total_ao_scratch, &
+                                      CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), &
+                                      rtbse_env%rho_ao_scratch(isp))
+         END DO
+         ! One complex Hartree contraction on the summed density. RI backend = kernel choice: both
+         ! get_hartree_complex and compute_hartree_ri_rs_complex take AO x AO in/out and are spin-blind,
+         ! so the spin-summed cross-spin density feeds whichever kernel is active.
+         IF (rtbse_env%rirs_kernel) THEN
+            ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'[ρ^total]  (RI-RS)
+            CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_total_ao_scratch, &
+                                               rtbse_env%hartree_total_ao)
+         ELSE
+            ! V^H_λσ = sum_PQ (λσ|P) V_PQ [sum_µν (µν|Q) ρ^total_µν]  (AO-RI)
+            CALL get_hartree_complex(rtbse_env, rtbse_env%rho_total_ao_scratch, &
+                                     rtbse_env%hartree_total_ao, 1)
+         END IF
       END IF
       CALL timestop(handle)
    END SUBROUTINE build_shared_hartree_ao
@@ -1319,7 +1322,7 @@ CONTAINS
          END DO
       END DO
       ! Determine the field at current time
-      IF (rtbse_env%dft_control%apply_efield_field) THEN
+      IF (rtbse_env%dft_control%apply_efield_field .OR. rtbse_env%dft_control%apply_vector_potential) THEN
          CALL cp_abort(__LOCATION__, &
                        "Continuous/pulsed E(t) field coupling is not implemented for linearized "// &
                        "RT-BSE. Only the delta-kick (impulsive) absorption spectrum is supported; "// &
@@ -1396,6 +1399,27 @@ CONTAINS
    END SUBROUTINE update_effective_ham_MO
 
 ! **************************************************************************************************
+!> \brief The bare eigenvalue of one MO under the reference Hamiltonian: the GW quasiparticle
+!>        energy for RTBSE_HAMILTONIAN GW, the SCF eigenvalue at Gamma for KS; no first-peak shift
+!> \param rtbse_env RT-BSE environment, for the reference Hamiltonian and bs_env
+!> \param mo_index absolute MO index
+!> \param ispin spin index
+!> \return the eigenvalue in Hartree
+!> \author Maximilian Graml
+! **************************************************************************************************
+   FUNCTION bare_reference_eigenvalue(rtbse_env, mo_index, ispin) RESULT(eps)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      INTEGER, INTENT(IN)                                :: mo_index, ispin
+      REAL(kind=dp)                                      :: eps
+
+      IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
+         eps = rtbse_env%bs_env%eigenval_GW(mo_index, 1, ispin)
+      ELSE
+         eps = rtbse_env%bs_env%eigenval_scf_Gamma(mo_index, ispin)
+      END IF
+   END FUNCTION bare_reference_eigenvalue
+
+! **************************************************************************************************
 !> \brief Single-spin Liouvillian matvec: apply L^sigma_sigma to one spin's Delta rho_MO and return
 !>        L * Delta rho_MO in MO basis, OV+VO blocks populated. Drives the n_spin=1 TDA diagnostic
 !>        and the (n_spin=1) ABBA diagnostic; the open-shell TDA path uses the array routine
@@ -1463,7 +1487,8 @@ CONTAINS
       !    convert to cfm in ham_workspace(1), accumulate [drho_in, H_eps] = drho * H - H * drho.
       !    On OV: ([drho, H])_{ia} = (eps_a - eps_i) * drho_{ia} = +eps_{ai} * drho_{ia}.
       !    On VO: -eps_{ai} * drho_{ai} (sign flips); irrelevant - driver only reads OV.
-      !    Bare GW eigenvalues (lab frame) so eigenvalues compare 1:1 to bse_full.F.
+      !    The reference Hamiltonian's bare eigenvalues (GW or KS), unshifted, so eigenvalues compare
+      !    1:1 to bse_full_diag.F on the same energies and screening.
       CALL cp_fm_get_info(rtbse_env%real_workspace_mo(1), &
                           nrow_local=nrow_local, ncol_local=ncol_local, &
                           row_indices=row_indices, col_indices=col_indices)
@@ -1475,7 +1500,7 @@ CONTAINS
             IF (i_row_global == j_col_global) THEN
                abs_mo_idx = i_row_global + rtbse_env%first_active_mo - 1
                rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = &
-                  rtbse_env%bs_env%eigenval_GW(abs_mo_idx, 1, ispin)
+                  bare_reference_eigenvalue(rtbse_env, abs_mo_idx, ispin)
             END IF
          END DO
       END DO
@@ -1604,8 +1629,9 @@ CONTAINS
       END DO
 
       ! eps^sigma commutator -> diagonal block only (eps is spin-diagonal). MUST precede the
-      ! kernel steps (add_K_MO_to_L_drho scratches MO buffers). Lab-frame bare GW eigenvalues
-      ! so they compare 1:1 to bse_full_diag.F.
+      ! kernel steps (add_K_MO_to_L_drho scratches MO buffers). The reference Hamiltonian's bare
+      ! eigenvalues (GW or KS), unshifted, so they compare 1:1 to bse_full_diag.F on the same
+      ! energies and screening.
       CALL cp_fm_get_info(rtbse_env%real_workspace_mo(1), &
                           nrow_local=nrow_local, ncol_local=ncol_local, &
                           row_indices=row_indices, col_indices=col_indices)
@@ -1618,7 +1644,7 @@ CONTAINS
                IF (i_row_global == j_col_global) THEN
                   abs_mo_idx = i_row_global + rtbse_env%first_active_mo - 1
                   rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = &
-                     rtbse_env%bs_env%eigenval_GW(abs_mo_idx, 1, isp)
+                     bare_reference_eigenvalue(rtbse_env, abs_mo_idx, isp)
                END IF
             END DO
          END DO
@@ -2514,7 +2540,6 @@ CONTAINS
                                                             j_mo, jj, n_flip, ncol_local, &
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: found
       REAL(kind=dp)                                      :: dev_ident, dev_offdiag, dev_ov, &
                                                             dev_unitary
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: u_diag
@@ -2530,15 +2555,7 @@ CONTAINS
       DO i = 1, rtbse_env%n_spin
          CALL cp_fm_create(C_old(i), rtbse_env%fm_struct_ao_mo_active)
       END DO
-      CALL read_restart_C(rtbse_env, C_old, found)
-      IF (.NOT. found) THEN
-         DO i = 1, rtbse_env%n_spin
-            CALL cp_fm_release(C_old(i))
-         END DO
-         DEALLOCATE (C_old)
-         CALL timestop(handle)
-         RETURN
-      END IF
+      CALL read_restart_C(rtbse_env, C_old)
 
       CALL cp_fm_create(SC_old, rtbse_env%fm_struct_ao_mo_active)
       ALLOCATE (u_diag(rtbse_env%mo_active))

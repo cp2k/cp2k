@@ -1644,7 +1644,9 @@ CONTAINS
                                         "Uses a Baker-Campbell-Hausdorff expansion to propagate the density matrix,"// &
                                         " only works for density propagation", &
                                         "Uses diagonalisation of the exponent matrices to determine the "// &
-                                        "matrix exponential exactly. Only implemented for GWBSE."))
+                                        "matrix exponential exactly. Only implemented for "// &
+                                        "[RTBSE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE), "// &
+                                        "and not for its linearized propagation."))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1729,7 +1731,11 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="APPLY_DELTA_PULSE", &
                           description="Applies a delta kick to the initial wfn (only RTP for now - the EMD"// &
-                          " case is not yet implemented). Only work for INITIAL_WFN=SCF_WFN", &
+                          " case is not yet implemented). In TDDFT, only works for INITIAL_WFN=SCF_WFN. "// &
+                          "The linearized RT-BSE (LINEARIZED_BSE_PROPAGATION in "// &
+                          "[RTBSE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE)) requires it in every run, "// &
+                          "a continuation with INITIAL_WFN RT_RESTART included: "// &
+                          "there the kick is checked against the stored one and not applied again.", &
                           usage="APPLY_DELTA_PULSE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -2118,7 +2124,14 @@ CONTAINS
       ! Switch for linearized rtbse propagation
       CALL keyword_create(keyword, __LOCATION__, name="LINEARIZED_BSE_PROPAGATION", &
                           variants=s2a("LRRTBSE"), &
-                          description="Linearizes the BSE propagation", &
+                          description="Linearizes the BSE propagation. It propagates from the electric delta kick "// &
+                          "only, so it requires "// &
+                          "[APPLY_DELTA_PULSE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.APPLY_DELTA_PULSE) "// &
+                          "and does not support APPLY_DELTA_PULSE_MAG, a "// &
+                          "[DFT%EFIELD](#CP2K_INPUT.FORCE_EVAL.DFT.EFIELD) "// &
+                          "section, MAT_EXP EXACT or a nonzero "// &
+                          "[MOTION%MD%STEP_START_VAL](#CP2K_INPUT.MOTION.MD.STEP_START_VAL). A run is continued "// &
+                          "with INITIAL_WFN RT_RESTART.", &
                           usage="LINEARIZED_BSE_PROPAGATION .T.", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)

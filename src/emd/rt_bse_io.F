@@ -22,14 +22,19 @@ MODULE rt_bse_io
                     default_path_length
    USE cp_fm_basic_linalg, ONLY: cp_fm_trace, &
                                  cp_fm_transpose
+   USE cp_control_types, ONLY: dft_control_type
    USE cp_log_handling, ONLY: cp_logger_type, &
-                              cp_get_default_logger
+                              cp_get_default_logger, &
+                              cp_to_string
    USE cp_output_handling, ONLY: cp_print_key_unit_nr, &
                                  cp_print_key_finished_output, &
                                  cp_print_key_generate_filename, &
                                  low_print_level, &
                                  medium_print_level
-   USE input_section_types, ONLY: section_vals_type
+   USE force_env_types, ONLY: force_env_type
+   USE input_section_types, ONLY: section_vals_get_subs_vals, &
+                                  section_vals_type, &
+                                  section_vals_val_get
    USE rt_bse_types, ONLY: rtbse_env_type, &
                            multiply_cfm_fm, &
                            multiply_fm_cfm
@@ -71,6 +76,7 @@ MODULE rt_bse_io
              output_restart, &
              read_restart, &
              output_restart_linearized, &
+             check_restart_files_before_scf, &
              read_restart_info, &
              read_restart_trace, &
              read_restart_density, &
@@ -713,6 +719,237 @@ CONTAINS
       rtbse_env%restart_trace_written = .TRUE.
    END SUBROUTINE write_restart_trace
 ! **************************************************************************************************
+!> \brief Reads the RESTART.trace header that write_restart_trace writes, through the n_eps record
+!> \param trace_unit unit of the trace, opened for reading at its start
+!> \param ios nonzero when a record could not be read
+!> \param version format version of the file; nothing after it is read when it differs from this
+!>        binary's
+!> \param n_spin_file number of spins of the original run
+!> \param n_basis_file active-MO count (linearized) or AO count of the original run's density
+!> \param n_ao_file AO count of the original run
+!> \param dt_file time step of the original run, in atomic units
+!> \param kick_dir_file delta-kick direction of the original run
+!> \param kick_scale_file delta-kick scale of the original run
+!> \param n_eps active eigenvalues per spin in the record that follows; the caller reads it when
+!>        positive
+!> \author Maximilian Graml
+! **************************************************************************************************
+   SUBROUTINE read_restart_trace_header(trace_unit, ios, version, n_spin_file, n_basis_file, n_ao_file, &
+                                        dt_file, kick_dir_file, kick_scale_file, n_eps)
+      INTEGER, INTENT(IN)                                :: trace_unit
+      INTEGER, INTENT(OUT)                               :: ios, version, n_spin_file, n_basis_file, &
+                                                            n_ao_file
+      REAL(kind=dp), INTENT(OUT)                         :: dt_file
+      REAL(kind=dp), DIMENSION(3), INTENT(OUT)           :: kick_dir_file
+      REAL(kind=dp), INTENT(OUT)                         :: kick_scale_file
+      INTEGER, INTENT(OUT)                               :: n_eps
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_restart_trace_header'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+      version = 0
+      n_spin_file = 0
+      n_basis_file = 0
+      n_ao_file = 0
+      dt_file = 0.0_dp
+      kick_dir_file(:) = 0.0_dp
+      kick_scale_file = 0.0_dp
+      n_eps = 0
+      READ (trace_unit, IOSTAT=ios) version
+      IF (ios == 0 .AND. version == restart_trace_version) THEN
+         READ (trace_unit, IOSTAT=ios) n_spin_file, n_basis_file, n_ao_file
+         IF (ios == 0) READ (trace_unit, IOSTAT=ios) dt_file
+         IF (ios == 0) READ (trace_unit, IOSTAT=ios) kick_dir_file, kick_scale_file
+         IF (ios == 0) READ (trace_unit, IOSTAT=ios) n_eps
+         ! a failed read leaves n_eps undefined, and the caller reads an eps record when it is positive
+         IF (ios /= 0) n_eps = 0
+      END IF
+      CALL timestop(handle)
+   END SUBROUTINE read_restart_trace_header
+! **************************************************************************************************
+!> \brief Checks the linearized RT-BSE restart files before the SCF: their presence, the step in
+!>        .info, the RESTART.trace header against the input, and the trace's record count. All
+!>        ranks read. The names are generated outside the MD iteration level, so with
+!>        PRINT%RESTART%COMMON_ITERATION_LEVELS below 2 no file is found.
+!> \param force_env the force environment, for the input and the DFT control
+!> \param restart_found true when INITIAL_WFN is RT_RESTART and the restart files exist
+!> \author Maximilian Graml
+! **************************************************************************************************
+   SUBROUTINE check_restart_files_before_scf(force_env, restart_found)
+      TYPE(force_env_type), POINTER                      :: force_env
+      LOGICAL, INTENT(OUT)                               :: restart_found
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'check_restart_files_before_scf'
+      CHARACTER(len=1), DIMENSION(2), PARAMETER          :: spin_letters = ["A", "B"]
+      CHARACTER(len=10), DIMENSION(3), PARAMETER :: &
+         matrix_suffixes = ["_RE.matrix", "_IM.matrix", "_C.matrix "]
+
+      CHARACTER(len=default_path_length), DIMENSION(8)   :: file_names
+      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :)     :: moments_record
+      COMPLEX(kind=dp), DIMENSION(3)                     :: field_record
+      INTEGER :: handle, i_file, i_missing, i_spin, info_unit, ios, n_ao_file, n_basis_file, n_eps, &
+                 n_files, n_missing, n_records, n_spin, n_spin_file, n_steps, n_steps_input, record_index, &
+                 sim_start, trace_unit, version
+      LOGICAL                                            :: enforce_max_dt
+      REAL(kind=dp)                                      :: dt_file, dt_input, kick_scale_file, &
+                                                            time_record
+      REAL(kind=dp), DIMENSION(3)                        :: kick_dir_file
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(section_vals_type), POINTER                   :: input, md_section, restart_section
+
+      CALL timeset(routineN, handle)
+      NULLIFY (dft_control, input)
+      CALL get_qs_env(force_env%qs_env, dft_control=dft_control, input=input)
+      restart_found = .FALSE.
+      IF (dft_control%rtp_control%initial_wfn /= use_rt_restart) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      ! the names the readers open: .info, .trace, then RE, IM and C per spin
+      logger => cp_get_default_logger()
+      restart_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%RESTART")
+      n_spin = dft_control%nspins
+      file_names(1) = cp_print_key_generate_filename(logger, restart_section, extension=".info", my_local=.FALSE.)
+      file_names(2) = cp_print_key_generate_filename(logger, restart_section, extension=".trace", my_local=.FALSE.)
+      n_files = 2
+      DO i_spin = 1, n_spin
+         DO i_file = 1, 3
+            n_files = n_files + 1
+            file_names(n_files) = cp_print_key_generate_filename(logger, restart_section, &
+                                                                 extension="_SPIN_"//spin_letters(i_spin)// &
+                                                                 TRIM(matrix_suffixes(i_file)), my_local=.FALSE.)
+         END DO
+      END DO
+      i_missing = 0
+      n_missing = 0
+      DO i_file = 1, n_files
+         IF (.NOT. file_exists(file_names(i_file))) THEN
+            n_missing = n_missing + 1
+            IF (i_missing == 0) i_missing = i_file
+         END IF
+      END DO
+      IF (n_missing == n_files) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "INITIAL_WFN RT_RESTART was requested, but no restart file exists ("// &
+                      TRIM(file_names(1))//" not found); the calculation continues as a fresh run from "// &
+                      "the SCF density with the delta kick")
+         CALL timestop(handle)
+         RETURN
+      END IF
+      ! the header before the presence abort: a spin flip leaves the other spin's matrices missing,
+      ! and the spin comparison names that fix
+      IF (file_exists(file_names(2))) THEN
+         CALL open_file(file_names(2), file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
+                        unit_number=trace_unit)
+         CALL read_restart_trace_header(trace_unit, ios, version, n_spin_file, n_basis_file, n_ao_file, &
+                                        dt_file, kick_dir_file, kick_scale_file, n_eps)
+         ! the active eigenvalues close the header
+         IF (ios == 0 .AND. version == restart_trace_version .AND. n_eps > 0) READ (trace_unit, IOSTAT=ios)
+         IF (ios /= 0) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "RT_RESTART: cannot read the RESTART.trace header of "//TRIM(file_names(2))// &
+                          "; restore your own copy of a complete restart set of the run being continued, "// &
+                          "all files from one step, or remove DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART "// &
+                          "to start again")
+         END IF
+         IF (version /= restart_trace_version) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "RT_RESTART: RESTART.trace format version differs from this binary's ("// &
+                          TRIM(ADJUSTL(cp_to_string(version)))//" against "// &
+                          TRIM(ADJUSTL(cp_to_string(restart_trace_version)))// &
+                          "); continue the run with the CP2K version that wrote it")
+         END IF
+         IF (n_spin_file /= n_spin) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "RT_RESTART: RESTART.trace was written for another number of spins ("// &
+                          TRIM(ADJUSTL(cp_to_string(n_spin_file)))//", this input has "// &
+                          TRIM(ADJUSTL(cp_to_string(n_spin)))//"); set DFT%UKS as in the run being continued")
+         END IF
+      END IF
+      IF (n_missing > 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "RT_RESTART: restart file not found: "//TRIM(file_names(i_missing))// &
+                       "; restore the restart files of the run being continued under that name, or remove "// &
+                       "DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART")
+      END IF
+      restart_found = .TRUE.
+
+      CALL open_file(file_names(1), file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
+                     unit_number=info_unit)
+      READ (info_unit, IOSTAT=ios) sim_start
+      ! the writer never stores a negative step
+      IF (ios == 0) THEN
+         IF (sim_start < 0) ios = -1
+      END IF
+      CALL close_file(info_unit)
+      IF (ios /= 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "RT_RESTART: "//TRIM(file_names(1))//" holds no valid restart step; restore your "// &
+                       "own copy of a complete restart set of the run being continued, all files from one "// &
+                       "step, or remove DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART to start again")
+      END IF
+
+      md_section => section_vals_get_subs_vals(force_env%root_section, "MOTION%MD")
+      CALL section_vals_val_get(md_section, "TIMESTEP", r_val=dt_input)
+      CALL section_vals_val_get(md_section, "STEPS", i_val=n_steps_input)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%ENFORCE_MAX_DT", l_val=enforce_max_dt)
+      ! ENFORCE_MAX_DT inherits the stored time step instead
+      IF (.NOT. enforce_max_dt .AND. ABS(dt_file - dt_input) > 1.0e-12_dp*MAX(1.0_dp, ABS(dt_input))) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "RT_RESTART: MOTION%MD%TIMESTEP differs from the run being continued; set it to "// &
+                       TRIM(ADJUSTL(cp_to_string(dt_file*femtoseconds, '(ES20.12)')))//" fs, or enable "// &
+                       "DFT%REAL_TIME_PROPAGATION%RTBSE%ENFORCE_MAX_DT to inherit it")
+      END IF
+      IF (MAXVAL(ABS(kick_dir_file - REAL(dft_control%rtp_control%delta_pulse_direction, dp))) > 1.0e-12_dp .OR. &
+          ABS(kick_scale_file - dft_control%rtp_control%delta_pulse_scale) > 1.0e-12_dp) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "RT_RESTART: delta kick differs from the stored kick; set "// &
+                       "DFT%REAL_TIME_PROPAGATION%DELTA_PULSE_DIRECTION to "// &
+                       TRIM(ADJUSTL(cp_to_string(NINT(kick_dir_file(1)))))//" "// &
+                       TRIM(ADJUSTL(cp_to_string(NINT(kick_dir_file(2)))))//" "// &
+                       TRIM(ADJUSTL(cp_to_string(NINT(kick_dir_file(3)))))//" and DELTA_PULSE_SCALE to "// &
+                       TRIM(ADJUSTL(cp_to_string(kick_scale_file, '(ES20.12)')))//", the stored values")
+      END IF
+      ! with ENFORCE_MAX_DT, initialize_maximum_timestep keeps the window STEPS*TIMESTEP at the stored step
+      n_steps = n_steps_input
+      IF (enforce_max_dt .AND. dt_file > 0.0_dp .AND. dt_input > 0.0_dp) THEN
+         n_steps = MAX(1, NINT(REAL(MAX(0, n_steps_input), dp)*dt_input/dt_file))
+      END IF
+      IF (sim_start >= n_steps) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "RT_RESTART: the restart step is not below MOTION%MD%STEPS: the restart files hold step "// &
+                       TRIM(ADJUSTL(cp_to_string(sim_start)))//", and this run ends after "// &
+                       TRIM(ADJUSTL(cp_to_string(n_steps)))//" steps (MOTION%MD%STEPS, or under "// &
+                       "ENFORCE_MAX_DT the window STEPS*TIMESTEP in stored time steps); raise MOTION%MD%STEPS")
+      END IF
+
+      ! the continuation reloads records 1 to sim_start + 1, each read with the reader's item list
+      ALLOCATE (moments_record(n_spin, 3))
+      n_records = 0
+      DO
+         READ (trace_unit, IOSTAT=ios) record_index, time_record, field_record, moments_record
+         IF (ios /= 0) EXIT
+         n_records = n_records + 1
+      END DO
+      DEALLOCATE (moments_record)
+      CALL close_file(trace_unit)
+      IF (n_records < sim_start + 1) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "RT_RESTART: RESTART.trace holds fewer records than the restart step needs ("// &
+                       TRIM(ADJUSTL(cp_to_string(n_records)))//" for step "// &
+                       TRIM(ADJUSTL(cp_to_string(sim_start)))// &
+                       "); a run killed while writing its restart files leaves this state: restore your "// &
+                       "own copy of a complete restart set of the run being continued, all files from one "// &
+                       "step, or remove DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART to start again")
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE check_restart_files_before_scf
+! **************************************************************************************************
 !> \brief Early phase of the restart read: the starting step index from the .info file, the original
 !>        run's dt peeked from the RESTART.trace header (so ENFORCE_MAX_DT can inherit it), and an
 !>        SCF_GUESS hygiene check. Runs BEFORE initialize_maximum_timestep; the trace prefix records
@@ -723,37 +960,33 @@ CONTAINS
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=default_path_length)                 :: save_name
-      INTEGER                                            :: info_unit, trace_unit, version
+      INTEGER                                            :: info_unit, ios, n_ao_file, n_basis_file, &
+                                                            n_eps, n_spin_file, trace_unit, version
+      REAL(kind=dp)                                      :: dt_file, kick_scale_file
+      REAL(kind=dp), DIMENSION(3)                        :: kick_dir_file
       TYPE(scf_control_type), POINTER                    :: scf_control
 
       logger => cp_get_default_logger()
 
+      ! check_restart_files_before_scf found both files readable before the SCF
       save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=".info", my_local=.FALSE.)
-      IF (file_exists(save_name)) THEN
-         CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
-                        unit_number=info_unit)
-         READ (info_unit) rtbse_env%sim_start
-         CALL close_file(info_unit)
-         IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A31,I25,A24)') " RTBSE| Starting from timestep ", &
-            rtbse_env%sim_start, ", delta kick NOT applied"
-      ELSE
-         CPWARN("Restart required but no info file found - starting from sim_step given in input")
-      END IF
+      CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
+                     unit_number=info_unit)
+      READ (info_unit) rtbse_env%sim_start
+      CALL close_file(info_unit)
+      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A31,I25,A24)') " RTBSE| Starting from timestep ", &
+         rtbse_env%sim_start, ", delta kick NOT applied"
 
-      ! Peek the original run's dt from the trace header (version, dims record, dt) so ENFORCE_MAX_DT
-      ! can inherit it rather than recompute a window-dependent dt. The dims record is skipped here;
-      ! read_restart_trace re-reads the full header and validates it once the trace arrays are sized.
+      ! the original run's dt, which ENFORCE_MAX_DT inherits rather than recompute a window-dependent dt
       save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=".trace", my_local=.FALSE.)
-      IF (file_exists(save_name)) THEN
-         CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
-                        unit_number=trace_unit)
-         READ (trace_unit) version
-         IF (version == restart_trace_version) THEN
-            READ (trace_unit)
-            READ (trace_unit) rtbse_env%sim_dt_restart
-         END IF
-         CALL close_file(trace_unit)
-      END IF
+      CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
+                     unit_number=trace_unit)
+      CALL read_restart_trace_header(trace_unit, ios, version, n_spin_file, n_basis_file, n_ao_file, &
+                                     dt_file, kick_dir_file, kick_scale_file, n_eps)
+      CALL close_file(trace_unit)
+      ! check_restart_files_before_scf read this header whole before the SCF
+      CPASSERT(ios == 0)
+      rtbse_env%sim_dt_restart = dt_file
 
       ! Hygiene nudge only - correctness is protected by the restart basis bridge (linearized path)
       NULLIFY (scf_control)
@@ -764,18 +997,18 @@ CONTAINS
    END SUBROUTINE read_restart_info
 ! **************************************************************************************************
 !> \brief Reads the RESTART.trace prefix (records 1..sim_start) into the in-memory moment/field/
-!>        time traces so the continuation FT covers the full history. Header guards: version,
-!>        n_spin, dims, dt (abort); kick params (warn); eps_active > 0.1 meV (warn). All ranks read
-!>        (the traces are replicated). Record layout matches write_restart_trace verbatim.
+!>        time traces so the continuation FT covers the full history. check_restart_files_before_scf
+!>        checked the header against the input and the record count before the SCF; this reader
+!>        checks what needs the SCF: the AO and active-MO counts, and eps_active > 0.1 meV (warn).
+!>        All ranks read (the traces are replicated). Record layout matches write_restart_trace verbatim.
 !> \param rtbse_env RT-BSE environment
 ! **************************************************************************************************
    SUBROUTINE read_restart_trace(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_logger_type), POINTER                      :: logger
-      CHARACTER(len=default_path_length)                 :: save_name, err_msg
+      CHARACTER(len=default_path_length)                 :: save_name
       INTEGER                                            :: trace_unit, version, n_spin_file, &
-                                                            n_basis_file, n_ao_file, n_eps, n, &
-                                                            n_read_max, ios
+                                                            n_basis_file, n_ao_file, n_eps, n, ios
       REAL(kind=dp)                                      :: dt_file, kick_scale_file, t_rec
       REAL(kind=dp), DIMENSION(3)                        :: kick_dir_file
       REAL(kind=dp), DIMENSION(:, :), ALLOCATABLE        :: eps_file
@@ -784,51 +1017,18 @@ CONTAINS
 
       logger => cp_get_default_logger()
       save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=".trace", my_local=.FALSE.)
-      ! No trace + real prior history: the FT would run on a zero prefix - either a guaranteed
-      ! multi_fft abort AFTER the full propagation (default FT%START_TIME=0, delta_t=0) or a
-      ! silently wrong tail-only spectrum (START_TIME>0). Fail fast instead.
-      IF (.NOT. file_exists(save_name)) THEN
-         IF (rtbse_env%sim_start > 0) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "RT_RESTART without RESTART.trace - the continuation FT would miss the pre-restart "// &
-                          "history. Restore the original run's RESTART.trace next to the density restart files.")
-         END IF
-         RETURN
-      END IF
-
       CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
                      unit_number=trace_unit)
-      READ (trace_unit) version
-      IF (version /= restart_trace_version) THEN
-         WRITE (err_msg, '(A,I0,A,I0)') "RESTART.trace: format version ", version, &
-            " does not match this binary's version ", restart_trace_version
-         CALL cp_abort(__LOCATION__, TRIM(err_msg))
-      END IF
-      READ (trace_unit) n_spin_file, n_basis_file, n_ao_file
-      IF (n_spin_file /= rtbse_env%n_spin) CPABORT("RESTART.trace: n_spin mismatch")
+      CALL read_restart_trace_header(trace_unit, ios, version, n_spin_file, n_basis_file, n_ao_file, &
+                                     dt_file, kick_dir_file, kick_scale_file, n_eps)
+      ! check_restart_files_before_scf read this header whole before the SCF
+      CPASSERT(ios == 0)
       IF (n_ao_file /= rtbse_env%n_ao) CPABORT("RESTART.trace: n_ao mismatch")
       ! v1 is strict same-window: the linearized active-MO count must match (D6)
       IF (ASSOCIATED(rtbse_env%real_workspace_mo) .AND. n_basis_file /= rtbse_env%mo_active) THEN
          CALL cp_abort(__LOCATION__, &
                        "RESTART.trace: active-MO count differs from the original run - same-window continuation only")
       END IF
-      READ (trace_unit) dt_file
-      ! ENFORCE_MAX_DT inherits dt_file (read_restart_info -> initialize_maximum_timestep), so this
-      ! fires only on the manual path (ENFORCE off + user dt /= original); name the exact fix.
-      IF (ABS(dt_file - rtbse_env%sim_dt) > 1.0e-12_dp*MAX(1.0_dp, ABS(rtbse_env%sim_dt))) THEN
-         WRITE (err_msg, '(A,ES16.9,A)') &
-            "RESTART.trace: TIMESTEP differs from the original run - continuation undefined. "// &
-            "Set MD%TIMESTEP [fs] ", dt_file*femtoseconds, &
-            " or enable RTBSE%ENFORCE_MAX_DT to inherit it automatically."
-         CALL cp_abort(__LOCATION__, TRIM(err_msg))
-      END IF
-      READ (trace_unit) kick_dir_file, kick_scale_file
-      IF (MAXVAL(ABS(kick_dir_file - REAL(rtbse_env%dft_control%rtp_control%delta_pulse_direction, dp))) > 1.0e-12_dp .OR. &
-          ABS(kick_scale_file - rtbse_env%dft_control%rtp_control%delta_pulse_scale) > 1.0e-12_dp) THEN
-         CALL cp_warn(__LOCATION__, &
-                      "RESTART.trace: delta-kick parameters differ from the original run - FT normalization inconsistent.")
-      END IF
-      READ (trace_unit) n_eps
       IF (n_eps > 0) THEN
          ALLOCATE (eps_file(n_eps, rtbse_env%n_spin))
          READ (trace_unit) eps_file
@@ -845,7 +1045,6 @@ CONTAINS
       END IF
 
       ALLOCATE (mom_rec(rtbse_env%n_spin, 3))
-      n_read_max = 0
       DO
          READ (trace_unit, IOSTAT=ios) n, t_rec, field_rec, mom_rec
          IF (ios /= 0) EXIT
@@ -859,13 +1058,9 @@ CONTAINS
          rtbse_env%time_trace(n) = t_rec
          rtbse_env%field_trace(:, n) = field_rec
          rtbse_env%moments_trace(:, :, n) = mom_rec
-         n_read_max = MAX(n_read_max, n)
       END DO
       DEALLOCATE (mom_rec)
       CALL close_file(trace_unit)
-      IF (n_read_max < rtbse_env%sim_start) THEN
-         CPWARN("RESTART.trace: fewer records than restart step - trace prefix incomplete.")
-      END IF
    END SUBROUTINE read_restart_trace
 ! **************************************************************************************************
 !> \brief Compares the original run's active eigenvalues (stashed by read_restart_trace) against
@@ -907,8 +1102,7 @@ CONTAINS
       CHARACTER(len=17), DIMENSION(4)                    :: file_labels
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: ws
 
-      ! This allows the delta kick and output of moment at time 0 in all cases
-      ! except the case when both imaginary and real parts of the density are read
+      ! a loaded density makes the driver skip the delta kick and the moments at time 0
       rtbse_env%restart_extracted = .FALSE.
       logger => cp_get_default_logger()
 
@@ -928,33 +1122,28 @@ CONTAINS
                                                     extension=file_labels(2*j - 1), my_local=.FALSE.)
          save_name_2 = cp_print_key_generate_filename(logger, rtbse_env%restart_section, &
                                                       extension=file_labels(2*j), my_local=.FALSE.)
-         IF (file_exists(save_name) .AND. file_exists(save_name_2)) THEN
-            CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
-                           unit_number=rho_unit_nr)
-            CALL cp_fm_read_unformatted(ws(1), rho_unit_nr)
-            CALL close_file(rho_unit_nr)
-            CALL open_file(save_name_2, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
-                           unit_number=rho_unit_nr)
-            CALL cp_fm_read_unformatted(ws(2), rho_unit_nr)
-            CALL close_file(rho_unit_nr)
-            CALL cp_fm_to_cfm(ws(1), ws(2), &
-                              rtbse_env%rho(j))
-            rtbse_env%restart_extracted = .TRUE.
-         ELSE
-            CPWARN("Restart without some restart matrices - starting from SCF density.")
-         END IF
+         ! check_restart_files_before_scf found both files before the SCF
+         CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
+                        unit_number=rho_unit_nr)
+         CALL cp_fm_read_unformatted(ws(1), rho_unit_nr)
+         CALL close_file(rho_unit_nr)
+         CALL open_file(save_name_2, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
+                        unit_number=rho_unit_nr)
+         CALL cp_fm_read_unformatted(ws(2), rho_unit_nr)
+         CALL close_file(rho_unit_nr)
+         CALL cp_fm_to_cfm(ws(1), ws(2), &
+                           rtbse_env%rho(j))
+         rtbse_env%restart_extracted = .TRUE.
       END DO
    END SUBROUTINE read_restart_density
 ! **************************************************************************************************
 !> \brief Reads the previous run's C_active slabs (gauge reference for the restart basis bridge).
 !> \param rtbse_env RT-BSE environment
-!> \param C_old Caller-created fm array (n_spin) on fm_struct_ao_mo_active, filled on success
-!> \param found .TRUE. iff all per-spin C files were present and read
+!> \param C_old Caller-created fm array (n_spin) on fm_struct_ao_mo_active, filled here
 ! **************************************************************************************************
-   SUBROUTINE read_restart_C(rtbse_env, C_old, found)
+   SUBROUTINE read_restart_C(rtbse_env, C_old)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: C_old
-      LOGICAL, INTENT(OUT)                               :: found
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=default_path_length)                 :: save_name
       CHARACTER(len=16), DIMENSION(2)                    :: c_file_labels
@@ -963,19 +1152,14 @@ CONTAINS
       c_file_labels(1) = "_SPIN_A_C.matrix"
       c_file_labels(2) = "_SPIN_B_C.matrix"
       logger => cp_get_default_logger()
-      found = .FALSE.
+      ! check_restart_files_before_scf found every file before the SCF
       DO j = 1, rtbse_env%n_spin
          save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, &
                                                     extension=c_file_labels(j), my_local=.FALSE.)
-         IF (.NOT. file_exists(save_name)) THEN
-            CPWARN("Restart without C_active file - assuming identical MO gauge (no basis bridge).")
-            RETURN
-         END IF
          CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
                         unit_number=c_unit)
          CALL cp_fm_read_unformatted(C_old(j), c_unit)
          CALL close_file(c_unit)
       END DO
-      found = .TRUE.
    END SUBROUTINE read_restart_C
 END MODULE rt_bse_io
