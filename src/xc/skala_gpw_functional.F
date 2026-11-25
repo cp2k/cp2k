@@ -2602,9 +2602,11 @@ CONTAINS
       CALL skala_gpw_feature_build(direction, rho1_set, rho1_r, particle_set, cell, &
                                    requires_grad=.FALSE., weights=weights, atom_partition=partition, &
                                    use_atom_chunks=.TRUE., cuda_device=selected_device)
-      CALL torch_tensor_clone(direction%density_t, directions(1))
-      CALL torch_tensor_clone(direction%grad_t, directions(2))
-      CALL torch_tensor_clone(direction%kin_t, directions(3))
+      IF (direction%chunk_feature_count > 0) THEN
+         CALL torch_tensor_clone(direction%density_t, directions(1))
+         CALL torch_tensor_clone(direction%grad_t, directions(2))
+         CALL torch_tensor_clone(direction%kin_t, directions(3))
+      END IF
       CALL skala_gpw_feature_build(reference, rho0_set, rho1_r, particle_set, cell, &
                                    requires_grad=.TRUE., weights=weights, atom_partition=partition, &
                                    use_atom_chunks=.TRUE., cuda_device=selected_device)
@@ -2627,18 +2629,9 @@ CONTAINS
          IF (max_rows == -1) THEN
             max_rows = auto_atom_chunk_max_rows(reference, rho1_r(1)%pw_grid%para%group)
          END IF
-         IF (max_rows == 0) THEN
-            nsubchunks = 1
-            ALLOCATE (sub_atom_begin(1), sub_atom_count(1), sub_row_begin(1), sub_row_count(1))
-            sub_atom_begin(1) = reference%chunk_atom_begin
-            sub_atom_count(1) = reference%chunk_natom
-            sub_row_begin(1) = 1
-            sub_row_count(1) = reference%chunk_feature_count
-         ELSE
-            CALL skala_gpw_atom_subchunk_layout(max_rows, sub_atom_begin, sub_atom_count, &
-                                                sub_row_begin, sub_row_count)
-            nsubchunks = SIZE(sub_atom_begin)
-         END IF
+         CALL skala_gpw_atom_subchunk_layout(max_rows, sub_atom_begin, sub_atom_count, &
+                                             sub_row_begin, sub_row_count)
+         nsubchunks = SIZE(sub_atom_begin)
          ! Route the direction subchunks through the independent clones.
          direction%density_t = directions(1)
          direction%grad_t = directions(2)
@@ -2715,9 +2708,11 @@ CONTAINS
          DEALLOCATE (resp_density, resp_grad, resp_kin, &
                      sub_atom_begin, sub_atom_count, sub_row_begin, sub_row_count)
       END IF
-      DO i = 1, SIZE(directions)
-         CALL torch_tensor_release(directions(i))
-      END DO
+      IF (direction%chunk_feature_count > 0) THEN
+         DO i = 1, SIZE(directions)
+            CALL torch_tensor_release(directions(i))
+         END DO
+      END IF
       CALL skala_gpw_feature_release(direction)
       CALL skala_gpw_feature_release(reference)
       CALL xc_rho_set_release(rho1_set)
