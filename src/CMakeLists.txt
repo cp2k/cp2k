@@ -319,8 +319,8 @@ set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/cp2k_info.F
 # The data folder is installed to a destination relative to the installation
 # prefix by default, whereas the CP2K binaries need its absolute path
 if(CP2K_DATA_DIR STREQUAL "default")
-  set(CP2K_DATA_INSTALL_DIR "${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/data")
-  set(CP2K_DATA_DIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/${PROJECT_NAME}/data")
+  set(CP2K_DATA_INSTALL_DIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/data")
+  set(CP2K_DATA_DIR "${CMAKE_INSTALL_FULL_DATADIR}/${PROJECT_NAME}/data")
 else()
   set(CP2K_DATA_INSTALL_DIR "${CP2K_DATA_DIR}")
 endif()
