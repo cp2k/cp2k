@@ -43,7 +43,7 @@ def main() -> None:
         f.write(regtest("toolchain", "psmp", testopts=testopts))
 
     with OutputFile(f"Dockerfile.test_generic_psmp", args.check) as f:
-        f.write(install_deps_toolchain(target_cpu="generic", system_openmpi=True))
+        f.write(install_deps_toolchain(target_cpu="generic", **WITHOUT_LIBTORCH))
         f.write(regtest("toolchain_generic", "psmp"))
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
@@ -388,7 +388,7 @@ def main() -> None:
         f.write(test_build(f"toolchain_hip_Mi100", "psmp"))
 
     with OutputFile(f"Dockerfile.test_conventions", args.check) as f:
-        f.write(install_deps_toolchain(**WITHOUT_LIBTORCH))
+        f.write(install_deps_toolchain(system_openmpi=True))
         f.write(conventions())
 
     with OutputFile(f"Dockerfile.test_manual", args.check) as f:

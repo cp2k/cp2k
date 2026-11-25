@@ -38,11 +38,20 @@ case "$with_deepmd" in
 
       mkdir build
       cd build
+      # DeePMD's unused helper executable dp_ipi links with -z defs, while the
+      # distro libtorch leaves some c10/torch symbols unresolved in
+      # libdeepmd_cc.so. CP2K only uses libdeepmd_c, so allow unresolved
+      # symbols from shared libraries for the helper executables.
+      deepmd_linker_flags=()
+      if [ "$(uname -s)" = "Linux" ]; then
+        deepmd_linker_flags+=("-DCMAKE_EXE_LINKER_FLAGS=-Wl,--allow-shlib-undefined")
+      fi
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_CXX_STANDARD=11 \
         -DCMAKE_CXX_STANDARD_REQUIRED=TRUE \
         -DENABLE_PYTORCH=TRUE \
+        "${deepmd_linker_flags[@]}" \
         .. > cmake.log 2>&1 || tail_excerpt cmake.log
       make -j deepmd_c > make.log 2>&1 || tail_excerpt make.log
       make install > install.log 2>&1 || tail_excerpt install.log

@@ -5,6 +5,17 @@
 
 FROM docker.io/ubuntu:26.04
 
+# Install libtorch, a matching BLAS and OpenMPI from the distribution
+# so that the toolchain does not download libtorch and both CP2K and
+# libtorch use the same MPI implementation.
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update -qq && \
+    apt-get install -qq --no-install-recommends \
+    libopenblas-dev \
+    libtorch-dev \
+    openmpi-bin \
+    libopenmpi-dev \
+    && rm -rf /var/lib/apt/lists/*
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
 COPY ./tools/toolchain/install_requirements*.sh ./
@@ -20,13 +31,14 @@ COPY ./tools/toolchain/scripts/VERSION \
 COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
     --install-all \
-    --mpi-mode=mpich \
+    --mpi-mode=openmpi \
     --with-dbcsr \
     --with-gcc=system \
-    --with-libtorch=no \
-    --with-gauxc=no \
-    --with-deepmd=no \
-    --with-skala-ftorch=no \
+    --with-libtorch=system \
+    --with-openblas=system \
+    --with-gauxc=install \
+    --with-deepmd=install \
+    --with-openmpi=system \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
