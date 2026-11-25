@@ -1,0 +1,6 @@
+"taco_water.inp" = [
+  {matcher = "M011", tol = 1e-10, ref = -0.000020920371154},
+  {matcher = "TACO_writer_header", file = "taco_water-pos-1.taco"},
+  {matcher = "TACO_time_step", file = "taco_water-pos-1.taco", tol = 1e-12, ref = 0.0005},
+  {matcher = "TACO_first_mass", file = "taco_water-pos-1.taco", tol = 1e-7, ref = 15.9994}
+]

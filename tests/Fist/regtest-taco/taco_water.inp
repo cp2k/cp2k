@@ -1,0 +1,64 @@
+&GLOBAL
+  PROJECT taco_water
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &FIXED_ATOMS
+      LIST 1 2 3
+      &RESTRAINT
+        K 1.0
+      &END RESTRAINT
+    &END FIXED_ATOMS
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 2
+    TEMPERATURE 0
+    TIMESTEP 0.5
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      FORMAT TACO
+      &EACH
+        MD 1
+      &END EACH
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/water.pot
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        ALPHA .44
+        EWALD_TYPE spme
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+    &END CELL
+    &TOPOLOGY
+      COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/water_1.pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

@@ -443,6 +443,7 @@ list(
   molsym.F
   moments_utils.F
   motion_utils.F
+  taco_writer.F
   mp2_cphf.F
   mp2_direct_method.F
   mp2_eri.F
