@@ -164,6 +164,11 @@ static std::set<int> take_pending_devices() {
   return devices;
 }
 
+static bool pending_grad_copies() {
+  std::lock_guard<std::mutex> lock(pending_grad_mutex);
+  return !pending_grad_readback_devices.empty();
+}
+
 static void enable_expandable_cuda_segments_if_unconfigured() {
 #if defined(__LIBTORCH_CUDA)
   static const bool initialized = []() {
@@ -256,6 +261,30 @@ static torch::Device get_device_with_guard(c10::OptionalDeviceGuard &guard) {
     guard.reset_device(device);
   }
   return device;
+}
+
+// Wait for all deferred device-to-host readbacks recorded by the grad-pool path
+// before their pinned buffers may be reused or freed.
+static void synchronize_pending_grad_copies() {
+#if defined(__LIBTORCH_CUDA)
+  if (!torch::cuda::is_available()) {
+    take_pending_devices();
+    return;
+  }
+  c10::OptionalDeviceGuard guard;
+  const auto active = get_device_with_guard(guard);
+  c10::cuda::getCurrentCUDAStream().synchronize();
+  for (const int device_index : take_pending_devices()) {
+    if (active.is_cuda() && static_cast<int>(active.index()) == device_index) {
+      continue; // Already synchronized above.
+    }
+    c10::DeviceGuard device_guard(torch::Device(
+        torch::kCUDA, static_cast<c10::DeviceIndex>(device_index)));
+    c10::cuda::getCurrentCUDAStream().synchronize();
+  }
+#else
+  take_pending_devices();
+#endif
 }
 
 static void set_jit_fusion_strategy() {
@@ -746,6 +775,7 @@ void torch_c_pinned_finish() {
  ******************************************************************************/
 void torch_c_pinned_release() {
   TORCH_C_TRY {
+    synchronize_pending_grad_copies();
     std::lock_guard<std::mutex> lock(pinned_pool_mutex);
     sync_pinned_generation_locked();
     release_current_slot_locked();
@@ -762,7 +792,6 @@ void torch_c_pinned_release() {
       pinned_generation.fetch_add(1, std::memory_order_relaxed);
     }
   }
-  take_pending_devices();
   TORCH_C_CATCH("torch_c_pinned_release")
 }
 
@@ -842,23 +871,7 @@ bool torch_c_tensor_upload_pinned(torch_c_tensor_t **tensor,
  ******************************************************************************/
 void torch_c_stream_synchronize() {
   TORCH_C_TRY
-#if defined(__LIBTORCH_CUDA)
-  if (torch::cuda::is_available()) {
-    c10::OptionalDeviceGuard guard;
-    const auto active = get_device_with_guard(guard);
-    c10::cuda::getCurrentCUDAStream().synchronize();
-    const auto devices = take_pending_devices();
-    for (const int device_index : devices) {
-      if (active.is_cuda() &&
-          static_cast<int>(active.index()) == device_index) {
-        continue; // Already synchronized above.
-      }
-      c10::DeviceGuard device_guard(torch::Device(
-          torch::kCUDA, static_cast<c10::DeviceIndex>(device_index)));
-      c10::cuda::getCurrentCUDAStream().synchronize();
-    }
-  }
-#endif
+  synchronize_pending_grad_copies();
   TORCH_C_CATCH("torch_c_stream_synchronize")
 }
 
@@ -1127,7 +1140,8 @@ static void grad_batch_impl(const torch_c_tensor_t *const *tensors,
         const auto sizes = sources[i].sizes();
         const bool reuse = entry.defined() && entry.sizes() == sizes &&
                            entry.scalar_type() == sources[i].scalar_type() &&
-                           entry.getIntrusivePtr().use_count() == 1;
+                           entry.getIntrusivePtr().use_count() == 1 &&
+                           !pending_grad_copies();
         if (!reuse) {
           entry = torch::empty(
               sizes,
@@ -1182,12 +1196,12 @@ void torch_c_tensor_grad_batch_deferred(const torch_c_tensor_t *const *tensors,
  ******************************************************************************/
 void torch_c_grad_pool_clear() {
   TORCH_C_TRY {
+    synchronize_pending_grad_copies();
     std::lock_guard<std::mutex> lock(grad_pinned_mutex);
     if (grad_pinned_pool != nullptr) {
       grad_pinned_pool->clear();
     }
   }
-  take_pending_devices();
   TORCH_C_CATCH("torch_c_grad_pool_clear")
 }
 
