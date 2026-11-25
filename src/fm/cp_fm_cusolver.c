@@ -302,16 +302,16 @@ static cp_fm_cusolver_context *get_context(void **context,
   const int device = offload_get_chosen_device();
   MPI_Comm comm = MPI_Comm_f2c(fortran_comm);
   cp_fm_cusolver_context *ctx = *context;
-#if defined(__CUSOLVERMP_NCCL)
-  if (!ctx) {
-    check_nccl_device_visibility(comm, device);
-  }
-#endif
-  offload_activate_chosen_device();
   if (ctx && (ctx->dense != NULL) != local) {
     cp_fm_cusolver_context_destroy(context);
     ctx = NULL;
   }
+#if defined(__CUSOLVERMP_NCCL)
+  if (!ctx && !local) {
+    check_nccl_device_visibility(comm, device);
+  }
+#endif
+  offload_activate_chosen_device();
   if (ctx) {
     int comparison;
     MPI_Comm_compare(comm, ctx->comm, &comparison);

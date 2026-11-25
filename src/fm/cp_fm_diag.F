@@ -1720,6 +1720,7 @@ CONTAINS
 #endif
 #if defined(__DLAF)
       CASE (FM_DIAG_TYPE_DLAF)
+         CALL cp_dlaf_initialize()
          CALL cp_fm_diag_gen_dlaf(amatrix, bmatrix, vectors, eigenvalues)
 #endif
       CASE (FM_DIAG_REDUCED)

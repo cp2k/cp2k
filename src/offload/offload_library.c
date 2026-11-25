@@ -78,7 +78,12 @@ int offload_get_device_count(void) {
   }
   OFFLOAD_CHECK(status);
 #elif defined(__OFFLOAD_HIP)
-  OFFLOAD_CHECK(hipGetDeviceCount(&count));
+  hipError_t status = hipGetDeviceCount(&count);
+  if (status == hipErrorNoDevice) {
+    (void)hipGetLastError();
+    return 0;
+  }
+  OFFLOAD_CHECK(status);
 #elif defined(__OFFLOAD_OPENCL)
   OFFLOAD_CHECK(libxstream_device_count(&count));
 #endif

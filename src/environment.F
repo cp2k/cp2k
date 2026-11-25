@@ -892,7 +892,7 @@ CONTAINS
 
          IF (globenv%diag_library == "cuSOLVER" .OR. globenv%diag_library == "ScaLAPACK" .OR. &
              globenv%diag_library == "DLAF") THEN
-            IF (globenv%diag_library == "cuSOLVER" .AND. .NOT. direct_explicit) THEN
+            IF (.NOT. direct_explicit) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A,T71,A10)") &
                   start_section_label//"| Direct generalized diagonalization", "automatic"
             ELSE
