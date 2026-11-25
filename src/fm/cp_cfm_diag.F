@@ -427,9 +427,9 @@ CONTAINS
 !> \param bmatrix positive definite overlap, may be overwritten
 !> \param eigenvectors lowest eigenvectors as columns
 !> \param eigenvalues requested prefix of the spectrum in ascending order
-!> \param selected_backend backend already selected for these matrix layouts
 !> \param work square workspace for solvers that cannot write directly into the MO layout
 !> \param lowest_subset compute only the requested lowest eigenpairs with ScaLAPACK when available
+!> \param selected_backend backend already selected for these matrix layouts
 !> \par History
 !>      12.2024 Added DLA-Future support [Rocco Meli]
 ! **************************************************************************************************

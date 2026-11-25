@@ -1662,8 +1662,8 @@ CONTAINS
 !> \param bmatrix positive definite overlap, may be overwritten
 !> \param eigenvectors lowest eigenvectors as columns
 !> \param eigenvalues requested prefix of the spectrum in ascending order
-!> \param selected_backend backend already selected for these matrix layouts
 !> \param work optional square workspace for solvers that cannot write directly into the MO layout
+!> \param selected_backend backend already selected for these matrix layouts
 ! **************************************************************************************************
    SUBROUTINE cp_fm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work, selected_backend)
 
