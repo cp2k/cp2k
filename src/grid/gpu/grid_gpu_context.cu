@@ -94,7 +94,7 @@ context_info::set_kernel_parameters(const int level,
  *        ncoset(la_max + lb_max + lp_diff) entries aligned to four doubles.
  ******************************************************************************/
 void context_info::prepare_coef_workspace(const int lp_diff) {
-  if (coef_lp_diff_ == lp_diff)
+  if ((coef_lp_diff_ == lp_diff) || (ntasks == 0))
     return;
 
   size_t total = 0;
@@ -597,6 +597,14 @@ extern "C" void grid_gpu_integrate_task_list(
   // Select GPU device.
   ctx->set_device();
 
+  ctx->calculate_forces = (forces != nullptr);
+  ctx->calculate_virial = (virial != nullptr);
+  ctx->compute_tau = compute_tau;
+
+  // coefficient layout for the whole operation, before any level is processed
+  // and before any transfer is queued (a reallocation synchronizes the device)
+  ctx->prepare_integrate_workspace();
+
   for (int level = 0; level < ctx->nlevels; level++) {
     if (ctx->number_of_tasks_per_level_[level]) {
       ctx->grid_[level].associate(grids[level]->host_buffer,
@@ -618,10 +626,6 @@ extern "C" void grid_gpu_integrate_task_list(
   ctx->hab_block_.associate(hab_blocks->host_buffer, hab_blocks->device_buffer,
                             hab_blocks->size / sizeof(double));
   ctx->hab_block_.zero(ctx->main_stream);
-
-  ctx->calculate_forces = (forces != nullptr);
-  ctx->calculate_virial = (virial != nullptr);
-  ctx->compute_tau = compute_tau;
 
   if (virial != nullptr) {
     ctx->virial_.resize(9);

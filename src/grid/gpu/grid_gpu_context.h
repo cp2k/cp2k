@@ -816,6 +816,7 @@ public:
                                 int *lp_diff);
   void integrate_one_grid_level(const int level, int *lp_diff);
   void compute_hab_coefficients();
+  void prepare_integrate_workspace();
   /* basic checksum computation for simple verification that the object is sane
    */
   void compute_checksum() { checksum_ = compute_checksum_(); }

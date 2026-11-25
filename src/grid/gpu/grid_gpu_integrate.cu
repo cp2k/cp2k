@@ -976,8 +976,10 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
 
   *lp_diff = smem_params.lp_diff();
   init_constant_memory();
+  // the coefficient workspace is laid out for the whole operation by
+  // prepare_integrate_workspace, before the loop over the grid levels
+  cp_assert(coef_lp_diff_ == smem_params.lp_diff());
 
-  prepare_coef_workspace(smem_params.lp_diff());
   kernel_params params = set_kernel_parameters(level, smem_params);
 
   // cartesian factorization for an axis aligned cell, lattice coordinates +
@@ -1023,6 +1025,19 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
   }
 }
 
+/*******************************************************************************
+ * \brief Lays out the coefficient workspace for the integrate operation
+ *        selected by calculate_forces, calculate_virial and compute_tau. Must
+ *        be called once per operation, before the loop over the grid levels:
+ *        the coefficients written by integrate_one_grid_level for all the
+ *        levels are read by compute_hab_coefficients.
+ ******************************************************************************/
+void context_info::prepare_integrate_workspace() {
+  const ldiffs_value ldiffs =
+      process_get_ldiffs(calculate_forces, calculate_virial, compute_tau);
+  prepare_coef_workspace(ldiffs.la_max_diff + ldiffs.lb_max_diff);
+}
+
 void context_info::compute_hab_coefficients() {
 
   cp_assert(!calculate_virial || calculate_forces);
@@ -1034,6 +1049,7 @@ void context_info::compute_hab_coefficients() {
   smem_parameters smem_params(ldiffs, lmax());
   init_constant_memory();
   prepare_cab_workspace(ldiffs.la_max_diff, ldiffs.lb_max_diff);
+  cp_assert((ntasks == 0) || (coef_lp_diff_ == smem_params.lp_diff()));
 
   kernel_params params = set_kernel_parameters(-1, smem_params);
 
