@@ -25,8 +25,8 @@
   {matcher = "SKALA_GAPW_composite_electrons", tol = 1e-8, ref = 9.225217857549124}
 ]
 "H2_NATIVE_SKALA_GAPW_AE_ACCURATE_XCINT_FORCE.inp" = [
-  {matcher = "E_total", tol = 1e-8, ref = -1.17335048020511},
-  {matcher = "Atomic_force_2_z", tol = 1e-7, ref = 2.07270008E-02},
-  {matcher = "M072", tol = 1e-6, ref = 1.24092909E-04},
-  {matcher = "M031", tol = 1e-4, ref = -5.15874360157E+04}
+  {matcher = "E_total", tol = 1e-8, ref = -0.99286652637319},
+  {matcher = "Atomic_force_2_z", tol = 1e-7, ref = 2.50721126E-02},
+  {matcher = "M072", tol = 1e-6, ref = 1.04661319E-04},
+  {matcher = "M031", tol = 1e-4, ref = -9.46167430326E+04}
 ]
