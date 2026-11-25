@@ -852,8 +852,9 @@ CONTAINS
          IF (ios /= 0) THEN
             CALL cp_abort(__LOCATION__, &
                           "RT_RESTART: cannot read the RESTART.trace header of "//TRIM(file_names(2))// &
-                          "; restore the restart files of one completed restart step of the run being "// &
-                          "continued, or remove DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART")
+                          "; restore your own copy of a complete restart set of the run being continued, "// &
+                          "all files from one step, or remove DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART "// &
+                          "to start again")
          END IF
          IF (version /= restart_trace_version) THEN
             CALL cp_abort(__LOCATION__, &
@@ -887,9 +888,9 @@ CONTAINS
       END IF
       IF (ios /= 0) THEN
          CALL cp_abort(__LOCATION__, &
-                       "RT_RESTART: cannot read a step of 0 or more from "//TRIM(file_names(1))// &
-                       "; restore the restart files of one completed restart step of the run being "// &
-                       "continued, or remove DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART")
+                       "RT_RESTART: "//TRIM(file_names(1))//" holds no valid restart step; restore your "// &
+                       "own copy of a complete restart set of the run being continued, all files from one "// &
+                       "step, or remove DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART to start again")
       END IF
 
       md_section => section_vals_get_subs_vals(force_env%root_section, "MOTION%MD")
@@ -941,8 +942,9 @@ CONTAINS
                        "RT_RESTART: RESTART.trace holds fewer records than the restart step needs ("// &
                        TRIM(ADJUSTL(cp_to_string(n_records)))//" for step "// &
                        TRIM(ADJUSTL(cp_to_string(sim_start)))// &
-                       "); a run killed while writing its restart files leaves this state: restore the "// &
-                       "restart files of one completed restart step")
+                       "); a run killed while writing its restart files leaves this state: restore your "// &
+                       "own copy of a complete restart set of the run being continued, all files from one "// &
+                       "step, or remove DFT%REAL_TIME_PROPAGATION%INITIAL_WFN RT_RESTART to start again")
       END IF
 
       CALL timestop(handle)
