@@ -5,18 +5,18 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 PROGRAM cp_cfm_diag_unittest
-   USE ISO_C_BINDING,                   ONLY: C_ASSOCIATED
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_create, cp_blacs_env_release, cp_blacs_env_type
-   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig, cp_cfm_heevd
-   USE cp_cfm_types,                    ONLY: cp_cfm_create, cp_cfm_get_submatrix, cp_cfm_release, &
-                                              cp_cfm_set_submatrix, cp_cfm_type
-   USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER, FM_DIAG_TYPE_DEFAULT, FM_DIAG_TYPE_SCALAPACK, cusolver_n_min, &
-                                              diag_type, direct_generalized_diagonalization
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_create, cp_fm_struct_release, cp_fm_struct_type
-   USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: cp2k_is_parallel, mp_para_env_type, mp_world_finalize, mp_world_init
+   USE ISO_C_BINDING, ONLY: C_ASSOCIATED
+   USE cp_blacs_env, ONLY: cp_blacs_env_create, cp_blacs_env_release, cp_blacs_env_type
+   USE cp_cfm_diag, ONLY: cp_cfm_geeig, cp_cfm_heevd
+   USE cp_cfm_types, ONLY: cp_cfm_create, cp_cfm_get_submatrix, cp_cfm_release, &
+                           cp_cfm_set_submatrix, cp_cfm_type
+   USE cp_fm_diag, ONLY: FM_DIAG_TYPE_CUSOLVER, FM_DIAG_TYPE_DEFAULT, FM_DIAG_TYPE_SCALAPACK, cusolver_n_min, &
+                         diag_type, direct_generalized_diagonalization
+   USE cp_fm_struct, ONLY: cp_fm_struct_create, cp_fm_struct_release, cp_fm_struct_type
+   USE kinds, ONLY: dp
+   USE message_passing, ONLY: cp2k_is_parallel, mp_para_env_type, mp_world_finalize, mp_world_init
 #if defined(__CUSOLVERMP)
-   USE offload_api,                     ONLY: offload_get_device_count, offload_set_chosen_device
+   USE offload_api, ONLY: offload_get_device_count, offload_set_chosen_device
 #endif
 
    IMPLICIT NONE
@@ -52,18 +52,19 @@ CONTAINS
 !> \param nvec number of requested eigenvectors, all by default
 ! **************************************************************************************************
    SUBROUTINE check_solve(n, generalized, nvec)
-      INTEGER, INTENT(IN) :: n
-      LOGICAL, INTENT(IN) :: generalized
-      INTEGER, INTENT(IN), OPTIONAL :: nvec
+      INTEGER, INTENT(IN)                                :: n
+      LOGICAL, INTENT(IN)                                :: generalized
+      INTEGER, INTENT(IN), OPTIONAL                      :: nvec
 
-      REAL(KIND=dp), PARAMETER :: tol = 1.0E-11_dp
-      COMPLEX(KIND=dp), DIMENSION(n, n) :: h, s, sz, z
-      INTEGER :: i, nev
-      LOGICAL :: expect_gpu, upper_only
-      REAL(KIND=dp), DIMENSION(n) :: eval
-      TYPE(cp_blacs_env_type), POINTER :: grid
-      TYPE(cp_cfm_type) :: a, b, vec, work
-      TYPE(cp_fm_struct_type), POINTER :: layout, vector_layout
+      REAL(KIND=dp), PARAMETER                           :: tol = 1.0E-11_dp
+
+      INTEGER                                            :: i, nev
+      COMPLEX(KIND=dp), DIMENSION(n, n)                  :: h, s, sz, z
+      LOGICAL                                            :: expect_gpu, upper_only
+      REAL(KIND=dp), DIMENSION(n)                        :: eval
+      TYPE(cp_blacs_env_type), POINTER                   :: grid
+      TYPE(cp_cfm_type)                                  :: a, b, vec, work
+      TYPE(cp_fm_struct_type), POINTER                   :: layout, vector_layout
 
       NULLIFY (grid, layout, vector_layout)
       nev = n

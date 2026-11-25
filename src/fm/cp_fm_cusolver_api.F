@@ -10,15 +10,15 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE cp_fm_cusolver_api
-   USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
-                                              C_INT,&
-                                              C_LOC,&
-                                              C_NULL_PTR,&
-                                              C_PTR
-   USE cp_cfm_types,                    ONLY: cp_cfm_type
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_type
-   USE kinds,                           ONLY: dp
+   USE ISO_C_BINDING, ONLY: C_DOUBLE, &
+                            C_INT, &
+                            C_LOC, &
+                            C_NULL_PTR, &
+                            C_PTR
+   USE cp_cfm_types, ONLY: cp_cfm_type
+   USE cp_fm_struct, ONLY: cp_fm_struct_type
+   USE cp_fm_types, ONLY: cp_fm_type
+   USE kinds, ONLY: dp
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -159,7 +159,7 @@ CONTAINS
          INTEGER :: handle, ldb
          TYPE(C_PTR) :: b
 #if defined(__CUSOLVERMP)
-         ${scalar}$(KIND=dp), ALLOCATABLE, TARGET, DIMENSION(:, :) :: lower
+         ${scalar}$ (KIND=dp), ALLOCATABLE, TARGET, DIMENSION(:, :) :: lower
          INTEGER :: n
 #endif
 

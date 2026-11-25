@@ -97,10 +97,10 @@ MODULE environment
         m_energy, m_getexe, m_memory_details, m_omp_get_stacksize, m_omp_trace_issues, m_procrun
    USE message_passing,                 ONLY: mp_collect_timings,&
                                               mp_para_env_type
-   USE offload_api,                     ONLY: offload_get_device_count
    USE mp_perf_env,                     ONLY: add_mp_perf_env,&
                                               describe_mp_perf_env,&
                                               rm_mp_perf_env
+   USE offload_api,                     ONLY: offload_get_device_count
    USE orbital_pointers,                ONLY: deallocate_orbital_pointers,&
                                               init_orbital_pointers
    USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics,&
@@ -575,8 +575,9 @@ CONTAINS
          MemTotal_max, MemTotal_min, Slab, Slab_avr, Slab_max, Slab_min, SReclaimable, &
          SReclaimable_avr, SReclaimable_max, SReclaimable_min
       INTEGER, DIMENSION(:), POINTER                     :: i_force_eval
-      LOGICAL                                            :: ata, do_echo_all_hosts, direct_explicit, explicit, flag, &
-                                                            report_maxloc, trace, trace_master
+      LOGICAL                                            :: ata, direct_explicit, do_echo_all_hosts, &
+                                                            explicit, flag, report_maxloc, trace, &
+                                                            trace_master
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(enumeration_type), POINTER                    :: enum1, enum2
       TYPE(keyword_type), POINTER                        :: keyword
@@ -1217,7 +1218,8 @@ CONTAINS
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
       INTEGER                                            :: device_count
-      LOGICAL                                            :: diag_lib_explicit, direct_explicit, fallback_applied, stage_explicit
+      LOGICAL                                            :: diag_lib_explicit, direct_explicit, &
+                                                            fallback_applied, stage_explicit
 
       CALL section_vals_val_get(global_section, "PREFERRED_DIAG_LIBRARY", explicit=diag_lib_explicit)
       cusolver_n_min = globenv%cusolver_n_min

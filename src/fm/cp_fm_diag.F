@@ -1752,6 +1752,7 @@ CONTAINS
 !> \brief Can LAPACK represent the minimum divide-and-conquer workspace for JOBZ='V'?
 !> \param n matrix order
 !> \param is_complex test ZHEGVD's LRWORK instead of DSYGVD's LWORK
+!> \return whether the minimum workspace length fits a LAPACK integer
 ! **************************************************************************************************
    PURE LOGICAL FUNCTION local_gvd_fits(n, is_complex) RESULT(fits)
       INTEGER, INTENT(IN)                                :: n
@@ -1764,6 +1765,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Convert a LAPACK workspace query, returning zero if it is not representable.
 !> \param query recommended workspace length
+!> \return rounded workspace length, or zero if it is out of range
 ! **************************************************************************************************
    PURE INTEGER FUNCTION lapack_query_size(query) RESULT(length)
       REAL(KIND=dp), INTENT(IN)                          :: query
