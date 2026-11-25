@@ -45,6 +45,9 @@ the CP2K manual provide several methods for installing CP2K with dependencies:
 - [Build with Spack](https://manual.cp2k.org/trunk/getting-started/build-with-spack.html)
 - [Install from Distribution](https://manual.cp2k.org/trunk/getting-started/distributions.html)
 
+After installing CP2K, you can
+[tune CPU binding to improve parallel performance](https://manual.cp2k.org/trunk/technologies/libraries.html#mpi-and-scalapack-required-for-mpi-parallel-builds).
+
 ## Links
 
 - [CP2K.org](https://www.cp2k.org) for showcases of scientific work, tutorials, exercises,
