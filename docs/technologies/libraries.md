@@ -109,6 +109,8 @@ disable binding with `--bind-to none` or explicitly allocate the required number
 for example with `--map-by slot:PE=<OMP_NUM_THREADS> --bind-to core`.
 ```
 
+See the [Open MPI mapping and binding guide](https://docs.open-mpi.org/en/v5.0.11/man-openmpi/man1/mpirun.1.html#mapping-ranking-and-binding-options) or [Slurm CPU binding guide](https://slurm.schedmd.com/resource_binding.html#srun) for allocating cores to hybrid MPI/OpenMP runs and concurrent jobs.
+
 CP2K assumes that the MPI library implements MPI version 3; older versions of MPI (e.g., MPI 2.0)
 are not supported. CP2K can make use of the `mpi_f08` module; pass `-DCP2K_USE_MPI_F08=ON` to CMake
 to enable it.
