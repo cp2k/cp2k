@@ -79,7 +79,7 @@ MODULE torch_api
    END INTERFACE torch_model_get_attr
 
    PUBLIC :: torch_tensor_type, torch_tensor_expand_dim, torch_tensor_from_array, &
-             torch_tensor_clone, torch_tensor_gather_rows, torch_tensor_narrow, &
+             torch_tensor_clone, torch_tensor_narrow, &
              torch_tensor_release
    PUBLIC :: staged_upload, torch_pinned_reserve, torch_stream_synchronize
    PUBLIC :: torch_file_stamp, torch_grad_pool_clear, torch_model_metadata_clear, &
@@ -90,7 +90,7 @@ MODULE torch_api
    PUBLIC :: torch_tensor_grad_batch_deferred, torch_tensor_grad_batch3_deferred
    PUBLIC :: torch_tensor_to_device_leaf, torch_tensor_set_requires_grad
    PUBLIC :: torch_tensor_accumulate, torch_tensor_item_double, torch_tensor_weighted_sum
-   PUBLIC :: torch_tensor_weighted_sum_segments, torch_tensor_weighted_sum_segments_total
+   PUBLIC :: torch_tensor_weighted_sum_segments_total
    PUBLIC :: torch_dict_type, torch_dict_clone, torch_dict_create, torch_dict_insert
    PUBLIC :: torch_dict_get, torch_dict_release, torch_dict_set
    PUBLIC :: torch_get_num_threads, torch_set_default_threads
@@ -432,46 +432,6 @@ CONTAINS
 #endif
    END SUBROUTINE torch_tensor_clone
 
-! **************************************************************************************************
-!> \brief Gathers selected rows of a tensor onto the host (independent copy).
-! **************************************************************************************************
-   SUBROUTINE torch_tensor_gather_rows(tensor, rows, result)
-      TYPE(torch_tensor_type), INTENT(IN)                :: tensor
-      INTEGER, INTENT(IN)                                :: rows(:)
-      TYPE(torch_tensor_type), INTENT(INOUT)             :: result
-
-#if defined(__LIBTORCH)
-      INTEGER(KIND=C_INT32_T), ALLOCATABLE               :: rows_c(:)
-      INTEGER                                            :: i
-      INTERFACE
-         SUBROUTINE torch_c_tensor_gather_rows(tensor, nrows, rows, result) &
-            BIND(C, name="torch_c_tensor_gather_rows")
-            IMPORT :: C_INT, C_INT32_T, C_PTR
-            TYPE(C_PTR), VALUE                           :: tensor
-            INTEGER(C_INT), VALUE                        :: nrows
-            INTEGER(C_INT32_T), INTENT(IN)               :: rows(*)
-            TYPE(C_PTR)                                  :: result
-         END SUBROUTINE torch_c_tensor_gather_rows
-      END INTERFACE
-
-      CPASSERT(C_ASSOCIATED(tensor%c_ptr))
-      CPASSERT(.NOT. C_ASSOCIATED(result%c_ptr))
-      ALLOCATE (rows_c(SIZE(rows)))
-      CPASSERT(MINVAL(rows) >= 1)
-      DO i = 1, SIZE(rows)
-         rows_c(i) = INT(rows(i), C_INT32_T) - 1
-      END DO
-      CALL torch_c_tensor_gather_rows(tensor%c_ptr, INT(SIZE(rows), C_INT), &
-                                      rows_c, result%c_ptr)
-      DEALLOCATE (rows_c)
-      CPASSERT(C_ASSOCIATED(result%c_ptr))
-#else
-      CPABORT("CP2K compiled without the Torch library.")
-      MARK_USED(tensor)
-      MARK_USED(rows)
-      MARK_USED(result)
-#endif
-   END SUBROUTINE torch_tensor_gather_rows
 ! **************************************************************************************************
 !> \brief Runs autograd on a Torch tensor.
 !> \author Ole Schuett
@@ -1015,46 +975,6 @@ CONTAINS
       MARK_USED(result)
 #endif
    END SUBROUTINE torch_tensor_weighted_sum
-
-! **************************************************************************************************
-!> \brief Computes all weighted segment sums and returns them to host in one
-!>        synchronization.
-! **************************************************************************************************
-   SUBROUTINE torch_tensor_weighted_sum_segments(values, weights, offsets, lengths, result)
-      TYPE(torch_tensor_type), INTENT(IN)                :: values, weights
-      INTEGER(KIND=int_8), DIMENSION(:), INTENT(IN)      :: offsets, lengths
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: result
-
-#if defined(__LIBTORCH)
-      INTERFACE
-         SUBROUTINE torch_c_tensor_weighted_sum_segments(values, weights, offsets, lengths, nseg, result) &
-            BIND(C, name="torch_c_tensor_weighted_sum_segments")
-            IMPORT :: C_INT, C_INT64_T, C_DOUBLE, C_PTR
-            TYPE(C_PTR), VALUE                           :: values
-            TYPE(C_PTR), VALUE                           :: weights
-            INTEGER(KIND=C_INT64_T), DIMENSION(*)        :: offsets
-            INTEGER(KIND=C_INT64_T), DIMENSION(*)        :: lengths
-            INTEGER(KIND=C_INT), VALUE                   :: nseg
-            REAL(KIND=C_DOUBLE), DIMENSION(*)            :: result
-         END SUBROUTINE torch_c_tensor_weighted_sum_segments
-      END INTERFACE
-
-      CPASSERT(C_ASSOCIATED(values%c_ptr))
-      CPASSERT(C_ASSOCIATED(weights%c_ptr))
-      CPASSERT(SIZE(offsets) == SIZE(result))
-      CPASSERT(SIZE(lengths) == SIZE(result))
-      CALL torch_c_tensor_weighted_sum_segments(values=values%c_ptr, weights=weights%c_ptr, &
-                                                offsets=offsets, lengths=lengths, &
-                                                nseg=INT(SIZE(result), C_INT), result=result)
-#else
-      CPABORT("CP2K compiled without the Torch library.")
-      MARK_USED(values)
-      MARK_USED(weights)
-      MARK_USED(offsets)
-      MARK_USED(lengths)
-      MARK_USED(result)
-#endif
-   END SUBROUTINE torch_tensor_weighted_sum_segments
 
 ! **************************************************************************************************
 !> \brief Computes all weighted segment sums, returns them to host in one

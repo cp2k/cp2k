@@ -2716,9 +2716,6 @@ CONTAINS
          INTENT(INOUT)                                   :: target
       LOGICAL, INTENT(IN), OPTIONAL                      :: collapse_spin_grads
 
-      INTEGER                                            :: base, feature_pos, irow, &
-                                                            ngrad_buffer_per_point, point_pos, &
-                                                            target_points
       LOGICAL                                            :: my_collapse_spin_grads
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: chunk_density_grad, chunk_kin_grad
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: chunk_grad_grad
@@ -2726,14 +2723,10 @@ CONTAINS
 
       my_collapse_spin_grads = .FALSE.
       IF (PRESENT(collapse_spin_grads)) my_collapse_spin_grads = collapse_spin_grads
-      ngrad_buffer_per_point = ngrad_per_point
-      IF (my_collapse_spin_grads) ngrad_buffer_per_point = ncollapsed_grad_per_point
 
       NULLIFY (chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
       CALL get_feature_grad_views(features, density_grad_t, grad_grad_t, kin_grad_t, &
                                   chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
-      CPASSERT(MOD(SIZE(TARGET), ngrad_buffer_per_point) == 0)
-      target_points = SIZE(TARGET)/ngrad_buffer_per_point
       CPASSERT(SIZE(chunk_density_grad, 1) == features%chunk_feature_count)
       CPASSERT(SIZE(chunk_grad_grad, 1) == features%chunk_feature_count)
       CPASSERT(SIZE(chunk_grad_grad, 2) == 3)
@@ -2750,44 +2743,8 @@ CONTAINS
          CPASSERT(SIZE(chunk_kin_grad, 2) == 2)
       END IF
 
-      CPASSERT(target_points == SIZE(features%route_chunk_offsets) - 1)
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP SHARED(chunk_density_grad, chunk_grad_grad, chunk_kin_grad, features, &
-!$OMP        my_collapse_spin_grads, ngrad_buffer_per_point, TARGET, target_points) &
-!$OMP PRIVATE(base, feature_pos, irow, point_pos)
-      DO point_pos = 1, target_points
-         base = ngrad_buffer_per_point*(point_pos - 1)
-         TARGET(base + 1:base + ngrad_buffer_per_point) = 0.0_dp
-         DO feature_pos = features%route_chunk_offsets(point_pos), &
-            features%route_chunk_offsets(point_pos + 1) - 1
-            irow = features%route_chunk_rows(feature_pos)
-            CPASSERT(irow >= 1 .AND. irow <= features%chunk_feature_count)
-            IF (my_collapse_spin_grads) THEN
-               TARGET(base + 1) = TARGET(base + 1) + &
-                                  0.5_dp*chunk_density_grad(irow, 1)
-               TARGET(base + 2) = TARGET(base + 2) + &
-                                  0.5_dp*chunk_grad_grad(irow, 1, 1)
-               TARGET(base + 3) = TARGET(base + 3) + &
-                                  0.5_dp*chunk_grad_grad(irow, 2, 1)
-               TARGET(base + 4) = TARGET(base + 4) + &
-                                  0.5_dp*chunk_grad_grad(irow, 3, 1)
-               TARGET(base + 5) = TARGET(base + 5) + &
-                                  0.5_dp*chunk_kin_grad(irow, 1)
-            ELSE
-               TARGET(base + 1:base + 2) = TARGET(base + 1:base + 2) + &
-                                           chunk_density_grad(irow, :)
-               TARGET(base + 3) = TARGET(base + 3) + chunk_grad_grad(irow, 1, 1)
-               TARGET(base + 4) = TARGET(base + 4) + chunk_grad_grad(irow, 2, 1)
-               TARGET(base + 5) = TARGET(base + 5) + chunk_grad_grad(irow, 3, 1)
-               TARGET(base + 6) = TARGET(base + 6) + chunk_grad_grad(irow, 1, 2)
-               TARGET(base + 7) = TARGET(base + 7) + chunk_grad_grad(irow, 2, 2)
-               TARGET(base + 8) = TARGET(base + 8) + chunk_grad_grad(irow, 3, 2)
-               TARGET(base + 9:base + 10) = TARGET(base + 9:base + 10) + &
-                                            chunk_kin_grad(irow, :)
-            END IF
-         END DO
-      END DO
-!$OMP END PARALLEL DO
+      CALL pack_atom_chunk_values(features, TARGET, my_collapse_spin_grads, &
+                                  chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
 
       CALL torch_tensor_release(density_grad_t)
       CALL torch_tensor_release(grad_grad_t)

@@ -938,26 +938,6 @@ void torch_c_tensor_clone(const torch_c_tensor_t *tensor,
 }
 
 /*******************************************************************************
- * \brief Gathers selected rows of a 2D+ tensor onto the host by index.
- ******************************************************************************/
-void torch_c_tensor_gather_rows(const torch_c_tensor_t *tensor, const int nrows,
-                                const int32_t rows[],
-                                torch_c_tensor_t **result) {
-  TORCH_C_TRY
-  c10::OptionalDeviceGuard guard;
-  get_device_with_guard(guard);
-  torch_c_check(*result == NULL, "Torch tensor output must be NULL");
-  torch_c_check(nrows >= 0, "Torch gather row count must be non-negative");
-  const int64_t row_dim = tensor->dim() - 1;
-  auto index = torch::from_blob(const_cast<int32_t *>(rows),
-                                {static_cast<int64_t>(nrows)}, torch::kInt32)
-                   .to(torch::kInt64)
-                   .to(tensor->device());
-  *result = new torch_c_tensor_t(
-      tensor->index_select(row_dim, index).cpu().contiguous());
-  TORCH_C_CATCH("torch_c_tensor_gather_rows")
-}
-/*******************************************************************************
  * \brief Returns the data_ptr and sizes of a Torch tensor of int32s.
  *        The returned pointer is only valide during the tensor's live time!
  * \author Ole Schuett
@@ -1581,44 +1561,6 @@ void torch_c_tensor_weighted_sum(const torch_c_tensor_t *values,
   flatten_weighted_pair(values, weights, flat_values, flat_weights);
   *result = new torch_c_tensor_t(torch::dot(flat_values, flat_weights));
   TORCH_C_CATCH("torch_c_tensor_weighted_sum")
-}
-
-/*******************************************************************************
- * \brief Computes all weighted segment sums and copies them to host in one
- *        device-to-host synchronization. The weight device/dtype conversion and
- *        flattening are done once for the whole batch.
- ******************************************************************************/
-void torch_c_tensor_weighted_sum_segments(const torch_c_tensor_t *values,
-                                          const torch_c_tensor_t *weights,
-                                          const int64_t *offsets,
-                                          const int64_t *lengths,
-                                          const int nseg, double *result) {
-  TORCH_C_TRY
-  c10::OptionalDeviceGuard guard;
-  get_device_with_guard(guard);
-  torch_c_check(nseg >= 0,
-                "Torch weighted sum segment count must be non-negative");
-  if (nseg == 0)
-    return;
-  torch_c_check(values != nullptr && weights != nullptr && offsets != nullptr &&
-                    lengths != nullptr && result != nullptr,
-                "Torch weighted sum received a NULL argument");
-  torch::Tensor flat_values, flat_weights;
-  flatten_weighted_pair(values, weights, flat_values, flat_weights);
-  const int64_t numel = flat_values.numel();
-  std::vector<torch::Tensor> dots;
-  dots.reserve(nseg);
-  for (int i = 0; i < nseg; ++i) {
-    torch_c_check(offsets[i] >= 0 && lengths[i] >= 0 && offsets[i] <= numel &&
-                      lengths[i] <= numel - offsets[i],
-                  "Torch weighted sum range is out of bounds");
-    dots.push_back(torch::dot(flat_values.narrow(0, offsets[i], lengths[i]),
-                              flat_weights.narrow(0, offsets[i], lengths[i])));
-  }
-  const auto host =
-      torch::stack(dots).to(torch::kFloat64).to(torch::kCPU).contiguous();
-  std::memcpy(result, host.data_ptr<double>(), nseg * sizeof(double));
-  TORCH_C_CATCH("torch_c_tensor_weighted_sum_segments")
 }
 
 /*******************************************************************************

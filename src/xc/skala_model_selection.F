@@ -53,26 +53,10 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: section_name
       TYPE(section_vals_type), POINTER                   :: functional_section
 
-      INTEGER                                            :: ifun
-      TYPE(section_vals_type), POINTER                   :: functionals, xc_fun
+      INTEGER                                            :: n_subsections
 
-      NULLIFY (functional_section)
-      IF (.NOT. ASSOCIATED(xc_section)) RETURN
-
-      functionals => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-      IF (.NOT. ASSOCIATED(functionals)) RETURN
-
-      ifun = 0
-      DO
-         ifun = ifun + 1
-         xc_fun => section_vals_get_subs_vals2(functionals, i_section=ifun)
-         IF (.NOT. ASSOCIATED(xc_fun)) EXIT
-         IF (TRIM(xc_fun%section%name) == TRIM(section_name)) THEN
-            functional_section => xc_fun
-            EXIT
-         END IF
-      END DO
-
+      CALL find_single_functional_subsection(xc_section, section_name, functional_section, &
+                                             n_subsections)
    END FUNCTION find_functional_subsection
 
 ! **************************************************************************************************

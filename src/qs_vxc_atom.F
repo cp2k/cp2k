@@ -3485,7 +3485,6 @@ CONTAINS
             local_adj(:, native_need_local(pos)) = &
                local_adj(:, native_need_local(pos)) + adj(:, pos)
          END DO
-         CALL group%sum(local_adj)
          RETURN
       END IF
       npe = group%num_pe
