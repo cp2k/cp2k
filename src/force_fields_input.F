@@ -76,6 +76,7 @@ MODULE force_fields_input
                                               shell_p_type
    USE string_utilities,                ONLY: uppercase
    USE torch_api,                       ONLY: torch_allow_tf32,&
+                                              torch_model_prefetch_metadata,&
                                               torch_model_read_metadata
 #include "./base/base_uses.f90"
 
@@ -2518,6 +2519,11 @@ CONTAINS
                           //"Please use TorchScript (.pth or .pt) models compiled with nequip-compile.")
          END IF
       END IF
+
+      ! Read all NequIP metadata keys in a single archive pass.
+      CALL torch_model_prefetch_metadata(nequip%pot_file_name, &
+                                         [CHARACTER(len=64) :: "num_types", "r_max", "type_names", &
+                                          "per_edge_type_cutoff", "model_dtype", "allow_tf32"])
 
       num_types_str = torch_model_read_metadata(nequip%pot_file_name, "num_types")
       READ (num_types_str, *) nequip%num_types

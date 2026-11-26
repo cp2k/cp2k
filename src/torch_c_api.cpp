@@ -1856,6 +1856,45 @@ void torch_c_model_read_metadata(const char *filename, const char *key,
 }
 
 /*******************************************************************************
+ * \brief Loads several TorchScript extra files (metadata keys) in one archive
+ *        pass and stores them in the cache. Keys are newline-separated.
+ ******************************************************************************/
+void torch_c_model_prefetch_metadata(const char *filename, const char *keys) {
+  TORCH_C_TRY
+  const std::string filename_key(filename);
+  const std::string stamp = file_stamp(filename);
+  std::unordered_map<std::string, std::string> extra_files;
+  const std::string all(keys);
+  std::size_t start = 0;
+  while (start <= all.size()) {
+    const std::size_t end = all.find('\n', start);
+    const std::string key = all.substr(
+        start, end == std::string::npos ? std::string::npos : end - start);
+    if (!key.empty()) {
+      extra_files[key] = "";
+    }
+    if (end == std::string::npos) {
+      break;
+    }
+    start = end + 1;
+  }
+  if (extra_files.empty()) {
+    return;
+  }
+  torch::jit::load(filename, torch::kCPU, extra_files);
+  std::lock_guard<std::mutex> lock(model_metadata_mutex);
+  auto &entry = model_metadata_cache[filename_key];
+  if (entry.stamp != stamp) {
+    entry.files.clear();
+    entry.stamp = stamp;
+  }
+  for (const auto &kv : extra_files) {
+    entry.files[kv.first] = kv.second;
+  }
+  TORCH_C_CATCH("torch_c_model_prefetch_metadata")
+}
+
+/*******************************************************************************
  * \brief Clears the cached TorchScript model metadata.
  ******************************************************************************/
 void torch_c_model_metadata_clear() {

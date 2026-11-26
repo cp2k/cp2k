@@ -100,7 +100,7 @@ MODULE torch_api
              torch_model_remap_device_constants
    PUBLIC :: torch_model_promote_float32
    PUBLIC :: torch_model_prepare_higher_derivatives
-   PUBLIC :: torch_model_get_attr, torch_model_read_metadata
+   PUBLIC :: torch_model_get_attr, torch_model_read_metadata, torch_model_prefetch_metadata
    PUBLIC :: torch_cuda_device_count, torch_cuda_is_available
    PUBLIC :: torch_allow_tf32, torch_model_freeze, torch_model_freeze_preserving_method, &
              torch_use_cuda
@@ -1591,6 +1591,41 @@ CONTAINS
       CPABORT("CP2K was compiled without Torch library.")
 #endif
    END FUNCTION torch_model_read_metadata
+
+! **************************************************************************************************
+!> \brief Reads several metadata entries from one "*.pth" file in a single archive pass.
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE torch_model_prefetch_metadata(filename, keys)
+      CHARACTER(len=*), INTENT(IN)                       :: filename
+      CHARACTER(len=*), DIMENSION(:), INTENT(IN)         :: keys
+
+#if defined(__LIBTORCH)
+      CHARACTER(len=8192)                                :: buffer
+      INTEGER                                            :: i
+
+      INTERFACE
+         SUBROUTINE torch_c_model_prefetch_metadata(filename, keys) &
+            BIND(C, name="torch_c_model_prefetch_metadata")
+            IMPORT :: C_CHAR
+            CHARACTER(kind=C_CHAR), DIMENSION(*)         :: filename, keys
+         END SUBROUTINE torch_c_model_prefetch_metadata
+      END INTERFACE
+
+      buffer = ""
+      DO i = 1, SIZE(keys)
+         IF (LEN_TRIM(keys(i)) == 0) CYCLE
+         IF (LEN_TRIM(buffer) > 0) buffer = TRIM(buffer)//ACHAR(10)
+         buffer = TRIM(buffer)//TRIM(keys(i))
+      END DO
+      CALL torch_c_model_prefetch_metadata(filename=TRIM(filename)//C_NULL_CHAR, &
+                                           keys=TRIM(buffer)//C_NULL_CHAR)
+#else
+      MARK_USED(filename)
+      MARK_USED(keys)
+      CPABORT("CP2K was compiled without Torch library.")
+#endif
+   END SUBROUTINE torch_model_prefetch_metadata
 
 ! **************************************************************************************************
 !> \brief Move a C-allocated null-terminated string into an allocatable Fortran string.

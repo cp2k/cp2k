@@ -180,7 +180,8 @@ MODULE qs_vxc_atom
              gapw_cdft_one_center, &
              add_gapw_atom_grid_interpolation_adjoint, &
              atom_grid_image_bounds, &
-             interpolate_gapw_atom_grid_fields
+             interpolate_gapw_atom_grid_fields, &
+             release_native_skala_caches
 
 ! **************************************************************************************************
 
@@ -246,6 +247,41 @@ CONTAINS
       ALLOCATE (adjoint_thread_scratch(adjoint_scratch_nfg, adjoint_scratch_nneed, &
                                        adjoint_scratch_nthread))
    END SUBROUTINE ensure_adjoint_thread_scratch
+
+! **************************************************************************************************
+!> \brief Release the process-lifetime native SKALA caches (needed-point schedule,
+!>        atom-composite coordinates and adjoint scratch).
+! **************************************************************************************************
+   SUBROUTINE release_native_skala_caches()
+      IF (ALLOCATED(native_need_base)) DEALLOCATE (native_need_base)
+      IF (ALLOCATED(native_need_lin)) DEALLOCATE (native_need_lin)
+      IF (ALLOCATED(native_need_bucket_start)) DEALLOCATE (native_need_bucket_start)
+      IF (ALLOCATED(native_need_bucket_entry)) DEALLOCATE (native_need_bucket_entry)
+      IF (ALLOCATED(native_need_local)) DEALLOCATE (native_need_local)
+      IF (ALLOCATED(native_need_scount)) DEALLOCATE (native_need_scount)
+      IF (ALLOCATED(native_need_sdispl)) DEALLOCATE (native_need_sdispl)
+      IF (ALLOCATED(native_need_rcount)) DEALLOCATE (native_need_rcount)
+      IF (ALLOCATED(native_need_rdispl)) DEALLOCATE (native_need_rdispl)
+      IF (ALLOCATED(native_need_sidx)) DEALLOCATE (native_need_sidx)
+      IF (ALLOCATED(native_need_ridx)) DEALLOCATE (native_need_ridx)
+      IF (ALLOCATED(native_need_values)) DEALLOCATE (native_need_values)
+      IF (ALLOCATED(native_need_reply)) DEALLOCATE (native_need_reply)
+      IF (ALLOCATED(native_need_geometry%atoms)) DEALLOCATE (native_need_geometry%atoms)
+      native_need_geometry%ready = .FALSE.
+      native_need_ready = .FALSE.
+      IF (ALLOCATED(native_comp_coords)) DEALLOCATE (native_comp_coords)
+      IF (ALLOCATED(native_comp_base_w)) DEALLOCATE (native_comp_base_w)
+      IF (ALLOCATED(native_comp_grid_w)) DEALLOCATE (native_comp_grid_w)
+      IF (ALLOCATED(native_comp_local_atoms)) DEALLOCATE (native_comp_local_atoms)
+      IF (ALLOCATED(native_comp_geometry%atoms)) DEALLOCATE (native_comp_geometry%atoms)
+      native_comp_geometry%ready = .FALSE.
+      native_comp_ready = .FALSE.
+      native_comp_nrows = -1
+      IF (ALLOCATED(adjoint_thread_scratch)) DEALLOCATE (adjoint_thread_scratch)
+      adjoint_scratch_nthread = 0
+      adjoint_scratch_nfg = 0
+      adjoint_scratch_nneed = 0
+   END SUBROUTINE release_native_skala_caches
 
 ! **************************************************************************************************
 !> \brief Initialize atom-centered quadrature for native Skala layouts.

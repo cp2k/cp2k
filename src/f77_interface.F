@@ -137,6 +137,7 @@ MODULE f77_interface
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_env_create,&
                                               qs_environment_type
+   USE qs_vxc_atom,                     ONLY: release_native_skala_caches
    USE r12_fundamentals,                ONLY: r12_fundamentals_cleanup
    USE reference_manager,               ONLY: remove_all_references
    USE sirius_interface,                ONLY: cp_sirius_finalize,&
@@ -384,6 +385,7 @@ CONTAINS
          ! owned by the offload memory pool which is cleared below
          CALL libxc_release_workers()
          CALL skala_gpw_release_caches()
+         CALL release_native_skala_caches()
 
          ! Finalize libraries (Offload)
          CALL dbt_library_finalize()
