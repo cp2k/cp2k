@@ -46,6 +46,15 @@ if [[ "${PROFILE}" =~ ^toolchain ]]; then
   if [[ -z "${DEEPMD_ROOT}" ]]; then
     toolchain_feature_flags+=("-DCP2K_USE_DEEPMD=OFF")
   fi
+  if [[ -n "${LIBTORCH_ROOT}" ]]; then
+    # Torch is linked PRIVATE into libcp2k, but the shared library keeps
+    # unresolved torch/c10 symbols (libtorch.so is a thin wrapper). Allow those
+    # undefined shared-library symbols when linking the CP2K executables; the
+    # toolchain setup puts the torch libraries on LD_LIBRARY_PATH at runtime.
+    toolchain_feature_flags+=(
+      "-DCMAKE_EXE_LINKER_FLAGS=-Wl,--allow-shlib-undefined"
+    )
+  fi
 fi
 
 # Run CMake
