@@ -8,6 +8,7 @@
 #define DBM_INTERNAL_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 /*******************************************************************************
@@ -36,7 +37,18 @@ typedef struct {
   int data_size;
   dbm_pack_block_t *blocks;
   double *data;
+  // Zero-copy (CPU only): data == NULL and block->offset indexes into src[].
+  double **src;
+  bool transposed; // raw shard layout is transposed vs. the packed layout
 } dbm_pack_t;
+
+/*******************************************************************************
+ * \brief Internal routine for getting the data pointer of a block in a pack.
+ *        Hides whether the pack is copied (data) or zero-copy (src).
+ ******************************************************************************/
+static inline double *dbm_pack_data(const dbm_pack_t *pack, const int offset) {
+  return (NULL != pack->src) ? pack->src[offset] : pack->data + offset;
+}
 
 /*******************************************************************************
  * \brief Internal struct for storing a task, ie. a single block multiplication.

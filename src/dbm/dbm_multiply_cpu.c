@@ -120,21 +120,26 @@ void dbm_multiply_cpu_process_batch(const dbm_batch_t *batch, double alpha,
     const dbm_task_t task = task_next;
     task_next = tasks[batch_order[(itask + 1) < ntasks ? (itask + 1) : itask]];
 
+    const char ta = pack_a->transposed ? 'T' : 'N';
+    const char tb = pack_b->transposed ? 'N' : 'T';
+    const int lda = ('T' == ta) ? task.k : task.m;
+    const int ldb = ('N' == tb) ? task.k : task.n;
+
 #if defined(__LIBXS)
     if (0 == (DBM_MULTIPLY_BLAS_LIBRARY & options) &&
         (task.m != kernel_m || task.n != kernel_n || task.k != kernel_k)) {
       const double beta = 1.0;
-      gemm_config = libxs_gemm_dispatch(LIBXS_DATATYPE_F64, 'N', 'T', task.m,
-                                        task.n, task.k, task.m, task.n, task.m,
-                                        &alpha, &beta, NULL);
+      gemm_config =
+          libxs_gemm_dispatch(LIBXS_DATATYPE_F64, ta, tb, task.m, task.n,
+                              task.k, lda, ldb, task.m, &alpha, &beta, NULL);
       kernel_m = task.m;
       kernel_n = task.n;
       kernel_k = task.k;
     }
 #endif
 
-    double *const data_a = pack_a->data + task.offset_a;
-    double *const data_b = pack_b->data + task.offset_b;
+    double *const data_a = dbm_pack_data(pack_a, task.offset_a);
+    double *const data_b = dbm_pack_data(pack_b, task.offset_b);
     double *const data_c = shard_c->data + task.offset_c;
 
 #if defined(__LIBXS)
@@ -143,8 +148,8 @@ void dbm_multiply_cpu_process_batch(const dbm_batch_t *batch, double alpha,
     } else
 #endif
     {
-      dbm_dgemm('N', 'T', task.m, task.n, task.k, alpha, data_a, task.m, data_b,
-                task.n, 1.0, data_c, task.m);
+      dbm_dgemm(ta, tb, task.m, task.n, task.k, alpha, data_a, lda, data_b, ldb,
+                1.0, data_c, task.m);
     }
   }
 }
