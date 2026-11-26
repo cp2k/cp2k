@@ -1447,6 +1447,20 @@ CONTAINS
    END SUBROUTINE ensure_chunk_static_tensor_grad
 
 ! **************************************************************************************************
+!> \brief Ensure the full-grid static Torch tensors expose the requested differentiability,
+!>        reusing the cached leaves instead of re-uploading them every evaluation.
+!> \param grad_mode ...
+! **************************************************************************************************
+   SUBROUTINE ensure_full_static_tensor_grad(grad_mode)
+      INTEGER, INTENT(IN)                                :: grad_mode
+
+      CPASSERT(skala_state%layout%static_tensors_active)
+      CALL torch_tensor_set_requires_grad(skala_state%layout%grid_coords_t, grad_mode >= 2)
+      CALL torch_tensor_set_requires_grad(skala_state%layout%grid_weights_t, grad_mode >= 1)
+      CALL torch_tensor_set_requires_grad(skala_state%layout%atomic_grid_weights_t, grad_mode >= 2)
+   END SUBROUTINE ensure_full_static_tensor_grad
+
+! **************************************************************************************************
 !> \brief Copy static cached layout arrays into a feature bundle.
 !> \param features ...
 !> \param use_atom_chunk_routing ...
@@ -2800,34 +2814,31 @@ CONTAINS
          skala_state%layout%dynamic_tensors_active = .TRUE.
 
          IF (requires_coordinate_grad .OR. requires_stress_grad .OR. my_requires_weight_grad) THEN
+            grad_mode = 0
+            IF (requires_stress_grad) THEN
+               grad_mode = 2
+            ELSE IF (my_requires_weight_grad) THEN
+               grad_mode = 1
+            END IF
+            CALL ensure_full_static_tensor_grad(grad_mode)
             IF (requires_stress_grad .OR. my_requires_weight_grad) THEN
                IF (.NOT. skala_state%layout%grad_inputs_active) THEN
                   CALL torch_dict_clone(skala_state%layout%static_inputs, skala_state%layout%grad_inputs)
                   skala_state%layout%grad_inputs_active = .TRUE.
                END IF
-               IF (requires_stress_grad) THEN
-                  CALL torch_tensor_from_array(features%grid_coords_t, skala_state%layout%grid_coords)
-                  CALL torch_tensor_to_device_leaf(features%grid_coords_t, .TRUE.)
-                  CALL torch_dict_set(skala_state%layout%grad_inputs, skala_key_grid_coords, &
-                                      features%grid_coords_t)
-                  features%owns_grid_coordinate_tensor = .TRUE.
-               ELSE
-                  features%grid_coords_t = skala_state%layout%grid_coords_t
-                  CALL torch_dict_set(skala_state%layout%grad_inputs, skala_key_grid_coords, &
-                                      features%grid_coords_t)
-               END IF
-               CALL torch_tensor_from_array(features%grid_weights_t, skala_state%layout%grid_weights)
-               CALL torch_tensor_to_device_leaf(features%grid_weights_t, .TRUE.)
-               CALL torch_tensor_from_array(features%atomic_grid_weights_t, &
-                                            skala_state%layout%atomic_grid_weights)
-               CALL torch_tensor_to_device_leaf(features%atomic_grid_weights_t, .TRUE.)
+               features%grid_coords_t = skala_state%layout%grid_coords_t
+               features%grid_weights_t = skala_state%layout%grid_weights_t
+               features%atomic_grid_weights_t = skala_state%layout%atomic_grid_weights_t
+               CALL torch_dict_set(skala_state%layout%grad_inputs, skala_key_grid_coords, &
+                                   features%grid_coords_t)
                CALL torch_dict_set(skala_state%layout%grad_inputs, skala_key_grid_weights, &
                                    features%grid_weights_t)
                CALL torch_dict_set(skala_state%layout%grad_inputs, skala_key_atomic_grid_weights, &
                                    features%atomic_grid_weights_t)
                features%inputs = skala_state%layout%grad_inputs
                features%owns_inputs = .FALSE.
-               features%owns_weight_tensors = .TRUE.
+               features%owns_weight_tensors = .FALSE.
+               features%owns_grid_coordinate_tensor = .FALSE.
             ELSE
                CALL torch_dict_clone(skala_state%layout%static_inputs, features%inputs)
             END IF
@@ -2835,6 +2846,7 @@ CONTAINS
             CALL torch_dict_set(features%inputs, skala_key_grad, features%grad_t)
             CALL torch_dict_set(features%inputs, skala_key_kin, features%kin_t)
          ELSE
+            CALL ensure_full_static_tensor_grad(0)
             IF (.NOT. skala_state%layout%inputs_active) THEN
                CALL torch_dict_clone(skala_state%layout%static_inputs, skala_state%layout%inputs)
                CALL torch_dict_insert(skala_state%layout%inputs, skala_key_density, &
