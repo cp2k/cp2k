@@ -312,8 +312,13 @@ add_custom_target(
 set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/cp2k_info.F
                             PROPERTIES OBJECT_DEPENDS "${CP2K_BUILD_INFO_FILE}")
 
+# The data folder is installed to a destination relative to the installation
+# prefix by default, whereas the CP2K binaries need its absolute path
 if(CP2K_DATA_DIR STREQUAL "default")
-  set(CP2K_DATA_DIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/${PROJECT_NAME}/data")
+  set(CP2K_DATA_INSTALL_DIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/data")
+  set(CP2K_DATA_DIR "${CMAKE_INSTALL_FULL_DATADIR}/${PROJECT_NAME}/data")
+else()
+  set(CP2K_DATA_INSTALL_DIR "${CP2K_DATA_DIR}")
 endif()
 
 target_link_libraries(cp2k PUBLIC cp2k_link_libs)
@@ -720,7 +725,8 @@ if(NOT CP2K_INSTALL_UNITTESTS)
 endif()
 install(TARGETS ${__CP2K_INSTALL_APPS})
 
-install(DIRECTORY "${CMAKE_SOURCE_DIR}/data/" DESTINATION "${CP2K_DATA_DIR}")
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/data/"
+        DESTINATION "${CP2K_DATA_INSTALL_DIR}")
 
 # ##############################################################################
 # cp2kConfig.cmake, etc...
