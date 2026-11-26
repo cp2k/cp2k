@@ -1540,8 +1540,6 @@ void torch_c_tensor_hessian_vector(const torch_c_tensor_t *tensor,
         count > 0 && tensor->numel() == 1,
         "Hessian-vector evaluation requires a scalar and input tensors");
     std::vector<torch::Tensor> variables;
-    std::vector<int> active_indices;
-    std::vector<torch::Tensor> active_directions;
     for (int i = 0; i < count; i++) {
       TORCH_CHECK(inputs[i]->requires_grad() &&
                       inputs[i]->sizes() == directions[i]->sizes() &&
@@ -1549,23 +1547,21 @@ void torch_c_tensor_hessian_vector(const torch_c_tensor_t *tensor,
                   "Hessian-vector inputs and directions must have matching "
                   "shapes and devices");
       variables.push_back(*inputs[i]);
-      if (directions[i]->count_nonzero().item<int64_t>() != 0) {
-        active_indices.push_back(i);
-        active_directions.push_back(directions[i]->detach());
-      }
     }
     // Accumulate the Hessian-vector product one input at a time.  This keeps at
     // most one first-order (create_graph) result alive instead of holding the
     // first-order gradients for every input simultaneously, lowering peak
     // memory for the full-grid response at the cost of one backward per input.
+    // A zero direction contributes nothing, so every input is included without
+    // a per-input device synchronization to detect all-zero directions.
     std::vector<torch::Tensor> second(count);
     if (tensor->requires_grad()) {
-      for (size_t a = 0; a < active_indices.size(); ++a) {
+      for (int i = 0; i < count; ++i) {
         std::vector<torch::Tensor> first = torch::autograd::grad(
-            {*tensor}, {variables[active_indices[a]]}, {}, true, true, true);
+            {*tensor}, {variables[i]}, {}, true, true, true);
         if (first.empty() || !first[0].defined() || !first[0].requires_grad())
           continue;
-        auto term = (first[0] * active_directions[a]).sum();
+        auto term = (first[0] * directions[i]->detach()).sum();
         std::vector<torch::Tensor> partial =
             torch::autograd::grad({term}, variables, {}, true, false, true);
         term = torch::Tensor();
