@@ -74,6 +74,7 @@ MODULE xc_gauxc_functional
              gauxc_gapw_has_paw_pseudopotentials, skala_info
 
    LOGICAL, SAVE, PRIVATE :: fd_mixed_space_warned = .FALSE.
+   LOGICAL, SAVE, PRIVATE :: gauxc_gradient_replicated_checked = .FALSE.
 
 CONTAINS
 
@@ -788,6 +789,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: reference
 
       IF (para_env%num_pe <= 1) RETURN
+      ! This is a debug invariant of the integrator contract, not a per-step
+      ! property; verify it once per process instead of every force evaluation.
+      IF (gauxc_gradient_replicated_checked) RETURN
+      gauxc_gradient_replicated_checked = .TRUE.
       ALLOCATE (reference(SIZE(exc_grad)))
       reference(:) = exc_grad
       CALL para_env%bcast(reference, 0)
