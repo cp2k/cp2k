@@ -30,6 +30,8 @@ MODULE gw_auto_ri_types
       REAL(KIND=dp)                   :: occ_energy_window = -1.0_dp
       LOGICAL                         :: enabled = .FALSE.
       REAL(KIND=dp)                   :: ri_ao_ratio = -1.0_dp
+      ! An RT-BSE follows: optimize also for products of two empty orbitals, Eq. (4a)
+      LOGICAL                         :: include_empty_empty_products = .FALSE.
 
       ! Two-center matrices M_pq and V_pq of optimized RI basis set
       TYPE(cp_fm_type)                :: V_pq = cp_fm_type()

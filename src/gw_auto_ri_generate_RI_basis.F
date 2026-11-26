@@ -112,6 +112,13 @@ CONTAINS
 !                                                                                                  !
 ! W_occ = [ε_HOMO-E_win, ε_LUMO+E_win], where E_win is OCC_EMPTY_FRONTIER_ORBITAL_WINDOW.          !
 !                                                                                                  !
+! When an RT-BSE follows the GW, a third matrix mimics the products of two empty orbitals in       !
+! the screened exchange -(ij|W|ab) of the BSE kernel; B^A in Eq. (6) then also contains it:        !
+!                                                                                                  !
+! B_PQ^{A,E} = (1/N_E^A) Σ_{a,b∈W_emp} (φ_P^A|ρ_ab^AA)(ρ_ab^AA|φ_Q^A).                      (4a)   !
+!                                                                                                  !
+! W_emp = [ε_LUMO, ε_LUMO+E_win] contains both empty orbitals a and b.                             !
+!                                                                                                  !
 ! Here w_ia gives larger weight to frontier-orbital products close to the HOMO and LUMO:           !
 !                                                                                                  !
 ! w_ia = 1/(|ε_i-E_F| |ε_a-E_F|),   E_F = (ε_HOMO+ε_LUMO)/2.                                 (5)   !
@@ -171,7 +178,8 @@ CONTAINS
       CPASSERT(.NOT. bs_env%do_periodic)
       time_start = m_walltime()
 
-      ! Compute AA target matrices B^{AA,C}, B^{AA,X} and contraction U_Pp^A in Eqs. (3)-(7).
+      ! Compute AA matrices B^{AA,C}, B^{AA,X}, B^{AA,E} (RT-BSE only) and contraction
+      ! U_Pp^A in Eqs. (3)-(7).
       CALL compute_AA_optimized_RI_basis(bs_env, U_Pp_A)
 
       CALL store_AA_basis(bs_env, U_Pp_A)
@@ -227,6 +235,9 @@ CONTAINS
 !>          B_PQ^{A,C} = (1/N_C^A) Σ_ia^oe w_ia (φ_P^A|ρ_ia^AA)(ρ_ia^AA|φ_Q^A),         (3)
 !>
 !>          B_PQ^{A,X} = (1/N_X^A) Σ_{n∈W_occ} Σ_i^occ (φ_P^A|ρ_ni^AA)(ρ_ni^AA|φ_Q^A),  (4)
+!>
+!>          B_PQ^{A,E} = (1/N_E^A) Σ_{a,b∈W_emp} (φ_P^A|ρ_ab^AA)(ρ_ab^AA|φ_Q^A),      (4a)
+!>          only when an RT-BSE follows,
 !>
 !>          w_ia = 1/(|ε_i-E_F| |ε_a-E_F|),  E_F = (ε_HOMO+ε_LUMO)/2,                   (5)
 !>
@@ -472,6 +483,14 @@ CONTAINS
             'AUTO_RI| Number of automatic RI functions for χ, ε, W:', RI_size_optimized
          WRITE (unit_nr, '(T2,A,T71,F8.1,A)') &
             'AUTO_RI| Total RI basis optimization time:', elapsed, ' s'
+         IF (bs_env%auto_ri%include_empty_empty_products) THEN
+            WRITE (unit_nr, '(A)') ' '
+            WRITE (unit_nr, '(T2,A)') &
+               'AUTO_RI| RT-BSE follows: the RI basis is also optimized for the products', &
+               'AUTO_RI| ψ_a(r) ψ_b(r) of two empty orbitals a, b with energies up to', &
+               'AUTO_RI| ε_LUMO + OCC_EMPTY_FRONTIER_ORBITAL_WINDOW (BSE screened exchange).', &
+               'AUTO_RI| RI basis and GW energies can differ slightly from a GW-only run.'
+         END IF
       END IF
 
       CALL timestop(handle)
@@ -988,6 +1007,50 @@ CONTAINS
    END SUBROUTINE compute_B_PQ_exchange
 
 ! **************************************************************************************************
+!> \brief Computes the empty-empty contribution B_PQ^E in Eq. (4a), used when an RT-BSE follows.
+!>
+!>        B_PQ^E = Σ_{a,b∈W_emp} (P|ρ_ab)(ρ_ab|Q),   W_emp = [ε_LUMO, ε_LUMO+E_win].
+!>
+!> \param Int_3c atom-local three-center integrals (μν|P)
+!> \param C_mu_n molecular-orbital coefficients restricted to the relevant AO rows
+!> \param eigenval_MO molecular-orbital eigenvalues, occupied first, in Hartree
+!> \param homo Last occupied state in this spin channel.
+!> \param occ_energy_window window E_win above the LUMO in Hartree
+!> \param B_PQ unnormalized empty-empty matrix
+! **************************************************************************************************
+   SUBROUTINE compute_B_PQ_empty_empty(Int_3c, C_mu_n, eigenval_MO, homo, occ_energy_window, B_PQ)
+      REAL(KIND=dp), CONTIGUOUS, INTENT(IN)              :: Int_3c(:, :, :), C_mu_n(:, :), &
+                                                            eigenval_MO(:)
+      INTEGER, INTENT(IN)                                :: homo
+      REAL(KIND=dp), INTENT(IN)                          :: occ_energy_window
+      REAL(KIND=dp), INTENT(OUT)                         :: B_PQ(:, :)
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_B_PQ_empty_empty'
+
+      INTEGER                                            :: handle, n_empty, nAO, nstates
+      REAL(KIND=dp), ALLOCATABLE                         :: D_mu_nu_empty(:, :)
+      TYPE(local_gemm_ctxt_type)                         :: gemm_context
+
+      CALL timeset(routineN, handle)
+
+      nstates = SIZE(eigenval_MO)
+      nAO = SIZE(C_mu_n, 1)
+      CPASSERT(SIZE(C_mu_n, 2) == nstates .AND. homo > 0 .AND. homo < nstates)
+      ! The eigenvalues are ascending, so W_emp holds the states homo+1, ..., homo+n_empty.
+      n_empty = COUNT(eigenval_MO(homo + 1:) <= eigenval_MO(homo + 1) + occ_energy_window)
+      ALLOCATE (D_mu_nu_empty(nAO, nAO))
+      ! D_μν = Σ_{a∈W_emp} C_μa C_νa.
+      CALL gemm_context%create(LOCAL_GEMM_PU_HOST)
+      CALL gemm_context%gemm('N', 'T', nAO, nAO, n_empty, 1.0_dp, C_mu_n(:, homo + 1:), nAO, &
+                             C_mu_n(:, homo + 1:), nAO, 0.0_dp, D_mu_nu_empty, nAO)
+      CALL gemm_context%destroy()
+      CALL contract_B_PQ(Int_3c, D_mu_nu_empty, D_mu_nu_empty, B_PQ)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_B_PQ_empty_empty
+
+! **************************************************************************************************
 !> \brief Contracts AO density matrices and (μν|P) to form B_PQ.
 !>
 !>        B_PQ = Σ_μν (μν|P) [left (..|Q) right]_μν.
@@ -1039,23 +1102,27 @@ CONTAINS
    END SUBROUTINE contract_B_PQ
 
 ! **************************************************************************************************
-!> \brief Adds separately normalized transition and exchange matrices.
+!> \brief Adds separately normalized transition and exchange matrices, and the empty-empty
+!>        matrix of Eq. (4a) when an RT-BSE follows.
 !> \param X_Pi inverse metric factor, X_Pi X_Qi = M_PQ^+
 !> \param B_PQ_transition transition matrix, replaced by the combined target
 !> \param B_PQ_exchange unnormalized hard-window exchange covariance
 !> \param target_norm number of nonzero normalized terms
+!> \param B_PQ_empty_empty unnormalized empty-empty matrix of Eq. (4a)
 ! **************************************************************************************************
    SUBROUTINE combine_transition_and_exchange_targets( &
-      X_Pi, B_PQ_transition, B_PQ_exchange, target_norm)
+      X_Pi, B_PQ_transition, B_PQ_exchange, target_norm, B_PQ_empty_empty)
       REAL(KIND=dp), CONTIGUOUS, INTENT(IN)              :: X_Pi(:, :)
       REAL(KIND=dp), INTENT(INOUT)                       :: B_PQ_transition(:, :)
       REAL(KIND=dp), CONTIGUOUS, INTENT(IN)              :: B_PQ_exchange(:, :)
       REAL(KIND=dp), INTENT(OUT)                         :: target_norm
+      REAL(KIND=dp), CONTIGUOUS, INTENT(IN), OPTIONAL    :: B_PQ_empty_empty(:, :)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'combine_transition_and_exchange_targets'
 
       INTEGER                                            :: handle, k
-      REAL(KIND=dp)                                      :: exchange_norm, transition_norm
+      REAL(KIND=dp)                                      :: empty_empty_norm, exchange_norm, &
+                                                            transition_norm
       REAL(KIND=dp), ALLOCATABLE                         :: work(:, :)
 
       CALL timeset(routineN, handle)
@@ -1073,6 +1140,21 @@ CONTAINS
       END DO
       CALL normalize_transition_and_exchange_targets(B_PQ_transition, B_PQ_exchange, &
                                                      transition_norm, exchange_norm, target_norm)
+      IF (PRESENT(B_PQ_empty_empty)) THEN
+         ! B = B + B_ab / Tr(M^+ B_ab), omitted when the trace is zero.
+         work(:, :) = MATMUL(B_PQ_empty_empty, X_Pi)
+         empty_empty_norm = 0.0_dp
+         DO k = 1, SIZE(X_Pi, 2)
+            empty_empty_norm = empty_empty_norm + DOT_PRODUCT(X_Pi(:, k), work(:, k))
+         END DO
+         IF (.NOT. ieee_is_finite(empty_empty_norm) .OR. empty_empty_norm < 0.0_dp) THEN
+            CPABORT("AUTO_RI empty-empty normalization is invalid")
+         END IF
+         IF (empty_empty_norm > 0.0_dp) THEN
+            B_PQ_transition(:, :) = B_PQ_transition + B_PQ_empty_empty/empty_empty_norm
+            target_norm = target_norm + 1.0_dp
+         END IF
+      END IF
 
       CALL timestop(handle)
 
@@ -1119,7 +1201,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Computes the atom-local matrix B_PQ^A in Eqs. (3)-(6).
 !>
-!>        B_PQ^A = B_PQ^{A,C}/N_C^A + B_PQ^{A,X}/N_X^A.
+!>        B_PQ^A = B_PQ^{A,C}/N_C^A + B_PQ^{A,X}/N_X^A [+ B_PQ^{A,E}/N_E^A if an RT-BSE follows].
 !>
 !>        The molecular-orbital coefficient rows belonging to one atom are
 !>        collected on one MPI rank. No global AO-pair matrix is formed.
@@ -1144,7 +1226,8 @@ CONTAINS
       INTEGER                                            :: column, first, handle, i, j, nAO, nRI, &
                                                             nstates, rank, row, spin
       INTEGER, POINTER                                   :: cols(:), rows(:)
-      REAL(KIND=dp), ALLOCATABLE                         :: B_PQ_exchange(:, :), B_PQ_spin(:, :), &
+      REAL(KIND=dp), ALLOCATABLE                         :: B_PQ_empty_empty(:, :), &
+                                                            B_PQ_exchange(:, :), B_PQ_spin(:, :), &
                                                             C_mu_n(:, :), weights(:), X_Pi(:, :)
 
       CALL timeset(routineN, handle)
@@ -1159,6 +1242,9 @@ CONTAINS
       ALLOCATE (C_mu_n(nAO, nstates), weights(nstates), B_PQ_spin(nRI, nRI))
       target_norm = 0.0_dp
       ALLOCATE (B_PQ_exchange(nRI, nRI), source=0.0_dp)
+      IF (bs_env%auto_ri%include_empty_empty_products) THEN
+         ALLOCATE (B_PQ_empty_empty(nRI, nRI), source=0.0_dp)
+      END IF
       DO spin = 1, bs_env%n_spin
          CALL compute_orbital_weights(bs_env%eigenval_scf_Gamma(1:nstates, spin), &
                                       bs_env%n_occ(spin), weights)
@@ -1181,13 +1267,24 @@ CONTAINS
                                     bs_env%eigenval_scf_Gamma(1:nstates, spin), &
                                     bs_env%n_occ(spin), bs_env%auto_ri%occ_energy_window, B_PQ_spin)
          B_PQ_exchange(:, :) = B_PQ_exchange + B_PQ_spin
+         IF (bs_env%auto_ri%include_empty_empty_products) THEN
+            CALL compute_B_PQ_empty_empty(Int_3c, C_mu_n, bs_env%eigenval_scf_Gamma(1:nstates, spin), &
+                                          bs_env%n_occ(spin), bs_env%auto_ri%occ_energy_window, &
+                                          B_PQ_spin)
+            B_PQ_empty_empty(:, :) = B_PQ_empty_empty + B_PQ_spin
+         END IF
       END DO
       IF (bs_env%para_env%mepos /= root_rank) THEN
          CALL timestop(handle)
          RETURN
       END IF
       CALL compute_reference_M_PQ_inv_factor(M_PQ, X_Pi, rank)
-      CALL combine_transition_and_exchange_targets(X_Pi, B_PQ, B_PQ_exchange, target_norm)
+      IF (bs_env%auto_ri%include_empty_empty_products) THEN
+         CALL combine_transition_and_exchange_targets(X_Pi, B_PQ, B_PQ_exchange, target_norm, &
+                                                      B_PQ_empty_empty)
+      ELSE
+         CALL combine_transition_and_exchange_targets(X_Pi, B_PQ, B_PQ_exchange, target_norm)
+      END IF
       CALL timestop(handle)
 
    END SUBROUTINE compute_B_PQ_AA

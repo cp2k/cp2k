@@ -40,15 +40,14 @@ MODULE rt_bse_ri_rs
                                               cp_fm_type
    USE gw_utils_dbcsr,                  ONLY: dbcsr_contract_ABA,&
                                               hadamard_product_inplace
-   USE gw_utils_fm,                     ONLY: fm_contract_ABA
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
-   USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
    USE physcon,                         ONLY: angstrom
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: qs_environment_type
-   USE ri_rs_matrices,                  ONLY: release_dbcsr_topology_and_matrices,&
+   USE ri_rs_matrices,                  ONLY: build_ri_rs_bare_aux_interaction,&
+                                              release_dbcsr_topology_and_matrices,&
                                               reserve_blocks_within_radius,&
                                               setup_square_topology
    USE ri_rs_setup,                     ONLY: ensure_ri_rs_representation
@@ -88,10 +87,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_bse_ri_rs_ensure_V_grid'
 
       INTEGER                                            :: handle
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_aux, dist_row_aux
       REAL(KIND=dp)                                      :: t1
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_Vtr_Gamma
-      TYPE(dbcsr_distribution_type)                      :: dist_aux_aux
 
       CALL timeset(routineN, handle)
 
@@ -103,19 +99,11 @@ CONTAINS
       CALL ensure_ri_rs_representation(qs_env, bs_env)
       t1 = m_walltime()
 
-      CALL setup_square_topology(bs_env%ri_rs%mat_Z_lP, 'COL', dist_aux_aux, blk_aux, dist_row_aux)
-
-      CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI%matrix_struct, bs_env%n_RI, &
-                              bs_env%trunc_coulomb)
-      ! Apply M^-1 sandwich to match the W^MIC convention; same scale as W^c when both used.
-      ! M^-1(k=0) V^tr M^-1(k=0) -> fm_Vtr_Gamma
-      CALL fm_contract_ABA(bs_env%fm_Minv_Gamma, fm_Vtr_Gamma(:, 1))
-
-      ! Store the M^-1-sandwiched RI-basis Coulomb; the grid kernel Z V Z^T is applied factorized.
-      CALL dbcsr_create(bs_env%ri_rs%mat_V_aux_rtbse, "V_aux_rtbse", dist_aux_aux, &
-                        dbcsr_type_no_symmetry, blk_aux, blk_aux)
-      CALL copy_fm_to_dbcsr(fm_Vtr_Gamma(1, 1), bs_env%ri_rs%mat_V_aux_rtbse, &
-                            keep_sparsity=.FALSE.)
+      ! Store the M^-1-sandwiched RI-basis Coulomb M^-1(k=0) V^tr M^-1(k=0), in the AUTO_RI basis
+      ! if AUTO_RI is active; the grid kernel Z V Z^T is applied factorized.
+      CALL build_ri_rs_bare_aux_interaction(qs_env, bs_env%fm_Minv_Gamma, bs_env%trunc_coulomb, &
+                                            bs_env%auto_ri, bs_env%ri_rs%mat_Z_lP, &
+                                            bs_env%ri_rs%mat_V_aux_rtbse)
 
       bs_env%ri_rs%V_grid_built = .TRUE.
 
@@ -125,9 +113,6 @@ CONTAINS
             m_walltime() - t1, ' s'
          WRITE (bs_env%unit_nr, '(A)') ' '
       END IF
-
-      CALL release_dbcsr_topology_and_matrices(dist=dist_aux_aux, mapped_dist=dist_row_aux)
-      CALL cp_fm_release(fm_Vtr_Gamma)
 
       CALL timestop(handle)
 
@@ -152,12 +137,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_bse_ri_rs_ensure_W0_grid'
 
       INTEGER                                            :: handle
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_aux, blk_grid, dist_col_grid, &
-                                                            dist_row_aux
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_grid, dist_col_grid
       LOGICAL                                            :: use_cutoff_w0
       REAL(KIND=dp)                                      :: fnorm_w0, occ_w0, t1
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_Vtr_Gamma
-      TYPE(dbcsr_distribution_type)                      :: dist_aux_aux, dist_grid_grid
+      TYPE(dbcsr_distribution_type)                      :: dist_grid_grid
       TYPE(dbcsr_type)                                   :: matrix_V_aux, matrix_W_aux
 
       CALL timeset(routineN, handle)
@@ -181,19 +164,12 @@ CONTAINS
 
       CALL setup_square_topology(bs_env%ri_rs%mat_phi_mu_l, 'ROW', dist_grid_grid, blk_grid, &
                                  dist_col_grid)
-      CALL setup_square_topology(bs_env%ri_rs%mat_Z_lP, 'COL', dist_aux_aux, blk_aux, dist_row_aux)
 
-      CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI%matrix_struct, bs_env%n_RI, &
-                              bs_env%trunc_coulomb)
-      ! M^-1(k=0) V^tr M^-1(k=0) -> fm_Vtr_Gamma
-      CALL fm_contract_ABA(bs_env%fm_Minv_Gamma, fm_Vtr_Gamma(:, 1))
+      ! M^-1(k=0) V^tr M^-1(k=0), in the AUTO_RI basis if AUTO_RI is active
+      CALL build_ri_rs_bare_aux_interaction(qs_env, bs_env%fm_Minv_Gamma, bs_env%trunc_coulomb, &
+                                            bs_env%auto_ri, bs_env%ri_rs%mat_Z_lP, matrix_V_aux)
 
-      CALL dbcsr_create(matrix_V_aux, "V_aux_rtbse_W0", dist_aux_aux, dbcsr_type_no_symmetry, &
-                        blk_aux, blk_aux)
-      CALL copy_fm_to_dbcsr(fm_Vtr_Gamma(1, 1), matrix_V_aux, keep_sparsity=.FALSE.)
-
-      CALL dbcsr_create(matrix_W_aux, "W_aux_rtbse", dist_aux_aux, dbcsr_type_no_symmetry, &
-                        blk_aux, blk_aux)
+      CALL dbcsr_create(matrix_W_aux, name="W_aux_rtbse", template=matrix_V_aux)
       CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, matrix_W_aux, keep_sparsity=.FALSE.)
       CALL dbcsr_add(matrix_W_aux, matrix_V_aux, 1.0_dp, 1.0_dp)
 
@@ -249,10 +225,8 @@ CONTAINS
          WRITE (bs_env%unit_nr, '(A)') ' '
       END IF
 
-      CALL release_dbcsr_topology_and_matrices(dist=dist_grid_grid, mapped_dist=dist_col_grid)
-      CALL release_dbcsr_topology_and_matrices(dist=dist_aux_aux, mapped_dist=dist_row_aux, &
+      CALL release_dbcsr_topology_and_matrices(dist=dist_grid_grid, mapped_dist=dist_col_grid, &
                                                m1=matrix_V_aux, m2=matrix_W_aux)
-      CALL cp_fm_release(fm_Vtr_Gamma)
 
       CALL timestop(handle)
 
