@@ -153,7 +153,10 @@ MODULE qs_environment_types
                                               semi_empirical_si_type
    USE semi_empirical_types,            ONLY: se_taper_release,&
                                               se_taper_type
-   USE skala_env_types,                 ONLY: skala_env_release
+   USE skala_env_types,                 ONLY: skala_env_create,&
+                                              skala_env_finalize,&
+                                              skala_env_release,&
+                                              skala_gpw_state_type
    USE skala_gpw_functional,            ONLY: skala_gpw_release_caches
    USE task_list_types,                 ONLY: task_list_type
    USE tblite_types,                    ONLY: deallocate_tblite_type,&
@@ -334,6 +337,7 @@ MODULE qs_environment_types
       ! tblite
       TYPE(tblite_type), POINTER                            :: tb_tblite => Null()
       TYPE(cp_gauxc_cache_type), POINTER                    :: gauxc_cache => NULL()
+      TYPE(skala_gpw_state_type), POINTER                   :: skala => NULL()
    END TYPE qs_environment_type
 
 CONTAINS
@@ -1034,6 +1038,8 @@ CONTAINS
       NULLIFY (qs_env%tb_tblite)
       NULLIFY (qs_env%gauxc_cache)
 
+      CALL skala_env_create(qs_env%skala)
+
    END SUBROUTINE init_qs_env
 
 ! **************************************************************************************************
@@ -1719,7 +1725,7 @@ CONTAINS
       END IF
 
       CALL skala_gpw_release_caches()
-      CALL skala_env_release()
+      CALL skala_env_finalize(qs_env%skala)
 
    END SUBROUTINE qs_env_release
 

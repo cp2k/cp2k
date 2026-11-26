@@ -3792,6 +3792,7 @@ CONTAINS
 !> \brief Release all module-level SKALA/Torch caches.
 ! **************************************************************************************************
    SUBROUTINE skala_gpw_release_caches()
+      IF (.NOT. ASSOCIATED(skala_state)) RETURN
       IF (skala_state%model_loaded) THEN
          CALL skala_torch_model_release(skala_state%model)
          skala_state%model_loaded = .FALSE.

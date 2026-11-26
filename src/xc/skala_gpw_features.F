@@ -1793,6 +1793,7 @@ CONTAINS
 !> \brief Release the module-level layout cache.
 ! **************************************************************************************************
    SUBROUTINE skala_gpw_features_release_cache()
+      IF (.NOT. ASSOCIATED(skala_state)) RETURN
       CALL release_layout_cache(skala_state%layout)
       IF (ALLOCATED(skala_state%scratch%local_dynamic)) THEN
          DEALLOCATE (skala_state%scratch%local_dynamic)

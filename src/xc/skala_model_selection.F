@@ -20,7 +20,6 @@ MODULE skala_model_selection
    USE kinds,                           ONLY: default_path_length
    USE offload_api,                     ONLY: offload_get_chosen_device,&
                                               offload_get_device_count
-   USE skala_env_types,                 ONLY: skala_env_create
    USE skala_gpw_features,              ONLY: skala_execution_target_type,&
                                               skala_state
    USE string_utilities,                ONLY: uppercase
@@ -120,8 +119,12 @@ CONTAINS
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       TYPE(section_vals_type), POINTER                   :: native_section
 
-      CALL ensure_section_cache(xc_section)
-      native_section => skala_state%native_section
+      IF (ASSOCIATED(skala_state)) THEN
+         CALL ensure_section_cache(xc_section)
+         native_section => skala_state%native_section
+      ELSE
+         native_section => find_functional_subsection(xc_section, "SKALA_NATIVE")
+      END IF
       IF (.NOT. section_is_active(native_section)) NULLIFY (native_section)
 
    END FUNCTION get_skala_native_section
@@ -135,8 +138,12 @@ CONTAINS
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       TYPE(section_vals_type), POINTER                   :: gauxc_section
 
-      CALL ensure_section_cache(xc_section)
-      gauxc_section => skala_state%gauxc_section
+      IF (ASSOCIATED(skala_state)) THEN
+         CALL ensure_section_cache(xc_section)
+         gauxc_section => skala_state%gauxc_section
+      ELSE
+         gauxc_section => find_functional_subsection(xc_section, "GAUXC")
+      END IF
       IF (.NOT. section_is_active(gauxc_section)) NULLIFY (gauxc_section)
 
    END FUNCTION get_gauxc_section
@@ -148,10 +155,14 @@ CONTAINS
    SUBROUTINE ensure_section_cache(xc_section)
       TYPE(section_vals_type), POINTER                   :: xc_section
 
+      IF (.NOT. ASSOCIATED(skala_state)) RETURN
       IF (skala_state%sections_resolved) THEN
          IF (ASSOCIATED(skala_state%resolved_xc_section, xc_section)) RETURN
       END IF
-      CALL skala_env_create(xc_section)
+      skala_state%resolved_xc_section => xc_section
+      skala_state%native_section => find_functional_subsection(xc_section, "SKALA_NATIVE")
+      skala_state%gauxc_section => find_functional_subsection(xc_section, "GAUXC")
+      skala_state%sections_resolved = .TRUE.
    END SUBROUTINE ensure_section_cache
 
 ! **************************************************************************************************

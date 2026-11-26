@@ -26,7 +26,7 @@ MODULE skala_env_types
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: skala_env_create, skala_env_get, skala_env_release, skala_state
+   PUBLIC :: skala_env_create, skala_env_finalize, skala_env_get, skala_env_release, skala_state
    PUBLIC :: atom_chunk_layout_cache_type, skala_atom_ws_type, skala_execution_target_type
    PUBLIC :: skala_gapw_atom_cuda_tensor_cache_type, skala_gpw_feature_type
    PUBLIC :: skala_gpw_layout_cache_type, skala_gpw_scratch_type, skala_gpw_state_type
@@ -322,27 +322,30 @@ MODULE skala_env_types
       LOGICAL                                            :: sections_resolved = .FALSE.
       TYPE(native_atom_cache_type)                       :: native_atom
    END TYPE skala_gpw_state_type
-   TYPE(skala_gpw_state_type), SAVE, TARGET :: skala_state
+   TYPE(skala_gpw_state_type), POINTER :: skala_state => NULL()
 
 CONTAINS
 
 ! **************************************************************************************************
 !> \brief Resolve and cache the XC_FUNCTIONAL subsections used by SKALA.
+!> \param env ...
 !> \param xc_section the XC input section
 ! **************************************************************************************************
-   SUBROUTINE skala_env_create(xc_section)
+   SUBROUTINE skala_env_create(env, xc_section)
+      TYPE(skala_gpw_state_type), INTENT(INOUT), POINTER :: env
       TYPE(section_vals_type), INTENT(IN), OPTIONAL, &
          POINTER                                         :: xc_section
 
-      NULLIFY (skala_state%native_section, skala_state%gauxc_section, &
-               skala_state%resolved_xc_section)
-      skala_state%sections_resolved = .FALSE.
+      IF (.NOT. ASSOCIATED(env)) ALLOCATE (env)
+      skala_state => env
+      NULLIFY (env%native_section, env%gauxc_section, env%resolved_xc_section)
+      env%sections_resolved = .FALSE.
       IF (PRESENT(xc_section)) THEN
          IF (.NOT. ASSOCIATED(xc_section)) RETURN
-         skala_state%resolved_xc_section => xc_section
-         skala_state%native_section => find_named_section(xc_section, "SKALA_NATIVE")
-         skala_state%gauxc_section => find_named_section(xc_section, "GAUXC")
-         skala_state%sections_resolved = .TRUE.
+         env%resolved_xc_section => xc_section
+         env%native_section => find_named_section(xc_section, "SKALA_NATIVE")
+         env%gauxc_section => find_named_section(xc_section, "GAUXC")
+         env%sections_resolved = .TRUE.
       END IF
    END SUBROUTINE skala_env_create
 
@@ -361,11 +364,27 @@ CONTAINS
 !>        skala_gpw_release_caches before this is called.
 ! **************************************************************************************************
    SUBROUTINE skala_env_release()
+      IF (.NOT. ASSOCIATED(skala_state)) RETURN
       CALL release_native_grid_cache(skala_state%native_grid_cache)
       NULLIFY (skala_state%native_section, skala_state%gauxc_section, &
                skala_state%resolved_xc_section)
       skala_state%sections_resolved = .FALSE.
    END SUBROUTINE skala_env_release
+
+! **************************************************************************************************
+!> \brief Release the SKALA caches and deallocate the qs_env-owned state instance.
+!> \param env the SKALA state owned by the qs_env
+! **************************************************************************************************
+   SUBROUTINE skala_env_finalize(env)
+      TYPE(skala_gpw_state_type), INTENT(INOUT), POINTER :: env
+
+      IF (.NOT. ASSOCIATED(env)) RETURN
+      IF (ASSOCIATED(skala_state, env)) THEN
+         CALL skala_env_release()
+         NULLIFY (skala_state)
+      END IF
+      DEALLOCATE (env)
+   END SUBROUTINE skala_env_finalize
 
 ! **************************************************************************************************
 !> \brief Return the named XC_FUNCTIONAL subsection present in the input.

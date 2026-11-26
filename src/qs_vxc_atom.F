@@ -215,6 +215,7 @@ CONTAINS
 !>        atom-composite coordinates and adjoint scratch).
 ! **************************************************************************************************
    SUBROUTINE release_native_skala_caches()
+      IF (.NOT. ASSOCIATED(skala_state)) RETURN
       IF (ALLOCATED(skala_state%native_atom%native_need_base)) DEALLOCATE (skala_state%native_atom%native_need_base)
       IF (ALLOCATED(skala_state%native_atom%native_need_lin)) DEALLOCATE (skala_state%native_atom%native_need_lin)
       IF (ALLOCATED(skala_state%native_atom%native_need_bucket_start)) DEALLOCATE (skala_state%native_atom%native_need_bucket_start)
