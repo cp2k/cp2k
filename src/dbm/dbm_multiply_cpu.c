@@ -9,6 +9,7 @@
 
 #include "../base/cp_assert.h"
 #include <stddef.h>
+#include <stdint.h>
 
 #if defined(__LIBXSMM)
 #include <libxsmm.h>
@@ -93,12 +94,69 @@ void dbm_multiply_cpu_process_batch(const dbm_batch_t *batch, double alpha,
                                     const dbm_pack_t *pack_a,
                                     const dbm_pack_t *pack_b,
                                     dbm_shard_t *shard_c, int options) {
+  if (0 >= batch->ntasks) { // nothing to do
+    return;
+  }
+  dbm_shard_allocate_promised_blocks(shard_c);
+  dbm_multiply_cpu_process_tasks(batch, alpha, pack_a, pack_b, shard_c->data,
+                                 options);
+}
+
+/*******************************************************************************
+ * \brief Internal routine telling whether the CPU runs generated kernels, i.e.,
+ *        rivals a GPU, for tasks up to the given maxima (all zero: any task).
+ *        What holds for the maxima holds for every smaller task.
+ * \author Hans Pabst
+ ******************************************************************************/
+bool dbm_multiply_cpu_generated(int max_m, int max_n, int max_k, double alpha,
+                                int options) {
+  bool result = false;
+#if defined(__LIBXS)
+  if (0 == (DBM_MULTIPLY_BLAS_LIBRARY & options)) {
+    libxs_gemm_backend_t backend;
+    libxs_gemm_backend_init(&backend);
+    if (0 < max_m && 0 < max_n && 0 < max_k) { // as dispatched per task
+      const libxs_gemm_shape_t shape = {.datatype = LIBXS_DATATYPE_F64,
+                                        .transa = 'N',
+                                        .transb = 'T',
+                                        .m = max_m,
+                                        .n = max_n,
+                                        .k = max_k,
+                                        .lda = max_m,
+                                        .ldb = max_n,
+                                        .ldc = max_m,
+                                        .alpha = alpha,
+                                        .beta = 1.0};
+      result =
+          (LIBXS_GEMM_KIND_JIT == libxs_gemm_backend_kind(&backend, &shape));
+    } else {
+      result = (LIBXS_GEMM_KIND_JIT == libxs_gemm_backend_kind(&backend, NULL));
+    }
+  }
+#else
+  (void)max_m; // mark used
+  (void)max_n;
+  (void)max_k;
+  (void)alpha;
+  (void)options;
+#endif
+  return result;
+}
+
+/*******************************************************************************
+ * \brief Internal routine for executing the tasks in given batch on the CPU,
+ *        which accumulates into data_c holding every block of the batch.
+ * \author Ole Schuett and Hans Pabst
+ ******************************************************************************/
+void dbm_multiply_cpu_process_tasks(const dbm_batch_t *batch, double alpha,
+                                    const dbm_pack_t *pack_a,
+                                    const dbm_pack_t *pack_b, double *data_c,
+                                    int options) {
   const int ntasks = batch->ntasks;
   const dbm_task_t *const tasks = batch->tasks;
   if (0 >= ntasks) { // nothing to do
     return;
   }
-  dbm_shard_allocate_promised_blocks(shard_c);
 
   int batch_order[ntasks];
   if (DBM_MULTIPLY_TASK_REORDER & options) {
@@ -140,16 +198,16 @@ void dbm_multiply_cpu_process_batch(const dbm_batch_t *batch, double alpha,
 
     double *const data_a = dbm_pack_data(pack_a, task.offset_a);
     double *const data_b = dbm_pack_data(pack_b, task.offset_b);
-    double *const data_c = shard_c->data + task.offset_c;
+    double *const task_c = data_c + task.offset_c;
 
 #if defined(__LIBXS)
     if (NULL != gemm_config) {
-      libxs_gemm_call(gemm_config, data_a, data_b, data_c);
+      libxs_gemm_call(gemm_config, data_a, data_b, task_c);
     } else
 #endif
     {
       dbm_dgemm(ta, tb, task.m, task.n, task.k, alpha, data_a, lda, data_b, ldb,
-                1.0, data_c, task.m);
+                1.0, task_c, task.m);
     }
   }
 }

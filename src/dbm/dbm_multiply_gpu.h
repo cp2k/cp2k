@@ -20,9 +20,15 @@
 typedef struct {
   double *data; // on the device
   int data_size;
-  int data_allocated;
+  int data_allocated; // beyond data_size, the device data is zero
   offloadStream_t stream;
   offloadEvent_t event;
+  offloadEvent_t done;     // recorded after each kernel
+  offloadEvent_t download; // recorded after downloading into the host shard
+  bool downloading;        // download recorded (and not waited for)
+  double *host_data;       // contributions computed on the host (hybrid)
+  int host_size;
+  int host_allocated;
 } dbm_shard_gpu_t;
 
 // Separate from dbm_pack_t because device allocation lifetime differs from the
@@ -51,7 +57,19 @@ typedef struct {
 #if !defined(__OFFLOAD_UNIFIED_MEMORY)
   dbm_task_t *batches_dev;
 #endif
+
+  dbm_shard_t *shards_c_host;
+  int hybrid;        // max. number of threads computing on the host
+  int hybrid_active; // number of threads computing on the host
+  int64_t flops[2];  // computed on the GPU and on the host
 } dbm_multiply_gpu_context_t;
+
+/*******************************************************************************
+ * \brief Internal routine returning the maximum number of threads computing
+ *        on the host while the GPU is busy (DBM_MULTIPLY_HYBRID, default: 0).
+ * \author Hans Pabst
+ ******************************************************************************/
+int dbm_multiply_gpu_hybrid(void);
 
 /*******************************************************************************
  * \brief Internal routine for initializing the gpu backend.
@@ -84,6 +102,17 @@ void dbm_multiply_gpu_process_batch(const dbm_batch_t *batch,
                                     const double alpha, dbm_shard_t *shard_c,
                                     const int kshard, const bool finish,
                                     dbm_multiply_gpu_context_t *ctx);
+
+/*******************************************************************************
+ * \brief Internal routine for executing the tasks in given batch on the host
+ *        while the GPU is busy with the shard's previous batch (hybrid).
+ *        Returns false if the GPU shall process the batch instead.
+ * \author Hans Pabst
+ ******************************************************************************/
+bool dbm_multiply_gpu_process_batch_host(
+    const dbm_batch_t *batch, const double alpha, const dbm_pack_t *pack_a,
+    const dbm_pack_t *pack_b, dbm_shard_t *shard_c, const int kshard,
+    const bool finish, const int cpu_options, dbm_multiply_gpu_context_t *ctx);
 
 /*******************************************************************************
  * \brief Internal routine for shutting down the gpu backend.
