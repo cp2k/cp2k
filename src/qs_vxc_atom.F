@@ -134,6 +134,9 @@ MODULE qs_vxc_atom
    INTEGER, PRIVATE :: native_need_nrows = -1, native_need_npts(3) = 0, native_need_perd(3) = 0, &
                        native_need_nfg = 0, native_need_nneed = 0, native_need_nbucket = 0, &
                        native_need_nrecv = 0
+   INTEGER, PRIVATE :: native_need_group_handle = -1, native_need_num_pe = -1, &
+                       native_need_mepos = -1, native_need_mode = -1
+   INTEGER, PRIVATE :: native_need_bounds_local(2, 3) = 0
    REAL(dp), PRIVATE :: native_need_dh_inv(3, 3) = 0.0_dp, native_need_hmat(3, 3) = 0.0_dp
    LOGICAL, PRIVATE :: native_need_wrap = .FALSE., native_need_ready = .FALSE., &
                        native_need_replicated = .FALSE.
@@ -154,6 +157,7 @@ MODULE qs_vxc_atom
    INTEGER, PRIVATE :: native_comp_nrows = -1, native_comp_perd(3) = 0
    LOGICAL, PRIVATE :: native_comp_ready = .FALSE.
    REAL(dp), PRIVATE :: native_comp_hmat(3, 3) = 0.0_dp
+   INTEGER, ALLOCATABLE, PRIVATE :: native_comp_local_atoms(:)
    REAL(dp), ALLOCATABLE, PRIVATE :: native_comp_atoms(:, :), native_comp_coords(:, :), &
                                      native_comp_base_w(:), native_comp_grid_w(:)
 
@@ -705,6 +709,15 @@ CONTAINS
                IF (comp_geometry_valid) comp_geometry_valid = ALL(native_comp_atoms == composite_atom_coords)
                comp_geometry_valid = comp_geometry_valid .AND. ALL(native_comp_hmat == cell%hmat)
                comp_geometry_valid = comp_geometry_valid .AND. ALL(native_comp_perd == cell%perd)
+               ! The cached coordinates cover this rank's local atoms only, so a
+               ! change in the local partition must invalidate them too.
+               comp_geometry_valid = comp_geometry_valid .AND. ALLOCATED(native_comp_local_atoms)
+               IF (comp_geometry_valid) THEN
+                  comp_geometry_valid = SIZE(native_comp_local_atoms) == composite_local_natom
+               END IF
+               IF (comp_geometry_valid) THEN
+                  comp_geometry_valid = ALL(native_comp_local_atoms == composite_local_atoms)
+               END IF
             ELSE
                comp_geometry_valid = .FALSE.
             END IF
@@ -717,10 +730,12 @@ CONTAINS
                   DEALLOCATE (native_comp_atoms, native_comp_coords, native_comp_base_w, &
                               native_comp_grid_w)
                END IF
+               IF (ALLOCATED(native_comp_local_atoms)) DEALLOCATE (native_comp_local_atoms)
                ALLOCATE (native_comp_atoms(SIZE(composite_atom_coords, 1), SIZE(composite_atom_coords, 2)), &
                          native_comp_coords(3, composite_nflat), &
                          native_comp_base_w(composite_nflat), &
-                         native_comp_grid_w(composite_nflat))
+                         native_comp_grid_w(composite_nflat), &
+                         native_comp_local_atoms(SIZE(composite_local_atoms)))
 !$OMP PARALLEL DO SCHEDULE(DYNAMIC) DEFAULT(NONE) &
 !$OMP PRIVATE(composite_local_atom, iatom, grid_atom, nr, na, &
 !$OMP         composite_partition_image_coords, composite_partition_target_image, &
@@ -761,6 +776,7 @@ CONTAINS
                native_comp_base_w(:) = composite_base_grid_weights
                native_comp_grid_w(:) = composite_grid_weights
                native_comp_atoms(:, :) = composite_atom_coords
+               native_comp_local_atoms(:) = composite_local_atoms
                native_comp_hmat = cell%hmat
                native_comp_perd = cell%perd
                native_comp_nrows = composite_nflat
@@ -2984,12 +3000,12 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    PURE FUNCTION native_need_next_pow2(n) RESULT(p)
-      INTEGER, INTENT(IN)                                :: n
-      INTEGER                                            :: p
+      INTEGER(int_8), INTENT(IN)                         :: n
+      INTEGER(int_8)                                     :: p
 
-      p = 1
-      DO WHILE (p < n .AND. p < HUGE(1)/2)
-         p = 2*p
+      p = 1_int_8
+      DO WHILE (p < n .AND. p < HUGE(p)/2_int_8)
+         p = 2_int_8*p
       END DO
    END FUNCTION native_need_next_pow2
 
@@ -3099,8 +3115,8 @@ CONTAINS
 
       INTEGER                                            :: b, capacity, i, ip, j, k, lindex, &
                                                             npe, npts(3), nneed, nbwords, owner, pos, row
-      INTEGER(int_8)                                     :: bit, lin, lin0, mask, ngrid8, nx8, ny8, &
-                                                            rel8(3), word
+      INTEGER(int_8)                                     :: bit, lin, lin0, mask, nbucket8, ngrid8, &
+                                                            nx8, ny8, rel8(3), word
       INTEGER(int_8), ALLOCATABLE, DIMENSION(:)          :: cand, grown, present
       INTEGER(int_8), ALLOCATABLE, DIMENSION(:, :)       :: work_base
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bucket_count, cand_local, cand_owner, &
@@ -3134,6 +3150,13 @@ CONTAINS
          valid = valid .AND. ALL(native_need_hmat == cell%hmat) .AND. &
                  ALL(native_need_perd == cell%perd)
          valid = valid .AND. (native_need_wrap .EQV. wrap)
+         ! The exchange schedule is tied to the communicator and local grid
+         ! partition, which are not captured by the geometry keys above.
+         valid = valid .AND. native_need_num_pe == group%num_pe
+         valid = valid .AND. native_need_mepos == group%mepos
+         valid = valid .AND. native_need_group_handle == group%get_handle()
+         valid = valid .AND. native_need_mode == grid%para%mode
+         valid = valid .AND. ALL(native_need_bounds_local == grid%bounds_local)
       END IF
       IF (valid .AND. ALLOCATED(native_need_atoms)) THEN
          valid = ALL(SHAPE(native_need_atoms) == SHAPE(atom_coords))
@@ -3275,7 +3298,11 @@ CONTAINS
       END IF
       native_need_nrecv = SUM(native_need_rcount)
 
-      native_need_nbucket = native_need_next_pow2(MAX(2*nneed, 64))
+      nbucket8 = native_need_next_pow2(MAX(2_int_8*INT(nneed, int_8), 64_int_8))
+      IF (nbucket8 > INT(HUGE(1), int_8)) THEN
+         CALL cp_abort(__LOCATION__, "Native-grid hash table would exceed the integer range.")
+      END IF
+      native_need_nbucket = INT(nbucket8)
       ALLOCATE (native_need_bucket_start(native_need_nbucket + 1))
       ALLOCATE (native_need_bucket_entry(MAX(nneed, 1)))
       ALLOCATE (bucket_count(native_need_nbucket))
@@ -3307,6 +3334,11 @@ CONTAINS
       native_need_perd = cell%perd
       native_need_wrap = wrap
       native_need_nrows = nrows
+      native_need_num_pe = group%num_pe
+      native_need_mepos = group%mepos
+      native_need_group_handle = group%get_handle()
+      native_need_mode = grid%para%mode
+      native_need_bounds_local = grid%bounds_local
       native_need_ready = .TRUE.
 
    END SUBROUTINE native_grid_build_needed
