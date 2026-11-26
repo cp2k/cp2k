@@ -126,6 +126,7 @@ MODULE qs_vxc_atom
                                               xc_rho_set_update
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
+   USE skala_env_types, ONLY: native_geometry_key_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -133,48 +134,6 @@ MODULE qs_vxc_atom
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc_atom'
-
-   INTEGER, PRIVATE :: native_need_nrows = -1, native_need_npts(3) = 0, &
-                       native_need_nfg = 0, native_need_nneed = 0, native_need_nbucket = 0, &
-                       native_need_nrecv = 0
-   INTEGER, PRIVATE :: native_need_group_handle = -1, native_need_num_pe = -1, &
-                       native_need_mepos = -1, native_need_mode = -1
-   INTEGER, PRIVATE :: native_need_bounds_local(2, 3) = 0
-   REAL(dp), PRIVATE :: native_need_dh_inv(3, 3) = 0.0_dp
-   LOGICAL, PRIVATE :: native_need_wrap = .FALSE., native_need_ready = .FALSE., &
-                       native_need_replicated = .FALSE.
-   INTEGER(int_8), ALLOCATABLE, PRIVATE :: native_need_base(:, :), native_need_lin(:)
-   INTEGER, ALLOCATABLE, PRIVATE :: native_need_bucket_start(:), native_need_local(:), &
-                                    native_need_scount(:), native_need_sdispl(:), &
-                                    native_need_rcount(:), native_need_rdispl(:), &
-                                    native_need_sidx(:), native_need_ridx(:)
-   REAL(dp), ALLOCATABLE, PRIVATE :: native_need_values(:, :), native_need_reply(:)
-
-   TYPE, PRIVATE :: native_need_entry_type
-      INTEGER(int_8) :: lin = 0_int_8
-      INTEGER :: pos = 0
-   END TYPE native_need_entry_type
-   TYPE(native_need_entry_type), ALLOCATABLE, PRIVATE :: native_need_bucket_entry(:)
-
-   ! Geometry facts shared by the atom-composite and needed-point caches.
-   TYPE, PRIVATE :: native_geometry_key_type
-      REAL(dp) :: hmat(3, 3) = 0.0_dp
-      INTEGER :: perd(3) = 0
-      REAL(dp), ALLOCATABLE :: atoms(:, :)
-      LOGICAL :: ready = .FALSE.
-   END TYPE native_geometry_key_type
-   TYPE(native_geometry_key_type), PRIVATE :: native_need_geometry, native_comp_geometry
-
-   INTEGER, PRIVATE :: native_comp_nrows = -1
-   LOGICAL, PRIVATE :: native_comp_ready = .FALSE.
-   INTEGER, ALLOCATABLE, PRIVATE :: native_comp_local_atoms(:)
-   REAL(dp), ALLOCATABLE, PRIVATE :: native_comp_coords(:, :), &
-                                     native_comp_base_w(:), native_comp_grid_w(:)
-
-   ! Grow-only per-thread adjoint scratch, reused across SCF steps.
-   INTEGER, PRIVATE :: adjoint_scratch_nthread = 0, adjoint_scratch_nfg = 0, &
-                       adjoint_scratch_nneed = 0
-   REAL(dp), ALLOCATABLE, TARGET, PRIVATE :: adjoint_thread_scratch(:, :, :)
 
    PUBLIC :: calculate_vxc_atom, &
              calculate_vxc_atom_epr, &
@@ -239,14 +198,16 @@ CONTAINS
    SUBROUTINE ensure_adjoint_thread_scratch(nthread, nfg, nneed)
       INTEGER, INTENT(IN)                                :: nthread, nfg, nneed
 
-      IF (adjoint_scratch_nthread >= nthread .AND. adjoint_scratch_nfg >= nfg .AND. &
-          adjoint_scratch_nneed >= nneed) RETURN
-      IF (ALLOCATED(adjoint_thread_scratch)) DEALLOCATE (adjoint_thread_scratch)
-      adjoint_scratch_nthread = MAX(nthread, adjoint_scratch_nthread)
-      adjoint_scratch_nfg = MAX(nfg, adjoint_scratch_nfg)
-      adjoint_scratch_nneed = MAX(nneed, adjoint_scratch_nneed)
-      ALLOCATE (adjoint_thread_scratch(adjoint_scratch_nfg, adjoint_scratch_nneed, &
-                                       adjoint_scratch_nthread))
+     IF (skala_state%native_atom%adjoint_scratch_nthread >= nthread .AND. skala_state%native_atom%adjoint_scratch_nfg >= nfg .AND. &
+          skala_state%native_atom%adjoint_scratch_nneed >= nneed) RETURN
+      IF (ALLOCATED(skala_state%native_atom%adjoint_thread_scratch)) DEALLOCATE (skala_state%native_atom%adjoint_thread_scratch)
+      skala_state%native_atom%adjoint_scratch_nthread = MAX(nthread, skala_state%native_atom%adjoint_scratch_nthread)
+      skala_state%native_atom%adjoint_scratch_nfg = MAX(nfg, skala_state%native_atom%adjoint_scratch_nfg)
+      skala_state%native_atom%adjoint_scratch_nneed = MAX(nneed, skala_state%native_atom%adjoint_scratch_nneed)
+      ALLOCATE (skala_state%native_atom%adjoint_thread_scratch( &
+                skala_state%native_atom%adjoint_scratch_nfg, &
+                skala_state%native_atom%adjoint_scratch_nneed, &
+                skala_state%native_atom%adjoint_scratch_nthread))
    END SUBROUTINE ensure_adjoint_thread_scratch
 
 ! **************************************************************************************************
@@ -254,34 +215,34 @@ CONTAINS
 !>        atom-composite coordinates and adjoint scratch).
 ! **************************************************************************************************
    SUBROUTINE release_native_skala_caches()
-      IF (ALLOCATED(native_need_base)) DEALLOCATE (native_need_base)
-      IF (ALLOCATED(native_need_lin)) DEALLOCATE (native_need_lin)
-      IF (ALLOCATED(native_need_bucket_start)) DEALLOCATE (native_need_bucket_start)
-      IF (ALLOCATED(native_need_bucket_entry)) DEALLOCATE (native_need_bucket_entry)
-      IF (ALLOCATED(native_need_local)) DEALLOCATE (native_need_local)
-      IF (ALLOCATED(native_need_scount)) DEALLOCATE (native_need_scount)
-      IF (ALLOCATED(native_need_sdispl)) DEALLOCATE (native_need_sdispl)
-      IF (ALLOCATED(native_need_rcount)) DEALLOCATE (native_need_rcount)
-      IF (ALLOCATED(native_need_rdispl)) DEALLOCATE (native_need_rdispl)
-      IF (ALLOCATED(native_need_sidx)) DEALLOCATE (native_need_sidx)
-      IF (ALLOCATED(native_need_ridx)) DEALLOCATE (native_need_ridx)
-      IF (ALLOCATED(native_need_values)) DEALLOCATE (native_need_values)
-      IF (ALLOCATED(native_need_reply)) DEALLOCATE (native_need_reply)
-      IF (ALLOCATED(native_need_geometry%atoms)) DEALLOCATE (native_need_geometry%atoms)
-      native_need_geometry%ready = .FALSE.
-      native_need_ready = .FALSE.
-      IF (ALLOCATED(native_comp_coords)) DEALLOCATE (native_comp_coords)
-      IF (ALLOCATED(native_comp_base_w)) DEALLOCATE (native_comp_base_w)
-      IF (ALLOCATED(native_comp_grid_w)) DEALLOCATE (native_comp_grid_w)
-      IF (ALLOCATED(native_comp_local_atoms)) DEALLOCATE (native_comp_local_atoms)
-      IF (ALLOCATED(native_comp_geometry%atoms)) DEALLOCATE (native_comp_geometry%atoms)
-      native_comp_geometry%ready = .FALSE.
-      native_comp_ready = .FALSE.
-      native_comp_nrows = -1
-      IF (ALLOCATED(adjoint_thread_scratch)) DEALLOCATE (adjoint_thread_scratch)
-      adjoint_scratch_nthread = 0
-      adjoint_scratch_nfg = 0
-      adjoint_scratch_nneed = 0
+      IF (ALLOCATED(skala_state%native_atom%native_need_base)) DEALLOCATE (skala_state%native_atom%native_need_base)
+      IF (ALLOCATED(skala_state%native_atom%native_need_lin)) DEALLOCATE (skala_state%native_atom%native_need_lin)
+      IF (ALLOCATED(skala_state%native_atom%native_need_bucket_start)) DEALLOCATE (skala_state%native_atom%native_need_bucket_start)
+      IF (ALLOCATED(skala_state%native_atom%native_need_bucket_entry)) DEALLOCATE (skala_state%native_atom%native_need_bucket_entry)
+      IF (ALLOCATED(skala_state%native_atom%native_need_local)) DEALLOCATE (skala_state%native_atom%native_need_local)
+      IF (ALLOCATED(skala_state%native_atom%native_need_scount)) DEALLOCATE (skala_state%native_atom%native_need_scount)
+      IF (ALLOCATED(skala_state%native_atom%native_need_sdispl)) DEALLOCATE (skala_state%native_atom%native_need_sdispl)
+      IF (ALLOCATED(skala_state%native_atom%native_need_rcount)) DEALLOCATE (skala_state%native_atom%native_need_rcount)
+      IF (ALLOCATED(skala_state%native_atom%native_need_rdispl)) DEALLOCATE (skala_state%native_atom%native_need_rdispl)
+      IF (ALLOCATED(skala_state%native_atom%native_need_sidx)) DEALLOCATE (skala_state%native_atom%native_need_sidx)
+      IF (ALLOCATED(skala_state%native_atom%native_need_ridx)) DEALLOCATE (skala_state%native_atom%native_need_ridx)
+      IF (ALLOCATED(skala_state%native_atom%native_need_values)) DEALLOCATE (skala_state%native_atom%native_need_values)
+      IF (ALLOCATED(skala_state%native_atom%native_need_reply)) DEALLOCATE (skala_state%native_atom%native_need_reply)
+  IF (ALLOCATED(skala_state%native_atom%native_need_geometry%atoms)) DEALLOCATE (skala_state%native_atom%native_need_geometry%atoms)
+      skala_state%native_atom%native_need_geometry%ready = .FALSE.
+      skala_state%native_atom%native_need_ready = .FALSE.
+      IF (ALLOCATED(skala_state%native_atom%native_comp_coords)) DEALLOCATE (skala_state%native_atom%native_comp_coords)
+      IF (ALLOCATED(skala_state%native_atom%native_comp_base_w)) DEALLOCATE (skala_state%native_atom%native_comp_base_w)
+      IF (ALLOCATED(skala_state%native_atom%native_comp_grid_w)) DEALLOCATE (skala_state%native_atom%native_comp_grid_w)
+      IF (ALLOCATED(skala_state%native_atom%native_comp_local_atoms)) DEALLOCATE (skala_state%native_atom%native_comp_local_atoms)
+  IF (ALLOCATED(skala_state%native_atom%native_comp_geometry%atoms)) DEALLOCATE (skala_state%native_atom%native_comp_geometry%atoms)
+      skala_state%native_atom%native_comp_geometry%ready = .FALSE.
+      skala_state%native_atom%native_comp_ready = .FALSE.
+      skala_state%native_atom%native_comp_nrows = -1
+      IF (ALLOCATED(skala_state%native_atom%adjoint_thread_scratch)) DEALLOCATE (skala_state%native_atom%adjoint_thread_scratch)
+      skala_state%native_atom%adjoint_scratch_nthread = 0
+      skala_state%native_atom%adjoint_scratch_nfg = 0
+      skala_state%native_atom%adjoint_scratch_nneed = 0
    END SUBROUTINE release_native_skala_caches
 
 ! **************************************************************************************************
@@ -814,35 +775,37 @@ CONTAINS
             CALL xc_rho_set_update(smooth_rho_set, smooth_rho_r, smooth_rho_g, smooth_tau_r, needs, &
                                    xc_deriv_method_id, xc_rho_smooth_id, auxbas_pw_pool)
             CALL timeset("calculate_vxc_atom_gather", gather_handle)
-            comp_geometry_valid = native_comp_ready .AND. native_comp_nrows == composite_nflat
+  comp_geometry_valid = skala_state%native_atom%native_comp_ready .AND. skala_state%native_atom%native_comp_nrows == composite_nflat
             IF (comp_geometry_valid) THEN
-               comp_geometry_valid = native_geometry_matches(native_comp_geometry, cell, &
+               comp_geometry_valid = native_geometry_matches(skala_state%native_atom%native_comp_geometry, cell, &
                                                              composite_atom_coords)
                ! The cached coordinates cover this rank's local atoms only, so a
                ! change in the local partition must invalidate them too.
-               comp_geometry_valid = comp_geometry_valid .AND. ALLOCATED(native_comp_local_atoms)
+               comp_geometry_valid = comp_geometry_valid .AND. ALLOCATED(skala_state%native_atom%native_comp_local_atoms)
                IF (comp_geometry_valid) THEN
-                  comp_geometry_valid = SIZE(native_comp_local_atoms) == composite_local_natom
+                  comp_geometry_valid = SIZE(skala_state%native_atom%native_comp_local_atoms) == composite_local_natom
                END IF
                IF (comp_geometry_valid) THEN
-                  comp_geometry_valid = ALL(native_comp_local_atoms == composite_local_atoms)
+                  comp_geometry_valid = ALL(skala_state%native_atom%native_comp_local_atoms == composite_local_atoms)
                END IF
             ELSE
                comp_geometry_valid = .FALSE.
             END IF
             IF (comp_geometry_valid) THEN
-               composite_grid_coords(:, :) = native_comp_coords
-               composite_base_grid_weights(:) = native_comp_base_w
-               composite_grid_weights(:) = native_comp_grid_w
+               composite_grid_coords(:, :) = skala_state%native_atom%native_comp_coords
+               composite_base_grid_weights(:) = skala_state%native_atom%native_comp_base_w
+               composite_grid_weights(:) = skala_state%native_atom%native_comp_grid_w
             ELSE
-               IF (ALLOCATED(native_comp_coords)) THEN
-                  DEALLOCATE (native_comp_coords, native_comp_base_w, native_comp_grid_w)
+               IF (ALLOCATED(skala_state%native_atom%native_comp_coords)) THEN
+                  DEALLOCATE (skala_state%native_atom%native_comp_coords, &
+                              skala_state%native_atom%native_comp_base_w, &
+                              skala_state%native_atom%native_comp_grid_w)
                END IF
-               IF (ALLOCATED(native_comp_local_atoms)) DEALLOCATE (native_comp_local_atoms)
-               ALLOCATE (native_comp_coords(3, composite_nflat), &
-                         native_comp_base_w(composite_nflat), &
-                         native_comp_grid_w(composite_nflat), &
-                         native_comp_local_atoms(SIZE(composite_local_atoms)))
+        IF (ALLOCATED(skala_state%native_atom%native_comp_local_atoms)) DEALLOCATE (skala_state%native_atom%native_comp_local_atoms)
+               ALLOCATE (skala_state%native_atom%native_comp_coords(3, composite_nflat), &
+                         skala_state%native_atom%native_comp_base_w(composite_nflat), &
+                         skala_state%native_atom%native_comp_grid_w(composite_nflat), &
+                         skala_state%native_atom%native_comp_local_atoms(SIZE(composite_local_atoms)))
                ! The periodic image layout only depends on the geometry, not on
                ! the target atom, so build it once and share it across threads.
                CALL build_periodic_atom_image_layout( &
@@ -882,13 +845,13 @@ CONTAINS
                   END DO
                END DO
 !$OMP END PARALLEL DO
-               native_comp_coords(:, :) = composite_grid_coords
-               native_comp_base_w(:) = composite_base_grid_weights
-               native_comp_grid_w(:) = composite_grid_weights
-               CALL store_native_geometry_key(native_comp_geometry, cell, composite_atom_coords)
-               native_comp_local_atoms(:) = composite_local_atoms
-               native_comp_nrows = composite_nflat
-               native_comp_ready = .TRUE.
+               skala_state%native_atom%native_comp_coords(:, :) = composite_grid_coords
+               skala_state%native_atom%native_comp_base_w(:) = composite_base_grid_weights
+               skala_state%native_atom%native_comp_grid_w(:) = composite_grid_weights
+               CALL store_native_geometry_key(skala_state%native_atom%native_comp_geometry, cell, composite_atom_coords)
+               skala_state%native_atom%native_comp_local_atoms(:) = composite_local_atoms
+               skala_state%native_atom%native_comp_nrows = composite_nflat
+               skala_state%native_atom%native_comp_ready = .TRUE.
             END IF
 
             CALL native_grid_build_needed(smooth_rho_r(1)%pw_grid, cell, smooth_rho_r(1)%pw_grid%para%group, &
@@ -2130,7 +2093,7 @@ CONTAINS
                   static_geometry_valid=comp_geometry_valid)
             END IF
             adjoint_nchannels = MERGE(2, 1, lsd)
-            ALLOCATE (adjoint_compact(native_need_nfg, MAX(native_need_nneed, 1)))
+            ALLOCATE (adjoint_compact(skala_state%native_atom%native_need_nfg, MAX(skala_state%native_atom%native_need_nneed, 1)))
             adjoint_compact = 0.0_dp
             nthread = 1
 !$          nthread = omp_get_max_threads()
@@ -2141,14 +2104,14 @@ CONTAINS
 !$OMP PRIVATE(composite_row, composite_smooth_density_adjoint_value, inode_x, inode_y, inode_z, &
 !$OMP         composite_smooth_gradient_adjoint_value, composite_smooth_kin_adjoint_value, &
 !$OMP         interpolation_stencil, thread_adj, thread_id, lin, pos, coefficient, idir) &
-!$OMP SHARED(adjoint_compact, adjoint_thread_scratch, cell, composite_density_grad, &
+!$OMP SHARED(adjoint_compact, cell, composite_density_grad, skala_state, &
 !$OMP        composite_grad_grad, composite_grid_coords, composite_kin_grad, composite_nflat, &
-!$OMP        lsd, native_need_npts, qs_env, &
+!$OMP        lsd, qs_env, &
 !$OMP        smooth_rho_r)
             thread_id = 1
 !$          thread_id = omp_get_thread_num() + 1
-            thread_adj => adjoint_thread_scratch(1:SIZE(adjoint_compact, 1), &
-                                                 1:SIZE(adjoint_compact, 2), thread_id)
+            thread_adj => skala_state%native_atom%adjoint_thread_scratch(1:SIZE(adjoint_compact, 1), &
+                                                                         1:SIZE(adjoint_compact, 2), thread_id)
             thread_adj = 0.0_dp
 !$OMP DO SCHEDULE(DYNAMIC)
             DO composite_row = 1, composite_nflat
@@ -2177,7 +2140,7 @@ CONTAINS
                      DO inode_x = 1, native_grid_interp_npts
                         IF (.NOT. interpolation_stencil%valid(inode_x, 1)) CYCLE
                         lin = native_need_linear_index(interpolation_stencil, inode_x, inode_y, &
-                                                       inode_z, native_need_npts)
+                                                       inode_z, skala_state%native_atom%native_need_npts)
                         pos = native_need_lookup(lin)
                         CPASSERT(pos > 0)
                         coefficient = interpolation_stencil%weight(inode_x, 1)* &
@@ -2218,7 +2181,7 @@ CONTAINS
 !$OMP END CRITICAL(skala_atom_composite_adjoint_compact)
 !$OMP END PARALLEL
             CALL timestop(adjoint_handle)
-            ALLOCATE (adjoint_local_flat(native_need_nfg, smooth_rho_r(1)%pw_grid%ngpts_local))
+            ALLOCATE (adjoint_local_flat(skala_state%native_atom%native_need_nfg, smooth_rho_r(1)%pw_grid%ngpts_local))
             CALL native_grid_exchange_scatter(smooth_rho_r(1)%pw_grid%para%group, adjoint_compact, adjoint_local_flat)
             ngl = smooth_rho_r(1)%pw_grid%ngpts_local
             ALLOCATE (smooth_density_adjoint_storage(ngl, adjoint_nchannels), &
@@ -3105,10 +3068,10 @@ CONTAINS
 !> \brief ...
 ! **************************************************************************************************
    SUBROUTINE native_need_index_release()
-      IF (ALLOCATED(native_need_lin)) DEALLOCATE (native_need_lin)
-      IF (ALLOCATED(native_need_bucket_entry)) DEALLOCATE (native_need_bucket_entry)
-      IF (ALLOCATED(native_need_bucket_start)) DEALLOCATE (native_need_bucket_start)
-      native_need_nbucket = 0
+      IF (ALLOCATED(skala_state%native_atom%native_need_lin)) DEALLOCATE (skala_state%native_atom%native_need_lin)
+      IF (ALLOCATED(skala_state%native_atom%native_need_bucket_entry)) DEALLOCATE (skala_state%native_atom%native_need_bucket_entry)
+      IF (ALLOCATED(skala_state%native_atom%native_need_bucket_start)) DEALLOCATE (skala_state%native_atom%native_need_bucket_start)
+      skala_state%native_atom%native_need_nbucket = 0
    END SUBROUTINE native_need_index_release
 
 ! **************************************************************************************************
@@ -3155,11 +3118,11 @@ CONTAINS
       INTEGER                                            :: b, k
 
       pos = 0
-      IF (native_need_nbucket == 0) RETURN
-      b = native_need_bucket(lin, native_need_nbucket)
-      DO k = native_need_bucket_start(b), native_need_bucket_start(b + 1) - 1
-         IF (native_need_bucket_entry(k)%lin == lin) THEN
-            pos = native_need_bucket_entry(k)%pos
+      IF (skala_state%native_atom%native_need_nbucket == 0) RETURN
+      b = native_need_bucket(lin, skala_state%native_atom%native_need_nbucket)
+      DO k = skala_state%native_atom%native_need_bucket_start(b), skala_state%native_atom%native_need_bucket_start(b + 1) - 1
+         IF (skala_state%native_atom%native_need_bucket_entry(k)%lin == lin) THEN
+            pos = skala_state%native_atom%native_need_bucket_entry(k)%pos
             RETURN
          END IF
       END DO
@@ -3254,19 +3217,19 @@ CONTAINS
          CPASSERT(grid%bounds_local(1, 3) == grid%bounds(1, 3))
          CPASSERT(grid%bounds_local(2, 3) == grid%bounds(2, 3))
       END BLOCK
-      valid = native_need_ready .AND. native_need_nrows == nrows
+      valid = skala_state%native_atom%native_need_ready .AND. skala_state%native_atom%native_need_nrows == nrows
       IF (valid) THEN
-         valid = ALL(native_need_npts == npts) .AND. ALL(native_need_dh_inv == grid%dh_inv)
-         valid = valid .AND. (native_need_wrap .EQV. wrap)
+  valid = ALL(skala_state%native_atom%native_need_npts == npts) .AND. ALL(skala_state%native_atom%native_need_dh_inv == grid%dh_inv)
+         valid = valid .AND. (skala_state%native_atom%native_need_wrap .EQV. wrap)
          ! The exchange schedule is tied to the communicator and local grid
          ! partition, which are not captured by the geometry keys above.
-         valid = valid .AND. native_need_num_pe == group%num_pe
-         valid = valid .AND. native_need_mepos == group%mepos
-         valid = valid .AND. native_need_group_handle == group%get_handle()
-         valid = valid .AND. native_need_mode == grid%para%mode
-         valid = valid .AND. ALL(native_need_bounds_local == grid%bounds_local)
+         valid = valid .AND. skala_state%native_atom%native_need_num_pe == group%num_pe
+         valid = valid .AND. skala_state%native_atom%native_need_mepos == group%mepos
+         valid = valid .AND. skala_state%native_atom%native_need_group_handle == group%get_handle()
+         valid = valid .AND. skala_state%native_atom%native_need_mode == grid%para%mode
+         valid = valid .AND. ALL(skala_state%native_atom%native_need_bounds_local == grid%bounds_local)
       END IF
-      IF (valid) valid = native_geometry_matches(native_need_geometry, cell, atom_coords)
+      IF (valid) valid = native_geometry_matches(skala_state%native_atom%native_need_geometry, cell, atom_coords)
       ! Only build the per-row fractional base when the cheap keys still match
       ! (to compare against the cached copy) or when a rebuild is required.
       IF (valid) THEN
@@ -3276,9 +3239,9 @@ CONTAINS
             relative = MATMUL(grid%dh_inv, points(:, row))
             work_base(:, row) = INT(FLOOR(relative), int_8)
          END DO
-         IF (ALLOCATED(native_need_base)) THEN
-            valid = ALL(SHAPE(native_need_base) == SHAPE(work_base))
-            IF (valid) valid = ALL(native_need_base == work_base)
+         IF (ALLOCATED(skala_state%native_atom%native_need_base)) THEN
+            valid = ALL(SHAPE(skala_state%native_atom%native_need_base) == SHAPE(work_base))
+            IF (valid) valid = ALL(skala_state%native_atom%native_need_base == work_base)
          ELSE
             valid = .FALSE.
          END IF
@@ -3296,19 +3259,19 @@ CONTAINS
          END DO
       END IF
 
-      IF (ALLOCATED(native_need_local)) DEALLOCATE (native_need_local)
-      IF (ALLOCATED(native_need_scount)) DEALLOCATE (native_need_scount)
-      IF (ALLOCATED(native_need_sdispl)) DEALLOCATE (native_need_sdispl)
-      IF (ALLOCATED(native_need_rcount)) DEALLOCATE (native_need_rcount)
-      IF (ALLOCATED(native_need_rdispl)) DEALLOCATE (native_need_rdispl)
-      IF (ALLOCATED(native_need_sidx)) DEALLOCATE (native_need_sidx)
-      IF (ALLOCATED(native_need_ridx)) DEALLOCATE (native_need_ridx)
-      IF (ALLOCATED(native_need_base)) DEALLOCATE (native_need_base)
-      IF (ALLOCATED(native_need_values)) DEALLOCATE (native_need_values)
-      IF (ALLOCATED(native_need_reply)) DEALLOCATE (native_need_reply)
+      IF (ALLOCATED(skala_state%native_atom%native_need_local)) DEALLOCATE (skala_state%native_atom%native_need_local)
+      IF (ALLOCATED(skala_state%native_atom%native_need_scount)) DEALLOCATE (skala_state%native_atom%native_need_scount)
+      IF (ALLOCATED(skala_state%native_atom%native_need_sdispl)) DEALLOCATE (skala_state%native_atom%native_need_sdispl)
+      IF (ALLOCATED(skala_state%native_atom%native_need_rcount)) DEALLOCATE (skala_state%native_atom%native_need_rcount)
+      IF (ALLOCATED(skala_state%native_atom%native_need_rdispl)) DEALLOCATE (skala_state%native_atom%native_need_rdispl)
+      IF (ALLOCATED(skala_state%native_atom%native_need_sidx)) DEALLOCATE (skala_state%native_atom%native_need_sidx)
+      IF (ALLOCATED(skala_state%native_atom%native_need_ridx)) DEALLOCATE (skala_state%native_atom%native_need_ridx)
+      IF (ALLOCATED(skala_state%native_atom%native_need_base)) DEALLOCATE (skala_state%native_atom%native_need_base)
+      IF (ALLOCATED(skala_state%native_atom%native_need_values)) DEALLOCATE (skala_state%native_atom%native_need_values)
+      IF (ALLOCATED(skala_state%native_atom%native_need_reply)) DEALLOCATE (skala_state%native_atom%native_need_reply)
       CALL native_need_index_release()
-      native_need_ready = .FALSE.
-      native_need_npts = npts
+      skala_state%native_atom%native_need_ready = .FALSE.
+      skala_state%native_atom%native_need_npts = npts
 
       ngrid8 = INT(npts(1), int_8)*INT(npts(2), int_8)*INT(npts(3), int_8)
       nbwords = INT((ngrid8 + 63_int_8)/64_int_8)
@@ -3354,30 +3317,30 @@ CONTAINS
          END DO
       END DO
       DEALLOCATE (present)
-      native_need_nneed = nneed
+      skala_state%native_atom%native_need_nneed = nneed
 
       npe = group%num_pe
-      native_need_replicated = (grid%para%mode == PW_MODE_LOCAL)
-      ALLOCATE (native_need_lin(MAX(nneed, 1)))
-      ALLOCATE (native_need_local(MAX(nneed, 1)))
-      ALLOCATE (native_need_scount(npe), native_need_sdispl(npe))
-      native_need_scount = 0
-      native_need_lin = 0_int_8
+      skala_state%native_atom%native_need_replicated = (grid%para%mode == PW_MODE_LOCAL)
+      ALLOCATE (skala_state%native_atom%native_need_lin(MAX(nneed, 1)))
+      ALLOCATE (skala_state%native_atom%native_need_local(MAX(nneed, 1)))
+      ALLOCATE (skala_state%native_atom%native_need_scount(npe), skala_state%native_atom%native_need_sdispl(npe))
+      skala_state%native_atom%native_need_scount = 0
+      skala_state%native_atom%native_need_lin = 0_int_8
 
-      IF (native_need_replicated) THEN
+      IF (skala_state%native_atom%native_need_replicated) THEN
          CPASSERT(group%num_pe == 1)
          DO ip = 1, nneed
-            native_need_local(ip) = INT(cand(ip))
-            native_need_lin(ip) = cand(ip)
+            skala_state%native_atom%native_need_local(ip) = INT(cand(ip))
+            skala_state%native_atom%native_need_lin(ip) = cand(ip)
          END DO
-         native_need_scount(1) = nneed
-         native_need_sdispl(1) = 0
-         ALLOCATE (native_need_rcount(npe), native_need_rdispl(npe))
-         native_need_rcount(:) = native_need_scount
-         native_need_rdispl(:) = native_need_sdispl
-         ALLOCATE (native_need_sidx(MAX(nneed, 1)), native_need_ridx(MAX(nneed, 1)))
-         native_need_sidx(:) = native_need_local
-         native_need_ridx(:) = native_need_local
+         skala_state%native_atom%native_need_scount(1) = nneed
+         skala_state%native_atom%native_need_sdispl(1) = 0
+         ALLOCATE (skala_state%native_atom%native_need_rcount(npe), skala_state%native_atom%native_need_rdispl(npe))
+         skala_state%native_atom%native_need_rcount(:) = skala_state%native_atom%native_need_scount
+         skala_state%native_atom%native_need_rdispl(:) = skala_state%native_atom%native_need_sdispl
+         ALLOCATE (skala_state%native_atom%native_need_sidx(MAX(nneed, 1)), skala_state%native_atom%native_need_ridx(MAX(nneed, 1)))
+         skala_state%native_atom%native_need_sidx(:) = skala_state%native_atom%native_need_local
+         skala_state%native_atom%native_need_ridx(:) = skala_state%native_atom%native_need_local
       ELSE
          ALLOCATE (cand_owner(MAX(nneed, 1)), cand_local(MAX(nneed, 1)))
          DO ip = 1, nneed
@@ -3392,75 +3355,83 @@ CONTAINS
             CALL pw_grid_map_global_point(grid, i, j, k, owner, lindex)
             cand_owner(ip) = owner
             cand_local(ip) = lindex
-            native_need_scount(owner + 1) = native_need_scount(owner + 1) + 1
+            skala_state%native_atom%native_need_scount(owner + 1) = skala_state%native_atom%native_need_scount(owner + 1) + 1
          END DO
-         native_need_sdispl(1) = 0
+         skala_state%native_atom%native_need_sdispl(1) = 0
          DO ip = 2, npe
-            native_need_sdispl(ip) = native_need_sdispl(ip - 1) + native_need_scount(ip - 1)
+            skala_state%native_atom%native_need_sdispl(ip) = &
+               skala_state%native_atom%native_need_sdispl(ip - 1) + &
+               skala_state%native_atom%native_need_scount(ip - 1)
          END DO
          ALLOCATE (fill(npe))
          fill = 0
          DO ip = 1, nneed
             owner = cand_owner(ip)
-            pos = native_need_sdispl(owner + 1) + fill(owner + 1) + 1
+            pos = skala_state%native_atom%native_need_sdispl(owner + 1) + fill(owner + 1) + 1
             fill(owner + 1) = fill(owner + 1) + 1
-            native_need_local(pos) = cand_local(ip)
-            native_need_lin(pos) = cand(ip)
+            skala_state%native_atom%native_need_local(pos) = cand_local(ip)
+            skala_state%native_atom%native_need_lin(pos) = cand(ip)
          END DO
          DEALLOCATE (fill, cand_owner, cand_local)
-         ALLOCATE (native_need_sidx(MAX(nneed, 1)))
-         IF (nneed > 0) native_need_sidx(1:nneed) = native_need_local(1:nneed)
-         ALLOCATE (native_need_rcount(npe), native_need_rdispl(npe))
-         CALL group%alltoall(native_need_scount, native_need_rcount, 1)
-         native_need_rdispl(1) = 0
+         ALLOCATE (skala_state%native_atom%native_need_sidx(MAX(nneed, 1)))
+         IF (nneed > 0) skala_state%native_atom%native_need_sidx(1:nneed) = skala_state%native_atom%native_need_local(1:nneed)
+         ALLOCATE (skala_state%native_atom%native_need_rcount(npe), skala_state%native_atom%native_need_rdispl(npe))
+         CALL group%alltoall(skala_state%native_atom%native_need_scount, skala_state%native_atom%native_need_rcount, 1)
+         skala_state%native_atom%native_need_rdispl(1) = 0
          DO ip = 2, npe
-            native_need_rdispl(ip) = native_need_rdispl(ip - 1) + native_need_rcount(ip - 1)
+            skala_state%native_atom%native_need_rdispl(ip) = &
+               skala_state%native_atom%native_need_rdispl(ip - 1) + &
+               skala_state%native_atom%native_need_rcount(ip - 1)
          END DO
-         ALLOCATE (native_need_ridx(MAX(SUM(native_need_rcount), 1)))
-         CALL group%alltoall(native_need_sidx, native_need_scount, native_need_sdispl, &
-                             native_need_ridx, native_need_rcount, native_need_rdispl)
+         ALLOCATE (skala_state%native_atom%native_need_ridx(MAX(SUM(skala_state%native_atom%native_need_rcount), 1)))
+         CALL group%alltoall(skala_state%native_atom%native_need_sidx, &
+                             skala_state%native_atom%native_need_scount, &
+                             skala_state%native_atom%native_need_sdispl, &
+                             skala_state%native_atom%native_need_ridx, &
+                             skala_state%native_atom%native_need_rcount, &
+                             skala_state%native_atom%native_need_rdispl)
       END IF
-      native_need_nrecv = SUM(native_need_rcount)
+      skala_state%native_atom%native_need_nrecv = SUM(skala_state%native_atom%native_need_rcount)
 
       nbucket8 = native_need_next_pow2(MAX(2_int_8*INT(nneed, int_8), 64_int_8))
       IF (nbucket8 > INT(HUGE(1), int_8)) THEN
          CALL cp_abort(__LOCATION__, "Native-grid hash table would exceed the integer range.")
       END IF
-      native_need_nbucket = INT(nbucket8)
-      ALLOCATE (native_need_bucket_start(native_need_nbucket + 1))
-      ALLOCATE (native_need_bucket_entry(MAX(nneed, 1)))
-      ALLOCATE (bucket_count(native_need_nbucket))
+      skala_state%native_atom%native_need_nbucket = INT(nbucket8)
+      ALLOCATE (skala_state%native_atom%native_need_bucket_start(skala_state%native_atom%native_need_nbucket + 1))
+      ALLOCATE (skala_state%native_atom%native_need_bucket_entry(MAX(nneed, 1)))
+      ALLOCATE (bucket_count(skala_state%native_atom%native_need_nbucket))
       bucket_count = 0
       DO pos = 1, nneed
-         b = native_need_bucket(native_need_lin(pos), native_need_nbucket)
+         b = native_need_bucket(skala_state%native_atom%native_need_lin(pos), skala_state%native_atom%native_need_nbucket)
          bucket_count(b) = bucket_count(b) + 1
       END DO
-      native_need_bucket_start(1) = 1
-      DO b = 1, native_need_nbucket
-         native_need_bucket_start(b + 1) = native_need_bucket_start(b) + bucket_count(b)
+      skala_state%native_atom%native_need_bucket_start(1) = 1
+      DO b = 1, skala_state%native_atom%native_need_nbucket
+     skala_state%native_atom%native_need_bucket_start(b + 1) = skala_state%native_atom%native_need_bucket_start(b) + bucket_count(b)
       END DO
-      bucket_count(:) = native_need_bucket_start(1:native_need_nbucket)
+      bucket_count(:) = skala_state%native_atom%native_need_bucket_start(1:skala_state%native_atom%native_need_nbucket)
       DO pos = 1, nneed
-         b = native_need_bucket(native_need_lin(pos), native_need_nbucket)
-         native_need_bucket_entry(bucket_count(b))%lin = native_need_lin(pos)
-         native_need_bucket_entry(bucket_count(b))%pos = pos
+         b = native_need_bucket(skala_state%native_atom%native_need_lin(pos), skala_state%native_atom%native_need_nbucket)
+         skala_state%native_atom%native_need_bucket_entry(bucket_count(b))%lin = skala_state%native_atom%native_need_lin(pos)
+         skala_state%native_atom%native_need_bucket_entry(bucket_count(b))%pos = pos
          bucket_count(b) = bucket_count(b) + 1
       END DO
-      DEALLOCATE (bucket_count, cand, native_need_lin)
+      DEALLOCATE (bucket_count, cand, skala_state%native_atom%native_need_lin)
 
-      ALLOCATE (native_need_base(SIZE(work_base, 1), SIZE(work_base, 2)))
-      native_need_base(:, :) = work_base
-      CALL store_native_geometry_key(native_need_geometry, cell, atom_coords)
+      ALLOCATE (skala_state%native_atom%native_need_base(SIZE(work_base, 1), SIZE(work_base, 2)))
+      skala_state%native_atom%native_need_base(:, :) = work_base
+      CALL store_native_geometry_key(skala_state%native_atom%native_need_geometry, cell, atom_coords)
       DEALLOCATE (work_base)
-      native_need_dh_inv = grid%dh_inv
-      native_need_wrap = wrap
-      native_need_nrows = nrows
-      native_need_num_pe = group%num_pe
-      native_need_mepos = group%mepos
-      native_need_group_handle = group%get_handle()
-      native_need_mode = grid%para%mode
-      native_need_bounds_local = grid%bounds_local
-      native_need_ready = .TRUE.
+      skala_state%native_atom%native_need_dh_inv = grid%dh_inv
+      skala_state%native_atom%native_need_wrap = wrap
+      skala_state%native_atom%native_need_nrows = nrows
+      skala_state%native_atom%native_need_num_pe = group%num_pe
+      skala_state%native_atom%native_need_mepos = group%mepos
+      skala_state%native_atom%native_need_group_handle = group%get_handle()
+      skala_state%native_atom%native_need_mode = grid%para%mode
+      skala_state%native_atom%native_need_bounds_local = grid%bounds_local
+      skala_state%native_atom%native_need_ready = .TRUE.
 
    END SUBROUTINE native_grid_build_needed
 
@@ -3483,8 +3454,8 @@ CONTAINS
       lb = LBOUND(values)
       nlx = bo(2, 1) - bo(1, 1) + 1
       nly = bo(2, 2) - bo(1, 2) + 1
-      DO idx = 1, native_need_nrecv
-         li = native_need_ridx(idx)
+      DO idx = 1, skala_state%native_atom%native_need_nrecv
+         li = skala_state%native_atom%native_need_ridx(idx)
          rem = li - 1
          ix = MOD(rem, nlx)
          rem = rem/nlx
@@ -3493,7 +3464,7 @@ CONTAINS
          i = bo(1, 1) + ix
          j = bo(1, 2) + iy
          k = bo(1, 3) + iz
-         native_need_reply((idx - 1)*nfg + slot) = &
+         skala_state%native_atom%native_need_reply((idx - 1)*nfg + slot) = &
             values(lb(1) + i - bo(1, 1), lb(2) + j - bo(1, 2), lb(3) + k - bo(1, 3))
       END DO
 
@@ -3508,24 +3479,25 @@ CONTAINS
 
       INTEGER                                            :: ncol, nreply
 
-      native_need_nfg = nfg
-      ncol = MAX(native_need_nneed, 1)
-      IF (.NOT. ALLOCATED(native_need_values)) THEN
-         ALLOCATE (native_need_values(nfg, ncol))
-         native_need_values = 0.0_dp
-      ELSE IF (SIZE(native_need_values, 1) /= nfg .OR. SIZE(native_need_values, 2) /= ncol) THEN
-         DEALLOCATE (native_need_values)
-         ALLOCATE (native_need_values(nfg, ncol))
-         native_need_values = 0.0_dp
+      skala_state%native_atom%native_need_nfg = nfg
+      ncol = MAX(skala_state%native_atom%native_need_nneed, 1)
+      IF (.NOT. ALLOCATED(skala_state%native_atom%native_need_values)) THEN
+         ALLOCATE (skala_state%native_atom%native_need_values(nfg, ncol))
+         skala_state%native_atom%native_need_values = 0.0_dp
+      ELSE IF (SIZE(skala_state%native_atom%native_need_values, 1) /= nfg .OR. &
+               SIZE(skala_state%native_atom%native_need_values, 2) /= ncol) THEN
+         DEALLOCATE (skala_state%native_atom%native_need_values)
+         ALLOCATE (skala_state%native_atom%native_need_values(nfg, ncol))
+         skala_state%native_atom%native_need_values = 0.0_dp
       END IF
-      nreply = MAX(native_need_nrecv*nfg, 1)
-      IF (.NOT. ALLOCATED(native_need_reply)) THEN
-         ALLOCATE (native_need_reply(nreply))
-         native_need_reply = 0.0_dp
-      ELSE IF (SIZE(native_need_reply) /= nreply) THEN
-         DEALLOCATE (native_need_reply)
-         ALLOCATE (native_need_reply(nreply))
-         native_need_reply = 0.0_dp
+      nreply = MAX(skala_state%native_atom%native_need_nrecv*nfg, 1)
+      IF (.NOT. ALLOCATED(skala_state%native_atom%native_need_reply)) THEN
+         ALLOCATE (skala_state%native_atom%native_need_reply(nreply))
+         skala_state%native_atom%native_need_reply = 0.0_dp
+      ELSE IF (SIZE(skala_state%native_atom%native_need_reply) /= nreply) THEN
+         DEALLOCATE (skala_state%native_atom%native_need_reply)
+         ALLOCATE (skala_state%native_atom%native_need_reply(nreply))
+         skala_state%native_atom%native_need_reply = 0.0_dp
       END IF
 
    END SUBROUTINE native_grid_alloc_fetch
@@ -3541,11 +3513,11 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcnt, rdisp, scnt, sdisp
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: recv
 
-      nfg = native_need_nfg
-      IF (native_need_replicated) THEN
-         DO pos = 1, native_need_nneed
+      nfg = skala_state%native_atom%native_need_nfg
+      IF (skala_state%native_atom%native_need_replicated) THEN
+         DO pos = 1, skala_state%native_atom%native_need_nneed
             DO f = 1, nfg
-               native_need_values(f, pos) = native_need_reply((pos - 1)*nfg + f)
+               skala_state%native_atom%native_need_values(f, pos) = skala_state%native_atom%native_need_reply((pos - 1)*nfg + f)
             END DO
          END DO
          RETURN
@@ -3553,19 +3525,19 @@ CONTAINS
       npe = group%num_pe
       ALLOCATE (scnt(npe), sdisp(npe), rcnt(npe), rdisp(npe))
       DO k = 1, npe
-         scnt(k) = native_need_rcount(k)*nfg
-         sdisp(k) = native_need_rdispl(k)*nfg
-         rcnt(k) = native_need_scount(k)*nfg
-         rdisp(k) = native_need_sdispl(k)*nfg
+         scnt(k) = skala_state%native_atom%native_need_rcount(k)*nfg
+         sdisp(k) = skala_state%native_atom%native_need_rdispl(k)*nfg
+         rcnt(k) = skala_state%native_atom%native_need_scount(k)*nfg
+         rdisp(k) = skala_state%native_atom%native_need_sdispl(k)*nfg
       END DO
       ALLOCATE (recv(MAX(SUM(rcnt), 1)))
       recv = 0.0_dp
-      CALL group%alltoall(native_need_reply, scnt, sdisp, recv, rcnt, rdisp)
+      CALL group%alltoall(skala_state%native_atom%native_need_reply, scnt, sdisp, recv, rcnt, rdisp)
       DO k = 1, npe
-         DO idx = 1, native_need_scount(k)
-            pos = native_need_sdispl(k) + idx
+         DO idx = 1, skala_state%native_atom%native_need_scount(k)
+            pos = skala_state%native_atom%native_need_sdispl(k) + idx
             DO f = 1, nfg
-               native_need_values(f, pos) = recv((native_need_sdispl(k) + idx - 1)*nfg + f)
+        skala_state%native_atom%native_need_values(f, pos) = recv((skala_state%native_atom%native_need_sdispl(k) + idx - 1)*nfg + f)
             END DO
          END DO
       END DO
@@ -3588,43 +3560,43 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcnt, rdisp, scnt, sdisp
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: recv, send_flat
 
-      nfg = native_need_nfg
-      nneed = native_need_nneed
+      nfg = skala_state%native_atom%native_need_nfg
+      nneed = skala_state%native_atom%native_need_nneed
       local_adj = 0.0_dp
-      IF (native_need_replicated) THEN
+      IF (skala_state%native_atom%native_need_replicated) THEN
          DO pos = 1, nneed
-            local_adj(:, native_need_local(pos)) = &
-               local_adj(:, native_need_local(pos)) + adj(:, pos)
+            local_adj(:, skala_state%native_atom%native_need_local(pos)) = &
+               local_adj(:, skala_state%native_atom%native_need_local(pos)) + adj(:, pos)
          END DO
          RETURN
       END IF
       npe = group%num_pe
       ALLOCATE (scnt(npe), sdisp(npe), rcnt(npe), rdisp(npe))
       DO k = 1, npe
-         scnt(k) = native_need_scount(k)*nfg
-         sdisp(k) = native_need_sdispl(k)*nfg
-         rcnt(k) = native_need_rcount(k)*nfg
-         rdisp(k) = native_need_rdispl(k)*nfg
+         scnt(k) = skala_state%native_atom%native_need_scount(k)*nfg
+         sdisp(k) = skala_state%native_atom%native_need_sdispl(k)*nfg
+         rcnt(k) = skala_state%native_atom%native_need_rcount(k)*nfg
+         rdisp(k) = skala_state%native_atom%native_need_rdispl(k)*nfg
       END DO
       ALLOCATE (send_flat(MAX(SUM(scnt), 1)))
       ALLOCATE (recv(MAX(SUM(rcnt), 1)))
       send_flat = 0.0_dp
       recv = 0.0_dp
       DO k = 1, npe
-         DO idx = 1, native_need_scount(k)
-            pos = native_need_sdispl(k) + idx
+         DO idx = 1, skala_state%native_atom%native_need_scount(k)
+            pos = skala_state%native_atom%native_need_sdispl(k) + idx
             DO f = 1, nfg
-               send_flat((native_need_sdispl(k) + idx - 1)*nfg + f) = adj(f, pos)
+               send_flat((skala_state%native_atom%native_need_sdispl(k) + idx - 1)*nfg + f) = adj(f, pos)
             END DO
          END DO
       END DO
       CALL group%alltoall(send_flat, scnt, sdisp, recv, rcnt, rdisp)
       DO k = 1, npe
-         DO idx = 1, native_need_rcount(k)
-            li = native_need_ridx(native_need_rdispl(k) + idx)
+         DO idx = 1, skala_state%native_atom%native_need_rcount(k)
+            li = skala_state%native_atom%native_need_ridx(skala_state%native_atom%native_need_rdispl(k) + idx)
             DO f = 1, nfg
                local_adj(f, li) = local_adj(f, li) + &
-                                  recv((native_need_rdispl(k) + idx - 1)*nfg + f)
+                                  recv((skala_state%native_atom%native_need_rdispl(k) + idx - 1)*nfg + f)
             END DO
          END DO
       END DO
@@ -3669,17 +3641,17 @@ CONTAINS
             IF (.NOT. stencil%valid(inode_y, 2)) CYCLE
             DO inode_x = 1, native_grid_interp_npts
                IF (.NOT. stencil%valid(inode_x, 1)) CYCLE
-               lin = native_need_linear_index(stencil, inode_x, inode_y, inode_z, native_need_npts)
+               lin = native_need_linear_index(stencil, inode_x, inode_y, inode_z, skala_state%native_atom%native_need_npts)
                pos = native_need_lookup(lin)
                CPASSERT(pos > 0)
                coefficient = stencil%weight(inode_x, 1)* &
                              stencil%weight(inode_y, 2)* &
                              stencil%weight(inode_z, 3)
-               density_value = density_value + coefficient*native_need_values(slot_rho, pos)
-               grad_value(1) = grad_value(1) + coefficient*native_need_values(slot_gx, pos)
-               grad_value(2) = grad_value(2) + coefficient*native_need_values(slot_gy, pos)
-               grad_value(3) = grad_value(3) + coefficient*native_need_values(slot_gz, pos)
-               kin_value = kin_value + coefficient*native_need_values(slot_kin, pos)
+               density_value = density_value + coefficient*skala_state%native_atom%native_need_values(slot_rho, pos)
+               grad_value(1) = grad_value(1) + coefficient*skala_state%native_atom%native_need_values(slot_gx, pos)
+               grad_value(2) = grad_value(2) + coefficient*skala_state%native_atom%native_need_values(slot_gy, pos)
+               grad_value(3) = grad_value(3) + coefficient*skala_state%native_atom%native_need_values(slot_gz, pos)
+               kin_value = kin_value + coefficient*skala_state%native_atom%native_need_values(slot_kin, pos)
             END DO
          END DO
       END DO
@@ -3710,13 +3682,13 @@ CONTAINS
             IF (.NOT. stencil%valid(inode_y, 2)) CYCLE
             DO inode_x = 1, native_grid_interp_npts
                IF (.NOT. stencil%valid(inode_x, 1)) CYCLE
-               lin = native_need_linear_index(stencil, inode_x, inode_y, inode_z, native_need_npts)
+               lin = native_need_linear_index(stencil, inode_x, inode_y, inode_z, skala_state%native_atom%native_need_npts)
                pos = native_need_lookup(lin)
                CPASSERT(pos > 0)
                coefficient = stencil%weight(inode_x, 1)* &
                              stencil%weight(inode_y, 2)* &
                              stencil%weight(inode_z, 3)
-               value = value + coefficient*native_need_values(slot, pos)
+               value = value + coefficient*skala_state%native_atom%native_need_values(slot, pos)
             END DO
          END DO
       END DO
@@ -3752,7 +3724,7 @@ CONTAINS
             IF (.NOT. stencil%valid(inode_y, 2)) CYCLE
             DO inode_x = 1, native_grid_interp_npts
                IF (.NOT. stencil%valid(inode_x, 1)) CYCLE
-               lin = native_need_linear_index(stencil, inode_x, inode_y, inode_z, native_need_npts)
+               lin = native_need_linear_index(stencil, inode_x, inode_y, inode_z, skala_state%native_atom%native_need_npts)
                pos = native_need_lookup(lin)
                CPASSERT(pos > 0)
                DO idir = 1, 3
@@ -3773,7 +3745,7 @@ CONTAINS
                      coefficient = coefficient*stencil%weight(inode_z, 3)
                   END IF
                   gradient_relative(idir) = gradient_relative(idir) + &
-                                            coefficient*native_need_values(slot, pos)
+                                            coefficient*skala_state%native_atom%native_need_values(slot, pos)
                END DO
             END DO
          END DO

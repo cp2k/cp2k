@@ -31,6 +31,7 @@ MODULE skala_env_types
    PUBLIC :: skala_gapw_atom_cuda_tensor_cache_type, skala_gpw_feature_type
    PUBLIC :: skala_gpw_layout_cache_type, skala_gpw_scratch_type, skala_gpw_state_type
    PUBLIC :: skala_grad_scratch_type, skala_model_context_type, skala_weight_grad_cache_type
+   PUBLIC :: native_atom_cache_type, native_need_entry_type, native_geometry_key_type
 
    TYPE :: skala_execution_target_type
       LOGICAL                                            :: use_cuda = .FALSE.
@@ -245,6 +246,44 @@ MODULE skala_env_types
       LOGICAL                                    :: atom_chunks = .FALSE., valid = .FALSE.
    END TYPE skala_weight_grad_cache_type
 
+   TYPE :: native_need_entry_type
+      INTEGER(int_8) :: lin = 0_int_8
+      INTEGER :: pos = 0
+   END TYPE native_need_entry_type
+
+   TYPE :: native_geometry_key_type
+      REAL(dp) :: hmat(3, 3) = 0.0_dp
+      INTEGER :: perd(3) = 0
+      REAL(dp), ALLOCATABLE :: atoms(:, :)
+      LOGICAL :: ready = .FALSE.
+   END TYPE native_geometry_key_type
+
+   TYPE :: native_atom_cache_type
+      INTEGER :: native_need_nrows = -1, native_need_npts(3) = 0, native_need_nfg = 0, &
+                 native_need_nneed = 0, native_need_nbucket = 0, native_need_nrecv = 0
+      INTEGER :: native_need_group_handle = -1, native_need_num_pe = -1, &
+                 native_need_mepos = -1, native_need_mode = -1
+      INTEGER :: native_need_bounds_local(2, 3) = 0
+      REAL(dp) :: native_need_dh_inv(3, 3) = 0.0_dp
+      LOGICAL :: native_need_wrap = .FALSE., native_need_ready = .FALSE., &
+                 native_need_replicated = .FALSE.
+      INTEGER(int_8), ALLOCATABLE :: native_need_base(:, :), native_need_lin(:)
+      INTEGER, ALLOCATABLE :: native_need_bucket_start(:), native_need_local(:), &
+                              native_need_scount(:), native_need_sdispl(:), &
+                              native_need_rcount(:), native_need_rdispl(:), &
+                              native_need_sidx(:), native_need_ridx(:)
+      REAL(dp), ALLOCATABLE :: native_need_values(:, :), native_need_reply(:)
+      TYPE(native_need_entry_type), ALLOCATABLE :: native_need_bucket_entry(:)
+      TYPE(native_geometry_key_type) :: native_need_geometry, native_comp_geometry
+      INTEGER :: native_comp_nrows = -1
+      LOGICAL :: native_comp_ready = .FALSE.
+      INTEGER, ALLOCATABLE :: native_comp_local_atoms(:)
+      REAL(dp), ALLOCATABLE :: native_comp_coords(:, :), native_comp_base_w(:), &
+                               native_comp_grid_w(:)
+      INTEGER :: adjoint_scratch_nthread = 0, adjoint_scratch_nfg = 0, adjoint_scratch_nneed = 0
+      REAL(dp), ALLOCATABLE :: adjoint_thread_scratch(:, :, :)
+   END TYPE native_atom_cache_type
+
    TYPE :: skala_gpw_state_type
       TYPE(skala_gpw_layout_cache_type)          :: layout
       LOGICAL                                    :: layout_mode_known = .FALSE.
@@ -281,6 +320,7 @@ MODULE skala_env_types
       TYPE(section_vals_type), POINTER                   :: gauxc_section => NULL()
       TYPE(section_vals_type), POINTER                   :: resolved_xc_section => NULL()
       LOGICAL                                            :: sections_resolved = .FALSE.
+      TYPE(native_atom_cache_type)                       :: native_atom
    END TYPE skala_gpw_state_type
    TYPE(skala_gpw_state_type), SAVE, TARGET :: skala_state
 
