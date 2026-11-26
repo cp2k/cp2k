@@ -456,6 +456,11 @@ CONTAINS
       ! is resolved by the shared helper so de_init_bs_env reaches the same verdict when
       ! deciding whether to retain nl_3c.
       CALL rtbse_resolve_rirs_flag(force_env%qs_env, bs_env, rirs_kernel=rtbse_env%rirs_kernel)
+      ! The AO-RI kernels integrate over the reference RI basis, not over the AUTO_RI functions.
+      IF (bs_env%auto_ri%enabled .AND. .NOT. rtbse_env%rirs_kernel) THEN
+         CALL cp_abort(__LOCATION__, "AUTO_RI with RT-BSE requires "// &
+                       "RTBSE%LINEARIZED_BSE_PROPAGATION and RTBSE%KERNEL_RI RS or DEFAULT")
+      END IF
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DIAGNOSE_LIOUVILLIAN_EIG", &
                                 l_val=rtbse_env%diagnose_liouvillian_eig)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%EPS_FILTER_RHO", &

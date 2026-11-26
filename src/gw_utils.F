@@ -192,9 +192,6 @@ CONTAINS
 
       CALL read_gw_input_parameters(bs_env, bs_sec, rpa_sec)
 
-      ! AUTO_RI works with the RI-RS kernels of the linearized RT-BSE only: abort before the GW.
-      IF (bs_env%auto_ri%include_empty_empty_products) CALL rtbse_resolve_rirs_flag(qs_env, bs_env)
-
       CALL print_header_and_input_parameters(bs_env)
 
       CALL setup_AO_and_RI_basis_set(qs_env, bs_env)
@@ -3726,12 +3723,6 @@ CONTAINS
             CPWARN("RI-RS kernels are implemented for linearized RT-BSE only; forcing AO")
          END IF
          my_rirs_kernel = .FALSE.
-      END IF
-
-      ! The AO-RI kernels integrate over the reference RI basis, not over the AUTO_RI functions.
-      IF (bs_env%auto_ri%enabled .AND. .NOT. my_rirs_kernel) THEN
-         CALL cp_abort(__LOCATION__, "AUTO_RI with RT-BSE requires "// &
-                       "RTBSE%LINEARIZED_BSE_PROPAGATION and RTBSE%KERNEL_RI RS or DEFAULT")
       END IF
 
       IF (PRESENT(rirs_kernel)) rirs_kernel = my_rirs_kernel
