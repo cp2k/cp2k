@@ -24,7 +24,7 @@
       METHOD GPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-5
       MAX_SCF 50
       SCF_GUESS ATOMIC
       &DIAGONALIZATION
@@ -43,7 +43,7 @@
   &END DFT
   &PROPERTIES
     &LINRES
-      EPS 1.0E-5
+      EPS 1.0E-4
       MAX_ITER 10
       PRECONDITIONER FULL_SINGLE_INVERSE
       &POLAR
