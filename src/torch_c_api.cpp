@@ -1622,6 +1622,48 @@ void torch_c_tensor_weighted_sum_segments(const torch_c_tensor_t *values,
 }
 
 /*******************************************************************************
+ * \brief Like torch_c_tensor_weighted_sum_segments, but also returns the total
+ *        weighted sum as a differentiable scalar tensor (the sum of the segment
+ *        dots). Avoids a second full-length reduction and weight conversion.
+ ******************************************************************************/
+void torch_c_tensor_weighted_sum_segments_total(const torch_c_tensor_t *values,
+                                                const torch_c_tensor_t *weights,
+                                                const int64_t *offsets,
+                                                const int64_t *lengths,
+                                                const int nseg, double *result,
+                                                torch_c_tensor_t **total) {
+  TORCH_C_TRY
+  c10::OptionalDeviceGuard guard;
+  get_device_with_guard(guard);
+  torch_c_check(nseg >= 0,
+                "Torch weighted sum segment count must be non-negative");
+  torch_c_check(values != nullptr && weights != nullptr && offsets != nullptr &&
+                    lengths != nullptr && result != nullptr && total != nullptr,
+                "Torch weighted sum received a NULL argument");
+  torch::Tensor flat_values, flat_weights;
+  flatten_weighted_pair(values, weights, flat_values, flat_weights);
+  if (nseg == 0) {
+    *total = new torch_c_tensor_t(flat_values.sum() * 0.0);
+    return;
+  }
+  const int64_t numel = flat_values.numel();
+  std::vector<torch::Tensor> dots;
+  dots.reserve(nseg);
+  for (int i = 0; i < nseg; ++i) {
+    torch_c_check(offsets[i] >= 0 && lengths[i] >= 0 && offsets[i] <= numel &&
+                      lengths[i] <= numel - offsets[i],
+                  "Torch weighted sum range is out of bounds");
+    dots.push_back(torch::dot(flat_values.narrow(0, offsets[i], lengths[i]),
+                              flat_weights.narrow(0, offsets[i], lengths[i])));
+  }
+  auto stacked = torch::stack(dots);
+  *total = new torch_c_tensor_t(stacked.sum());
+  const auto host = stacked.to(torch::kFloat64).to(torch::kCPU).contiguous();
+  std::memcpy(result, host.data_ptr<double>(), nseg * sizeof(double));
+  TORCH_C_CATCH("torch_c_tensor_weighted_sum_segments_total")
+}
+
+/*******************************************************************************
  * \brief Adds a device scalar to an accumulator without a host synchronization.
  ******************************************************************************/
 void torch_c_tensor_accumulate(torch_c_tensor_t **accumulator,

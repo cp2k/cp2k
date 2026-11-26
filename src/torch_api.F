@@ -90,7 +90,7 @@ MODULE torch_api
    PUBLIC :: torch_tensor_grad_batch_deferred, torch_tensor_grad_batch3_deferred
    PUBLIC :: torch_tensor_to_device_leaf, torch_tensor_set_requires_grad
    PUBLIC :: torch_tensor_accumulate, torch_tensor_item_double, torch_tensor_weighted_sum
-   PUBLIC :: torch_tensor_weighted_sum_segments
+   PUBLIC :: torch_tensor_weighted_sum_segments, torch_tensor_weighted_sum_segments_total
    PUBLIC :: torch_dict_type, torch_dict_clone, torch_dict_create, torch_dict_insert
    PUBLIC :: torch_dict_get, torch_dict_release, torch_dict_set
    PUBLIC :: torch_get_num_threads, torch_set_default_threads
@@ -1055,6 +1055,53 @@ CONTAINS
       MARK_USED(result)
 #endif
    END SUBROUTINE torch_tensor_weighted_sum_segments
+
+! **************************************************************************************************
+!> \brief Computes all weighted segment sums, returns them to host in one
+!>        synchronization, and returns their total as a differentiable scalar.
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_weighted_sum_segments_total(values, weights, offsets, lengths, total, result)
+      TYPE(torch_tensor_type), INTENT(IN)                :: values, weights
+      INTEGER(KIND=int_8), DIMENSION(:), INTENT(IN)      :: offsets, lengths
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: total
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: result
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_tensor_weighted_sum_segments_total(values, weights, offsets, lengths, nseg, &
+                                                               result, total) &
+            BIND(C, name="torch_c_tensor_weighted_sum_segments_total")
+            IMPORT :: C_INT, C_INT64_T, C_DOUBLE, C_PTR
+            TYPE(C_PTR), VALUE                           :: values
+            TYPE(C_PTR), VALUE                           :: weights
+            INTEGER(KIND=C_INT64_T), DIMENSION(*)        :: offsets
+            INTEGER(KIND=C_INT64_T), DIMENSION(*)        :: lengths
+            INTEGER(KIND=C_INT), VALUE                   :: nseg
+            REAL(KIND=C_DOUBLE), DIMENSION(*)            :: result
+            TYPE(C_PTR)                                  :: total
+         END SUBROUTINE torch_c_tensor_weighted_sum_segments_total
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(values%c_ptr))
+      CPASSERT(C_ASSOCIATED(weights%c_ptr))
+      CPASSERT(SIZE(offsets) == SIZE(result))
+      CPASSERT(SIZE(lengths) == SIZE(result))
+      CPASSERT(.NOT. C_ASSOCIATED(total%c_ptr))
+      CALL torch_c_tensor_weighted_sum_segments_total(values=values%c_ptr, weights=weights%c_ptr, &
+                                                      offsets=offsets, lengths=lengths, &
+                                                      nseg=INT(SIZE(result), C_INT), result=result, &
+                                                      total=total%c_ptr)
+      CPASSERT(C_ASSOCIATED(total%c_ptr))
+#else
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(values)
+      MARK_USED(weights)
+      MARK_USED(offsets)
+      MARK_USED(lengths)
+      MARK_USED(total)
+      MARK_USED(result)
+#endif
+   END SUBROUTINE torch_tensor_weighted_sum_segments_total
 
 ! **************************************************************************************************
 !> \brief Adds a device scalar to an accumulator without a host synchronization.

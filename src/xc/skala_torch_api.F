@@ -24,7 +24,7 @@ MODULE skala_torch_api
       torch_model_remap_device_constants, torch_model_promote_float32, torch_model_type, &
       torch_model_prepare_higher_derivatives, &
       torch_tensor_item_double, torch_tensor_release, torch_tensor_type, &
-      torch_tensor_weighted_sum, torch_tensor_weighted_sum_segments
+      torch_tensor_weighted_sum, torch_tensor_weighted_sum_segments_total
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -208,9 +208,8 @@ CONTAINS
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
       CALL torch_model_forward_mol_tensor(model%torch_model, "get_exc_density", inputs, exc_density)
-      CALL torch_tensor_weighted_sum(exc_density, grid_weights, exc_tensor)
-      CALL torch_tensor_weighted_sum_segments(exc_density, grid_weights, seg_offsets, &
-                                              seg_lengths, exc_segments)
+      CALL torch_tensor_weighted_sum_segments_total(exc_density, grid_weights, seg_offsets, &
+                                                    seg_lengths, exc_tensor, exc_segments)
       CALL torch_tensor_release(exc_density)
 #if defined (__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, ieee_halt)
