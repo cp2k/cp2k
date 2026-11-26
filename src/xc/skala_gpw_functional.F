@@ -2563,9 +2563,13 @@ CONTAINS
       CALL ensure_model_context(xc_section, rho1_r(1)%pw_grid%para%group, &
                                 use_cuda, selected_device, higher_derivatives=.TRUE.)
       CALL torch_use_cuda(use_cuda)
-      ! Response uses the atom-chunk layout so only the atoms routed to this rank
-      ! are materialized: peak memory scales with the chunk, not the full grid.
-      CALL skala_gpw_features_release_cache()
+      ! Response uses the atom-chunk layout. Release the cached layout only when
+      ! it currently holds the full-grid variant (to bound memory and avoid mixing
+      ! modes); otherwise reuse it so repeated response vectors do not rebuild the
+      ! atom-chunk layout and static tensors on every call.
+      IF (skala_state%layout_mode_known .AND. skala_state%layout_mode_full) THEN
+         CALL skala_gpw_features_release_cache()
+      END IF
 
       CALL skala_gpw_fxc_prep(rho1_set, rho1_r, tau1_r, xc_section, pw_pool)
       CALL skala_gpw_feature_build(direction, rho1_set, rho1_r, particle_set, cell, &

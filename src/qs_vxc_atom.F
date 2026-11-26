@@ -123,6 +123,8 @@ MODULE qs_vxc_atom
                                               xc_rho_set_release,&
                                               xc_rho_set_type,&
                                               xc_rho_set_update
+
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -167,6 +169,11 @@ MODULE qs_vxc_atom
    INTEGER, ALLOCATABLE, PRIVATE :: native_comp_local_atoms(:)
    REAL(dp), ALLOCATABLE, PRIVATE :: native_comp_coords(:, :), &
                                      native_comp_base_w(:), native_comp_grid_w(:)
+
+   ! Grow-only per-thread adjoint scratch, reused across SCF steps.
+   INTEGER, PRIVATE :: adjoint_scratch_nthread = 0, adjoint_scratch_nfg = 0, &
+                       adjoint_scratch_nneed = 0
+   REAL(dp), ALLOCATABLE, TARGET, PRIVATE :: adjoint_thread_scratch(:, :, :)
 
    PUBLIC :: calculate_vxc_atom, &
              calculate_vxc_atom_epr, &
@@ -220,6 +227,25 @@ CONTAINS
       key%perd = cell%perd
       key%ready = .TRUE.
    END SUBROUTINE store_native_geometry_key
+
+! **************************************************************************************************
+!> \brief Ensure a grow-only per-thread adjoint scratch buffer of the given size.
+!> \param nthread number of OpenMP threads
+!> \param nfg number of adjoint channels
+!> \param nneed number of local needed points
+! **************************************************************************************************
+   SUBROUTINE ensure_adjoint_thread_scratch(nthread, nfg, nneed)
+      INTEGER, INTENT(IN)                                :: nthread, nfg, nneed
+
+      IF (adjoint_scratch_nthread >= nthread .AND. adjoint_scratch_nfg >= nfg .AND. &
+          adjoint_scratch_nneed >= nneed) RETURN
+      IF (ALLOCATED(adjoint_thread_scratch)) DEALLOCATE (adjoint_thread_scratch)
+      adjoint_scratch_nthread = MAX(nthread, adjoint_scratch_nthread)
+      adjoint_scratch_nfg = MAX(nfg, adjoint_scratch_nfg)
+      adjoint_scratch_nneed = MAX(nneed, adjoint_scratch_nneed)
+      ALLOCATE (adjoint_thread_scratch(adjoint_scratch_nfg, adjoint_scratch_nneed, &
+                                       adjoint_scratch_nthread))
+   END SUBROUTINE ensure_adjoint_thread_scratch
 
 ! **************************************************************************************************
 !> \brief Initialize atom-centered quadrature for native Skala layouts.
@@ -335,8 +361,8 @@ CONTAINS
          image_lower(3), image_shell(3), image_shift(3), image_upper(3), inode_x, inode_y, &
          inode_z, interp_handle, ir, ispin, itask, iw, jdir, local_partition_target_image, myfun, &
          na, natom
-      INTEGER :: nchunks_per_atom, ngl, nr, nrows_chunk, nspins, ntasks, num_pe, on, pos, &
-         source_atom, target_atom, xc_deriv_method_id, xc_rho_smooth_id, zatom
+      INTEGER :: nchunks_per_atom, ngl, nr, nrows_chunk, nspins, ntasks, nthread, num_pe, on, pos, &
+         source_atom, target_atom, thread_id, xc_deriv_method_id, xc_rho_smooth_id, zatom
       INTEGER(int_8)                                     :: lin
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: composite_atomic_grid_sizes, &
                                                             composite_local_grid_sizes
@@ -379,8 +405,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_nlcc_center_force_local, &
          composite_nlcc_target_force, composite_nlcc_target_force_local, &
          composite_partition_force, composite_partition_force_local, &
-         composite_smooth_density_cache, composite_smooth_kin_cache, local_partition_datom, &
-         thread_adj
+         composite_smooth_density_cache, composite_smooth_kin_cache, local_partition_datom
       REAL(dp), ALLOCATABLE, DIMENSION(:, :), TARGET     :: smooth_density_adjoint_storage, &
                                                             smooth_kin_adjoint_storage
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :) :: composite_cross_grad, composite_grad, &
@@ -408,7 +433,7 @@ CONTAINS
       REAL(dp), DIMENSION(3, 3, 2)                       :: cross_grad_spatial
       REAL(dp), DIMENSION(4)                             :: feature_component_analytic, &
                                                             feature_component_fd
-      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight_h, weight_s
+      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, thread_adj, weight_h, weight_s
       REAL(dp), DIMENSION(:, :, :), POINTER :: rho_h, rho_s, smooth_rho, smooth_rhoa, smooth_rhob, &
          smooth_tau, smooth_tau_a, smooth_tau_b, tau_h, tau_s, vtau_h, vtau_s, vxc_h, vxc_s
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: drho_h, drho_s, vxg_h, vxg_s
@@ -2070,16 +2095,23 @@ CONTAINS
             adjoint_nchannels = MERGE(2, 1, lsd)
             ALLOCATE (adjoint_compact(native_need_nfg, MAX(native_need_nneed, 1)))
             adjoint_compact = 0.0_dp
+            nthread = 1
+!$          nthread = omp_get_max_threads()
+            CALL ensure_adjoint_thread_scratch(nthread, SIZE(adjoint_compact, 1), &
+                                               SIZE(adjoint_compact, 2))
             CALL timeset("calculate_vxc_atom_adjoint", adjoint_handle)
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP PRIVATE(composite_row, composite_smooth_density_adjoint_value, inode_x, inode_y, inode_z, &
 !$OMP         composite_smooth_gradient_adjoint_value, composite_smooth_kin_adjoint_value, &
-!$OMP         interpolation_stencil, thread_adj, lin, pos, coefficient, idir) &
-!$OMP SHARED(adjoint_compact, cell, composite_density_grad, composite_grad_grad, &
-!$OMP        composite_grid_coords, composite_kin_grad, composite_nflat, &
+!$OMP         interpolation_stencil, thread_adj, thread_id, lin, pos, coefficient, idir) &
+!$OMP SHARED(adjoint_compact, adjoint_thread_scratch, cell, composite_density_grad, &
+!$OMP        composite_grad_grad, composite_grid_coords, composite_kin_grad, composite_nflat, &
 !$OMP        lsd, native_need_npts, qs_env, &
 !$OMP        smooth_rho_r)
-            ALLOCATE (thread_adj(SIZE(adjoint_compact, 1), SIZE(adjoint_compact, 2)))
+            thread_id = 1
+!$          thread_id = omp_get_thread_num() + 1
+            thread_adj => adjoint_thread_scratch(1:SIZE(adjoint_compact, 1), &
+                                                 1:SIZE(adjoint_compact, 2), thread_id)
             thread_adj = 0.0_dp
 !$OMP DO SCHEDULE(DYNAMIC)
             DO composite_row = 1, composite_nflat
@@ -2147,7 +2179,6 @@ CONTAINS
 !$OMP CRITICAL(skala_atom_composite_adjoint_compact)
             adjoint_compact(:, :) = adjoint_compact(:, :) + thread_adj
 !$OMP END CRITICAL(skala_atom_composite_adjoint_compact)
-            DEALLOCATE (thread_adj)
 !$OMP END PARALLEL
             CALL timestop(adjoint_handle)
             ALLOCATE (adjoint_local_flat(native_need_nfg, smooth_rho_r(1)%pw_grid%ngpts_local))
