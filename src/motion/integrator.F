@@ -513,6 +513,7 @@ CONTAINS
                                                             shell_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
                                                             shell_particle_set
+      TYPE(qs_electrons_type), POINTER                   :: electrons
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(thermostat_type), POINTER                     :: thermostat_coeff, thermostat_shell
@@ -520,13 +521,14 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       NULLIFY (thermostat_coeff, tmp)
+      NULLIFY (electrons)
       NULLIFY (subsys, simpar, para_env, cell, gci, force_env, virial)
       NULLIFY (atomic_kinds, local_particles, molecules, molecule_kind_set, molecule_set, particle_set)
       NULLIFY (shell_particles, shell_particle_set, core_particles, &
                core_particle_set, thermostat_shell, dft_control, itimes)
       CALL get_md_env(md_env=md_env, simpar=simpar, force_env=force_env, &
                       thermostat_coeff=thermostat_coeff, thermostat_shell=thermostat_shell, &
-                      para_env=para_env, ehrenfest_md=ehrenfest_md, itimes=itimes)
+                      para_env=para_env, ehrenfest_md=ehrenfest_md, itimes=itimes, electrons=electrons)
       dt = simpar%dt
       CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell)
 
@@ -628,6 +630,18 @@ CONTAINS
 
          ![NB] let nve work with force mixing which does not have consistent energies and forces
          CALL force_env_calc_energy_force(force_env, require_consistent_energy_force=.FALSE.)
+
+         ! Report-only mode (&ELECTRONS F) under NVE: refresh the Fermi level and the
+         ! work function from the freshly converged density, so that every .cpcont
+         ! line reports the current step rather than the step-0 values. Full mode
+         ! cannot reach here: it is refused unless the ensemble is NVT or LANGEVIN.
+         IF (ASSOCIATED(electrons)) THEN
+            CALL qs_electrons_compute_workfunction(force_env, electrons%potential_average_axis, &
+                                                   electrons%potential_average_min, &
+                                                   electrons%potential_average_max, &
+                                                   electrons%current_fermi_level_eV, &
+                                                   electrons%current_workfunction)
+         END IF
 
          IF (ehrenfest_md) THEN
             CALL rt_prop_output(force_env%qs_env, ehrenfest, delta_iter=force_env%qs_env%rtp%delta_iter)
