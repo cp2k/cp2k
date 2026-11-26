@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-deepmd_ver="3.1.0"
-deepmd_sha256="45f13df9ed011438d139a7f61416b8d7940f63c47fcde53180bfccd60c9d22ee"
+deepmd_ver="3.2.0"
+deepmd_sha256="37a86e487c9d4fd3dff497cbbb3cdecc346b01a3381dc65545ffe5182aa5e030"
 deepmd_pkg="deepmd-kit-${deepmd_ver}.tar.gz"
 
 # shellcheck source=/dev/null
@@ -34,18 +34,15 @@ case "$with_deepmd" in
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d deepmd-kit-${deepmd_ver} ] && rm -rf deepmd-kit-${deepmd_ver}
       tar -xzf ${deepmd_pkg}
-      cd deepmd-kit-${deepmd_ver}/source
-
-      mkdir build
-      cd build
-      cmake \
+      cd deepmd-kit-${deepmd_ver}
+      cmake -S source -B build \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+        -DCMAKE_INSTALL_LIBDIR="lib" \
         -DCMAKE_CXX_STANDARD=11 \
         -DCMAKE_CXX_STANDARD_REQUIRED=TRUE \
-        -DENABLE_PYTORCH=TRUE \
-        .. > cmake.log 2>&1 || tail_excerpt cmake.log
-      make -j deepmd_c > make.log 2>&1 || tail_excerpt make.log
-      make install > install.log 2>&1 || tail_excerpt install.log
+        -DENABLE_PYTORCH=ON \
+        > cmake.log 2>&1 || tail_excerpt cmake.log
+      cmake --build build -t install -j "$(get_nprocs)" > build.log 2>&1 || tail_excerpt build.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})"
     fi
     ;;
