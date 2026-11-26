@@ -736,22 +736,25 @@ CONTAINS
                          native_comp_base_w(composite_nflat), &
                          native_comp_grid_w(composite_nflat), &
                          native_comp_local_atoms(SIZE(composite_local_atoms)))
+               ! The periodic image layout only depends on the geometry, not on
+               ! the target atom, so build it once and share it across threads.
+               CALL build_periodic_atom_image_layout( &
+                  composite_atom_coords, cell, 1, composite_image_periodicity, &
+                  composite_partition_image_coords, composite_partition_target_image)
 !$OMP PARALLEL DO SCHEDULE(DYNAMIC) DEFAULT(NONE) &
 !$OMP PRIVATE(composite_local_atom, iatom, grid_atom, nr, na, &
-!$OMP         composite_partition_image_coords, composite_partition_target_image, &
-!$OMP         ir, ia, composite_row, composite_point, partition_weight) &
+!$OMP         composite_partition_target_image, ir, ia, composite_row, composite_point, &
+!$OMP         partition_weight) &
 !$OMP SHARED(cell, composite_atom_coords, composite_atom_end, composite_atom_kind, &
 !$OMP        composite_atom_start, composite_base_grid_weights, composite_grid_coords, &
 !$OMP        composite_grid_weights, composite_image_periodicity, composite_local_atoms, &
-!$OMP        composite_local_natom, my_kind_set, particle_set)
+!$OMP        composite_local_natom, composite_partition_image_coords, my_kind_set, particle_set)
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
+                  composite_partition_target_image = iatom
                   CALL get_qs_kind(my_kind_set(composite_atom_kind(iatom)), grid_atom=grid_atom)
                   nr = grid_atom%nr
                   na = grid_atom%ng_sphere
-                  CALL build_periodic_atom_image_layout( &
-                     composite_atom_coords, cell, iatom, composite_image_periodicity, &
-                     composite_partition_image_coords, composite_partition_target_image)
                   DO ir = 1, nr
                      DO ia = 1, na
                         composite_row = composite_atom_start(iatom) + (ir - 1)*na + ia - 1
@@ -1536,6 +1539,11 @@ CONTAINS
                   END DO
                END DO
 !$OMP END PARALLEL DO
+               ! The periodic image layout only depends on the geometry, not on
+               ! the target atom, so build it once and share it across threads.
+               CALL build_periodic_atom_image_layout(composite_atom_coords, cell, 1, &
+                                                     composite_image_periodicity, &
+                                                     local_partition_layout, local_partition_target_image)
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP PRIVATE(composite_row, itask, &
 !$OMP         gth_potential, iatom, idir, ispin, jdir, &
@@ -1543,7 +1551,7 @@ CONTAINS
 !$OMP         nlcc_spin_factor, composite_nlcc_center_force_local, &
 !$OMP         composite_partition_force_local, composite_grid_coord_force_local, &
 !$OMP         composite_moving_smooth_force_local, composite_nlcc_target_force_local, &
-!$OMP         local_partition_datom, local_partition_dstrain, local_partition_layout, &
+!$OMP         local_partition_datom, local_partition_dstrain, &
 !$OMP         local_partition_target_image, local_partition_weight, sgp_potential, source_atom, &
 !$OMP         spatial_derivative, target_atom, target_partition_adjoint, interpolation_stencil) &
 !$OMP REDUCTION(+:composite_interpolation_virial, composite_partition_strain_virial) &
@@ -1555,7 +1563,7 @@ CONTAINS
 !$OMP        composite_kin_grad, composite_local_atoms, composite_local_natom, &
 !$OMP        composite_moving_smooth_force, &
 !$OMP        composite_nlcc_center_force, composite_nlcc_target_force, composite_partition_force, &
-!$OMP        lsd, my_kind_set, ntasks, &
+!$OMP        local_partition_layout, lsd, my_kind_set, ntasks, &
 !$OMP        nlcc, particle_set, qs_env, smooth_rho_r)
                ALLOCATE (composite_nlcc_center_force_local(3, SIZE(particle_set)), &
                          composite_partition_force_local(3, SIZE(particle_set)), &
@@ -1571,9 +1579,7 @@ CONTAINS
 !$OMP DO SCHEDULE(DYNAMIC)
                DO itask = 1, ntasks
                   iatom = chunk_atom(itask)
-                  CALL build_periodic_atom_image_layout(composite_atom_coords, cell, iatom, &
-                                                        composite_image_periodicity, local_partition_layout, &
-                                                        local_partition_target_image)
+                  local_partition_target_image = iatom
                   DO composite_row = chunk_begin(itask), chunk_end(itask)
                      composite_grid_coord_force_local(:, iatom) = &
                         composite_grid_coord_force_local(:, iatom) + &
