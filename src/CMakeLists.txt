@@ -454,6 +454,7 @@ list(
   "fft_api_unittest"
   "kpoint_smearing_unittest"
   "topology_wilson_unittest"
+  "effective_mass_unittest"
   "kubo_unittest"
   "spectral_localizer_unittest"
   "quadratic_pseudospectrum_unittest"
@@ -509,6 +510,7 @@ add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(fft_api_unittest fft/fft_api_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(topology_wilson_unittest topology_wilson_unittest.F)
+add_executable(effective_mass_unittest effective_mass_unittest.F)
 add_executable(kubo_unittest kubo_unittest.F)
 add_executable(spectral_localizer_unittest spectral_localizer_unittest.F)
 add_executable(quadratic_pseudospectrum_unittest

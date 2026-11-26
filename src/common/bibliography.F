@@ -71,7 +71,7 @@ MODULE bibliography
                             Luber2014, Berghold2011, DelBen2015b, Campana2009, &
                             Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012, &
                             Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, Worlton1972, &
-                            Quan2026, &
+                            Quan2026, LuttingerKohn1955, &
                             Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, &
                             Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
                             Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004, &
@@ -1381,6 +1381,12 @@ CONTAINS
                          " General theory and application", &
                          source="Phys. Rev. B", volume="113", pages="085112", &
                          year=2026, doi="10.1103/7xym-7388")
+
+      CALL add_reference(key=LuttingerKohn1955, &
+                         authors=s2a("J. M. Luttinger", "W. Kohn"), &
+                         title="Motion of electrons and holes in perturbed periodic fields", &
+                         source="Phys. Rev.", volume="97", pages="869", &
+                         year=1955, doi="10.1103/PhysRev.97.869")
 
       CALL add_reference(key=MacDonald1978, &
                          authors=s2a("A. H. MacDonald"), &

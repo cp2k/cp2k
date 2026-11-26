@@ -323,9 +323,14 @@ CONTAINS
 !> \param sab_nl   Defining neighbor list
 !> \param is_complex  Matrix to be transformed is imaginary
 !> \param rs_sign  Matrix to be transformed is csaled by rs_sign
+!> \param hmat     Cell vectors in bohr (columns a_i), required for k-derivatives
+!> \param deriv_direction First Cartesian k-derivative direction (1..3)
+!> \param deriv_direction2 Second Cartesian k-derivative direction (1..3), gives
+!>                         -R_alpha R_beta exp(i k.R)
 ! **************************************************************************************************
    SUBROUTINE rskp_transform(rmatrix, cmatrix, rsmat, ispin, &
-                             xkp, cell_to_index, sab_nl, is_complex, rs_sign)
+                             xkp, cell_to_index, sab_nl, is_complex, rs_sign, &
+                             hmat, deriv_direction, deriv_direction2)
 
       TYPE(dbcsr_type)                                   :: rmatrix
       TYPE(dbcsr_type), OPTIONAL                         :: cmatrix
@@ -337,15 +342,19 @@ CONTAINS
          POINTER                                         :: sab_nl
       LOGICAL, INTENT(IN), OPTIONAL                      :: is_complex
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rs_sign
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN), &
+         OPTIONAL                                        :: hmat
+      INTEGER, INTENT(IN), OPTIONAL                      :: deriv_direction, deriv_direction2
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rskp_transform'
 
-      INTEGER                                            :: handle, iatom, ic, icol, irow, jatom, &
-                                                            nimg
+      INTEGER                                            :: deriv_order, handle, iatom, ic, icol, &
+                                                            irow, jatom, nimg
       INTEGER, DIMENSION(3)                              :: cell
       LOGICAL                                            :: do_symmetric, found, my_complex, &
                                                             wfn_real_only
-      REAL(KIND=dp)                                      :: arg, coskl, fsign, fsym, sinkl
+      REAL(KIND=dp)                                      :: arg, coskl, fsign, fsym, pref, sinkl
+      REAL(KIND=dp), DIMENSION(3)                        :: rcart, signed_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, rblock, rsblock
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
@@ -361,6 +370,23 @@ CONTAINS
       wfn_real_only = .TRUE.
       IF (PRESENT(cmatrix)) wfn_real_only = .FALSE.
 
+      deriv_order = 0
+      IF (PRESENT(deriv_direction)) THEN
+         CPASSERT(deriv_direction >= 1 .AND. deriv_direction <= 3)
+         deriv_order = 1
+      END IF
+      IF (PRESENT(deriv_direction2)) THEN
+         CPASSERT(PRESENT(deriv_direction))
+         CPASSERT(deriv_direction >= 1 .AND. deriv_direction <= 3)
+         CPASSERT(deriv_direction2 >= 1 .AND. deriv_direction2 <= 3)
+         deriv_order = 2
+      END IF
+      IF (deriv_order > 0) THEN
+         CPASSERT(PRESENT(hmat))
+         CPASSERT(PRESENT(cmatrix))
+         CPASSERT(.NOT. my_complex)
+      END IF
+
       nimg = SIZE(rsmat, 2)
 
       CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
@@ -368,6 +394,7 @@ CONTAINS
       CALL neighbor_list_iterator_create(nl_iterator, sab_nl)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, iatom=iatom, jatom=jatom, cell=cell)
+         IF (deriv_order > 0 .AND. ALL(cell == 0)) CYCLE
 
          ! fsym = +- 1 is due to real space matrices being non-symmetric (although in a symmtric type)
          ! with the link S_mu^0,nu^b = S_nu^0,mu^-b, and the KP matrices beeing Hermitian
@@ -383,13 +410,27 @@ CONTAINS
          ic = cell_to_index(cell(1), cell(2), cell(3))
          IF (ic < 1 .OR. ic > nimg) CYCLE
 
-         arg = REAL(cell(1), dp)*xkp(1) + REAL(cell(2), dp)*xkp(2) + REAL(cell(3), dp)*xkp(3)
-         IF (my_complex) THEN
-            coskl = fsign*fsym*COS(twopi*arg)
-            sinkl = fsign*SIN(twopi*arg)
+         IF (deriv_order == 0) THEN
+            arg = REAL(cell(1), dp)*xkp(1) + REAL(cell(2), dp)*xkp(2) + REAL(cell(3), dp)*xkp(3)
+            IF (my_complex) THEN
+               coskl = fsign*fsym*COS(twopi*arg)
+               sinkl = fsign*SIN(twopi*arg)
+            ELSE
+               coskl = fsign*COS(twopi*arg)
+               sinkl = fsign*fsym*SIN(twopi*arg)
+            END IF
          ELSE
-            coskl = fsign*COS(twopi*arg)
-            sinkl = fsign*fsym*SIN(twopi*arg)
+            signed_cell(1:3) = fsym*REAL(cell(1:3), dp)
+            arg = DOT_PRODUCT(signed_cell, xkp)
+            rcart = MATMUL(hmat, signed_cell)
+            IF (deriv_order == 1) THEN
+               coskl = -fsign*rcart(deriv_direction)*SIN(twopi*arg)
+               sinkl = fsign*rcart(deriv_direction)*COS(twopi*arg)
+            ELSE
+               pref = -fsign*rcart(deriv_direction)*rcart(deriv_direction2)
+               coskl = pref*COS(twopi*arg)
+               sinkl = pref*SIN(twopi*arg)
+            END IF
          END IF
 
          CALL dbcsr_get_block_p(matrix=rsmat(ispin, ic)%matrix, row=irow, col=icol, &

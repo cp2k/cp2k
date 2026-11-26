@@ -150,6 +150,7 @@ list(
   dm_ls_scf_types.F
   domain_submatrix_methods.F
   domain_submatrix_types.F
+  effective_mass_methods.F
   eeq_data.F
   eeq_input.F
   eeq_method.F
@@ -626,6 +627,7 @@ list(
   qs_dos_utils.F
   qs_efield_berry.F
   qs_efield_local.F
+  qs_effective_mass.F
   qs_elec_field.F
   qs_electric_field_gradient.F
   qs_electrons_charge_mixing.F
@@ -1676,6 +1678,7 @@ set(CP2K_PROGS_F
     kpoint_smearing_unittest.F
     motion/cell_opt_utils_unittest.F
     topology_wilson_unittest.F
+    effective_mass_unittest.F
     kubo_unittest.F
     spectral_localizer_unittest.F
     quadratic_pseudospectrum_unittest.F

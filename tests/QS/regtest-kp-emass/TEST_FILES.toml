@@ -1,0 +1,37 @@
+"si_kp_emass.inp"        = [
+  {matcher = "E_total", tol = 1.0E-12, ref = -31.45168612051439},
+  {matcher = "EMASS_principal_inv_mass", tol = 1.0E-8, ref = 1.2238416},
+  {matcher = "EMASS_degenerate_inv_mass", tol = 1.0E-8, ref = -7.3443168},
+  {matcher = "EMASS_explicit_inv_mass", tol = 1.0E-8, ref = -11.4458559},
+]
+"si_gamma_emass.inp"     = [
+  {matcher = "E_total", tol = 1.0E-12, ref = -31.07226115534230},
+  {matcher = "EMASS_principal_inv_mass", tol = 1.0E-8, ref = 1.2618828},
+  {matcher = "EMASS_degenerate_inv_mass", tol = 1.0E-8, ref = -7.2907799},
+  {matcher = "EMASS_explicit_inv_mass", tol = 1.0E-8, ref = 1.7731787},
+]
+"si_prim_uks_emass.inp"  = [
+  {matcher = "E_total", tol = 1.0E-12, ref = -7.846496267368136},
+  {matcher = "EMASS_principal_inv_mass", tol = 1.0E-8, ref = 1.2339772},
+  {matcher = "EMASS_degenerate_inv_mass", tol = 1.0E-8, ref = -11.4432327},
+  {matcher = "EMASS_explicit_inv_mass", tol = 1.0E-8, ref = -0.7208680},
+]
+"si_chol_off_emass.inp"  = [
+  {matcher = "E_total", tol = 1.0E-12, ref = -31.291208164253778},
+  {matcher = "EMASS_principal_inv_mass", tol = 1.0E-8, ref = 0.8217917},
+  {matcher = "EMASS_degenerate_inv_mass", tol = 1.0E-8, ref = -7.3635588},
+]
+"si_slab_gapw_emass.inp" = [
+  {matcher = "E_total", tol = 1.0E-12, ref = -8.938757600429595},
+  {matcher = "EMASS_principal_inv_mass", tol = 1.0E-8, ref = 0.0},
+  {matcher = "EMASS_degenerate_inv_mass", tol = 1.0E-8, ref = -7.8772987},
+  {matcher = "EMASS_explicit_inv_mass", tol = 1.0E-8, ref = -4.0471358},
+]
+"si_kp_lowdin_emass.inp" = [
+  {matcher = "E_total", tol = 1.0E-12, ref = -30.791700638642563},
+  {matcher = "EMASS_principal_inv_mass", tol = 1.0E-8, ref = 1.2368056},
+  {matcher = "EMASS_degenerate_inv_mass", tol = 1.0E-8, ref = -7.5362485},
+  {matcher = "EMASS_explicit_inv_mass", tol = 1.0E-8, ref = 0.1656949},
+]
+
+#EOF
