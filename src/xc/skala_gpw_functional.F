@@ -853,36 +853,49 @@ CONTAINS
 
       features => skala_state%features
 
-      CALL xc_rho_set_create(rho_set, &
-                             rho_r(1)%pw_grid%bounds_local, &
-                             rho_cutoff=section_get_rval(xc_section, "density_cutoff"), &
-                             drho_cutoff=section_get_rval(xc_section, "gradient_cutoff"), &
-                             tau_cutoff=section_get_rval(xc_section, "tau_cutoff"))
-      CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
-                             xc_deriv_method_id, xc_rho_smooth_id, pw_pool)
-
-      CALL skala_gpw_feature_build(features, rho_set, rho_r, particle_set, cell, &
-                                   requires_grad=.FALSE., weights=weights, &
-                                   requires_coordinate_grad=.FALSE., &
-                                   requires_stress_grad=.FALSE., &
-                                   requires_weight_grad=.TRUE., &
-                                   use_atom_chunks=native_grid_atom_chunks, &
-                                   atom_partition=native_grid_atom_partition, &
-                                   cuda_device=selected_cuda_device)
-      IF (features%uses_atom_chunks) THEN
-         nvals = SIZE(features%route_send_local_features)
-      ELSE
-         nvals = features%nflat
-      END IF
-      cache_hit = weight_grad_cache_matches(rho_r(1)%pw_grid%para%group, particle_set, cell, &
-                                            rho_r, tau, nspins, features%uses_atom_chunks, &
-                                            native_grid_atom_partition, nvals)
-
       have_exc_tensor = .FALSE.
       have_weight_grad_t = .FALSE.
       NULLIFY (grid_weight_grad)
+
+      ! Try the cache before building/uploading the feature tensors: the key
+      ! (positions, cell, density/tau signatures, spin/atom mode and partition)
+      ! uniquely fixes the layout, so a hit can reuse the cached gradient and skip
+      ! the feature build, upload and model forward/backward.
+      cache_hit = .FALSE.
+      IF (skala_state%layout%active .AND. skala_state%weight_grad%valid) THEN
+         cache_hit = weight_grad_cache_matches(rho_r(1)%pw_grid%para%group, particle_set, cell, &
+                                               rho_r, tau, nspins, native_grid_atom_chunks, &
+                                               native_grid_atom_partition, &
+                                               skala_state%weight_grad%nvals)
+      END IF
       IF (cache_hit) THEN
+         nvals = skala_state%weight_grad%nvals
+      ELSE
+         CALL xc_rho_set_create(rho_set, &
+                                rho_r(1)%pw_grid%bounds_local, &
+                                rho_cutoff=section_get_rval(xc_section, "density_cutoff"), &
+                                drho_cutoff=section_get_rval(xc_section, "gradient_cutoff"), &
+                                tau_cutoff=section_get_rval(xc_section, "tau_cutoff"))
+         CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
+                                xc_deriv_method_id, xc_rho_smooth_id, pw_pool)
+
+         CALL skala_gpw_feature_build(features, rho_set, rho_r, particle_set, cell, &
+                                      requires_grad=.FALSE., weights=weights, &
+                                      requires_coordinate_grad=.FALSE., &
+                                      requires_stress_grad=.FALSE., &
+                                      requires_weight_grad=.TRUE., &
+                                      use_atom_chunks=native_grid_atom_chunks, &
+                                      atom_partition=native_grid_atom_partition, &
+                                      cuda_device=selected_cuda_device)
          IF (features%uses_atom_chunks) THEN
+            nvals = SIZE(features%route_send_local_features)
+         ELSE
+            nvals = features%nflat
+         END IF
+      END IF
+
+      IF (cache_hit) THEN
+         IF (native_grid_atom_chunks) THEN
             ALLOCATE (local_weight_grad(nvals))
             local_weight_grad(:) = skala_state%weight_grad%gradient
          ELSE
@@ -946,8 +959,8 @@ CONTAINS
          DO j = bo(1, 2), bo(2, 2)
             DO i = bo(1, 1), bo(2, 1)
                local_row = local_row + 1
-               feature_begin = features%local_feature_offsets(local_row)
-               feature_end = features%local_feature_offsets(local_row + 1) - 1
+               feature_begin = skala_state%layout%local_feature_offsets(local_row)
+               feature_end = skala_state%layout%local_feature_offsets(local_row + 1) - 1
                local_derivative = 0.0_dp
                grid_point = grid_coordinate(rho_r(1)%pw_grid, [i, j, k])
                CALL smooth_partition_weights(grid_point, atom_coords_pbc, cell, &
@@ -956,11 +969,12 @@ CONTAINS
                feature_pos = feature_begin
                DO iatom = 1, natom
                   IF (.NOT. included(iatom)) CYCLE
-                  row = features%local_feature_rows(feature_pos)
-                  IF (features%uses_atom_chunks) THEN
+                  IF (native_grid_atom_chunks) THEN
+                     ! Atom-chunk gradients are indexed in identity feature order.
                      local_derivative = local_derivative + &
-                                        partition_weights(iatom)*local_weight_grad(row)
+                                        partition_weights(iatom)*local_weight_grad(feature_pos)
                   ELSE
+                     row = skala_state%layout%local_feature_rows(feature_pos)
                      local_derivative = local_derivative + &
                                         partition_weights(iatom)*grid_weight_grad(row)
                   END IF
@@ -971,14 +985,16 @@ CONTAINS
             END DO
          END DO
       END DO
-      CPASSERT(local_row == features%nflat_local)
+      CPASSERT(local_row == skala_state%layout%nflat_local)
 
       DEALLOCATE (atom_coords_pbc, included, partition_weights)
       IF (have_weight_grad_t) CALL torch_tensor_release(grid_weight_grad_t)
       IF (have_exc_tensor) CALL torch_tensor_release(exc_tensor)
       IF (ALLOCATED(local_weight_grad)) DEALLOCATE (local_weight_grad)
-      CALL skala_gpw_feature_release(features, keep_host_arrays=.TRUE.)
-      CALL xc_rho_set_release(rho_set, pw_pool=pw_pool)
+      IF (.NOT. cache_hit) THEN
+         CALL skala_gpw_feature_release(features, keep_host_arrays=.TRUE.)
+         CALL xc_rho_set_release(rho_set, pw_pool=pw_pool)
+      END IF
 
    END SUBROUTINE skala_gpw_weight_derivative
 
@@ -2229,6 +2245,49 @@ CONTAINS
    END FUNCTION auto_atom_chunk_max_rows
 
 ! **************************************************************************************************
+!> \brief Compute the density/tau change-detection signature in a single pass per array,
+!>        without materializing full-grid temporaries.
+!> \param rho_r ...
+!> \param tau ...
+!> \param rho_sum ...
+!> \param rho_sumsq ...
+!> \param tau_sum ...
+!> \param tau_sumsq ...
+! **************************************************************************************************
+   SUBROUTINE weight_grad_signature(rho_r, tau, rho_sum, rho_sumsq, tau_sum, tau_sumsq)
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau
+      REAL(KIND=dp), INTENT(OUT)                         :: rho_sum, rho_sumsq, tau_sum, tau_sumsq
+
+      INTEGER                                            :: i, ispin, j, k
+      REAL(KIND=dp)                                      :: x, y
+
+      rho_sum = 0.0_dp
+      rho_sumsq = 0.0_dp
+      tau_sum = 0.0_dp
+      tau_sumsq = 0.0_dp
+      DO ispin = 1, SIZE(rho_r)
+         DO k = 1, SIZE(rho_r(ispin)%array, 3)
+            DO j = 1, SIZE(rho_r(ispin)%array, 2)
+               DO i = 1, SIZE(rho_r(ispin)%array, 1)
+                  x = rho_r(ispin)%array(i, j, k)
+                  rho_sum = rho_sum + x
+                  rho_sumsq = rho_sumsq + x*x
+               END DO
+            END DO
+         END DO
+         DO k = 1, SIZE(tau(ispin)%array, 3)
+            DO j = 1, SIZE(tau(ispin)%array, 2)
+               DO i = 1, SIZE(tau(ispin)%array, 1)
+                  y = tau(ispin)%array(i, j, k)
+                  tau_sum = tau_sum + y
+                  tau_sumsq = tau_sumsq + y*y
+               END DO
+            END DO
+         END DO
+      END DO
+   END SUBROUTINE weight_grad_signature
+
+! **************************************************************************************************
 !> \brief Store the smooth-partition weight gradient for later reuse.
 !> \param gradient ...
 !> \param features ...
@@ -2244,7 +2303,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau
 
-      INTEGER                                            :: iatom, ispin
+      INTEGER                                            :: iatom
 
       IF (ASSOCIATED(skala_state%weight_grad%gradient)) THEN
          IF (SIZE(skala_state%weight_grad%gradient) /= SIZE(gradient)) THEN
@@ -2268,18 +2327,9 @@ CONTAINS
          skala_state%weight_grad%positions(:, iatom) = particle_set(iatom)%r
       END DO
 
-      skala_state%weight_grad%rho_sum = 0.0_dp
-      skala_state%weight_grad%rho_sumsq = 0.0_dp
-      skala_state%weight_grad%tau_sum = 0.0_dp
-      skala_state%weight_grad%tau_sumsq = 0.0_dp
-      DO ispin = 1, SIZE(rho_r)
-         skala_state%weight_grad%rho_sum = skala_state%weight_grad%rho_sum + SUM(rho_r(ispin)%array)
-         skala_state%weight_grad%rho_sumsq = skala_state%weight_grad%rho_sumsq + &
-                                             SUM(rho_r(ispin)%array*rho_r(ispin)%array)
-         skala_state%weight_grad%tau_sum = skala_state%weight_grad%tau_sum + SUM(tau(ispin)%array)
-         skala_state%weight_grad%tau_sumsq = skala_state%weight_grad%tau_sumsq + &
-                                             SUM(tau(ispin)%array*tau(ispin)%array)
-      END DO
+      CALL weight_grad_signature(rho_r, tau, skala_state%weight_grad%rho_sum, &
+                                 skala_state%weight_grad%rho_sumsq, &
+                                 skala_state%weight_grad%tau_sum, skala_state%weight_grad%tau_sumsq)
       skala_state%weight_grad%nvals = SIZE(gradient)
       skala_state%weight_grad%nspins = SIZE(rho_r)
       skala_state%weight_grad%atom_chunks = features%uses_atom_chunks
@@ -2348,7 +2398,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: atom_partition, nvals
       LOGICAL                                            :: matches
 
-      INTEGER                                            :: iatom, ispin
+      INTEGER                                            :: iatom
       REAL(KIND=dp)                                      :: rho_sum, rho_sumsq, tau_sum, tau_sumsq
 
       matches = .FALSE.
@@ -2366,16 +2416,7 @@ CONTAINS
          IF (ANY(skala_state%weight_grad%positions(:, iatom) /= particle_set(iatom)%r)) RETURN
       END DO
 
-      rho_sum = 0.0_dp
-      rho_sumsq = 0.0_dp
-      tau_sum = 0.0_dp
-      tau_sumsq = 0.0_dp
-      DO ispin = 1, SIZE(rho_r)
-         rho_sum = rho_sum + SUM(rho_r(ispin)%array)
-         rho_sumsq = rho_sumsq + SUM(rho_r(ispin)%array*rho_r(ispin)%array)
-         tau_sum = tau_sum + SUM(tau(ispin)%array)
-         tau_sumsq = tau_sumsq + SUM(tau(ispin)%array*tau(ispin)%array)
-      END DO
+      CALL weight_grad_signature(rho_r, tau, rho_sum, rho_sumsq, tau_sum, tau_sumsq)
       IF (rho_sum /= skala_state%weight_grad%rho_sum) RETURN
       IF (rho_sumsq /= skala_state%weight_grad%rho_sumsq) RETURN
       IF (tau_sum /= skala_state%weight_grad%tau_sum) RETURN
