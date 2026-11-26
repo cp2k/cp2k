@@ -3217,13 +3217,6 @@ CONTAINS
          CPASSERT(grid%bounds_local(1, 3) == grid%bounds(1, 3))
          CPASSERT(grid%bounds_local(2, 3) == grid%bounds(2, 3))
       END BLOCK
-      ALLOCATE (work_base(3, MAX(nrows, 1)))
-      work_base = 0_int_8
-      DO row = 1, nrows
-         relative = MATMUL(grid%dh_inv, points(:, row))
-         work_base(:, row) = INT(FLOOR(relative), int_8)
-      END DO
-
       valid = native_need_ready .AND. native_need_nrows == nrows
       IF (valid) THEN
          valid = ALL(native_need_npts == npts) .AND. ALL(native_need_dh_inv == grid%dh_inv)
@@ -3237,15 +3230,33 @@ CONTAINS
          valid = valid .AND. ALL(native_need_bounds_local == grid%bounds_local)
       END IF
       IF (valid) valid = native_geometry_matches(native_need_geometry, cell, atom_coords)
-      IF (valid .AND. ALLOCATED(native_need_base)) THEN
-         valid = ALL(SHAPE(native_need_base) == SHAPE(work_base))
-         IF (valid) valid = ALL(native_need_base == work_base)
-      ELSE
-         valid = .FALSE.
-      END IF
+      ! Only build the per-row fractional base when the cheap keys still match
+      ! (to compare against the cached copy) or when a rebuild is required.
       IF (valid) THEN
-         DEALLOCATE (work_base)
-         RETURN
+         ALLOCATE (work_base(3, MAX(nrows, 1)))
+         work_base = 0_int_8
+         DO row = 1, nrows
+            relative = MATMUL(grid%dh_inv, points(:, row))
+            work_base(:, row) = INT(FLOOR(relative), int_8)
+         END DO
+         IF (ALLOCATED(native_need_base)) THEN
+            valid = ALL(SHAPE(native_need_base) == SHAPE(work_base))
+            IF (valid) valid = ALL(native_need_base == work_base)
+         ELSE
+            valid = .FALSE.
+         END IF
+         IF (valid) THEN
+            DEALLOCATE (work_base)
+            RETURN
+         END IF
+      END IF
+      IF (.NOT. ALLOCATED(work_base)) THEN
+         ALLOCATE (work_base(3, MAX(nrows, 1)))
+         work_base = 0_int_8
+         DO row = 1, nrows
+            relative = MATMUL(grid%dh_inv, points(:, row))
+            work_base(:, row) = INT(FLOOR(relative), int_8)
+         END DO
       END IF
 
       IF (ALLOCATED(native_need_local)) DEALLOCATE (native_need_local)

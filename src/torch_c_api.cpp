@@ -150,23 +150,28 @@ static std::unordered_map<std::string, model_metadata_entry>
     model_metadata_cache;
 
 static std::set<int> pending_grad_readback_devices;
+static std::set<const torch_c_tensor_t *> pending_grad_tensors;
 static std::mutex pending_grad_mutex;
 
-static void record_pending_device(const int device) {
+static void record_pending_grads(const torch_c_tensor_t *const tensors[],
+                                 const int count, const int device) {
   std::lock_guard<std::mutex> lock(pending_grad_mutex);
   pending_grad_readback_devices.insert(device);
+  for (int i = 0; i < count; ++i)
+    pending_grad_tensors.insert(tensors[i]);
 }
 
 static std::set<int> take_pending_devices() {
   std::lock_guard<std::mutex> lock(pending_grad_mutex);
   std::set<int> devices = std::move(pending_grad_readback_devices);
   pending_grad_readback_devices.clear();
+  pending_grad_tensors.clear();
   return devices;
 }
 
-static bool pending_grad_copies() {
+static bool pending_grad_copy(const torch_c_tensor_t *tensor) {
   std::lock_guard<std::mutex> lock(pending_grad_mutex);
-  return !pending_grad_readback_devices.empty();
+  return pending_grad_tensors.count(tensor) != 0;
 }
 
 static void enable_expandable_cuda_segments_if_unconfigured() {
@@ -1123,7 +1128,7 @@ static void grad_batch_impl(const torch_c_tensor_t *const *tensors,
         const bool reuse = entry.defined() && entry.sizes() == sizes &&
                            entry.scalar_type() == sources[i].scalar_type() &&
                            entry.getIntrusivePtr().use_count() == 1 &&
-                           !pending_grad_copies();
+                           !pending_grad_copy(tensors[i]);
         if (!reuse) {
           entry = torch::empty(
               sizes,
@@ -1144,7 +1149,7 @@ static void grad_batch_impl(const torch_c_tensor_t *const *tensors,
       (void)source_device;
 #endif
     } else {
-      record_pending_device(source_device);
+      record_pending_grads(tensors, count, source_device);
     }
     for (int i = 0; i < count; ++i) {
       grads[i] = new torch_c_tensor_t(std::move(hosts[i]));
