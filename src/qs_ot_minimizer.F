@@ -452,7 +452,7 @@ CONTAINS
 !> \param use_occupation_response override the channel's occupation-response setting
 ! **************************************************************************************************
    SUBROUTINE ot_precondition_gradients(qs_ot_env, matrix_out, use_occupation_response)
-      TYPE(qs_ot_type), INTENT(IN)                       :: qs_ot_env(:)
+      TYPE(qs_ot_type), INTENT(INOUT)                    :: qs_ot_env(:)
       TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_out(:, :)
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_occupation_response
 
@@ -485,7 +485,10 @@ CONTAINS
          END IF
       END DO
       handled = .FALSE.
-      IF (local) CALL apply_preconditioner_complex_batch(preconditioners, matrix_in, matrix_out, handled, scales)
+      IF (local .AND. SIZE(qs_ot_env) > 0) THEN
+         CALL apply_preconditioner_complex_batch(preconditioners, matrix_in, matrix_out, handled, &
+                                                 qs_ot_env(1)%preconditioner_gemm, scales)
+      END IF
       IF (handled) RETURN
       DO i = 1, SIZE(qs_ot_env)
          CALL ot_apply_channel_preconditioner(qs_ot_env(i), matrix_in(1, i)%matrix, &
