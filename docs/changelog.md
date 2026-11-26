@@ -109,6 +109,7 @@
 - Require FFTW3 as hard dependency ([#6119](https://github.com/cp2k/cp2k/pull/6119))
 - PREFERRED_FFT_LIBRARY does not anymore take the values FFTSG and FFTW3. The
   Stefan-Goedecker-backend was removed. ([#6475](https://github.com/cp2k/cp2k/pull/6475))
+- In a later release, GPU-builds may require a GPU-aware MPI-implementation.
 - **TODO**
 
 ### Fixes
