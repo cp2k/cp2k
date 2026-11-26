@@ -16,7 +16,7 @@ MODULE qs_ot
    USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, &
-        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
+        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init_p, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release, dbcsr_release_p, &
         dbcsr_reserve_blocks, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, &
@@ -400,8 +400,7 @@ CONTAINS
 
       INTEGER                                            :: handle, irefine, k, n
       LOGICAL                                            :: quick_exit
-      REAL(dp)                                           :: norm, norm_fro, norm_gct, occ_in, &
-                                                            occ_out, rescale
+      REAL(dp)                                           :: norm, norm_fro, norm_gct, rescale
       TYPE(dbcsr_type), POINTER                          :: BUF1, BUF2, BUF_NOSYM, FT, FY
 
       CALL timeset(routineN, handle)
@@ -441,9 +440,7 @@ CONTAINS
          ELSE
             CALL dbcsr_multiply('N', 'N', 1.0_dp, FT, FY, 0.0_dp, BUF1)
             IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
-               occ_in = dbcsr_get_occupation(buf1)
                CALL dbcsr_filter(buf1, qs_ot_env%settings%eps_irac_filter_matrix)
-               occ_out = dbcsr_get_occupation(buf1)
             END IF
             CALL dbcsr_copy(FT, BUF1, name='FT')
          END IF
@@ -456,15 +453,11 @@ CONTAINS
          ! P = FY^T * P * FY
          CALL dbcsr_multiply('N', 'N', 1.0_dp, P, FY, 0.0_dp, BUF_NOSYM)
          IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
-            occ_in = dbcsr_get_occupation(buf_nosym)
             CALL dbcsr_filter(buf_nosym, qs_ot_env%settings%eps_irac_filter_matrix)
-            occ_out = dbcsr_get_occupation(buf_nosym)
          END IF
          CALL dbcsr_multiply('N', 'N', 1.0_dp, FY, BUF_NOSYM, 0.0_dp, P)
          IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
-            occ_in = dbcsr_get_occupation(p)
             CALL dbcsr_filter(p, qs_ot_env%settings%eps_irac_filter_matrix)
-            occ_out = dbcsr_get_occupation(p)
          END IF
          !
          ! check ||P-1||_gct
@@ -495,18 +488,14 @@ CONTAINS
       ! C_NEW = C_NEW * FT * rescale
       CALL dbcsr_multiply('N', 'N', rescale, C_OLD, FT, 0.0_dp, C_NEW)
       IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
-         occ_in = dbcsr_get_occupation(c_new)
          CALL dbcsr_filter(c_new, qs_ot_env%settings%eps_irac_filter_matrix)
-         occ_out = dbcsr_get_occupation(c_new)
       END IF
       !
       ! update SC = SC * FY * rescale
       IF (update) THEN
          CALL dbcsr_multiply('N', 'N', rescale, SC, FT, 0.0_dp, C_TMP)
          IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
-            occ_in = dbcsr_get_occupation(c_tmp)
             CALL dbcsr_filter(c_tmp, qs_ot_env%settings%eps_irac_filter_matrix)
-            occ_out = dbcsr_get_occupation(c_tmp)
          END IF
          CALL dbcsr_copy(SC, C_TMP)
       END IF
@@ -582,7 +571,7 @@ CONTAINS
       CHARACTER(LEN=4)                                   :: ortho_irac
       INTEGER                                            :: handle, k, n
       LOGICAL                                            :: on_the_fly_loc, update
-      REAL(dp)                                           :: norm, norm_fro, norm_gct, occ_in, occ_out
+      REAL(dp)                                           :: norm, norm_fro, norm_gct
       TYPE(dbcsr_type), POINTER                          :: C_NEW, C_OLD, C_TMP, D, G_OLD, P, S, SC
 
       CALL timeset(routineN, handle)
@@ -612,9 +601,7 @@ CONTAINS
       IF (ASSOCIATED(S)) THEN
          CALL dbcsr_multiply('N', 'N', 1.0_dp, S, C_OLD, 0.0_dp, SC)
          IF (qs_ot_env1%settings%eps_irac_filter_matrix > 0.0_dp) THEN
-            occ_in = dbcsr_get_occupation(sc)
             CALL dbcsr_filter(sc, qs_ot_env1%settings%eps_irac_filter_matrix)
-            occ_out = dbcsr_get_occupation(sc)
          END IF
       ELSE
          CALL dbcsr_copy(SC, C_OLD)
@@ -623,9 +610,7 @@ CONTAINS
       ! compute P = C'*SC
       CALL dbcsr_multiply('T', 'N', 1.0_dp, C_OLD, SC, 0.0_dp, P)
       IF (qs_ot_env1%settings%eps_irac_filter_matrix > 0.0_dp) THEN
-         occ_in = dbcsr_get_occupation(p)
          CALL dbcsr_filter(p, qs_ot_env1%settings%eps_irac_filter_matrix)
-         occ_out = dbcsr_get_occupation(p)
       END IF
       !
       ! check ||P-1||_f and ||P-1||_gct
@@ -683,7 +668,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ot_refine'
 
       INTEGER                                            :: handle, k
-      REAL(dp)                                           :: occ_in, occ_out, r
+      REAL(dp)                                           :: r
 
       CALL timeset(routineN, handle)
 
@@ -694,9 +679,7 @@ CONTAINS
          r = 3.0_dp/8.0_dp
          CALL dbcsr_multiply('N', 'N', r, P, P, 0.0_dp, FY)
          IF (eps_irac_filter_matrix > 0.0_dp) THEN
-            occ_in = dbcsr_get_occupation(fy)
             CALL dbcsr_filter(fy, eps_irac_filter_matrix)
-            occ_out = dbcsr_get_occupation(fy)
          END IF
          r = -10.0_dp/8.0_dp
          CALL dbcsr_add(FY, P, alpha_scalar=1.0_dp, beta_scalar=r)
@@ -706,16 +689,12 @@ CONTAINS
          ! C_out = C_in * ( 35/16 * I - 35/16 * P + 21/16 * P^2 - 5/16 P^3)
          CALL dbcsr_multiply('N', 'N', 1.0_dp, P, P, 0.0_dp, P2)
          IF (eps_irac_filter_matrix > 0.0_dp) THEN
-            occ_in = dbcsr_get_occupation(p2)
             CALL dbcsr_filter(p2, eps_irac_filter_matrix)
-            occ_out = dbcsr_get_occupation(p2)
          END IF
          r = -5.0_dp/16.0_dp
          CALL dbcsr_multiply('N', 'N', r, P2, P, 0.0_dp, FY)
          IF (eps_irac_filter_matrix > 0.0_dp) THEN
-            occ_in = dbcsr_get_occupation(fy)
             CALL dbcsr_filter(fy, eps_irac_filter_matrix)
-            occ_out = dbcsr_get_occupation(fy)
          END IF
          r = 21.0_dp/16.0_dp
          CALL dbcsr_add(FY, P2, alpha_scalar=1.0_dp, beta_scalar=r)
@@ -728,9 +707,7 @@ CONTAINS
          !       = C_in * ( 315/128 * I - 420/128 * P + 378/128 * P^2 + ( - 180/128 * P + 35/128 * P^2 ) * P^2 )
          CALL dbcsr_multiply('N', 'N', 1.0_dp, P, P, 0.0_dp, P2) ! P^2
          IF (eps_irac_filter_matrix > 0.0_dp) THEN
-            occ_in = dbcsr_get_occupation(p2)
             CALL dbcsr_filter(p2, eps_irac_filter_matrix)
-            occ_out = dbcsr_get_occupation(p2)
          END IF
          r = -180.0_dp/128.0_dp
          CALL dbcsr_add(T, P, alpha_scalar=0.0_dp, beta_scalar=r) ! T=-180/128*P
@@ -738,9 +715,7 @@ CONTAINS
          CALL dbcsr_add(T, P2, alpha_scalar=1.0_dp, beta_scalar=r) ! T=T+35/128*P^2
          CALL dbcsr_multiply('N', 'N', 1.0_dp, T, P2, 0.0_dp, FY) ! Y=T*P^2
          IF (eps_irac_filter_matrix > 0.0_dp) THEN
-            occ_in = dbcsr_get_occupation(fy)
             CALL dbcsr_filter(fy, eps_irac_filter_matrix)
-            occ_out = dbcsr_get_occupation(fy)
          END IF
          r = 378.0_dp/128.0_dp
          CALL dbcsr_add(FY, P2, alpha_scalar=1.0_dp, beta_scalar=r) ! Y=Y+378/128*P^2
@@ -770,7 +745,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_ref'
 
       INTEGER                                            :: handle, k, n
-      REAL(dp)                                           :: occ_in, occ_out
       TYPE(dbcsr_type), POINTER                          :: C, CHC, G, HC, HC_work, SC
 
       CALL timeset(routineN, handle)
@@ -797,16 +771,12 @@ CONTAINS
       ! C'*(H*C)
       CALL dbcsr_multiply('T', 'N', 1.0_dp, C, HC_work, 0.0_dp, CHC)
       IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
-         occ_in = dbcsr_get_occupation(chc)
          CALL dbcsr_filter(chc, qs_ot_env%settings%eps_irac_filter_matrix)
-         occ_out = dbcsr_get_occupation(chc)
       END IF
       ! (S*C)*(C'*H*C)
       CALL dbcsr_multiply('N', 'N', 1.0_dp, SC, CHC, 0.0_dp, G)
       IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
-         occ_in = dbcsr_get_occupation(g)
          CALL dbcsr_filter(g, qs_ot_env%settings%eps_irac_filter_matrix)
-         occ_out = dbcsr_get_occupation(g)
       END IF
       ! G = 2*(1-S*C*C')*H*C
       CALL dbcsr_add(G, HC_work, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
