@@ -131,13 +131,13 @@ MODULE qs_vxc_atom
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc_atom'
 
-   INTEGER, PRIVATE :: native_need_nrows = -1, native_need_npts(3) = 0, native_need_perd(3) = 0, &
+   INTEGER, PRIVATE :: native_need_nrows = -1, native_need_npts(3) = 0, &
                        native_need_nfg = 0, native_need_nneed = 0, native_need_nbucket = 0, &
                        native_need_nrecv = 0
    INTEGER, PRIVATE :: native_need_group_handle = -1, native_need_num_pe = -1, &
                        native_need_mepos = -1, native_need_mode = -1
    INTEGER, PRIVATE :: native_need_bounds_local(2, 3) = 0
-   REAL(dp), PRIVATE :: native_need_dh_inv(3, 3) = 0.0_dp, native_need_hmat(3, 3) = 0.0_dp
+   REAL(dp), PRIVATE :: native_need_dh_inv(3, 3) = 0.0_dp
    LOGICAL, PRIVATE :: native_need_wrap = .FALSE., native_need_ready = .FALSE., &
                        native_need_replicated = .FALSE.
    INTEGER(int_8), ALLOCATABLE, PRIVATE :: native_need_base(:, :), native_need_lin(:)
@@ -145,8 +145,7 @@ MODULE qs_vxc_atom
                                     native_need_scount(:), native_need_sdispl(:), &
                                     native_need_rcount(:), native_need_rdispl(:), &
                                     native_need_sidx(:), native_need_ridx(:)
-   REAL(dp), ALLOCATABLE, PRIVATE :: native_need_values(:, :), native_need_reply(:), &
-                                     native_need_atoms(:, :)
+   REAL(dp), ALLOCATABLE, PRIVATE :: native_need_values(:, :), native_need_reply(:)
 
    TYPE, PRIVATE :: native_need_entry_type
       INTEGER(int_8) :: lin = 0_int_8
@@ -154,11 +153,19 @@ MODULE qs_vxc_atom
    END TYPE native_need_entry_type
    TYPE(native_need_entry_type), ALLOCATABLE, PRIVATE :: native_need_bucket_entry(:)
 
-   INTEGER, PRIVATE :: native_comp_nrows = -1, native_comp_perd(3) = 0
+   ! Geometry facts shared by the atom-composite and needed-point caches.
+   TYPE, PRIVATE :: native_geometry_key_type
+      REAL(dp) :: hmat(3, 3) = 0.0_dp
+      INTEGER :: perd(3) = 0
+      REAL(dp), ALLOCATABLE :: atoms(:, :)
+      LOGICAL :: ready = .FALSE.
+   END TYPE native_geometry_key_type
+   TYPE(native_geometry_key_type), PRIVATE :: native_need_geometry, native_comp_geometry
+
+   INTEGER, PRIVATE :: native_comp_nrows = -1
    LOGICAL, PRIVATE :: native_comp_ready = .FALSE.
-   REAL(dp), PRIVATE :: native_comp_hmat(3, 3) = 0.0_dp
    INTEGER, ALLOCATABLE, PRIVATE :: native_comp_local_atoms(:)
-   REAL(dp), ALLOCATABLE, PRIVATE :: native_comp_atoms(:, :), native_comp_coords(:, :), &
+   REAL(dp), ALLOCATABLE, PRIVATE :: native_comp_coords(:, :), &
                                      native_comp_base_w(:), native_comp_grid_w(:)
 
    PUBLIC :: calculate_vxc_atom, &
@@ -171,6 +178,48 @@ MODULE qs_vxc_atom
 ! **************************************************************************************************
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Return true if a cached geometry snapshot matches the current cell and atoms.
+!> \param key cached geometry snapshot
+!> \param cell current cell
+!> \param atom_coords all atom coordinates
+!> \return ...
+! **************************************************************************************************
+   FUNCTION native_geometry_matches(key, cell, atom_coords) RESULT(matches)
+      TYPE(native_geometry_key_type), INTENT(IN)         :: key
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: atom_coords
+      LOGICAL                                            :: matches
+
+      matches = key%ready .AND. ALLOCATED(key%atoms)
+      IF (matches) matches = ALL(SHAPE(key%atoms) == SHAPE(atom_coords))
+      IF (matches) matches = ALL(key%atoms == atom_coords)
+      matches = matches .AND. ALL(key%hmat == cell%hmat) .AND. ALL(key%perd == cell%perd)
+   END FUNCTION native_geometry_matches
+
+! **************************************************************************************************
+!> \brief Store the current cell and atom geometry into a cache snapshot.
+!> \param key geometry snapshot to update
+!> \param cell current cell
+!> \param atom_coords all atom coordinates
+! **************************************************************************************************
+   SUBROUTINE store_native_geometry_key(key, cell, atom_coords)
+      TYPE(native_geometry_key_type), INTENT(INOUT)      :: key
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: atom_coords
+
+      IF (ALLOCATED(key%atoms)) THEN
+         IF (.NOT. ALL(SHAPE(key%atoms) == SHAPE(atom_coords))) DEALLOCATE (key%atoms)
+      END IF
+      IF (.NOT. ALLOCATED(key%atoms)) THEN
+         ALLOCATE (key%atoms(SIZE(atom_coords, 1), SIZE(atom_coords, 2)))
+      END IF
+      key%atoms(:, :) = atom_coords
+      key%hmat = cell%hmat
+      key%perd = cell%perd
+      key%ready = .TRUE.
+   END SUBROUTINE store_native_geometry_key
 
 ! **************************************************************************************************
 !> \brief Initialize atom-centered quadrature for native Skala layouts.
@@ -705,10 +754,8 @@ CONTAINS
             CALL timeset("calculate_vxc_atom_gather", gather_handle)
             comp_geometry_valid = native_comp_ready .AND. native_comp_nrows == composite_nflat
             IF (comp_geometry_valid) THEN
-               comp_geometry_valid = ALL(SHAPE(native_comp_atoms) == SHAPE(composite_atom_coords))
-               IF (comp_geometry_valid) comp_geometry_valid = ALL(native_comp_atoms == composite_atom_coords)
-               comp_geometry_valid = comp_geometry_valid .AND. ALL(native_comp_hmat == cell%hmat)
-               comp_geometry_valid = comp_geometry_valid .AND. ALL(native_comp_perd == cell%perd)
+               comp_geometry_valid = native_geometry_matches(native_comp_geometry, cell, &
+                                                             composite_atom_coords)
                ! The cached coordinates cover this rank's local atoms only, so a
                ! change in the local partition must invalidate them too.
                comp_geometry_valid = comp_geometry_valid .AND. ALLOCATED(native_comp_local_atoms)
@@ -726,13 +773,11 @@ CONTAINS
                composite_base_grid_weights(:) = native_comp_base_w
                composite_grid_weights(:) = native_comp_grid_w
             ELSE
-               IF (ALLOCATED(native_comp_atoms)) THEN
-                  DEALLOCATE (native_comp_atoms, native_comp_coords, native_comp_base_w, &
-                              native_comp_grid_w)
+               IF (ALLOCATED(native_comp_coords)) THEN
+                  DEALLOCATE (native_comp_coords, native_comp_base_w, native_comp_grid_w)
                END IF
                IF (ALLOCATED(native_comp_local_atoms)) DEALLOCATE (native_comp_local_atoms)
-               ALLOCATE (native_comp_atoms(SIZE(composite_atom_coords, 1), SIZE(composite_atom_coords, 2)), &
-                         native_comp_coords(3, composite_nflat), &
+               ALLOCATE (native_comp_coords(3, composite_nflat), &
                          native_comp_base_w(composite_nflat), &
                          native_comp_grid_w(composite_nflat), &
                          native_comp_local_atoms(SIZE(composite_local_atoms)))
@@ -778,10 +823,8 @@ CONTAINS
                native_comp_coords(:, :) = composite_grid_coords
                native_comp_base_w(:) = composite_base_grid_weights
                native_comp_grid_w(:) = composite_grid_weights
-               native_comp_atoms(:, :) = composite_atom_coords
+               CALL store_native_geometry_key(native_comp_geometry, cell, composite_atom_coords)
                native_comp_local_atoms(:) = composite_local_atoms
-               native_comp_hmat = cell%hmat
-               native_comp_perd = cell%perd
                native_comp_nrows = composite_nflat
                native_comp_ready = .TRUE.
             END IF
@@ -3153,8 +3196,6 @@ CONTAINS
       valid = native_need_ready .AND. native_need_nrows == nrows
       IF (valid) THEN
          valid = ALL(native_need_npts == npts) .AND. ALL(native_need_dh_inv == grid%dh_inv)
-         valid = valid .AND. ALL(native_need_hmat == cell%hmat) .AND. &
-                 ALL(native_need_perd == cell%perd)
          valid = valid .AND. (native_need_wrap .EQV. wrap)
          ! The exchange schedule is tied to the communicator and local grid
          ! partition, which are not captured by the geometry keys above.
@@ -3164,12 +3205,7 @@ CONTAINS
          valid = valid .AND. native_need_mode == grid%para%mode
          valid = valid .AND. ALL(native_need_bounds_local == grid%bounds_local)
       END IF
-      IF (valid .AND. ALLOCATED(native_need_atoms)) THEN
-         valid = ALL(SHAPE(native_need_atoms) == SHAPE(atom_coords))
-         IF (valid) valid = ALL(native_need_atoms == atom_coords)
-      ELSE
-         valid = .FALSE.
-      END IF
+      IF (valid) valid = native_geometry_matches(native_need_geometry, cell, atom_coords)
       IF (valid .AND. ALLOCATED(native_need_base)) THEN
          valid = ALL(SHAPE(native_need_base) == SHAPE(work_base))
          IF (valid) valid = ALL(native_need_base == work_base)
@@ -3189,7 +3225,6 @@ CONTAINS
       IF (ALLOCATED(native_need_sidx)) DEALLOCATE (native_need_sidx)
       IF (ALLOCATED(native_need_ridx)) DEALLOCATE (native_need_ridx)
       IF (ALLOCATED(native_need_base)) DEALLOCATE (native_need_base)
-      IF (ALLOCATED(native_need_atoms)) DEALLOCATE (native_need_atoms)
       IF (ALLOCATED(native_need_values)) DEALLOCATE (native_need_values)
       IF (ALLOCATED(native_need_reply)) DEALLOCATE (native_need_reply)
       CALL native_need_index_release()
@@ -3336,12 +3371,9 @@ CONTAINS
 
       ALLOCATE (native_need_base(SIZE(work_base, 1), SIZE(work_base, 2)))
       native_need_base(:, :) = work_base
-      ALLOCATE (native_need_atoms(SIZE(atom_coords, 1), SIZE(atom_coords, 2)))
-      native_need_atoms(:, :) = atom_coords
+      CALL store_native_geometry_key(native_need_geometry, cell, atom_coords)
       DEALLOCATE (work_base)
       native_need_dh_inv = grid%dh_inv
-      native_need_hmat = cell%hmat
-      native_need_perd = cell%perd
       native_need_wrap = wrap
       native_need_nrows = nrows
       native_need_num_pe = group%num_pe

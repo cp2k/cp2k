@@ -34,6 +34,9 @@ MODULE xc_input_constants
    INTEGER, PARAMETER, PUBLIC               :: skala_gapw_common_grid = 1, &
                                                skala_gapw_atom_composite_grid = 2
 
+   INTEGER, PARAMETER, PUBLIC               :: skala_gpw_atom_partition_hard = 1, &
+                                               skala_gpw_atom_partition_smooth = 2
+
    !VWN xc functional flavours
    INTEGER, PARAMETER, PUBLIC               :: do_vwn5 = 1, &
                                                do_vwn3 = 2

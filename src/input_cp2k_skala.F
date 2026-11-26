@@ -25,7 +25,9 @@ MODULE input_cp2k_skala
                                               skala_gapw_cp2k_default,&
                                               skala_gapw_direct_valence,&
                                               skala_gapw_paw_one_center,&
-                                              skala_gapw_paw_one_center_split
+                                              skala_gapw_paw_one_center_split,&
+                                              skala_gpw_atom_partition_hard,&
+                                              skala_gpw_atom_partition_smooth
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -422,7 +424,7 @@ CONTAINS
                           "include both the partition and taper derivatives in the SKALA feature response.", &
                           usage="ATOM_PARTITION SMOOTH", &
                           enum_c_vals=s2a("HARD", "SMOOTH"), &
-                          enum_i_vals=[1, 2], &
+                          enum_i_vals=[skala_gpw_atom_partition_hard, skala_gpw_atom_partition_smooth], &
                           enum_desc=s2a("Assign each grid point to the nearest atom", &
                                         "Use a smooth Becke-like native-grid atom partition"), &
                           default_i_val=2)

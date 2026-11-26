@@ -34,6 +34,8 @@ MODULE skala_gpw_features
         torch_stream_synchronize, torch_tensor_expand_dim, torch_tensor_from_array, &
         torch_tensor_narrow, torch_tensor_release, torch_tensor_set_requires_grad, &
         torch_tensor_to_device_leaf, torch_tensor_type
+   USE xc_input_constants,              ONLY: skala_gpw_atom_partition_hard,&
+                                              skala_gpw_atom_partition_smooth
    USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                               xc_rho_set_type
 #include "../base/base_uses.f90"
@@ -50,7 +52,6 @@ MODULE skala_gpw_features
                                            10.0_dp*smooth_partition_eps
 
    PUBLIC :: skala_gpw_atom_subchunk_count, skala_gpw_atom_subchunk_layout, &
-             skala_gpw_atom_partition_hard, skala_gpw_atom_partition_smooth, &
              skala_state, skala_gpw_state_type, skala_execution_target_type, &
              skala_gpw_layout_cache_type, skala_gpw_feature_type, skala_gpw_scratch_type, &
              skala_gapw_atom_cuda_tensor_cache_type, skala_atom_ws_type, &
@@ -65,9 +66,6 @@ MODULE skala_gpw_features
              build_periodic_atom_image_layout, &
              periodic_atom_image_partition_from_layout, skala_periodic_partition_type, &
              smooth_partition_atomic_weight_scale, smooth_partition_atomic_weight_scale_derivative
-
-   INTEGER, PARAMETER                   :: skala_gpw_atom_partition_hard = 1, &
-                                           skala_gpw_atom_partition_smooth = 2
 
    TYPE :: skala_execution_target_type
       LOGICAL                                            :: use_cuda = .FALSE.

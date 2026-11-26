@@ -38,7 +38,6 @@ MODULE skala_gpw_functional
         skala_key_grad, skala_key_grid_coords, skala_key_grid_weights, skala_key_kin
    USE skala_gpw_features,              ONLY: &
         allocate_empty_bound_shape, grid_coordinate, skala_execution_target_type, &
-        skala_gpw_atom_partition_hard, skala_gpw_atom_partition_smooth, &
         skala_gpw_atom_subchunk_count, skala_gpw_atom_subchunk_layout, skala_gpw_feature_build, &
         skala_gpw_feature_build_atom_subchunk_bounds, skala_gpw_feature_release, &
         skala_gpw_feature_type, skala_gpw_features_release_cache, skala_model_context_type, &
@@ -73,7 +72,9 @@ MODULE skala_gpw_functional
                                               skala_gapw_cp2k_default,&
                                               skala_gapw_direct_valence,&
                                               skala_gapw_paw_one_center,&
-                                              skala_gapw_paw_one_center_split
+                                              skala_gapw_paw_one_center_split,&
+                                              skala_gpw_atom_partition_hard,&
+                                              skala_gpw_atom_partition_smooth
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                               xc_rho_set_get,&
@@ -153,14 +154,6 @@ CONTAINS
          CALL section_vals_val_get(native_section, "ATOM_CHUNK_MAX_ROWS", i_val=max_rows)
          CALL section_vals_val_get(native_section, "ATOM_PARTITION", i_val=partition)
       END IF
-      SELECT CASE (partition)
-      CASE (1)
-         partition = skala_gpw_atom_partition_hard
-      CASE (2)
-         partition = skala_gpw_atom_partition_smooth
-      CASE DEFAULT
-         CALL cp_abort(__LOCATION__, "Unknown SKALA_NATIVE%ATOM_PARTITION value.")
-      END SELECT
       IF (max_rows < -1) THEN
          CALL cp_abort(__LOCATION__, &
                        "SKALA_NATIVE%ATOM_CHUNK_MAX_ROWS must be -1, zero, or positive.")
@@ -2567,15 +2560,6 @@ CONTAINS
       IF (.NOT. fp64) THEN
          CALL cp_abort(__LOCATION__, "Native Skala response requires MODEL_FP64.")
       END IF
-      SELECT CASE (partition)
-      CASE (1)
-         partition = skala_gpw_atom_partition_hard
-      CASE (2)
-         partition = skala_gpw_atom_partition_smooth
-      CASE DEFAULT
-         CALL cp_abort(__LOCATION__, &
-                       "Unknown SKALA_NATIVE%ATOM_PARTITION value.")
-      END SELECT
       CALL ensure_model_context(xc_section, rho1_r(1)%pw_grid%para%group, &
                                 use_cuda, selected_device, higher_derivatives=.TRUE.)
       CALL torch_use_cuda(use_cuda)
