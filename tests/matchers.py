@@ -3,6 +3,7 @@ import traceback
 from typing import Any, Dict
 
 from matcher_classes import (
+    CubeValuesMatcher,
     GenericMatcher,
     Matcher,
     MatchResult,
@@ -199,6 +200,32 @@ registry["Geometry_optimization_converged"] = TextPresenceMatcher(
     "GEOMETRY OPTIMIZATION COMPLETED"
 )
 registry["NEB_optimization_converged"] = TextPresenceMatcher("BAND TASK COMPLETED")
+registry["Cube_values"] = CubeValuesMatcher()
+registry["Bader_atom_1_electrons"] = GenericMatcher(
+    r"^\s*BADER\|\s+1\s+(\S+)", col=1, regex=True
+)
+registry["Bader_atom_2_electrons"] = GenericMatcher(
+    r"^\s*BADER\|\s+2\s+(\S+)", col=1, regex=True
+)
+registry["Bader_atom_3_electrons"] = GenericMatcher(
+    r"^\s*BADER\|\s+3\s+(\S+)", col=1, regex=True
+)
+registry["Bader_atom_5_electrons"] = GenericMatcher(
+    r"^\s*BADER\|\s+5\s+(\S+)", col=1, regex=True
+)
+registry["Bader_basis_only_excluded"] = TextPresenceMatcher(
+    "Basis-only centre (excluded)"
+)
+registry["Bader_integrated_electrons"] = GenericMatcher(
+    "BADER| Integrated electrons", col=4
+)
+registry["Bader_nominal_electrons"] = GenericMatcher("BADER| Nominal electrons", col=4)
+registry["Bader_density_minus_nominal"] = GenericMatcher(
+    "BADER| Density minus nominal electrons", col=6
+)
+registry["Bader_electron_balance"] = GenericMatcher(
+    "BADER| Electron balance error", col=5
+)
 registry["FIST_periodic_dipole_x"] = GenericMatcher(
     r"MM_DIPOLE| Moment [a.u.]", col=4, first=True
 )
