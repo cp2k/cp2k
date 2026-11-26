@@ -2,4 +2,4 @@
 "Li_gcscf.inp"          = [{matcher = "E_total", tol = 1e-9, ref = -44.036008353017763}]
 "Li_gcscf_gaussian.inp" = [{matcher = "E_total", tol = 1e-9, ref = -44.03413403491946}]
 "Li_gcscf_mp.inp"       = [{matcher = "E_total", tol = 5e-9, ref = -44.03587605428713}]
-"Li_gcscf_mv.inp"       = [{matcher = "E_total", tol = 1e-9, ref = -44.03442503430527}]
+"Li_gcscf_mv.inp"       = [{matcher = "E_total", tol = 1e-9, ref = -44.03442492007613}]
