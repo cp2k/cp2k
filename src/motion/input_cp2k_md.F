@@ -1316,7 +1316,13 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="ELECTRONS", &
                           description="Settings for the electronic potentiostat driving a "// &
-                          "constant-potential / Ne-electrode MD run.", &
+                          "constant-potential / Ne-electrode MD run. The Fermi level and work "// &
+                          "function are read back from the converged SCF of each FORCE_EVAL, "// &
+                          "under plain diagonalization, smearing and k-points, and it runs with OT and "// &
+                          "ADDED_MOS. Under k-points the Fermi level is the chemical potential stored "// &
+                          "on the k-point MO sets. With OT, ADDED_MOS and SMEARING at k-points the "// &
+                          "occupations stay integer and CP2K does not update the stored chemical "// &
+                          "potential, so use diagonalization when the k-point Fermi level matters.", &
                           citations=[Zhang2026], &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
@@ -1426,7 +1432,13 @@ CONTAINS
                           "the dispersion neighbour lists, pw_env and the atomic distributions "// &
                           "all survive, so a crossing no longer cold-starts an SCF. Strongly "// &
                           "recommended; FALSE only to fall back to the original rebuild path for "// &
-                          "comparison.", &
+                          "comparison. Refused under OT and under k-points, both of which hold "// &
+                          "the electron count outside the MO sets this path mutates: under OT "// &
+                          "every allocated orbital is fully occupied, and under k-points the "// &
+                          "k-point MO sets carry their own copy of the count. In either case an "// &
+                          "in-place change would leave the density at the OLD electron count "// &
+                          "while the subsystem reports the new one, so use CHARGE_MIXING_INPLACE "// &
+                          "F there -- the rebuild path re-enters qs_init and is correct.", &
                           usage="CHARGE_MIXING_INPLACE T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)

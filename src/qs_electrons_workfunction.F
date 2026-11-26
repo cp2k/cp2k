@@ -18,6 +18,8 @@ MODULE qs_electrons_workfunction
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
    USE kinds,                           ONLY: dp
+   USE kpoint_types,                    ONLY: kpoint_env_type,&
+                                              kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: bohr
    USE pw_types,                        ONLY: pw_r3d_rs_type
@@ -176,12 +178,16 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_electrons_compute_workfunction'
 
-      INTEGER                                            :: handle, homo, ispin, nmo, nspin
+      INTEGER                                            :: handle, homo, ik, ispin, nfound, nmo, &
+                                                            nspin
+      LOGICAL                                            :: do_kpoints
       REAL(KIND=dp)                                      :: fermi_hartree, v_avg_hartree
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_r3d_rs_type), POINTER                      :: v_hartree_rspace
@@ -204,80 +210,150 @@ CONTAINS
       END IF
 
       NULLIFY (energy, mos, dft_control, matrix_ks, mo_coeff, mo_eigenvalues, para_env, &
-               v_hartree_rspace)
-      CALL get_qs_env(qs_env, energy=energy, mos=mos, dft_control=dft_control, matrix_ks=matrix_ks, &
-                      para_env=para_env, v_hartree_rspace=v_hartree_rspace)
+               v_hartree_rspace, kpoints, kp)
+      do_kpoints = .FALSE.
+      CALL get_qs_env(qs_env, energy=energy, mos=mos, dft_control=dft_control, &
+                      para_env=para_env, v_hartree_rspace=v_hartree_rspace, &
+                      do_kpoints=do_kpoints, kpoints=kpoints)
       IF (.NOT. ASSOCIATED(energy)) THEN
          CPABORT("workfunction update could not access QS energy data.")
       END IF
 
-      ! Tier 1: standard diagonalization sets energy%efermi directly.
-      fermi_hartree = energy%efermi
-      IF (fermi_hartree == 0.0_dp) THEN
-         ! Tier 2: fall back to the average MO chemical potential (e.g. smearing).
-         IF (.NOT. ASSOCIATED(mos)) THEN
-            CPABORT("Fermi level unset; no MO data available.")
-         END IF
-         IF (SIZE(mos) <= 0) CPABORT("MO array is empty.")
-         nspin = SIZE(mos)
-         fermi_hartree = 0.0_dp
-         DO ispin = 1, nspin
-            IF (.NOT. IEEE_IS_FINITE(mos(ispin)%mu)) THEN
-               CPABORT("MO chemical potential not finite.")
-            END IF
-            fermi_hartree = fermi_hartree + mos(ispin)%mu
-         END DO
-         fermi_hartree = fermi_hartree/REAL(nspin, KIND=dp)
+      ! matrix_ks is deliberately NOT in the call above.  ks_env stores it in a
+      ! kpoint_transitional_type, and get_ks_env resolves that through
+      ! get_1d_pointer, which does
+      !
+      !     IF (ASSOCIATED(t%ptr_2d)) CPABORT("Method not implemented for k-points")
+      !
+      ! (kpoint_transitional.F).  Under k-points the 2-D pointer is the one that
+      ! is set, so merely ASKING for matrix_ks aborts -- before any branch below
+      ! can decide not to use it.  Only the OT fallback needs it, and that lives
+      ! on the non-k-point side, so it is fetched there.
+      IF (.NOT. do_kpoints) THEN
+         CALL get_qs_env(qs_env, matrix_ks=matrix_ks)
       END IF
 
-      IF (ABS(fermi_hartree) <= 10.0_dp*EPSILON(fermi_hartree)) THEN
-         ! Tier 3: OT does not populate mo_set%mu or energy%efermi. Compute the
-         ! occupied-subspace Ritz eigenvalues from the converged KS matrix and use
-         ! the HOMO as the zero-temperature electronic chemical potential.
-         ! Open shell: the chemical potential is the HIGHER of the two spin
-         ! HOMOs (the level an electron leaves first), not their mean, which
-         ! sits between them and biases e_F whenever the channels differ.
-         IF (.NOT. ASSOCIATED(mos) .OR. .NOT. ASSOCIATED(matrix_ks)) THEN
-            CPABORT("OT fallback needs MO and KS-matrix data.")
+      IF (do_kpoints) THEN
+         ! Tier 0: k-point run (including GAMMA-only, which is how OT reaches
+         ! ADDED_MOS + SMEARING: qs_scf_initialization refuses OT with added
+         ! MOs unless complex k points and OT%ENERGIES are both active).
+         ! Under k-points NONE of the tiers below work.  qs_env%mos is only a
+         ! template -- kpoint_env_create sizes the k-point MO sets from it and
+         ! then restores its nmo, its coefficients are never filled, and
+         ! nothing writes mu into it.  energy%efermi is likewise never
+         ! assigned on the k-point path.  So tier 1 reads zero, tier 2 reads
+         ! an untouched 0.0, and tier 3 would diagonalize the KS matrix in a
+         ! subspace of uninitialized orbitals and return a meaningless number
+         ! WITHOUT aborting -- the silent failure that makes this branch
+         ! necessary rather than merely convenient.
+         !
+         ! The real chemical potential lives on the k-point MO sets, where
+         ! kpoint_set_mo_occupation stores it as mos(ispin)%mu.  That value is
+         ! already global in k space: the routine sums all eigenvalues over
+         ! para_env_inter_kp and solves for a single mu against the weighted
+         ! k-point sum, so every local k-point of every k-point group carries
+         ! the same number.  Reading the first one visible here is therefore
+         ! exact, not an approximation -- no re-weighting by wkp is needed.
+         IF (.NOT. ASSOCIATED(kpoints)) THEN
+            CPABORT("Fermi level: k-point run without a k-point environment.")
          END IF
-         IF (SIZE(matrix_ks) < SIZE(mos)) THEN
-            CPABORT("OT fallback found too few KS matrices.")
-         END IF
-         IF (ASSOCIATED(dft_control)) THEN
-            IF (dft_control%do_admm) THEN
-               CPABORT("OT fallback does not support ADMM.")
-            END IF
-         END IF
-         nspin = SIZE(mos)
          fermi_hartree = -HUGE(0.0_dp)
-         DO ispin = 1, nspin
-            NULLIFY (mo_coeff, mo_eigenvalues)
-            homo = 0
-            nmo = 0
-            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, &
-                            eigenvalues=mo_eigenvalues, homo=homo, nmo=nmo)
-            IF (.NOT. ASSOCIATED(mo_coeff) .OR. .NOT. ASSOCIATED(mo_eigenvalues)) THEN
-               CPABORT("OT fallback could not access orbitals.")
+         nfound = 0
+         IF (ASSOCIATED(kpoints%kp_env)) THEN
+            DO ik = 1, SIZE(kpoints%kp_env)
+               kp => kpoints%kp_env(ik)%kpoint_env
+               IF (.NOT. ASSOCIATED(kp)) CYCLE
+               IF (.NOT. ASSOCIATED(kp%mos)) CYCLE
+               DO ispin = 1, SIZE(kp%mos)
+                  IF (.NOT. IEEE_IS_FINITE(kp%mos(ispin)%mu)) CYCLE
+                  ! Open shell with a fixed magnetic moment gives the two spin
+                  ! channels separate mu.  Take the HIGHER one, matching the OT
+                  ! fallback below: it is the level an electron leaves first,
+                  ! whereas the mean sits between the channels and biases e_F
+                  ! whenever they differ.
+                  fermi_hartree = MAX(fermi_hartree, kp%mos(ispin)%mu)
+                  nfound = nfound + 1
+               END DO
+            END DO
+         END IF
+         ! kp_env is allocated only on the ranks of a k-point group that owns
+         ! at least one local k-point, so the result has to be spread over the
+         ! whole force_env before anyone uses it.
+         CALL para_env%sum(nfound)
+         CALL para_env%max(fermi_hartree)
+         IF (nfound <= 0) THEN
+            CPABORT("Fermi level unavailable from the k-point MO sets.")
+         END IF
+      ELSE
+         ! Tier 1: standard diagonalization sets energy%efermi directly.
+         fermi_hartree = energy%efermi
+         IF (fermi_hartree == 0.0_dp) THEN
+            ! Tier 2: fall back to the average MO chemical potential (e.g. smearing).
+            IF (.NOT. ASSOCIATED(mos)) THEN
+               CPABORT("Fermi level unset; no MO data available.")
             END IF
-            IF (homo <= 0 .OR. homo > nmo .OR. homo > SIZE(mo_eigenvalues)) THEN
-               CPABORT("OT fallback found an invalid HOMO index.")
+            IF (SIZE(mos) <= 0) CPABORT("MO array is empty.")
+            nspin = SIZE(mos)
+            fermi_hartree = 0.0_dp
+            DO ispin = 1, nspin
+               IF (.NOT. IEEE_IS_FINITE(mos(ispin)%mu)) THEN
+                  CPABORT("MO chemical potential not finite.")
+               END IF
+               fermi_hartree = fermi_hartree + mos(ispin)%mu
+            END DO
+            fermi_hartree = fermi_hartree/REAL(nspin, KIND=dp)
+         END IF
+
+         IF (ABS(fermi_hartree) <= 10.0_dp*EPSILON(fermi_hartree)) THEN
+            ! Tier 3: OT does not populate mo_set%mu or energy%efermi. Compute the
+            ! occupied-subspace Ritz eigenvalues from the converged KS matrix and use
+            ! the HOMO as the zero-temperature electronic chemical potential.
+            ! Open shell: the chemical potential is the HIGHER of the two spin
+            ! HOMOs (the level an electron leaves first), not their mean, which
+            ! sits between them and biases e_F whenever the channels differ.
+            IF (.NOT. ASSOCIATED(mos) .OR. .NOT. ASSOCIATED(matrix_ks)) THEN
+               CPABORT("OT fallback needs MO and KS-matrix data.")
             END IF
-            CALL calculate_subspace_eigenvalues(orbitals=mo_coeff, &
-                                                ks_matrix=matrix_ks(ispin)%matrix, &
-                                                evals_arg=mo_eigenvalues, &
-                                                do_rotation=.FALSE.)
-            IF (.NOT. IEEE_IS_FINITE(mo_eigenvalues(homo))) THEN
-               CPABORT("OT HOMO energy not finite.")
+            IF (SIZE(matrix_ks) < SIZE(mos)) THEN
+               CPABORT("OT fallback found too few KS matrices.")
             END IF
-            fermi_hartree = MAX(fermi_hartree, mo_eigenvalues(homo))
-         END DO
+            IF (ASSOCIATED(dft_control)) THEN
+               IF (dft_control%do_admm) THEN
+                  CPABORT("OT fallback does not support ADMM.")
+               END IF
+            END IF
+            nspin = SIZE(mos)
+            fermi_hartree = -HUGE(0.0_dp)
+            DO ispin = 1, nspin
+               NULLIFY (mo_coeff, mo_eigenvalues)
+               homo = 0
+               nmo = 0
+               CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, &
+                               eigenvalues=mo_eigenvalues, homo=homo, nmo=nmo)
+               IF (.NOT. ASSOCIATED(mo_coeff) .OR. .NOT. ASSOCIATED(mo_eigenvalues)) THEN
+                  CPABORT("OT fallback could not access orbitals.")
+               END IF
+               IF (homo <= 0 .OR. homo > nmo .OR. homo > SIZE(mo_eigenvalues)) THEN
+                  CPABORT("OT fallback found an invalid HOMO index.")
+               END IF
+               CALL calculate_subspace_eigenvalues(orbitals=mo_coeff, &
+                                                   ks_matrix=matrix_ks(ispin)%matrix, &
+                                                   evals_arg=mo_eigenvalues, &
+                                                   do_rotation=.FALSE.)
+               IF (.NOT. IEEE_IS_FINITE(mo_eigenvalues(homo))) THEN
+                  CPABORT("OT HOMO energy not finite.")
+               END IF
+               fermi_hartree = MAX(fermi_hartree, mo_eigenvalues(homo))
+            END DO
+         END IF
+
+         IF (ABS(fermi_hartree) <= 10.0_dp*EPSILON(fermi_hartree)) THEN
+            CPABORT("Fermi level unset after OT fallback.")
+         END IF
       END IF
 
       IF (.NOT. IEEE_IS_FINITE(fermi_hartree)) THEN
          CPABORT("Fermi level not finite.")
-      END IF
-      IF (ABS(fermi_hartree) <= 10.0_dp*EPSILON(fermi_hartree)) THEN
-         CPABORT("Fermi level unset after OT fallback.")
       END IF
       fermi_level_eV = fermi_hartree*HARTREE_TO_EV
 

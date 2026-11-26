@@ -649,6 +649,7 @@ CONTAINS
       INTEGER                                            :: input_multiplicity, ispin, multiplicity, &
                                                             new_charge, nmo
       INTEGER, DIMENSION(2)                              :: nelectron_spin
+      LOGICAL                                            :: do_kpoints
       REAL(KIND=dp)                                      :: maxocc
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(force_env_type), POINTER                      :: sub
@@ -665,8 +666,25 @@ CONTAINS
 
       new_charge = NINT(electrons%neutral_electrons) - new_n_electron
 
+      do_kpoints = .FALSE.
       CALL get_qs_env(sub%qs_env, dft_control=dft_control, mos=mos, subsys=subsys, &
-                      scf_control=scf_control)
+                      scf_control=scf_control, do_kpoints=do_kpoints)
+
+      ! Refused under k-points. The k-point MO sets are separate mo_set_type
+      ! objects: kpoint_env_create copies nelectron/maxocc/n_el_f out of
+      ! qs_env%mos ONCE, when the k-point environment is built, and
+      ! kpoint_set_mo_occupation then reads the electron count back off
+      ! kp%mos(1), never off qs_env%mos. Mutating qs_env%mos here therefore
+      ! leaves every k-point occupying the OLD number of electrons while the
+      ! subsys reports the new one -- the same silent mismatch the OT refusal
+      ! below guards against. The rebuild path re-enters qs_init, which
+      ! reconstructs the k-point environment from the new charge, so it is
+      ! correct under k-points.
+      IF (do_kpoints) THEN
+         msg = "CHARGE_MIXING_INPLACE cannot change the electron count under "// &
+               "k-points; use CHARGE_MIXING_INPLACE F"
+         CPABORT(TRIM(msg))
+      END IF
 
       IF (ASSOCIATED(scf_control)) THEN
          IF (scf_control%use_ot) THEN
