@@ -2414,14 +2414,12 @@ CONTAINS
 !> \param density_grad ...
 !> \param grad_grad ...
 !> \param kin_grad ...
-!> \param derivatives ...
 ! **************************************************************************************************
-   SUBROUTINE fetch_local_feature_grads(features, density_grad, grad_grad, kin_grad, derivatives)
+   SUBROUTINE fetch_local_feature_grads(features, density_grad, grad_grad, kin_grad)
       TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: density_grad
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: grad_grad
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: kin_grad
-      TYPE(torch_tensor_type), INTENT(IN), OPTIONAL      :: derivatives(3)
 
       INTEGER                                            :: feature_pos, local_row, nrows_all, row
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: density_grad_all, kin_grad_all
@@ -2429,16 +2427,9 @@ CONTAINS
       TYPE(torch_tensor_type)                            :: density_grad_t, grad_grad_t, kin_grad_t
 
       NULLIFY (density_grad_all, grad_grad_all, kin_grad_all)
-      IF (PRESENT(derivatives)) THEN
-         nrows_all = SIZE(features%local_feature_rows)
-         CALL torch_tensor_data_ptr(derivatives(1), density_grad_all)
-         CALL torch_tensor_data_ptr(derivatives(2), grad_grad_all)
-         CALL torch_tensor_data_ptr(derivatives(3), kin_grad_all)
-      ELSE
-         nrows_all = features%nflat
-         CALL get_feature_grad_views(features, density_grad_t, grad_grad_t, kin_grad_t, &
-                                     density_grad_all, grad_grad_all, kin_grad_all)
-      END IF
+      nrows_all = features%nflat
+      CALL get_feature_grad_views(features, density_grad_t, grad_grad_t, kin_grad_t, &
+                                  density_grad_all, grad_grad_all, kin_grad_all)
       CPASSERT(SIZE(density_grad_all, 1) == nrows_all)
       CPASSERT(SIZE(density_grad_all, 2) == 2)
       CPASSERT(SIZE(grad_grad_all, 1) == nrows_all)
@@ -2453,12 +2444,8 @@ CONTAINS
       DO local_row = 1, features%nflat_local
          DO feature_pos = features%local_feature_offsets(local_row), &
             features%local_feature_offsets(local_row + 1) - 1
-            IF (PRESENT(derivatives)) THEN
-               row = feature_pos
-            ELSE
-               row = features%local_feature_rows(feature_pos)
-               CPASSERT(row >= 1 .AND. row <= features%nflat)
-            END IF
+            row = features%local_feature_rows(feature_pos)
+            CPASSERT(row >= 1 .AND. row <= features%nflat)
             density_grad(local_row, :) = density_grad(local_row, :) + &
                                          density_grad_all(row, :)
             grad_grad(local_row, :, :) = grad_grad(local_row, :, :) + &
@@ -2467,11 +2454,9 @@ CONTAINS
          END DO
       END DO
 
-      IF (.NOT. PRESENT(derivatives)) THEN
-         CALL torch_tensor_release(density_grad_t)
-         CALL torch_tensor_release(grad_grad_t)
-         CALL torch_tensor_release(kin_grad_t)
-      END IF
+      CALL torch_tensor_release(density_grad_t)
+      CALL torch_tensor_release(grad_grad_t)
+      CALL torch_tensor_release(kin_grad_t)
 
    END SUBROUTINE fetch_local_feature_grads
 
@@ -2715,7 +2700,7 @@ CONTAINS
       END IF
       CALL skala_gpw_feature_release(direction)
       CALL skala_gpw_feature_release(reference)
-      CALL xc_rho_set_release(rho1_set)
+      CALL xc_rho_set_release(rho1_set, pw_pool=pw_pool)
       CALL torch_use_cuda(use_cuda)
    END SUBROUTINE skala_gpw_fxc
 

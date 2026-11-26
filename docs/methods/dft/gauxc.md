@@ -120,9 +120,8 @@ batch. Larger batches reduce kernel-launch overhead but increase device memory u
 CUTLASS support, and otherwise leaves the choice to GauXC. `DEFAULT` always uses GauXC's default.
 `SCHEME1-CUTLASS` forces the CUTLASS grouped local-potential update.
 
-`MODEL_ATOM_CHUNK_SIZE` (see below) controls atom-blocked Torch inference and therefore also device
-memory use. `SKALA_RUNTIME` and `MODEL_GRADIENT_RUNTIME` select MPI or rank-replicated runtimes;
-replicated runtimes duplicate the model state on every rank, which matters for GPU memory.
+`SKALA_RUNTIME` and `MODEL_GRADIENT_RUNTIME` select MPI or rank-replicated runtimes; replicated
+runtimes duplicate the model state on every rank, which matters for GPU memory.
 `FORCE_NUMERICAL_GRADIENT` performs six full XC energy evaluations per atom, each of which runs on
 the device when the integrator is on the device.
 

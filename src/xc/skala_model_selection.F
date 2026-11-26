@@ -34,7 +34,7 @@ MODULE skala_model_selection
 
    PUBLIC :: find_single_functional_subsection, &
              gauxc_model_none_selected, get_gauxc_section, get_skala_native_section, &
-             model_key_is_none, &
+             model_is_skala, model_key_is_none, &
              resolve_skala_execution_target, resolve_skala_model_path, select_cuda_target, &
              skala_execution_target_type, &
              xc_section_uses_gauxc, xc_section_uses_gauxc_model, &
@@ -217,7 +217,7 @@ CONTAINS
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL                                            :: uses_skala_model
 
-      CHARACTER(len=default_path_length)                 :: model_key, model_name
+      CHARACTER(len=default_path_length)                 :: model_name
       TYPE(section_vals_type), POINTER                   :: gauxc_section, native_section
 
       uses_skala_model = .FALSE.
@@ -231,11 +231,26 @@ CONTAINS
       IF (.NOT. ASSOCIATED(gauxc_section)) RETURN
 
       CALL section_vals_val_get(gauxc_section, "MODEL", c_val=model_name)
-      model_key = ADJUSTL(model_name)
-      CALL uppercase(model_key)
-      uses_skala_model = (TRIM(model_key) == "SKALA")
+      uses_skala_model = model_is_skala(model_name)
 
    END FUNCTION xc_section_uses_skala_model
+
+! **************************************************************************************************
+!> \brief Return true if a GAUXC MODEL key selects or names a SKALA model.
+!>        Matches both the "SKALA" keyword and model paths/names containing SKALA.
+!> \param model_name the MODEL keyword value
+!> \return ...
+! **************************************************************************************************
+   FUNCTION model_is_skala(model_name) RESULT(is_skala)
+      CHARACTER(len=*), INTENT(IN)                       :: model_name
+      LOGICAL                                            :: is_skala
+
+      CHARACTER(len=default_path_length)                 :: model_key
+
+      model_key = ADJUSTL(model_name)
+      CALL uppercase(model_key)
+      is_skala = (INDEX(TRIM(model_key), "SKALA") > 0)
+   END FUNCTION model_is_skala
 
 ! **************************************************************************************************
 !> \brief Return true when a model key selects NONE or the functional itself.

@@ -35,6 +35,7 @@ MODULE qs_dispersion_utils
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
+   USE skala_model_selection,           ONLY: model_is_skala
    USE string_utilities,                ONLY: lowercase,&
                                               uppercase
 #include "./base/base_uses.f90"
@@ -113,7 +114,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(OUT)                      :: xc_functional_name
       LOGICAL, INTENT(OUT)                               :: found
 
-      CHARACTER(len=default_string_length)               :: function_name, model_key, model_name
+      CHARACTER(len=default_string_length)               :: function_name, model_name
       INTEGER                                            :: i
       LOGICAL                                            :: section_active
       TYPE(section_vals_type), POINTER                   :: sub_section
@@ -134,9 +135,7 @@ CONTAINS
             CALL section_vals_val_get(sub_section, "_SECTION_PARAMETERS_", l_val=section_active)
             IF (.NOT. section_active) CYCLE
             CALL section_vals_val_get(sub_section, "MODEL", c_val=model_name)
-            model_key = ADJUSTL(model_name)
-            CALL uppercase(model_key)
-            IF (INDEX(TRIM(model_key), "SKALA") > 0) THEN
+            IF (model_is_skala(model_name)) THEN
                xc_functional_name = "SKALA"
             ELSE
                CALL section_vals_val_get(sub_section, "FUNCTIONAL", c_val=function_name)
