@@ -3218,6 +3218,10 @@ CONTAINS
                   PRESENT(word) = IOR(PRESENT(word), mask)
                   nneed = nneed + 1
                   IF (nneed > capacity) THEN
+                     IF (capacity > HUGE(1)/2) THEN
+                        CALL cp_abort(__LOCATION__, &
+                                      "Native-grid candidate list would exceed the integer range.")
+                     END IF
                      ALLOCATE (grown(2*capacity))
                      grown(1:capacity) = cand(1:capacity)
                      DEALLOCATE (cand)
