@@ -1945,8 +1945,8 @@ CONTAINS
       LOGICAL                                            :: do_force, do_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: included
       REAL(KIND=dp)                                      :: grid_base_weight
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weight_grad, weights
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distances, weight_grad, weights
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc, partition_atom_coords
       REAL(KIND=dp), DIMENSION(3)                        :: grid_point
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atomic_grid_weight_grad, grid_weight_grad
 
@@ -1962,7 +1962,8 @@ CONTAINS
          CPASSERT(SIZE(atom_force, 1) == 3)
          CPASSERT(SIZE(atom_force, 2) == natom)
       END IF
-      ALLOCATE (atom_coords_pbc(3, natom), included(natom), weights(natom), weight_grad(natom))
+      ALLOCATE (atom_coords_pbc(3, natom), included(natom), weights(natom), weight_grad(natom), &
+                distances(natom), partition_atom_coords(3, natom))
       DO iatom = 1, natom
          atom_coords_pbc(:, iatom) = pbc(particle_set(iatom)%r, cell, positive_range=.TRUE.)
       END DO
@@ -1974,7 +1975,9 @@ CONTAINS
             DO i = bo(1, 1), bo(2, 1)
                local_row = local_row + 1
                grid_point = grid_coordinate(rho_r(1)%pw_grid, [i, j, k])
-               CALL smooth_partition_weights(grid_point, atom_coords_pbc, cell, weights, included)
+               CALL smooth_partition_weights(grid_point, atom_coords_pbc, cell, weights, included, &
+                                             partition_atom_coords_out=partition_atom_coords, &
+                                             distances_out=distances)
                feature_begin = features%local_feature_offsets(local_row)
                feature_end = features%local_feature_offsets(local_row + 1) - 1
                CPASSERT(feature_end - feature_begin + 1 == COUNT(included))
@@ -1999,22 +2002,25 @@ CONTAINS
                IF (do_force .AND. do_virial) THEN
                   CALL smooth_partition_derivative_action( &
                      grid_point, atom_coords_pbc, cell, weights, included, weight_grad, &
-                     atom_force=atom_force, virial_xc=virial_xc)
+                     atom_force=atom_force, virial_xc=virial_xc, &
+                     partition_atom_coords_in=partition_atom_coords, distances_in=distances)
                ELSE IF (do_force) THEN
                   CALL smooth_partition_derivative_action( &
                      grid_point, atom_coords_pbc, cell, weights, included, weight_grad, &
-                     atom_force=atom_force)
+                     atom_force=atom_force, partition_atom_coords_in=partition_atom_coords, &
+                     distances_in=distances)
                ELSE
                   CALL smooth_partition_derivative_action( &
                      grid_point, atom_coords_pbc, cell, weights, included, weight_grad, &
-                     virial_xc=virial_xc)
+                     virial_xc=virial_xc, partition_atom_coords_in=partition_atom_coords, &
+                     distances_in=distances)
                END IF
             END DO
          END DO
       END DO
       CPASSERT(local_row == features%nflat_local)
 
-      DEALLOCATE (atom_coords_pbc, included, weights, weight_grad)
+      DEALLOCATE (atom_coords_pbc, included, weights, weight_grad, distances, partition_atom_coords)
 
    END SUBROUTINE add_smooth_partition_force_virial
 

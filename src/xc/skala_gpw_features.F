@@ -2975,13 +2975,19 @@ CONTAINS
 !> \param cell ...
 !> \param weights ...
 !> \param included ...
+!> \param partition_atom_coords_out ...
+!> \param distances_out ...
 ! **************************************************************************************************
-   SUBROUTINE smooth_partition_weights(grid_point, atom_coords, cell, weights, included)
+   SUBROUTINE smooth_partition_weights(grid_point, atom_coords, cell, weights, included, &
+                                       partition_atom_coords_out, distances_out)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: weights
       LOGICAL, DIMENSION(:), INTENT(OUT)                 :: included
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
+         OPTIONAL                                        :: partition_atom_coords_out
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: distances_out
 
       INTEGER                                            :: iatom, jatom, natom
       REAL(KIND=dp)                                      :: included_sum, rsum
@@ -2994,6 +3000,8 @@ CONTAINS
 
       CALL smooth_atom_partition(grid_point, atom_coords, cell, weights, &
                                  partition_atom_coords, distances)
+      IF (PRESENT(partition_atom_coords_out)) partition_atom_coords_out = partition_atom_coords
+      IF (PRESENT(distances_out)) distances_out = distances
       included = weights > smooth_partition_eps
       included_sum = SUM(weights, MASK=included)
 
@@ -3034,10 +3042,13 @@ CONTAINS
 !> \param weight_grad ...
 !> \param atom_force ...
 !> \param virial_xc ...
+!> \param partition_atom_coords_in ...
+!> \param distances_in ...
 ! **************************************************************************************************
    SUBROUTINE smooth_partition_derivative_action(grid_point, atom_coords, cell, &
                                                  weights, included, weight_grad, &
-                                                 atom_force, virial_xc)
+                                                 atom_force, virial_xc, partition_atom_coords_in, &
+                                                 distances_in)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
       TYPE(cell_type), POINTER                           :: cell
@@ -3048,6 +3059,9 @@ CONTAINS
          OPTIONAL                                        :: atom_force
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
          OPTIONAL                                        :: virial_xc
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: partition_atom_coords_in
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: distances_in
 
       INTEGER                                            :: iatom, idir, jatom, jdir, natom
       LOGICAL                                            :: do_force, do_virial
@@ -3075,10 +3089,18 @@ CONTAINS
       END IF
 
       DO iatom = 1, natom
-         partition_atom_coords(:, iatom) = &
-            nearest_atom_image_coordinate(atom_coords(:, iatom), grid_point, cell)
+         IF (PRESENT(partition_atom_coords_in)) THEN
+            partition_atom_coords(:, iatom) = partition_atom_coords_in(:, iatom)
+         ELSE
+            partition_atom_coords(:, iatom) = &
+               nearest_atom_image_coordinate(atom_coords(:, iatom), grid_point, cell)
+         END IF
          rvecs(:, iatom) = grid_point - partition_atom_coords(:, iatom)
-         distances(iatom) = SQRT(SUM(rvecs(:, iatom)**2))
+         IF (PRESENT(distances_in)) THEN
+            distances(iatom) = distances_in(iatom)
+         ELSE
+            distances(iatom) = SQRT(SUM(rvecs(:, iatom)**2))
+         END IF
          IF (distances(iatom) > layout_tol) THEN
             unit_rvecs(:, iatom) = rvecs(:, iatom)/distances(iatom)
          ELSE
