@@ -125,6 +125,33 @@ static void torch_c_check(const bool condition, const char *message) {
   }
 }
 
+// Pinned-host budget (per rank), overridable via CP2K_TORCH_PINNED_MB.
+static int64_t torch_pinned_budget_bytes() {
+  static const int64_t budget = []() -> int64_t {
+    int64_t mb = 256;
+    const char *env = std::getenv("CP2K_TORCH_PINNED_MB");
+    if (env != nullptr && env[0] != '\0') {
+      char *end = nullptr;
+      const long value = std::strtol(env, &end, 10);
+      if (end != env && value > 0) {
+        mb = static_cast<int64_t>(value);
+      }
+    }
+    return mb * 1024 * 1024;
+  }();
+  return budget;
+}
+
+static void warn_pageable_pinned_once(const char *what) {
+  static std::once_flag flag;
+  std::call_once(flag, [what]() {
+    std::fprintf(
+        stderr,
+        "TORCH| %s exceeds CP2K_TORCH_PINNED_MB; using pageable memory.\n",
+        what);
+  });
+}
+
 #define TORCH_C_TRY try {
 #define TORCH_C_CATCH(NAME)                                                    \
   }                                                                            \
@@ -518,16 +545,68 @@ static torch_c_tensor_t *tensor_from_array(const torch::Dtype dtype,
   return new torch_c_tensor_t(torch::from_blob(source, sizes_ref, opts));
 }
 
+struct grad_pinned_entry {
+  torch::Tensor tensor;
+  uint64_t last_use = 0;
+  bool pinned = false;
+  int64_t bytes = 0;
+};
+
 static std::mutex grad_pinned_mutex;
-static std::unordered_map<const torch_c_tensor_t *, torch::Tensor>
+static std::unordered_map<const torch_c_tensor_t *, grad_pinned_entry>
     *grad_pinned_pool = nullptr;
+static int64_t grad_pinned_bytes = 0;
+static uint64_t grad_pinned_clock = 0;
 
 static void erase_grad_pool_entry(const torch_c_tensor_t *tensor) {
   if (tensor == nullptr)
     return;
   std::lock_guard<std::mutex> lock(grad_pinned_mutex);
   if (grad_pinned_pool != nullptr) {
-    grad_pinned_pool->erase(tensor);
+    const auto it = grad_pinned_pool->find(tensor);
+    if (it != grad_pinned_pool->end()) {
+      if (it->second.pinned) {
+        grad_pinned_bytes -= it->second.bytes;
+      }
+      grad_pinned_pool->erase(it);
+    }
+  }
+}
+
+// Evict idle, non-pending entries (oldest first) until `need` more bytes fit in
+// the pinned budget. Must be called with grad_pinned_mutex held.
+static void evict_grad_pool_locked(const int64_t need) {
+  if (grad_pinned_pool == nullptr) {
+    return;
+  }
+  const int64_t budget = torch_pinned_budget_bytes();
+  while (grad_pinned_bytes + need > budget && !grad_pinned_pool->empty()) {
+    auto victim = grad_pinned_pool->end();
+    uint64_t oldest = UINT64_MAX;
+    for (auto it = grad_pinned_pool->begin(); it != grad_pinned_pool->end();
+         ++it) {
+      const auto &entry = it->second;
+      if (!entry.tensor.defined()) {
+        continue;
+      }
+      if (entry.tensor.getIntrusivePtr().use_count() != 1) {
+        continue; // still referenced by a caller
+      }
+      if (pending_grad_copy(it->first)) {
+        continue; // deferred readback in flight
+      }
+      if (entry.last_use < oldest) {
+        oldest = entry.last_use;
+        victim = it;
+      }
+    }
+    if (victim == grad_pinned_pool->end()) {
+      break; // nothing safe to evict
+    }
+    if (victim->second.pinned) {
+      grad_pinned_bytes -= victim->second.bytes;
+    }
+    grad_pinned_pool->erase(victim);
   }
 }
 
@@ -677,7 +756,6 @@ struct staging_slot {
 static std::mutex pinned_pool_mutex;
 static std::vector<staging_slot> *pinned_pool = nullptr;
 static int64_t pinned_bytes = 0;
-static constexpr int64_t kPinnedMaxBytes = 256LL * 1024 * 1024;
 static thread_local int pinned_current_slot = -1;
 static std::atomic<uint64_t> pinned_generation{0};
 static thread_local uint64_t pinned_generation_local = 0;
@@ -748,18 +826,27 @@ void torch_c_pinned_reserve(const int64_t n_doubles) {
   }
   if (!slots[chosen].tensor.defined() ||
       slots[chosen].tensor.numel() < n_doubles) {
+    // Grow to at least the requested size (never shrink) to avoid re-pinning
+    // churn when successive uploads vary in size.
+    const int64_t old_numel =
+        slots[chosen].tensor.defined() ? slots[chosen].tensor.numel() : 0;
+    const int64_t target = std::max<int64_t>(n_doubles, old_numel);
     const int64_t old_bytes =
         (slots[chosen].tensor.defined() && slots[chosen].pinned)
-            ? static_cast<int64_t>(slots[chosen].tensor.numel()) *
-                  static_cast<int64_t>(sizeof(double))
+            ? old_numel * static_cast<int64_t>(sizeof(double))
             : 0;
-    const int64_t want_bytes = n_doubles * static_cast<int64_t>(sizeof(double));
+    const int64_t want_bytes = target * static_cast<int64_t>(sizeof(double));
     const bool allow_pinned =
-        pinned_bytes - old_bytes + want_bytes <= kPinnedMaxBytes;
+        pinned_bytes - old_bytes + want_bytes <= torch_pinned_budget_bytes();
     bool pinned = false;
-    slots[chosen].tensor = make_host_buffer(n_doubles, pinned, allow_pinned);
+    slots[chosen].tensor = make_host_buffer(target, pinned, allow_pinned);
     slots[chosen].pinned = pinned;
     pinned_bytes = pinned_bytes - old_bytes + (pinned ? want_bytes : 0);
+#if defined(__LIBTORCH_CUDA)
+    if (!pinned) {
+      warn_pageable_pinned_once("Torch staging upload");
+    }
+#endif
   }
   slots[chosen].in_use = true;
   pinned_current_slot = chosen;
@@ -1119,22 +1206,65 @@ static void grad_batch_impl(const torch_c_tensor_t *const *tensors,
     {
       std::lock_guard<std::mutex> lock(grad_pinned_mutex);
       if (grad_pinned_pool == nullptr) {
-        grad_pinned_pool =
-            new std::unordered_map<const torch_c_tensor_t *, torch::Tensor>();
+        grad_pinned_pool = new std::unordered_map<const torch_c_tensor_t *,
+                                                  grad_pinned_entry>();
       }
+      ++grad_pinned_clock;
       for (int i = 0; i < count; ++i) {
-        auto &entry = (*grad_pinned_pool)[tensors[i]];
         const auto sizes = sources[i].sizes();
-        const bool reuse = entry.defined() && entry.sizes() == sizes &&
-                           entry.scalar_type() == sources[i].scalar_type() &&
-                           entry.getIntrusivePtr().use_count() == 1 &&
-                           !pending_grad_copy(tensors[i]);
-        if (!reuse) {
-          entry = torch::empty(
-              sizes,
-              sources[i].options().device(torch::kCPU).pinned_memory(true));
+        auto it = grad_pinned_pool->find(tensors[i]);
+        bool reuse = false;
+        if (it != grad_pinned_pool->end()) {
+          const auto &entry = it->second;
+          reuse = entry.tensor.defined() && entry.tensor.sizes() == sizes &&
+                  entry.tensor.scalar_type() == sources[i].scalar_type() &&
+                  entry.tensor.getIntrusivePtr().use_count() == 1 &&
+                  !pending_grad_copy(tensors[i]);
         }
-        hosts[i] = entry;
+        if (reuse) {
+          it->second.last_use = grad_pinned_clock;
+          hosts[i] = it->second.tensor;
+          continue;
+        }
+        if (it != grad_pinned_pool->end()) {
+          if (it->second.pinned) {
+            grad_pinned_bytes -= it->second.bytes;
+          }
+          grad_pinned_pool->erase(it);
+        }
+        const int64_t need =
+            sources[i].numel() * static_cast<int64_t>(sizeof(double));
+        evict_grad_pool_locked(need);
+        const bool allow_pinned =
+            grad_pinned_bytes + need <= torch_pinned_budget_bytes() &&
+            torch::cuda::is_available();
+        bool pinned = false;
+        torch::Tensor host;
+        if (allow_pinned) {
+          try {
+            host = torch::empty(
+                sizes,
+                sources[i].options().device(torch::kCPU).pinned_memory(true));
+            pinned = true;
+          } catch (const c10::Error &) {
+            pinned = false;
+          }
+        }
+        if (!host.defined()) {
+          host = torch::empty(sizes, sources[i].options().device(torch::kCPU));
+        }
+        if (!pinned) {
+          warn_pageable_pinned_once("Torch gradient readback");
+        }
+        auto &entry = (*grad_pinned_pool)[tensors[i]];
+        entry.tensor = host;
+        entry.pinned = pinned;
+        entry.bytes = pinned ? need : 0;
+        entry.last_use = grad_pinned_clock;
+        if (pinned) {
+          grad_pinned_bytes += need;
+        }
+        hosts[i] = host;
       }
     }
     for (int i = 0; i < count; ++i) {
@@ -1187,6 +1317,7 @@ void torch_c_grad_pool_clear() {
     std::lock_guard<std::mutex> lock(grad_pinned_mutex);
     delete grad_pinned_pool;
     grad_pinned_pool = nullptr;
+    grad_pinned_bytes = 0;
   }
   TORCH_C_CATCH("torch_c_grad_pool_clear")
 }
