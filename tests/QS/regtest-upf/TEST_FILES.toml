@@ -32,3 +32,11 @@
   {matcher = "Atomic_force_1_z", tol = 1e-7, ref = -0.0258824640},
   {matcher = "M031", tol = 1e-7, ref = 263372.194097},
 ]
+
+# Complete complex Bloch density with unequal k-point weights.
+"H2_inverse_GPW_kpoints.inp" = [
+  {matcher = "M011", tol = 1e-10, ref = -2.016320547908366},
+  {matcher = "Atomic_force_1_z", tol = 1e-7, ref = 0.155915454},
+  {matcher = "M031", tol = 1e-7, ref = 135951.637239},
+  {matcher = "SCF_raw_map_delta", tol = 1e-12, ref = 0.0},
+]

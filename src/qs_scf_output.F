@@ -603,7 +603,7 @@ CONTAINS
                END IF
                IF (scf_env%raw_map_delta_valid) THEN
                   WRITE (UNIT=output_unit, FMT="(T4,A,ES11.3,A,ES11.3)") &
-                     "ADIIS metrics: step_norm=", scf_env%step_norm, &
+                     "SCF metrics: step_norm=", scf_env%step_norm, &
                      " raw_map_delta=", scf_env%raw_map_delta
                END IF
 

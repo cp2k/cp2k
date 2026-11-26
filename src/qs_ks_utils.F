@@ -1749,7 +1749,7 @@ CONTAINS
                   CALL inverse_potential(ispin)%create(v_rspace_new(ispin)%pw_grid)
                   CALL pw_copy(v_rspace_new(ispin), inverse_potential(ispin))
                END IF
-               CALL qs_upf_inverse_scf_integrate(ks_env, v_rspace_new(ispin), ks_matrix(ispin, 1)%matrix, weighted=.TRUE.)
+             CALL qs_upf_inverse_scf_integrate(ks_env, v_rspace_new(ispin), ks_matrix(ispin, 1)%matrix, weighted=.TRUE., spin=ispin)
             ELSE
                rho_ao => my_rho(ispin, :)
                ksmat => ks_matrix(ispin, :)
@@ -1859,7 +1859,7 @@ CONTAINS
                   CALL inverse_potential(ispin)%create(v_rspace_used%pw_grid)
                   CALL pw_copy(v_rspace_used, inverse_potential(ispin))
                END IF
-               CALL qs_upf_inverse_scf_integrate(ks_env, v_rspace_used, ks_matrix(ispin, 1)%matrix, weighted=.TRUE.)
+               CALL qs_upf_inverse_scf_integrate(ks_env, v_rspace_used, ks_matrix(ispin, 1)%matrix, weighted=.TRUE., spin=ispin)
             ELSE
                rho_ao => my_rho(ispin, :)
                ksmat => ks_matrix(ispin, :)

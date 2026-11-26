@@ -16,6 +16,7 @@ PROGRAM kpoint_smearing_unittest
    USE reference_manager,               ONLY: remove_all_references
    USE scf_control_types,               ONLY: smear_type
    USE smearing_utils,                  ONLY: Smearkp,&
+                                              Smearkp2,&
                                               smearing_response_weight,&
                                               smearing_separate_spin,&
                                               smearing_spin_targets
@@ -73,6 +74,7 @@ PROGRAM kpoint_smearing_unittest
       ERROR STOP "Disabled smearing produced an edge status"
    END IF
 
+   CALL test_empty_spin()
    CALL test_fixed_n_smearing_response()
    CALL test_fixed_spin_populations()
    CALL remove_all_references()
@@ -100,6 +102,37 @@ CONTAINS
          ERROR STOP "Fractional spin targets were rounded"
       END IF
    END SUBROUTINE test_fixed_spin_populations
+
+! **************************************************************************************************
+!> \brief An empty spin channel must remain empty at every k point.
+! **************************************************************************************************
+   SUBROUTINE test_empty_spin()
+      INTEGER                                            :: imethod, method
+      INTEGER, DIMENSION(5)                              :: methods
+      REAL(KIND=dp)                                      :: kTS, mu, sigma
+      REAL(KIND=dp), DIMENSION(2)                        :: weight
+      REAL(KIND=dp), DIMENSION(3, 2)                     :: eigenvalue, occupation
+      REAL(KIND=dp), DIMENSION(3, 2, 2)                  :: spin_eigenvalue, spin_occupation
+
+      methods = [smear_gaussian, smear_fermi_dirac, smear_gaussian, smear_mp, smear_mv]
+      weight = [0.3_dp, 0.7_dp]
+      eigenvalue(:, 1) = [-0.3_dp, 0.1_dp, 0.5_dp]
+      eigenvalue(:, 2) = [-0.2_dp, 0.2_dp, 0.6_dp]
+      spin_eigenvalue(:, :, 1) = eigenvalue
+      spin_eigenvalue(:, :, 2) = eigenvalue + 0.05_dp
+      DO imethod = 1, SIZE(methods)
+         method = methods(imethod)
+         sigma = MERGE(0.0_dp, 0.1_dp, imethod == 1)
+         CALL Smearkp(occupation, mu, kTS, eigenvalue, 0.0_dp, weight, sigma, 1.0_dp, method)
+         IF (ANY(occupation /= 0.0_dp) .OR. kTS /= 0.0_dp .OR. mu >= MINVAL(eigenvalue)) THEN
+            ERROR STOP "Empty k-point spin channel acquired an occupation"
+         END IF
+         CALL Smearkp2(spin_occupation, mu, kTS, spin_eigenvalue, 0.0_dp, weight, sigma, method)
+         IF (ANY(spin_occupation /= 0.0_dp) .OR. kTS /= 0.0_dp .OR. mu >= MINVAL(spin_eigenvalue)) THEN
+            ERROR STOP "Empty k-point system acquired a spin occupation"
+         END IF
+      END DO
+   END SUBROUTINE test_empty_spin
 
 ! **************************************************************************************************
 !> \brief Check the fixed-N occupation response for every supported K-point smearing method.

@@ -84,6 +84,7 @@ MODULE qs_scf_loop_utils
                                               new_pulay_mixing_nr,&
                                               no_mixing_nr,&
                                               pulay_mixing_nr
+   USE qs_diis,                         ONLY: qs_diis_b_clear_kp
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -92,6 +93,8 @@ MODULE qs_scf_loop_utils
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type,&
                                               set_qs_kind
+   USE qs_kpoint_density_state,         ONLY: kpoint_density_state_accept,&
+                                              kpoint_density_state_delta
    USE qs_kpoint_operators,             ONLY: kpoint_operator_context_create,&
                                               kpoint_operator_context_release,&
                                               kpoint_operator_context_type,&
@@ -487,8 +490,9 @@ CONTAINS
       INTEGER                                            :: accepted_searches, handle, ispin, &
                                                             refresh_count
       LOGICAL :: allow_exit_refresh, allow_refresh, base_state, disable_diis, has_unit_metric, &
-         my_added_mos_auto_grow, ot_energy_only, refresh
-      REAL(dp)                                           :: diis_error, residual, saved_eps_diis
+         my_added_mos_auto_grow, native_diis_check, ot_energy_only, refresh
+      REAL(dp)                                           :: diis_error, native_delta, residual, &
+                                                            saved_eps_diis
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, matrix_t
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -503,6 +507,7 @@ CONTAINS
       accepted_searches = 0
       my_added_mos_auto_grow = .FALSE.
       refresh = .FALSE.
+      native_diis_check = .FALSE.
       IF (PRESENT(allow_ot_kp_subspace_refresh)) allow_refresh = allow_ot_kp_subspace_refresh
       IF (PRESENT(allow_ot_kp_exit_refresh)) allow_exit_refresh = allow_ot_kp_exit_refresh
       IF (PRESENT(accepted_ot_kp_searches)) accepted_searches = accepted_ot_kp_searches
@@ -548,14 +553,43 @@ CONTAINS
                                     diis_step, diis_error, qs_env, &
                                     added_mos_auto_grow=my_added_mos_auto_grow)
          END IF
+         IF (.NOT. my_added_mos_auto_grow .AND. ALLOCATED(kpoints%native_density) .AND. &
+             scf_control%diagonalization%update_method /= diag_update_method_adiis) THEN
+            CALL kpoint_density_state_delta(kpoints, native_delta)
+            IF (native_delta < scf_control%eps_scf) THEN
+               IF (diis_step) THEN
+                  ! A small extrapolated step need not be a fixed point of the unchanged H[P].
+                  ! Omitting diis_error and qs_env requests one unaccelerated solve, within
+                  ! this iteration. Retain its orbitals, occupations and raw candidate density.
+                  native_diis_check = .TRUE.
+                  diis_step = .FALSE.
+                  CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .TRUE., &
+                                          diis_step, probe=probe, added_mos_auto_grow=my_added_mos_auto_grow)
+                  IF (.NOT. my_added_mos_auto_grow) THEN
+                     CALL kpoint_density_state_delta(kpoints, native_delta)
+                     IF (native_delta >= scf_control%eps_scf .AND. ASSOCIATED(kpoints%scf_diis_buffer)) THEN
+                        CALL qs_diis_b_clear_kp(kpoints%scf_diis_buffer)
+                     END IF
+                  END IF
+               END IF
+               IF (.NOT. my_added_mos_auto_grow) THEN
+                  scf_env%raw_map_delta = native_delta
+                  scf_env%raw_map_delta_valid = .TRUE.
+               END IF
+            END IF
+         END IF
          IF (my_added_mos_auto_grow) THEN
             IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
             IF (disable_diis) scf_control%eps_diis = saved_eps_diis
             CALL timestop(handle)
             RETURN
          END IF
-         IF (scf_control%diagonalization%update_method == diag_update_method_adiis .AND. &
-             .NOT. diis_step) THEN
+         IF (native_diis_check) THEN
+            scf_env%iter_param = native_delta
+            scf_env%iter_method = "DIIS/Chk."
+            IF (native_delta >= scf_control%eps_scf) scf_env%iter_method = "DIIS/Rst."
+         ELSE IF (scf_control%diagonalization%update_method == diag_update_method_adiis .AND. &
+                  .NOT. diis_step) THEN
             scf_env%iter_param = diis_error
             IF (scf_env%scf_subspace_buffer%last_restart) THEN
                scf_env%iter_method = "ADIIS/Rst."
@@ -3408,6 +3442,15 @@ CONTAINS
       REAL(KIND=dp)                                      :: tmp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
 
+      IF (PRESENT(kpoints)) THEN
+         IF (ASSOCIATED(kpoints)) THEN
+            IF (ALLOCATED(kpoints%native_density)) THEN
+               CALL kpoint_density_state_delta(kpoints, delta)
+               RETURN
+            END IF
+         END IF
+      END IF
+
       NULLIFY (rho_ao_kp)
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
 
@@ -3470,6 +3513,25 @@ CONTAINS
 
       REAL(KIND=dp)                                      :: alpha
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
+
+      IF (PRESENT(kpoints)) THEN
+         IF (ASSOCIATED(kpoints)) THEN
+            IF (ALLOCATED(kpoints%native_density)) THEN
+               IF (scf_env%mixing_method /= direct_mixing_nr .AND. scf_env%mixing_method /= no_mixing_nr) THEN
+                  CPABORT("Native k-point densities require direct or no mixing")
+               END IF
+               alpha = 1.0_dp
+               IF (scf_env%mixing_method == direct_mixing_nr) THEN
+                  IF (.NOT. diis_step .AND. scf_env%iter_count >= scf_env%mixing_store%nskip_mixing) THEN
+                     alpha = scf_env%mixing_store%alpha
+                  END IF
+               END IF
+               CALL kpoint_density_state_delta(kpoints, scf_env%iter_delta)
+               CALL kpoint_density_state_accept(kpoints, alpha)
+               RETURN
+            END IF
+         END IF
+      END IF
 
       NULLIFY (rho_ao_kp)
 
@@ -3661,17 +3723,28 @@ CONTAINS
 !> \param dft_control ...
 !> \param para_env ...
 !> \param diis_step ...
+!> \param kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_undo_mixing(scf_env, rho, dft_control, para_env, diis_step)
+   SUBROUTINE qs_scf_undo_mixing(scf_env, rho, dft_control, para_env, diis_step, kpoints)
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL                                            :: diis_step
+      TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
 
       CHARACTER(len=default_string_length)               :: name
       INTEGER                                            :: ic, ispin, nc
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
+
+      IF (PRESENT(kpoints)) THEN
+         IF (ASSOCIATED(kpoints)) THEN
+            IF (ALLOCATED(kpoints%native_density)) THEN
+               CALL kpoint_density_state_accept(kpoints, 1.0_dp)
+               RETURN
+            END IF
+         END IF
+      END IF
 
       NULLIFY (rho_ao_kp)
 
@@ -3773,7 +3846,7 @@ CONTAINS
       ! (this actually is not 100% consistent at this point)!
       CALL qs_scf_print_summary(output_unit, qs_env)
 
-      CALL qs_scf_undo_mixing(scf_env, rho, dft_control, para_env, diis_step)
+      CALL qs_scf_undo_mixing(scf_env, rho, dft_control, para_env, diis_step, kpoints)
       CALL lowdin_kp_population(kpoints, alpha=1.0_dp)
 
       !   *** update rspace rho since the mo changed

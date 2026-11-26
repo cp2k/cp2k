@@ -140,7 +140,8 @@ MODULE qs_ks_methods
                                               sccs_core_fill_coefficients
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE qs_upf_inverse_core,             ONLY: qs_upf_inverse_core_force
-   USE qs_upf_inverse_scf,              ONLY: qs_upf_inverse_scf_active
+   USE qs_upf_inverse_scf,              ONLY: qs_upf_inverse_scf_active,&
+                                              qs_upf_inverse_scf_traces
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom,&
                                               gapw_cdft_one_center
@@ -1739,21 +1740,30 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_core_matrix_traces'
 
       INTEGER                                            :: handle
+      LOGICAL                                            :: do_kpoints
       REAL(KIND=dp)                                      :: energy_core_im
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_h, matrixkp_t, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
       NULLIFY (energy, rho, dft_control, rho_ao_kp, matrixkp_t, matrixkp_h)
 
       CALL get_qs_env(qs_env, &
-                      rho=rho, &
+                      rho=rho, ks_env=ks_env, do_kpoints=do_kpoints, &
                       energy=energy, &
                       dft_control=dft_control, &
                       kinetic_kp=matrixkp_t, &
                       matrix_h_kp=matrixkp_h)
+
+      IF (qs_upf_inverse_scf_active(ks_env) .AND. do_kpoints) THEN
+         CPASSERT(.NOT. PRESENT(rho_ao_ext))
+         CALL qs_upf_inverse_scf_traces(ks_env, energy%core, energy%kinetic)
+         CALL timestop(handle)
+         RETURN
+      END IF
 
       IF (PRESENT(rho_ao_ext)) THEN
          rho_ao_kp => rho_ao_ext

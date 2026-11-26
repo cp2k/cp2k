@@ -54,6 +54,8 @@ MODULE population_analyses
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_kpoint_density_state,         ONLY: kpoint_density_state_active,&
+                                              kpoint_density_state_mulliken
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
@@ -263,7 +265,7 @@ CONTAINS
       INTEGER                                            :: handle, iatom, ic, isgf, ispin, jatom, &
                                                             jsgf, natom, nsgf, nspin, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf_atom
-      LOGICAL                                            :: found, print_gop
+      LOGICAL                                            :: found, native_density, print_gop
       REAL(KIND=dp)                                      :: ps
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: orbpop
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, ps_block, s_block
@@ -271,6 +273,7 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: sm_p, sm_ps, sm_s
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -285,12 +288,17 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
                       matrix_metric_kp=matrix_s, &
+                      kpoints=kpoints, &
                       particle_set=particle_set, &
                       rho=rho, &
                       para_env=para_env)
 
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p) ! Density matrices in sparse format
       nspin = SIZE(matrix_p, 1)
+      native_density = kpoint_density_state_active(kpoints)
+      IF (native_density .AND. print_level > 2) THEN
+         CPABORT("Full Bloch Mulliken matrix output is not implemented yet")
+      END IF
 
       ! Get the total number of contracted spherical Gaussian basis functions
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
@@ -327,61 +335,65 @@ CONTAINS
       END IF
 
       ! Build Mulliken population matrix for each spin
-      DO ispin = 1, nspin
-         DO ic = 1, SIZE(matrix_s, 2)
-            IF (print_level > 2) THEN
-               CALL dbcsr_set(sm_ps, 0.0_dp)
-            END IF
-            sm_s => matrix_s(1, ic)%matrix ! Overlap matrix in sparse format
-            sm_p => matrix_p(ispin, ic)%matrix ! Density matrix for spin ispin in sparse format
-            ! Calculate Hadamard product of P and S as sparse matrix (Mulliken)
-            ! CALL dbcsr_hadamard_product(sm_p,sm_s,sm_ps)
-            CALL dbcsr_iterator_start(iter, sm_s)
-            DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, s_block)
-               IF (.NOT. (ASSOCIATED(s_block))) CYCLE
-               CALL dbcsr_get_block_p(matrix=sm_p, &
-                                      row=iatom, &
-                                      col=jatom, &
-                                      block=p_block, &
-                                      found=found)
+      IF (native_density) THEN
+         CALL kpoint_density_state_mulliken(kpoints, orbpop)
+      ELSE
+         DO ispin = 1, nspin
+            DO ic = 1, SIZE(matrix_s, 2)
                IF (print_level > 2) THEN
-                  CALL dbcsr_get_block_p(matrix=sm_ps, &
+                  CALL dbcsr_set(sm_ps, 0.0_dp)
+               END IF
+               sm_s => matrix_s(1, ic)%matrix ! Overlap matrix in sparse format
+               sm_p => matrix_p(ispin, ic)%matrix ! Density matrix for spin ispin in sparse format
+               ! Calculate Hadamard product of P and S as sparse matrix (Mulliken)
+               ! CALL dbcsr_hadamard_product(sm_p,sm_s,sm_ps)
+               CALL dbcsr_iterator_start(iter, sm_s)
+               DO WHILE (dbcsr_iterator_blocks_left(iter))
+                  CALL dbcsr_iterator_next_block(iter, iatom, jatom, s_block)
+                  IF (.NOT. (ASSOCIATED(s_block))) CYCLE
+                  CALL dbcsr_get_block_p(matrix=sm_p, &
                                          row=iatom, &
                                          col=jatom, &
-                                         block=ps_block, &
+                                         block=p_block, &
                                          found=found)
-                  CPASSERT(ASSOCIATED(ps_block))
-               END IF
+                  IF (print_level > 2) THEN
+                     CALL dbcsr_get_block_p(matrix=sm_ps, &
+                                            row=iatom, &
+                                            col=jatom, &
+                                            block=ps_block, &
+                                            found=found)
+                     CPASSERT(ASSOCIATED(ps_block))
+                  END IF
 
-               sgfb = first_sgf_atom(jatom)
-               DO jsgf = 1, SIZE(s_block, 2)
-                  DO isgf = 1, SIZE(s_block, 1)
-                     ps = p_block(isgf, jsgf)*s_block(isgf, jsgf)
-                     IF (ASSOCIATED(ps_block)) ps_block(isgf, jsgf) = ps_block(isgf, jsgf) + ps
-                     orbpop(sgfb, ispin) = orbpop(sgfb, ispin) + ps
-                  END DO
-                  sgfb = sgfb + 1
-               END DO
-               IF (iatom /= jatom) THEN
-                  sgfa = first_sgf_atom(iatom)
-                  DO isgf = 1, SIZE(s_block, 1)
-                     DO jsgf = 1, SIZE(s_block, 2)
+                  sgfb = first_sgf_atom(jatom)
+                  DO jsgf = 1, SIZE(s_block, 2)
+                     DO isgf = 1, SIZE(s_block, 1)
                         ps = p_block(isgf, jsgf)*s_block(isgf, jsgf)
-                        orbpop(sgfa, ispin) = orbpop(sgfa, ispin) + ps
+                        IF (ASSOCIATED(ps_block)) ps_block(isgf, jsgf) = ps_block(isgf, jsgf) + ps
+                        orbpop(sgfb, ispin) = orbpop(sgfb, ispin) + ps
                      END DO
-                     sgfa = sgfa + 1
+                     sgfb = sgfb + 1
                   END DO
-               END IF
+                  IF (iatom /= jatom) THEN
+                     sgfa = first_sgf_atom(iatom)
+                     DO isgf = 1, SIZE(s_block, 1)
+                        DO jsgf = 1, SIZE(s_block, 2)
+                           ps = p_block(isgf, jsgf)*s_block(isgf, jsgf)
+                           orbpop(sgfa, ispin) = orbpop(sgfa, ispin) + ps
+                        END DO
+                        sgfa = sgfa + 1
+                     END DO
+                  END IF
+               END DO
+               CALL dbcsr_iterator_stop(iter)
             END DO
-            CALL dbcsr_iterator_stop(iter)
-         END DO
 
-         IF (print_level > 2) THEN
-            ! Write the full Mulliken net AO and overlap population matrix
-            CALL cp_dbcsr_write_sparse_matrix(sm_ps, 4, 6, qs_env, para_env, output_unit=output_unit)
-         END IF
-      END DO
+            IF (print_level > 2) THEN
+               ! Write the full Mulliken net AO and overlap population matrix
+               CALL cp_dbcsr_write_sparse_matrix(sm_ps, 4, 6, qs_env, para_env, output_unit=output_unit)
+            END IF
+         END DO
+      END IF
 
       CALL para_env%sum(orbpop)
 

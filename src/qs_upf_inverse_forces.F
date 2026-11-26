@@ -73,6 +73,7 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kinds, atom_of_kind=atom_of_kind, kind_of=kind_of)
       nspin = SIZE(potential)
       nk = 1
+      IF (ASSOCIATED(state%bloch%kpoints)) nk = SIZE(state%bloch%weights)
       ALLOCATE (atom_response(3, SIZE(atoms)), positions(3, SIZE(atoms)), reduced_k_response(3, nk), &
                 vdensity(nspin), vgradient(3, nspin), vtau(nspin))
       reduced_k_response = 0.0_dp

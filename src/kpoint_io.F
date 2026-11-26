@@ -43,6 +43,8 @@ MODULE kpoint_io
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
+   USE qs_kpoint_density_state,         ONLY: kpoint_density_state_read,&
+                                              kpoint_density_state_write
    USE qs_mo_io,                        ONLY: wfn_restart_file_name
    USE qs_scf_types,                    ONLY: qs_scf_env_type
 #include "./base/base_uses.f90"
@@ -53,7 +55,7 @@ MODULE kpoint_io
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_io'
 
-   INTEGER, PARAMETER                   :: version = 1
+   INTEGER, PARAMETER                   :: version = 1, native_version = 2
 
    PUBLIC :: read_kpoints_restart, &
              write_kpoints_restart
@@ -86,8 +88,8 @@ CONTAINS
       CHARACTER(LEN=30), DIMENSION(2), PARAMETER :: &
          keys = ["SCF%PRINT%RESTART_HISTORY", "SCF%PRINT%RESTART        "]
 
-      INTEGER                                            :: handle, ic, ikey, ires, ispin, nimages, &
-                                                            nspin
+      INTEGER                                            :: file_version, handle, ic, ikey, ires, &
+                                                            ispin, nimages, nspin
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       TYPE(cp_fm_type), POINTER                          :: fmat
@@ -110,7 +112,12 @@ CONTAINS
                                            extension=".kp", file_status="REPLACE", file_action="WRITE", &
                                            do_backup=.TRUE., file_form="UNFORMATTED")
 
-               CALL write_kpoints_file_header(qs_kind_set, particle_set, ires)
+               file_version = version
+               IF (ALLOCATED(kpoints%native_density)) THEN
+                  CPASSERT(kpoints%native_density_seeded)
+                  file_version = native_version
+               END IF
+               CALL write_kpoints_file_header(qs_kind_set, particle_set, ires, file_version=file_version)
 
                nspin = SIZE(denmat, 1)
                nimages = SIZE(denmat, 2)
@@ -135,6 +142,7 @@ CONTAINS
                   END DO
                END DO
 
+               IF (file_version == native_version) CALL kpoint_density_state_write(kpoints, ires)
                CALL cp_print_key_finished_output(ires, logger, dft_section, TRIM(keys(ikey)))
 
             END IF
@@ -182,13 +190,15 @@ CONTAINS
 !> \param particle_set ...
 !> \param ires ...
 !> \param basis_type ...
+!> \param file_version Optional format version for complete native Bloch densities.
 ! **************************************************************************************************
-   SUBROUTINE write_kpoints_file_header(qs_kind_set, particle_set, ires, basis_type)
+   SUBROUTINE write_kpoints_file_header(qs_kind_set, particle_set, ires, basis_type, file_version)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER                                            :: ires
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
+      INTEGER, INTENT(IN), OPTIONAL                      :: file_version
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_kpoints_file_header'
 
@@ -280,7 +290,11 @@ CONTAINS
             END IF
          END DO
 
-         WRITE (ires) version
+         IF (PRESENT(file_version)) THEN
+            WRITE (ires) file_version
+         ELSE
+            WRITE (ires) version
+         END IF
          WRITE (ires) natom, nao, nset_max, nshell_max
          WRITE (ires) nset_info
          WRITE (ires) nshell_info
@@ -303,9 +317,10 @@ CONTAINS
 !> \param id_nr ...
 !> \param dft_section ...
 !> \param natom_mismatch ...
+!> \param allow_missing Return without a density when the requested file is absent.
 ! **************************************************************************************************
    SUBROUTINE read_kpoints_restart(denmat, kpoints, fmwork, natom, &
-                                   para_env, id_nr, dft_section, natom_mismatch)
+                                   para_env, id_nr, dft_section, natom_mismatch, allow_missing)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: denmat
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -315,6 +330,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: id_nr
       TYPE(section_vals_type), POINTER                   :: dft_section
       LOGICAL, INTENT(OUT)                               :: natom_mismatch
+      LOGICAL, INTENT(IN), OPTIONAL                      :: allow_missing
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_kpoints_restart'
 
@@ -327,6 +343,20 @@ CONTAINS
       logger => cp_get_default_logger()
 
       restart_unit = -1
+      natom_mismatch = .FALSE.
+
+      IF (PRESENT(allow_missing)) THEN
+         IF (allow_missing) THEN
+            IF (para_env%is_source()) CALL wfn_restart_file_name(file_name, exist, dft_section, logger, kp=.TRUE.)
+            CALL para_env%bcast(exist)
+            IF (.NOT. exist) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "Native k-point restart file is absent, using the initial metric-defined solve")
+               CALL timestop(handle)
+               RETURN
+            END IF
+         END IF
+      END IF
 
       IF (para_env%is_source()) THEN
 
@@ -400,7 +430,7 @@ CONTAINS
 
       IF (para_env%is_source()) THEN
          READ (rst_unit) version_read
-         IF (version_read /= version) THEN
+         IF (version_read /= version .AND. version_read /= native_version) THEN
             CALL cp_abort(__LOCATION__, &
                           " READ RESTART : Version of restart file not supported")
          END IF
@@ -415,6 +445,10 @@ CONTAINS
             READ (rst_unit)
             READ (rst_unit)
          END IF
+      END IF
+      CALL para_env%bcast(version_read)
+      IF (version_read == native_version .AND. .NOT. ALLOCATED(kpoints%native_density)) THEN
+         CPABORT("Native k-point restart requires its original orbital representation")
       END IF
 
       ! make natom_match and natom_mismatch uniform across all nodes
@@ -460,6 +494,13 @@ CONTAINS
             END DO
             IF (ispin == nspin_read) EXIT
          END DO
+
+         IF (version_read == native_version) THEN
+            CALL kpoint_density_state_read(kpoints, rst_unit)
+         ELSE IF (ALLOCATED(kpoints%native_density)) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Legacy k-point restart has no complete native density, using the initial metric-defined solve")
+         END IF
 
       END IF
 

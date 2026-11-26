@@ -14,6 +14,7 @@ PROGRAM kpsym_unittest
    USE libcp2k,                         ONLY: cp2k_finalize,&
                                               cp2k_init
    USE physcon,                         ONLY: bohr
+   USE qs_kpoint_density_state,         ONLY: kpoint_density_metric_transport
 
    IMPLICIT NONE
    REAL(dp), PARAMETER :: ice_ix(3, 36) = RESHAPE([ &
@@ -58,6 +59,7 @@ PROGRAM kpsym_unittest
    INTEGER :: types(36)
 
    CALL cp2k_init()
+   CALL check_metric_transport()
    io_unit = cp_logger_get_default_io_unit()
    cell = 0.0_dp
    cell(1, 1) = 6.784903_dp*bohr
@@ -91,6 +93,57 @@ PROGRAM kpsym_unittest
    CALL cp2k_finalize()
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Restart transport must preserve a common spatial action and nonorthogonal AO gauges.
+! **************************************************************************************************
+   SUBROUTINE check_metric_transport()
+      COMPLEX(dp) :: basis(2, 2), current(2, 2), expected(2, 2), inverse(2, 2), previous(2, 2), &
+         rotation(2, 2), scaled_current(2, 2), scaled_previous(2, 2)
+      COMPLEX(dp), ALLOCATABLE                           :: transport(:, :)
+      INTEGER                                            :: info
+
+      previous = CMPLX(RESHAPE([2.0_dp, 0.4_dp, 0.4_dp, 2.0_dp], [2, 2]), 0.0_dp, dp)
+      current = CMPLX(RESHAPE([1.4_dp, 0.6_dp, 0.6_dp, 1.4_dp], [2, 2]), 0.0_dp, dp)
+      rotation = CMPLX(RESHAPE([0.0_dp, 1.0_dp, 1.0_dp, 0.0_dp], [2, 2]), 0.0_dp, dp)
+      expected(1, 1) = 0.5_dp*(SQRT(1.2_dp) + SQRT(2.0_dp))
+      expected(1, 2) = 0.5_dp*(SQRT(1.2_dp) - SQRT(2.0_dp))
+      expected(2, 1) = expected(1, 2)
+      expected(2, 2) = expected(1, 1)
+      CALL kpoint_density_metric_transport(previous, current, transport, info)
+      IF (info /= 0) ERROR STOP 'Positive restart metric pair rejected'
+      IF (MAXVAL(ABS(transport - expected)) > 1.e-12_dp) ERROR STOP 'Incorrect relative metric square root'
+      IF (MAXVAL(ABS(MATMUL(CONJG(TRANSPOSE(transport)), MATMUL(current, transport)) - previous)) > 1.e-12_dp) THEN
+         ERROR STOP 'Restart transport changed the charge metric'
+      END IF
+      IF (MAXVAL(ABS(MATMUL(transport, rotation) - MATMUL(rotation, transport))) > 1.e-12_dp) THEN
+         ERROR STOP 'Restart transport broke a common spatial symmetry'
+      END IF
+      ! A complex nonunitary AO change makes both the relative root and spatial action non-Hermitian.
+      basis = CMPLX(0.0_dp, 0.0_dp, dp)
+      basis(1, 1) = 1.2_dp
+      basis(2, 2) = 0.7_dp
+      basis(1, 2) = CMPLX(0.0_dp, 0.2_dp, dp)
+      inverse = CMPLX(0.0_dp, 0.0_dp, dp)
+      inverse(1, 1) = 1.0_dp/1.2_dp
+      inverse(2, 2) = 1.0_dp/0.7_dp
+      inverse(1, 2) = -basis(1, 2)/(1.2_dp*0.7_dp)
+      scaled_previous = MATMUL(CONJG(TRANSPOSE(basis)), MATMUL(previous, basis))
+      scaled_current = MATMUL(CONJG(TRANSPOSE(basis)), MATMUL(current, basis))
+      CALL kpoint_density_metric_transport(scaled_previous, scaled_current, transport, info)
+      IF (info /= 0) ERROR STOP 'Nonorthogonal AO metric pair rejected'
+      IF (MAXVAL(ABS(transport - MATMUL(inverse, MATMUL(expected, basis)))) > 1.e-12_dp) THEN
+         ERROR STOP 'Restart transport depends on the AO coordinate frame'
+      END IF
+      CALL kpoint_density_metric_transport(previous, previous, transport, info)
+      IF (info /= 0) ERROR STOP 'Unchanged restart metric rejected'
+      transport(1, 1) = transport(1, 1) - 1.0_dp
+      transport(2, 2) = transport(2, 2) - 1.0_dp
+      IF (MAXVAL(ABS(transport)) > 1.e-12_dp) ERROR STOP 'Unchanged metric moved the restart state'
+      previous(1, 1) = -1.0_dp
+      CALL kpoint_density_metric_transport(previous, current, transport, info)
+      IF (info == 0) ERROR STOP 'Nonpositive restart metric accepted'
+   END SUBROUTINE check_metric_transport
 
 ! **************************************************************************************************
 !> \brief Check mesh reduction and atomic operation consistency without an SCF calculation.
