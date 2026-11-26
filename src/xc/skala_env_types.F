@@ -1,8 +1,8 @@
 !--------------------------------------------------------------------------------------------------!
-!  CP2K: A general program to perform molecular dynamics simulations                              !
-!  Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                   !
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
-!  SPDX-License-Identifier: BSD-3-Clause                                                           !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -15,6 +15,8 @@ MODULE skala_env_types
    USE kinds,                           ONLY: default_path_length,&
                                               dp,&
                                               int_8
+   USE qs_native_grid_cache,            ONLY: native_grid_cache_type,&
+                                              release_native_grid_cache
    USE skala_torch_api,                 ONLY: skala_torch_model_type
    USE torch_api,                       ONLY: torch_dict_type,&
                                               torch_tensor_type
@@ -274,6 +276,7 @@ MODULE skala_env_types
       TYPE(skala_weight_grad_cache_type)         :: weight_grad
       LOGICAL                                    :: execution_resolved = .FALSE.
       TYPE(skala_execution_target_type)          :: execution_target
+      TYPE(native_grid_cache_type)                       :: native_grid_cache
       TYPE(section_vals_type), POINTER                   :: native_section => NULL()
       TYPE(section_vals_type), POINTER                   :: gauxc_section => NULL()
       TYPE(section_vals_type), POINTER                   :: resolved_xc_section => NULL()
@@ -288,7 +291,8 @@ CONTAINS
 !> \param xc_section the XC input section
 ! **************************************************************************************************
    SUBROUTINE skala_env_create(xc_section)
-      TYPE(section_vals_type), POINTER, INTENT(IN), OPTIONAL :: xc_section
+      TYPE(section_vals_type), INTENT(IN), OPTIONAL, &
+         POINTER                                         :: xc_section
 
       NULLIFY (skala_state%native_section, skala_state%gauxc_section, &
                skala_state%resolved_xc_section)
@@ -317,6 +321,7 @@ CONTAINS
 !>        skala_gpw_release_caches before this is called.
 ! **************************************************************************************************
    SUBROUTINE skala_env_release()
+      CALL release_native_grid_cache(skala_state%native_grid_cache)
       NULLIFY (skala_state%native_section, skala_state%gauxc_section, &
                skala_state%resolved_xc_section)
       skala_state%sections_resolved = .FALSE.

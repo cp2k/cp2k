@@ -88,7 +88,8 @@ MODULE qs_vxc_atom
         gaVxcgb_noGC, gapw_atom_grid_support_radius, release_tau_basis_cache, tau_basis_cache_type
    USE skala_gpw_features,              ONLY: build_periodic_atom_image_layout,&
                                               periodic_atom_image_partition_from_layout,&
-                                              skala_periodic_partition_type
+                                              skala_periodic_partition_type,&
+                                              skala_state
    USE skala_gpw_functional,            ONLY: build_vxc_from_feature_grads,&
                                               native_skala_gapw_density_partition,&
                                               skala_gapw_atom_composite_energy,&
@@ -799,7 +800,7 @@ CONTAINS
             CPASSERT(ASSOCIATED(smooth_tau_r))
             CPASSERT(smooth_rho_r(1)%pw_grid%para%group%num_pe == para_env%num_pe)
             CPASSERT(smooth_rho_r(1)%pw_grid%para%group%mepos == para_env%mepos)
-            CALL prepare_native_grid_cache(qs_env%native_grid_cache, smooth_rho_r(1)%pw_grid, &
+            CALL prepare_native_grid_cache(skala_state%native_grid_cache, smooth_rho_r(1)%pw_grid, &
                                            cell, composite_nflat, .TRUE.)
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL section_vals_val_get(my_xc_section, "XC_GRID%XC_DERIV", &
@@ -3204,9 +3205,9 @@ CONTAINS
          INTENT(OUT)                                     :: stencil
       LOGICAL, INTENT(IN)                                :: store
 
-      IF (fetch_native_grid_stencil(qs_env%native_grid_cache, row, point, stencil)) RETURN
+      IF (fetch_native_grid_stencil(skala_state%native_grid_cache, row, point, stencil)) RETURN
       CALL create_native_grid_interpolation_stencil(stencil, pw_grid, cell, point, .TRUE.)
-      IF (store) CALL store_native_grid_stencil(qs_env%native_grid_cache, row, point, stencil)
+      IF (store) CALL store_native_grid_stencil(skala_state%native_grid_cache, row, point, stencil)
    END SUBROUTINE get_native_grid_stencil
 
 ! **************************************************************************************************
