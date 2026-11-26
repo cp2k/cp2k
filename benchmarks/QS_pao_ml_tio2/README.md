@@ -4,8 +4,15 @@ Large scale benchmark for PAO ML (and/or LS DFT in general).
 
 ## How to Run the Benchmark
 
-Bunzip2 all files, have [`BASIS_MOLOPT`](../../data/BASIS_MOLOPT) and
-[`GTH_POTENTIALS`](../../data/GTH_POTENTIALS) available (from [cp2k/data](../../data/).
+Decompress the files with `bunzip2` for the input structure and training data.
+
+```shell
+for i in ./*.bz2 ; do bunzip2 $i ; done
+```
+
+The [`BASIS_MOLOPT`](../../data/BASIS_MOLOPT) and [`GTH_POTENTIALS`](../../data/GTH_POTENTIALS) are
+available from the [cp2k/data](../../data/) directory. `BASIS_BENCH_ONLY` is provided in the current
+directory.
 
 For tuning purposes, the length of the full benchmark can be reduced in the following ways:
 

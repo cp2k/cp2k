@@ -7,27 +7,34 @@
 ### About
 
 This benchmark consists of a short QM/MM simulation using the GROMACS/CP2K interface. 5 MD steps are
-performed with a time step of 1 fs. The following XC functional set ups are included:
+performed with a time step of 1 fs. The XC functional PBE with the DVZP-MOLOPT-GTH basis set is used
+for the QM calculation.
 
-- PBE - using DVZP-MOLOPT-GTH
+This directory contains the following files:
 
-- `CBD_PHY.top` - The GROMACS topology file
+- `CBD_PHY.top.bz2` - The compressed GROMACS topology file
 
-- `CBD_PHY.ndx` - The GROMACS index file
+- `CBD_PHY.ndx.bz2` - The compressed GROMACS index file
 
-- `CBD_PHY.gro` - The GROMACS coordinates file
+- `CBD_PHY.gro.bz2` - The compressed GROMACS coordinates file
 
 - `CBD_PHY.mdp` - The GROMACS MD parameter file
 
 - `CBD_PHY_cp2k.inp` - The CP2K input file. Contains QM parameters
 
-- `CBD_PHY_cp2k.pdb` - The PDB coordinates for CP2K
+- `CBD_PHY_cp2k.pdb.bz2` - The compressed file of atomic coordinates in PDB format for CP2K
 
 ### How to run the benchmark (32 MPI ranks with 2 OpenMP threads each)
 
 - Change to benchmark folder
 
   - `cd ${CP2K_ROOT}/benchmarks/GROMACS/CBD_PHY`
+
+- Use `bunzip2` to decompress the files
+
+```shell
+for i in ./*.bz2 ; do bunzip2 $i ; done
+```
 
 - Run with container
 

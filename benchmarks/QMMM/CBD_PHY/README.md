@@ -14,10 +14,17 @@ QM and MM atoms are treated using the Generalized Hybrid Orbital (GHO) method.
 
 `CBD_PHY.inp` - CP2K input file.
 
-`CBD_PHY.prmtop` - Amber forcefield for MM atoms. The Amber03 forcefield and the TIP3P water model
-are used.
+`CBD_PHY.prmtop.bz2` - Compressed file of Amber forcefield for MM atoms. The Amber03 forcefield and
+the TIP3P water model are used.
 
-`CBD_PHY.pdb` - Atomic input coordinates.
+`CBD_PHY.pdb.bz2` - Compressed file of atomic input coordinates.
+
+Use `bunzip2` to decompress the latter two before calculation.
+
+```shell
+bunzip2 ./CBD_PHY.pdb.bz2
+bunzip2 ./CBD_PHY.prmtop.bz2
+```
 
 ## Results
 

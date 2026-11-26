@@ -22,10 +22,17 @@ See also <https://doi.org/10.1021/acs.jctc.9b00424>.
 
 `ClC-253.inp` - ClC with 253 QM atoms.
 
-`ClC.prmtop` - Amber forcefield for MM atoms. The Amber14 forcefield and the TIP3P water model are
-used.
+`ClC.prmtop.bz2` - Compressed file of Amber forcefield for MM atoms. The Amber14 forcefield and the
+TIP3P water model are used.
 
-`ClC.pdb` - Atomic input coordinates.
+`ClC.pdb.bz2` - Compressed file of atomic input coordinates.
+
+Use `bunzip2` to decompress the latter two before calculation.
+
+```shell
+bunzip2 ./ClC.pdb.bz2
+bunzip2 ./ClC.prmtop.bz2
+```
 
 ## Results
 
