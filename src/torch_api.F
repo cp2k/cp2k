@@ -1785,103 +1785,117 @@ CONTAINS
 #if defined(__LIBTORCH)
 
          INTERFACE
-            SUBROUTINE torch_c_model_get_attr_${typename}$ (model, key, dest) &
-               BIND(C, name="torch_c_model_get_attr_${typename}$")
-               IMPORT :: C_PTR, C_CHAR, C_INT64_T, C_DOUBLE
+            #:if typename == 'string'
+               SUBROUTINE torch_c_model_get_attr_${typename}$ (model, key, dest, dest_len) &
+#:else
+                  SUBROUTINE torch_c_model_get_attr_${typename}$ (model, key, dest) &
+#:endif
+                  BIND(C, name="torch_c_model_get_attr_${typename}$")
+               IMPORT :: C_PTR, C_CHAR, C_INT64_T, C_DOUBLE, C_INT
                TYPE(C_PTR), VALUE                           :: model
                CHARACTER(kind=C_CHAR), DIMENSION(*)         :: key
                ${type_c}$                                   :: dest
-            END SUBROUTINE torch_c_model_get_attr_${typename}$
-         END INTERFACE
+               #:if typename == 'string'
+                  INTEGER(kind=C_INT), VALUE                   :: dest_len
+               #:endif
+               END SUBROUTINE torch_c_model_get_attr_${typename}$
+            END INTERFACE
 
-         CALL torch_c_model_get_attr_${typename}$ (model=model%c_ptr, &
-                                                   key=TRIM(key)//C_NULL_CHAR, &
-                                                   dest=dest)
+            #:if typename == 'string'
+               CALL torch_c_model_get_attr_${typename}$ (model=model%c_ptr, &
+                                                         key=TRIM(key)//C_NULL_CHAR, &
+                                                         dest=dest, dest_len=INT(LEN(dest), C_INT))
+            #:else
+               CALL torch_c_model_get_attr_${typename}$ (model=model%c_ptr, &
+                                                         key=TRIM(key)//C_NULL_CHAR, &
+                                                         dest=dest)
+            #:endif
 #else
-         dest = ${zero_f}$
-         MARK_USED(model)
-         MARK_USED(key)
-         CPABORT("CP2K compiled without the Torch library.")
+            dest = ${zero_f}$
+            MARK_USED(model)
+            MARK_USED(key)
+            CPABORT("CP2K compiled without the Torch library.")
 #endif
-      END SUBROUTINE torch_model_get_attr_${typename}$
-   #:endfor
+         END SUBROUTINE torch_model_get_attr_${typename}$
+      #:endfor
 
 ! **************************************************************************************************
 !> \brief Retrieves an attribute from a Torch model. Must be called before torch_model_freeze.
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE torch_model_get_attr_int32(model, key, dest)
-      TYPE(torch_model_type), INTENT(IN)                 :: model
-      CHARACTER(len=*), INTENT(IN)                       :: key
-      INTEGER, INTENT(OUT)                               :: dest
+      SUBROUTINE torch_model_get_attr_int32(model, key, dest)
+         TYPE(torch_model_type), INTENT(IN)                 :: model
+         CHARACTER(len=*), INTENT(IN)                       :: key
+         INTEGER, INTENT(OUT)                               :: dest
 
-      INTEGER(kind=int_8)                                :: temp
-      LOGICAL                                            :: in_range
-      CALL torch_model_get_attr_int64(model, key, temp)
-      in_range = temp >= -INT(HUGE(dest), KIND=int_8) - 1_int_8
-      in_range = in_range .AND. temp <= INT(HUGE(dest), KIND=int_8)
-      CPASSERT(in_range)
-      dest = INT(temp)
-   END SUBROUTINE torch_model_get_attr_int32
+         INTEGER(kind=int_8)                                :: temp
+         LOGICAL                                            :: in_range
+         CALL torch_model_get_attr_int64(model, key, temp)
+         in_range = temp >= -INT(HUGE(dest), KIND=int_8) - 1_int_8
+         in_range = in_range .AND. temp <= INT(HUGE(dest), KIND=int_8)
+         CPASSERT(in_range)
+         dest = INT(temp)
+      END SUBROUTINE torch_model_get_attr_int32
 
 ! **************************************************************************************************
 !> \brief Retrieves a list attribute from a Torch model. Must be called before torch_model_freeze.
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE torch_model_get_attr_strlist(model, key, dest)
-      TYPE(torch_model_type), INTENT(IN)                 :: model
-      CHARACTER(len=*), INTENT(IN)                       :: key
-      CHARACTER(LEN=default_string_length), &
-         ALLOCATABLE, DIMENSION(:), INTENT(OUT)          :: dest
+      SUBROUTINE torch_model_get_attr_strlist(model, key, dest)
+         TYPE(torch_model_type), INTENT(IN)                 :: model
+         CHARACTER(len=*), INTENT(IN)                       :: key
+         CHARACTER(LEN=default_string_length), &
+            ALLOCATABLE, DIMENSION(:), INTENT(OUT)          :: dest
 
 #if defined(__LIBTORCH)
 
-      INTEGER :: num_items, i
+         INTEGER :: num_items, i
 
-      INTERFACE
-         SUBROUTINE torch_c_model_get_attr_list_size(model, key, size) &
-            BIND(C, name="torch_c_model_get_attr_list_size")
-            IMPORT :: C_PTR, C_CHAR, C_INT
-            TYPE(C_PTR), VALUE                           :: model
-            CHARACTER(kind=C_CHAR), DIMENSION(*)         :: key
-            INTEGER(kind=C_INT)                          :: size
-         END SUBROUTINE torch_c_model_get_attr_list_size
-      END INTERFACE
+         INTERFACE
+            SUBROUTINE torch_c_model_get_attr_list_size(model, key, size) &
+               BIND(C, name="torch_c_model_get_attr_list_size")
+               IMPORT :: C_PTR, C_CHAR, C_INT
+               TYPE(C_PTR), VALUE                           :: model
+               CHARACTER(kind=C_CHAR), DIMENSION(*)         :: key
+               INTEGER(kind=C_INT)                          :: size
+            END SUBROUTINE torch_c_model_get_attr_list_size
+         END INTERFACE
 
-      INTERFACE
-         SUBROUTINE torch_c_model_get_attr_strlist(model, key, index, dest) &
-            BIND(C, name="torch_c_model_get_attr_strlist")
-            IMPORT :: C_PTR, C_CHAR, C_INT
-            TYPE(C_PTR), VALUE                           :: model
-            CHARACTER(kind=C_CHAR), DIMENSION(*)         :: key
-            INTEGER(kind=C_INT), VALUE                   :: index
-            CHARACTER(kind=C_CHAR), DIMENSION(*)         :: dest
-         END SUBROUTINE torch_c_model_get_attr_strlist
-      END INTERFACE
+         INTERFACE
+            SUBROUTINE torch_c_model_get_attr_strlist(model, key, index, dest, dest_len) &
+               BIND(C, name="torch_c_model_get_attr_strlist")
+               IMPORT :: C_PTR, C_CHAR, C_INT
+               TYPE(C_PTR), VALUE                           :: model
+               CHARACTER(kind=C_CHAR), DIMENSION(*)         :: key
+               INTEGER(kind=C_INT), VALUE                   :: index
+               CHARACTER(kind=C_CHAR), DIMENSION(*)         :: dest
+               INTEGER(kind=C_INT), VALUE                   :: dest_len
+            END SUBROUTINE torch_c_model_get_attr_strlist
+         END INTERFACE
 
-      CALL torch_c_model_get_attr_list_size(model=model%c_ptr, &
-                                            key=TRIM(key)//C_NULL_CHAR, &
-                                            size=num_items)
-      IF (num_items < 0) THEN
-         CPABORT("Torch model metadata list returned a negative length.")
-      END IF
-      ALLOCATE (dest(num_items))
-      dest(:) = ""
+         CALL torch_c_model_get_attr_list_size(model=model%c_ptr, &
+                                               key=TRIM(key)//C_NULL_CHAR, &
+                                               size=num_items)
+         IF (num_items < 0) THEN
+            CPABORT("Torch model metadata list returned a negative length.")
+         END IF
+         ALLOCATE (dest(num_items))
+         dest(:) = ""
 
-      DO i = 1, num_items
-         CALL torch_c_model_get_attr_strlist(model=model%c_ptr, &
-                                             key=TRIM(key)//C_NULL_CHAR, &
-                                             index=i - 1, &
-                                             dest=dest(i))
+         DO i = 1, num_items
+            CALL torch_c_model_get_attr_strlist(model=model%c_ptr, &
+                                                key=TRIM(key)//C_NULL_CHAR, &
+                                                index=i - 1, &
+                                                dest=dest(i), dest_len=INT(LEN(dest(i)), C_INT))
 
-      END DO
+         END DO
 #else
-      CPABORT("CP2K compiled without the Torch library.")
-      MARK_USED(model)
-      MARK_USED(key)
-      MARK_USED(dest)
+         CPABORT("CP2K compiled without the Torch library.")
+         MARK_USED(model)
+         MARK_USED(key)
+         MARK_USED(dest)
 #endif
 
-   END SUBROUTINE torch_model_get_attr_strlist
+      END SUBROUTINE torch_model_get_attr_strlist
 
-END MODULE torch_api
+   END MODULE torch_api

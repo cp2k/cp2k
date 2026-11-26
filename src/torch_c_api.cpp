@@ -224,8 +224,12 @@ extern "C" void torch_c_set_num_threads(const int num_threads) {
 }
 
 extern "C" int torch_c_get_num_threads(void) {
+  int num_threads = 0;
+  TORCH_C_TRY
   initialize_torch_threads_from_env();
-  return at::get_num_threads();
+  num_threads = at::get_num_threads();
+  TORCH_C_CATCH("torch_c_get_num_threads")
+  return num_threads;
 }
 
 static bool cuda_device_available(int &device_count) {
@@ -580,19 +584,17 @@ static void *get_data_ptr(const torch_c_tensor_t *tensor,
   return tensor->data_ptr();
 };
 /*******************************************************************************
- * \brief Copies a model attribute string into a CP2K default-string buffer.
- *        The Fortran side allocates exactly CP2K's default_string_length (80)
- *        bytes, so reject longer strings instead of overflowing.
+ * \brief Copies a model attribute string into a Fortran character buffer of the
+ *        given length, blank-filling and rejecting strings that do not fit.
  ******************************************************************************/
-static constexpr size_t torch_c_attr_string_length = 80;
-
-static void copy_attr_string_to_fortran(const std::string &source, char *dest) {
-  torch_c_check(dest != nullptr,
+static void copy_attr_string_to_fortran(const std::string &source, char *dest,
+                                        const int dest_len) {
+  torch_c_check(dest != nullptr && dest_len >= 0,
                 "Torch attribute destination must not be NULL");
-  if (source.size() > torch_c_attr_string_length) {
-    torch_c_api_abort("Torch attribute string exceeds CP2K default length");
+  if (static_cast<int>(source.size()) > dest_len) {
+    torch_c_api_abort("Torch attribute string exceeds destination length");
   }
-  std::memset(dest, ' ', torch_c_attr_string_length);
+  std::memset(dest, ' ', dest_len);
   std::memcpy(dest, source.data(), source.size());
 }
 
@@ -931,9 +933,9 @@ void torch_c_tensor_clone(const torch_c_tensor_t *tensor,
                           torch_c_tensor_t **result) {
   TORCH_C_TRY
   c10::OptionalDeviceGuard guard;
-  get_device_with_guard(guard);
+  const auto device = get_device_with_guard(guard);
   torch_c_check(*result == NULL, "Torch tensor output must be NULL");
-  *result = new torch_c_tensor_t(tensor->detach().clone());
+  *result = new torch_c_tensor_t(tensor->detach().to(device).clone());
   TORCH_C_CATCH("torch_c_tensor_clone")
 }
 
@@ -1178,9 +1180,8 @@ void torch_c_grad_pool_clear() {
   TORCH_C_TRY {
     synchronize_pending_grad_copies();
     std::lock_guard<std::mutex> lock(grad_pinned_mutex);
-    if (grad_pinned_pool != nullptr) {
-      grad_pinned_pool->clear();
-    }
+    delete grad_pinned_pool;
+    grad_pinned_pool = nullptr;
   }
   TORCH_C_CATCH("torch_c_grad_pool_clear")
 }
@@ -1671,9 +1672,9 @@ void torch_c_file_stamp(const char *filename, char *buf, int *length) {
   TORCH_C_TRY
   const std::string stamp = file_stamp(filename);
   if (buf != nullptr && length != nullptr && *length > 0) {
-    const int n = std::min<int>(static_cast<int>(stamp.size()), *length - 1);
+    std::memset(buf, ' ', *length);
+    const int n = std::min<int>(static_cast<int>(stamp.size()), *length);
     std::memcpy(buf, stamp.data(), n);
-    buf[n] = '\0';
   }
   if (length != nullptr) {
     *length = static_cast<int>(stamp.size());
@@ -1722,9 +1723,15 @@ void torch_c_model_read_metadata(const char *filename, const char *key,
  * \brief Clears the cached TorchScript model metadata.
  ******************************************************************************/
 void torch_c_model_metadata_clear() {
-  TORCH_C_TRY
-  std::lock_guard<std::mutex> lock(model_metadata_mutex);
-  model_metadata_cache.clear();
+  TORCH_C_TRY {
+    std::lock_guard<std::mutex> lock(model_metadata_mutex);
+    model_metadata_cache.clear();
+  }
+  {
+    std::lock_guard<std::mutex> lock(model_method_mutex);
+    delete model_method_cache;
+    model_method_cache = nullptr;
+  }
   TORCH_C_CATCH("torch_c_model_metadata_clear")
 }
 
@@ -1810,9 +1817,10 @@ void torch_c_model_get_attr_double(const torch_c_model_t *model,
  * \author Ole Schuett
  ******************************************************************************/
 void torch_c_model_get_attr_string(const torch_c_model_t *model,
-                                   const char *key, char *dest) {
+                                   const char *key, char *dest,
+                                   const int dest_len) {
   TORCH_C_TRY
-  copy_attr_string_to_fortran(model->attr(key).toStringRef(), dest);
+  copy_attr_string_to_fortran(model->attr(key).toStringRef(), dest, dest_len);
   TORCH_C_CATCH("torch_c_model_get_attr_string")
 }
 
@@ -1836,12 +1844,12 @@ void torch_c_model_get_attr_list_size(const torch_c_model_t *model,
  ******************************************************************************/
 void torch_c_model_get_attr_strlist(const torch_c_model_t *model,
                                     const char *key, const int index,
-                                    char *dest) {
+                                    char *dest, const int dest_len) {
   TORCH_C_TRY
   const auto list = model->attr(key).toList();
   torch_c_check(index >= 0 && static_cast<size_t>(index) < list.size(),
                 "Torch attribute list index is out of bounds");
-  copy_attr_string_to_fortran(list[index].toStringRef(), dest);
+  copy_attr_string_to_fortran(list[index].toStringRef(), dest, dest_len);
   TORCH_C_CATCH("torch_c_model_get_attr_strlist")
 }
 
