@@ -17,6 +17,11 @@ WITHOUT_LIBTORCH: dict[str, Any] = dict(
     with_skala_ftorch="no",
 )
 
+# libtorch is provided via the official PyTorch CPU wheel (pip). CP2K only uses
+# the C++ library, so the wheel is unpacked into a fixed prefix.
+LIBTORCH_PIP_PREFIX = "/opt/libtorch/torch"
+LIBTORCH_PIP_VERSION = "2.9.1+cpu"
+
 
 # ======================================================================================
 def main() -> None:
@@ -611,54 +616,57 @@ RUN ./build_cp2k.sh {profile} {version}
 
 
 # ======================================================================================
-def install_distro_libtorch(base_image: str, with_openmpi: bool = False) -> str:
+def install_pip_libtorch(base_image: str, with_openmpi: bool = False) -> str:
     if with_openmpi:
         header = (
-            "# Install libtorch, a matching BLAS and OpenMPI from the distribution\n"
-            "# so that the toolchain does not download libtorch and both CP2K and\n"
-            "# libtorch use the same MPI implementation.\n"
+            "# Provide OpenMPI, OpenBLAS and libtorch (via pip) from external\n"
+            "# sources. libtorch is the official CPU wheel; OpenMPI and OpenBLAS\n"
+            "# come from the distribution.\n"
         )
     else:
         header = (
-            "# Install libtorch and a matching BLAS from the distribution so that\n"
-            "# the toolchain does not download libtorch.\n"
+            "# Provide OpenBLAS and libtorch (via pip) from external sources.\n"
+            "# libtorch is the official CPU wheel; OpenBLAS comes from the\n"
+            "# distribution.\n"
         )
-    diagnostic = r"""
-# TEMPORARY DIAGNOSTIC: report the distro libtorch version and C++ ABI so the
-# CI log tells us whether the undefined-symbol failure is an ABI mismatch.
-RUN set -eu; \
-    for f in /usr/lib/*/libtorch_cpu.so*; do \
-      [ -e "$f" ] || continue; \
-      echo "== distro libtorch_cpu: $f"; \
-      objdump -T "$f" | c++filt | grep -m2 -E 'freeze_module_inplace|torch::jit::load' || true; \
-      printf 'distro libtorch cxx11 symbol count: '; objdump -T "$f" | grep -c '__cxx11' || true; \
-      break; \
-    done; \
-    ls -l /usr/lib/*/libkineto* 2>/dev/null || echo 'no libkineto'
-"""
     if "fedora" in base_image:
         mpi_pkgs = "    openmpi \\\n    openmpi-devel \\\n" if with_openmpi else ""
-        return rf"""
-{header}RUN dnf -qy install \
+        packages = rf"""RUN dnf -qy install \
     binutils \
-    libtorch-devel \
+    ca-certificates \
     openblas-devel \
+    python3 \
+    python3-pip \
 {mpi_pkgs}    && dnf clean -q all
-{diagnostic}"""
-    if "ubuntu" in base_image:
+"""
+    elif "ubuntu" in base_image:
         mpi_pkgs = "    openmpi-bin \\\n    libopenmpi-dev \\\n" if with_openmpi else ""
-        return rf"""
-{header}RUN export DEBIAN_FRONTEND=noninteractive && \
+        packages = rf"""RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update -qq && \
     apt-get install -qq --no-install-recommends \
     binutils \
+    ca-certificates \
     libopenblas-dev \
-    libtorch-dev \
+    python3 \
+    python3-pip \
 {mpi_pkgs}    && rm -rf /var/lib/apt/lists/*
-{diagnostic}"""
-    sys.exit(
-        f"\nERROR: Cannot install libtorch from a distro package on {base_image}\n"
-    )
+"""
+    else:
+        sys.exit(f"\nERROR: Cannot provide libtorch on {base_image}\n")
+    return rf"""
+{header}{packages}
+# Fetch the official CPU wheel for a fixed Python ABI and unpack it; CP2K only
+# uses the C++ library. An empty libkineto.a keeps TorchConfig.cmake from
+# emitting a missing-library CMake warning (CI treats warnings as errors).
+RUN python3 -m pip download --no-deps --only-binary=:all: \
+      --python-version 313 --implementation cp --abi cp313 \
+      --platform manylinux_2_28_x86_64 \
+      --index-url https://download.pytorch.org/whl/cpu \
+      -d /tmp/torch-wheel "torch=={LIBTORCH_PIP_VERSION}" && \
+    python3 -c "import glob, zipfile; zipfile.ZipFile(glob.glob('/tmp/torch-wheel/torch-*.whl')[0]).extractall('/opt/libtorch')" && \
+    rm -rf /tmp/torch-wheel && \
+    [ -e "{LIBTORCH_PIP_PREFIX}/lib/libkineto.a" ] || ar rcs "{LIBTORCH_PIP_PREFIX}/lib/libkineto.a"
+"""
 
 
 # ======================================================================================
@@ -672,12 +680,12 @@ def install_deps_toolchain(
 ) -> str:
     output = f"\nFROM docker.io/{base_image}\n\n"
     if kwargs.get("with_libtorch", "system") not in ("no", "__DONTUSE__"):
-        output += install_distro_libtorch(
-            base_image, with_openmpi=system_openmpi
-        ).lstrip("\n")
+        output += install_pip_libtorch(base_image, with_openmpi=system_openmpi).lstrip(
+            "\n"
+        )
         # Provide the distro libtorch and BLAS to the toolchain and keep the
         # libtorch-dependent features enabled (as --install-all used to do).
-        kwargs.setdefault("with_libtorch", "system")
+        kwargs.setdefault("with_libtorch", LIBTORCH_PIP_PREFIX)
         kwargs.setdefault("with_openblas", "system")
         kwargs.setdefault("with_gauxc", "install")
         kwargs.setdefault("with_deepmd", "install")
