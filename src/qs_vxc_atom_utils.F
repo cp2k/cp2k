@@ -434,69 +434,80 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspins
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_tau_atom'
+      INTEGER, PARAMETER                                 :: target_points = 512
 
-      INTEGER                                            :: dir, handle, ia, ibas, igrid, ir, ispin, &
-                                                            na, nbas, ngrid, nr
-      REAL(dp)                                           :: tau_sum
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: work
+      INTEGER                                            :: first, handle, ir, ispin, last, na, &
+                                                            nbas, ngrid, npts, nr, nrows
 
       CALL timeset(routineN, handle)
-
       CPASSERT(ALLOCATED(tau_cache%grad))
-
-      !zeroing tau, assuming it is already allocated
-      tau_h = 0.0_dp
-      tau_s = 0.0_dp
 
       nr = tau_cache%nr
       na = tau_cache%na
       nbas = tau_cache%nsatbas
       ngrid = na*nr
-      ALLOCATE (work(ngrid, nbas))
+      IF (ngrid == 0 .OR. nbas == 0) THEN
+         tau_h = 0.0_dp
+         tau_s = 0.0_dp
+         CALL timestop(handle)
+         RETURN
+      END IF
+      nrows = MAX(1, target_points/na)
 
+      ! Reuse each block of gradients for both densities before moving to the next shells.
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SCHEDULE(STATIC) IF (nr > nrows) &
+!$OMP SHARED(na, nbas, ngrid, nr, nrows, nspins, rho_atom, tau_cache, tau_h, tau_s) &
+!$OMP PRIVATE(first, last, npts)
       DO ispin = 1, nspins
-         DO dir = 1, 3
-            CALL dgemm('N', 'T', ngrid, nbas, nbas, 0.5_dp, tau_cache%grad(:, :, dir), &
-                       ngrid, rho_atom%cpc_h(ispin)%r_coef, nbas, 0.0_dp, work, ngrid)
-!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SCHEDULE(STATIC) &
-!$OMP SHARED(dir, ispin, na, nbas, nr, tau_cache, tau_h, work) &
-!$OMP PRIVATE(ia, ibas, igrid, ir, tau_sum)
-            DO ir = 1, nr
-               DO ia = 1, na
-                  igrid = ia + (ir - 1)*na
-                  tau_sum = 0.0_dp
-                  DO ibas = 1, nbas
-                     tau_sum = tau_sum + tau_cache%grad(igrid, ibas, dir)*work(igrid, ibas)
-                  END DO
-                  tau_h(ia, ir, ispin) = tau_h(ia, ir, ispin) + tau_sum
-               END DO
-            END DO
-!$OMP END PARALLEL DO
-
-            CALL dgemm('N', 'T', ngrid, nbas, nbas, 0.5_dp, tau_cache%grad(:, :, dir), &
-                       ngrid, rho_atom%cpc_s(ispin)%r_coef, nbas, 0.0_dp, work, ngrid)
-!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SCHEDULE(STATIC) &
-!$OMP SHARED(dir, ispin, na, nbas, nr, tau_cache, tau_s, work) &
-!$OMP PRIVATE(ia, ibas, igrid, ir, tau_sum)
-            DO ir = 1, nr
-               DO ia = 1, na
-                  igrid = ia + (ir - 1)*na
-                  tau_sum = 0.0_dp
-                  DO ibas = 1, nbas
-                     tau_sum = tau_sum + tau_cache%grad(igrid, ibas, dir)*work(igrid, ibas)
-                  END DO
-                  tau_s(ia, ir, ispin) = tau_s(ia, ir, ispin) + tau_sum
-               END DO
-            END DO
-!$OMP END PARALLEL DO
+         DO ir = 1, nr, nrows
+            last = MIN(ir + nrows - 1, nr)
+            first = (ir - 1)*na + 1
+            npts = (last - ir + 1)*na
+            CALL contract_tau_block(ngrid, nbas, first, npts, tau_cache%grad, &
+                                    rho_atom%cpc_h(ispin)%r_coef, tau_h(:, ir:last, ispin))
+            CALL contract_tau_block(ngrid, nbas, first, npts, tau_cache%grad, &
+                                    rho_atom%cpc_s(ispin)%r_coef, tau_s(:, ir:last, ispin))
          END DO
       END DO
-
-      DEALLOCATE (work)
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
    END SUBROUTINE calc_tau_atom
+
+! **************************************************************************************************
+!> \brief Contract one density matrix on a block of atom-grid points.
+!> \param ngrid full grid size
+!> \param nbas number of one-center basis functions
+!> \param start first grid point in the full gradient matrix
+!> \param count number of grid points in the block
+!> \param grad gradients of the basis functions on the full grid
+!> \param coeff hard or soft density matrix
+!> \param tau kinetic energy density on the block
+! **************************************************************************************************
+   SUBROUTINE contract_tau_block(ngrid, nbas, start, count, grad, coeff, tau)
+      INTEGER, INTENT(IN)                                :: ngrid, nbas, start, count
+      REAL(dp), DIMENSION(ngrid, nbas, 3), INTENT(IN)    :: grad
+      REAL(dp), DIMENSION(nbas, nbas), INTENT(IN)        :: coeff
+      REAL(dp), DIMENSION(count), INTENT(OUT)            :: tau
+
+      INTEGER                                            :: dir, ibas
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: work
+      REAL(dp), DIMENSION(count)                         :: partial
+
+      ALLOCATE (work(count, nbas))
+      tau = 0.0_dp
+      DO dir = 1, 3
+         CALL dgemm('N', 'T', count, nbas, nbas, 0.5_dp, grad(start, 1, dir), &
+                    ngrid, coeff, nbas, 0.0_dp, work, count)
+         partial = 0.0_dp
+         DO ibas = 1, nbas
+            partial = partial + grad(start:start + count - 1, ibas, dir)*work(:, ibas)
+         END DO
+         tau = tau + partial
+      END DO
+      DEALLOCATE (work)
+   END SUBROUTINE contract_tau_block
 
 ! **************************************************************************************************
 !> \brief ...
@@ -973,86 +984,88 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspins
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'dgaVtaudgb'
+      INTEGER, PARAMETER                                 :: column_block = 8
 
-      INTEGER                                            :: dir, handle, ia, ibas, igrid, iold, ir, &
-                                                            ispin, jbas, jold, max_old_basis, na, &
-                                                            nbas, ngrid, nr
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: int_h, int_s, weighted_grad
+      INTEGER                                            :: first, handle, ispin, last, &
+                                                            max_old_basis, nbas, ngrid
 
       CALL timeset(routineN, handle)
 
       CPASSERT(ALLOCATED(tau_cache%grad))
       CPASSERT(ASSOCIATED(tau_cache%n2oindex))
 
-      nr = tau_cache%nr
-      na = tau_cache%na
       nbas = tau_cache%nsatbas
-      ngrid = na*nr
+      ngrid = tau_cache%na*tau_cache%nr
       max_old_basis = MAXVAL(tau_cache%n2oindex)
-      ALLOCATE (int_h(nbas, nbas), int_s(nbas, nbas), weighted_grad(ngrid, nbas))
 
       DO ispin = 1, nspins
          CPASSERT(SIZE(int_hh(ispin)%r_coef, 1) >= max_old_basis)
          CPASSERT(SIZE(int_hh(ispin)%r_coef, 2) >= max_old_basis)
          CPASSERT(SIZE(int_ss(ispin)%r_coef, 1) >= max_old_basis)
          CPASSERT(SIZE(int_ss(ispin)%r_coef, 2) >= max_old_basis)
-         int_h = 0.0_dp
-         int_s = 0.0_dp
-         DO dir = 1, 3
-!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(3) SCHEDULE(STATIC) &
-!$OMP SHARED(dir, ispin, na, nbas, nr, tau_cache, vtau_h, weighted_grad) &
-!$OMP PRIVATE(ia, ibas, igrid, ir)
-            DO ibas = 1, nbas
-               DO ir = 1, nr
-                  DO ia = 1, na
-                     igrid = ia + (ir - 1)*na
-                     weighted_grad(igrid, ibas) = vtau_h(ia, ir, ispin)* &
-                                                  tau_cache%grad(igrid, ibas, dir)
-                  END DO
-               END DO
-            END DO
-!$OMP END PARALLEL DO
-            CALL dgemm('T', 'N', nbas, nbas, ngrid, 0.5_dp, tau_cache%grad(:, :, dir), &
-                       ngrid, weighted_grad, ngrid, 1.0_dp, int_h, nbas)
-
-!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(3) SCHEDULE(STATIC) &
-!$OMP SHARED(dir, ispin, na, nbas, nr, tau_cache, vtau_s, weighted_grad) &
-!$OMP PRIVATE(ia, ibas, igrid, ir)
-            DO ibas = 1, nbas
-               DO ir = 1, nr
-                  DO ia = 1, na
-                     igrid = ia + (ir - 1)*na
-                     weighted_grad(igrid, ibas) = vtau_s(ia, ir, ispin)* &
-                                                  tau_cache%grad(igrid, ibas, dir)
-                  END DO
-               END DO
-            END DO
-!$OMP END PARALLEL DO
-            CALL dgemm('T', 'N', nbas, nbas, ngrid, 0.5_dp, tau_cache%grad(:, :, dir), &
-                       ngrid, weighted_grad, ngrid, 1.0_dp, int_s, nbas)
-         END DO
-
-!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SCHEDULE(STATIC) &
-!$OMP SHARED(int_h, int_hh, int_s, int_ss, ispin, nbas, tau_cache) &
-!$OMP PRIVATE(ibas, iold, jbas, jold)
-         DO jbas = 1, nbas
-            DO ibas = 1, nbas
-               jold = tau_cache%n2oindex(jbas)
-               iold = tau_cache%n2oindex(ibas)
-               int_hh(ispin)%r_coef(iold, jold) = int_hh(ispin)%r_coef(iold, jold) + &
-                                                  int_h(ibas, jbas)
-               int_ss(ispin)%r_coef(iold, jold) = int_ss(ispin)%r_coef(iold, jold) + &
-                                                  int_s(ibas, jbas)
-            END DO
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC, 1) IF (nbas > column_block) &
+!$OMP SHARED(int_hh, int_ss, ispin, nbas, ngrid, tau_cache, vtau_h, vtau_s) PRIVATE(last)
+         DO first = 1, nbas, column_block
+            last = MIN(nbas, first + column_block - 1)
+            CALL add_tau_columns(ngrid, nbas, first, last, tau_cache%grad, vtau_h(:, :, ispin), &
+                                 tau_cache%n2oindex, int_hh(ispin)%r_coef)
+            CALL add_tau_columns(ngrid, nbas, first, last, tau_cache%grad, vtau_s(:, :, ispin), &
+                                 tau_cache%n2oindex, int_ss(ispin)%r_coef)
          END DO
 !$OMP END PARALLEL DO
       END DO
 
-      DEALLOCATE (int_h, int_s, weighted_grad)
-
       CALL timestop(handle)
 
    END SUBROUTINE dgaVtaudgb
+
+! **************************************************************************************************
+!> \brief Add a column panel of the symmetric one-center tau potential and its transpose.
+!> \param ngrid full grid size
+!> \param nbas number of one-center basis functions
+!> \param first first column of the panel
+!> \param last last column of the panel
+!> \param grad basis gradients on the full grid
+!> \param vtau potential on the atom grid
+!> \param order map from compact to original basis indices
+!> \param matrix one-center matrix to update
+! **************************************************************************************************
+   SUBROUTINE add_tau_columns(ngrid, nbas, first, last, grad, vtau, order, matrix)
+      INTEGER, INTENT(IN)                                :: ngrid, nbas, first, last
+      REAL(dp), DIMENSION(ngrid, nbas, 3), INTENT(IN)    :: grad
+      REAL(dp), DIMENSION(ngrid), INTENT(IN)             :: vtau
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: order
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: matrix
+
+      INTEGER, PARAMETER                                 :: grid_block = 512
+
+      INTEGER                                            :: col, count, dir, i, j, start
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: panel, weighted
+
+      ALLOCATE (panel(last, first:last), weighted(MIN(ngrid, grid_block), first:last))
+      panel = 0.0_dp
+      DO dir = 1, 3
+         DO start = 1, ngrid, grid_block
+            count = MIN(grid_block, ngrid - start + 1)
+            DO col = first, last
+               weighted(:count, col) = vtau(start:start + count - 1)*grad(start:start + count - 1, col, dir)
+            END DO
+            CALL dgemm('T', 'N', last, last - first + 1, count, 0.5_dp, grad(start, 1, dir), ngrid, &
+                       weighted, SIZE(weighted, 1), 1.0_dp, panel, last)
+         END DO
+      END DO
+
+      ! G^T diag(vtau) G is symmetric even when the potential changes sign.
+      DO col = first, last
+         j = order(col)
+         DO i = 1, col - 1
+            matrix(order(i), j) = matrix(order(i), j) + panel(i, col)
+            matrix(j, order(i)) = matrix(j, order(i)) + panel(i, col)
+         END DO
+         matrix(j, j) = matrix(j, j) + panel(col, col)
+      END DO
+      DEALLOCATE (panel, weighted)
+   END SUBROUTINE add_tau_columns
 
 ! **************************************************************************************************
 !> \brief Calculates the radial weight function for accurate XC integration
