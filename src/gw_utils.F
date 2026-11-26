@@ -3621,7 +3621,13 @@ CONTAINS
       u = bs_env%unit_nr
       IF (u > 0) THEN
          WRITE (u, '(T2,A)') ''
-         WRITE (u, '(T2,A,F50.2)') 'SCF fundamental band gap (eV)', E_min*evolt
+         IF (bs_env%do_periodic) THEN
+            WRITE (u, '(T2,A,F50.2)') 'SCF fundamental band gap (eV)', E_min*evolt
+         ELSE
+            ! smallest energy of an excitation within one spin channel; for open shells, it
+            ! differs from the HOMO-LUMO gap printed with the eigenvalues
+            WRITE (u, '(T2,A,F53.2)') 'Min. SCF eigval diff. (eV)', E_min*evolt
+         END IF
          WRITE (u, '(T2,A,F53.2)') 'Max. SCF eigval diff. (eV)', E_max*evolt
          WRITE (u, '(T2,A,F55.2)') 'E-Range for minimax grid', E_range
          WRITE (u, '(T2,A,I27)') 'Number of Padé parameters for analytic continuation:', &

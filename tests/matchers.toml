@@ -1556,6 +1556,28 @@ class   = 'GenericMatcher'
 pattern = 'G0W0 conduction band minimum'
 col     = 6
 
+[E_molecule_G0W0_HOMO]
+class   = 'GenericMatcher'
+pattern = 'G0W0 HOMO (eV):'
+col     = 4
+
+[E_molecule_G0W0_LUMO]
+class   = 'GenericMatcher'
+pattern = 'G0W0 LUMO (eV):'
+col     = 4
+
+[E_molecule_G0W0_gap]
+class   = 'GenericMatcher'
+pattern = 'G0W0 HOMO-LUMO gap (eV):'
+col     = 5
+
+# open shell: the first HOMO-LUMO gap printed is the one of the alpha channel
+[E_molecule_G0W0_alpha_gap]
+class   = 'GenericMatcher'
+pattern = 'G0W0 HOMO-LUMO gap (eV):'
+col     = 5
+first   = true
+
 # RI-RS RPA with k-points (WF_CORRELATION%RI_RS_RPA)
 [E_RIRS_RPA_EXX]
 class   = 'GenericMatcher'
@@ -1567,12 +1589,22 @@ class   = 'GenericMatcher'
 pattern = 'RI-RS-RPA| RPA correlation energy'
 col     = 6
 
-# RI-RS evGW0 calculation for molecules; the band edges are labelled evGW0 rather than
-# G0W0 once SELF_CONSISTENCY EVGW0 is requested, so these need their own matchers
-[E_RIRS_evGW0_HOMO]
+# RI-RS evGW0 calculation for molecules; the trailing colon selects the final values and not
+# the lines printed in every evGW0 cycle
+[E_molecule_evGW0_HOMO]
 class   = 'GenericMatcher'
-pattern = 'evGW0 valence band maximum'
-col     = 6
+pattern = 'evGW0 HOMO (eV):'
+col     = 4
+
+[E_molecule_evGW0_LUMO]
+class   = 'GenericMatcher'
+pattern = 'evGW0 LUMO (eV):'
+col     = 4
+
+[E_molecule_evGW0_gap]
+class   = 'GenericMatcher'
+pattern = 'evGW0 HOMO-LUMO gap (eV):'
+col     = 5
 
 [E_static_COHSEX_HOMO]
 class   = 'GenericMatcher'
@@ -1589,14 +1621,19 @@ class   = 'GenericMatcher'
 pattern = 'static COHSEX indirect band gap'
 col     = 7
 
-[E_RIRS_evGW0_LUMO]
+[E_molecule_static_COHSEX_HOMO]
 class   = 'GenericMatcher'
-pattern = 'evGW0 conduction band minimum'
-col     = 6
+pattern = 'static COHSEX HOMO (eV):'
+col     = 5
 
-[E_evGW0_direct_gap]
+[E_molecule_static_COHSEX_LUMO]
 class   = 'GenericMatcher'
-pattern = 'evGW0 direct band gap'
+pattern = 'static COHSEX LUMO (eV):'
+col     = 5
+
+[E_molecule_static_COHSEX_gap]
+class   = 'GenericMatcher'
+pattern = 'static COHSEX HOMO-LUMO gap (eV):'
 col     = 6
 
 # Floquet Calculations
