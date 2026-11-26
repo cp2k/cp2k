@@ -35,7 +35,7 @@ MODULE local_gemm_api
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'local_gemm_api'
 
-   PUBLIC :: local_gemm_ctxt_type, &
+   PUBLIC :: local_gemm_ctxt_type, local_gemm_pool_type, &
              local_gemm_set_library
 
    INTEGER, PARAMETER, PUBLIC :: &
@@ -56,7 +56,52 @@ MODULE local_gemm_api
       GENERIC :: gemm => gemm_d, gemm_z
    END TYPE
 
+   ! One independent context per concurrent caller on this rank's chosen device.
+   TYPE local_gemm_pool_type
+      TYPE(local_gemm_ctxt_type), ALLOCATABLE :: worker(:)
+      INTEGER, PRIVATE :: backend = -1
+   CONTAINS
+      PROCEDURE :: prepare => local_gemm_pool_prepare
+      PROCEDURE :: release => local_gemm_pool_release
+   END TYPE
+
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Prepare GPU-capable contexts before entering an OpenMP region.
+!> \param pool caller-owned contexts
+!> \param nworkers maximum simultaneous users
+! **************************************************************************************************
+   SUBROUTINE local_gemm_pool_prepare(pool, nworkers)
+      CLASS(local_gemm_pool_type), INTENT(INOUT)         :: pool
+      INTEGER, INTENT(IN)                                :: nworkers
+      INTEGER                                            :: j
+
+      IF (ALLOCATED(pool%worker)) THEN
+         IF (pool%backend == do_dgemm .AND. SIZE(pool%worker) >= nworkers) RETURN
+         CALL pool%release()
+      END IF
+      ALLOCATE (pool%worker(nworkers))
+      DO j = 1, nworkers
+         CALL pool%worker(j)%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
+      END DO
+      pool%backend = do_dgemm
+   END SUBROUTINE local_gemm_pool_prepare
+
+! **************************************************************************************************
+!> \brief Release contexts after all workers have finished.
+!> \param pool caller-owned contexts
+! **************************************************************************************************
+   SUBROUTINE local_gemm_pool_release(pool)
+      CLASS(local_gemm_pool_type), INTENT(INOUT)         :: pool
+      INTEGER                                            :: j
+
+      IF (.NOT. ALLOCATED(pool%worker)) RETURN
+      DO j = 1, SIZE(pool%worker)
+         CALL pool%worker(j)%destroy()
+      END DO
+      DEALLOCATE (pool%worker)
+   END SUBROUTINE local_gemm_pool_release
 
    #:for scalar, prefix in [('REAL', 'd'), ('COMPLEX', 'z')]
 ! **************************************************************************************************

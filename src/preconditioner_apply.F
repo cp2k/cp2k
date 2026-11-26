@@ -49,8 +49,8 @@ MODULE preconditioner_apply
    USE kinds,                           ONLY: dp
    USE lattice_preconditioner_operator, ONLY: apply_lattice_inverse_dense,&
                                               apply_lattice_state_inverse_dense
-   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
-                                              local_gemm_ctxt_type
+   USE local_gemm_api,                  ONLY: local_gemm_ctxt_type,&
+                                              local_gemm_pool_type
    USE low_rank_preconditioner_model,   ONLY: low_rank_inverse_weight
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
@@ -75,7 +75,6 @@ MODULE preconditioner_apply
    TYPE complex_preconditioner_work_type
       COMPLEX(dp), ALLOCATABLE :: buffer(:, :, :)
       REAL(dp), ALLOCATABLE :: packed(:, :, :)
-      TYPE(local_gemm_ctxt_type) :: gemm_ctx
    END TYPE complex_preconditioner_work_type
 
 CONTAINS
@@ -87,12 +86,14 @@ CONTAINS
 !> \param matrix_in real/imaginary input pointers, indexed by component and channel
 !> \param matrix_out real/imaginary output pointers, indexed by component and channel
 !> \param handled false when a channel requires the distributed implementation
+!> \param pool GEMM contexts indexed by worker, retained by the caller
 !> \param output_scale optional real scale per channel, applied before writeback
 ! **************************************************************************************************
-   SUBROUTINE apply_preconditioner_complex_batch(preconditioners, matrix_in, matrix_out, handled, output_scale)
+   SUBROUTINE apply_preconditioner_complex_batch(preconditioners, matrix_in, matrix_out, handled, pool, output_scale)
       TYPE(preconditioner_p_type), INTENT(IN)            :: preconditioners(:)
       TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_in(:, :), matrix_out(:, :)
       LOGICAL, INTENT(OUT)                               :: handled
+      TYPE(local_gemm_pool_type), INTENT(INOUT)          :: pool
       REAL(dp), INTENT(IN), OPTIONAL                     :: output_scale(:)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_preconditioner_complex_batch'
@@ -124,9 +125,7 @@ CONTAINS
       nworkers = 1
 !$    nworkers = MIN(nchannels, omp_get_max_threads())
       ALLOCATE (work(nworkers))
-      DO j = 1, nworkers
-         CALL work(j)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
-      END DO
+      CALL pool%prepare(nworkers)
       DO first = 1, nchannels, nworkers
          nbatch = MIN(nworkers, nchannels - first + 1)
          DO j = 1, nbatch
@@ -146,10 +145,10 @@ CONTAINS
             CALL copy_dbcsr_to_local(matrix_in(2, i)%matrix, work(j)%packed(:, :, 2))
          END DO
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) &
-!$OMP SHARED(work,preconditioners,first,nbatch,output_scale) PRIVATE(i)
+!$OMP SHARED(work,preconditioners,first,nbatch,output_scale,pool) PRIVATE(i)
          DO j = 1, nbatch
             i = first + j - 1
-            CALL apply_preconditioner_complex_local(preconditioners(i)%preconditioner, work(j))
+            CALL apply_preconditioner_complex_local(preconditioners(i)%preconditioner, work(j), pool%worker(j))
             IF (PRESENT(output_scale)) THEN
                IF (output_scale(i) /= 1.0_dp) work(j)%packed(:, :, :) = output_scale(i)*work(j)%packed(:, :, :)
             END IF
@@ -161,9 +160,6 @@ CONTAINS
             CALL copy_local_to_dbcsr(matrix_out(2, i)%matrix, work(j)%packed(:, :, 2))
          END DO
       END DO
-      DO j = 1, nworkers
-         CALL work(j)%gemm_ctx%destroy()
-      END DO
       handled = .TRUE.
       CALL timestop(handle)
    END SUBROUTINE apply_preconditioner_complex_batch
@@ -172,11 +168,13 @@ CONTAINS
 !> \brief Apply the existing complex preconditioner with private local GEMM storage.
 !> \param p channel preconditioner; its matrices are read only
 !> \param w worker storage
+!> \param gemm_ctx this worker's GEMM context
 ! **************************************************************************************************
-   SUBROUTINE apply_preconditioner_complex_local(p, w)
+   SUBROUTINE apply_preconditioner_complex_local(p, w, gemm_ctx)
       TYPE(preconditioner_type), INTENT(IN)              :: p
       TYPE(complex_preconditioner_work_type), &
          INTENT(INOUT), TARGET                           :: w
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx
 
       COMPLEX(dp), CONTIGUOUS, POINTER                   :: basis(:, :), RESULT(:, :), rhs(:, :), &
                                                             rotation(:, :)
@@ -201,26 +199,26 @@ CONTAINS
          IF (p%in_use == ot_precond_full_all_covariant) THEN
             CPASSERT(ASSOCIATED(p%occ_rotation_complex))
             rotation => p%occ_rotation_complex%local_data
-            CALL w%gemm_ctx%gemm('N', 'N', n, k, k, z_one, rhs, n, &
-                                 rotation, SIZE(rotation, 1), z_zero, RESULT, n)
+            CALL gemm_ctx%gemm('N', 'N', n, k, k, z_one, rhs, n, &
+                               rotation, SIZE(rotation, 1), z_zero, RESULT, n)
             rhs => w%buffer(:, :, 2)
             RESULT => w%buffer(:, :, 1)
          END IF
-         CALL w%gemm_ctx%gemm('C', 'N', n, k, n, z_one, basis, SIZE(basis, 1), &
-                              rhs, n, z_zero, RESULT, n)
+         CALL gemm_ctx%gemm('C', 'N', n, k, n, z_one, basis, SIZE(basis, 1), &
+                            rhs, n, z_zero, RESULT, n)
          CALL scale_complex_spectral(p, RESULT, p%complex_fm%matrix_struct%row_indices, &
                                      p%complex_fm%matrix_struct%col_indices)
-         CALL w%gemm_ctx%gemm('N', 'N', n, k, n, z_one, basis, SIZE(basis, 1), &
-                              RESULT, n, z_zero, rhs, n)
+         CALL gemm_ctx%gemm('N', 'N', n, k, n, z_one, basis, SIZE(basis, 1), &
+                            RESULT, n, z_zero, rhs, n)
          IF (p%in_use == ot_precond_full_all_covariant) THEN
-            CALL w%gemm_ctx%gemm('N', 'C', n, k, k, z_one, rhs, n, &
-                                 rotation, SIZE(rotation, 1), z_zero, RESULT, n)
+            CALL gemm_ctx%gemm('N', 'C', n, k, k, z_one, rhs, n, &
+                               rotation, SIZE(rotation, 1), z_zero, RESULT, n)
          ELSE
             RESULT => rhs
          END IF
       CASE DEFAULT
-         CALL w%gemm_ctx%gemm('N', 'N', n, k, n, z_one, basis, SIZE(basis, 1), &
-                              rhs, n, z_zero, RESULT, n)
+         CALL gemm_ctx%gemm('N', 'N', n, k, n, z_one, basis, SIZE(basis, 1), &
+                            rhs, n, z_zero, RESULT, n)
       END SELECT
       w%packed(:, :, 1) = REAL(RESULT, KIND=dp)
       w%packed(:, :, 2) = AIMAG(RESULT)
@@ -482,6 +480,7 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: matrix_in_im_fm, matrix_in_re_fm, &
                                                             matrix_out_im_fm, matrix_out_re_fm
       TYPE(dbcsr_p_type)                                 :: input(2, 1), output(2, 1)
+      TYPE(local_gemm_pool_type)                         :: pool
       TYPE(preconditioner_p_type)                        :: preconditioners(1)
 
       preconditioners(1)%preconditioner => preconditioner_env
@@ -489,7 +488,8 @@ CONTAINS
       input(2, 1)%matrix => matrix_in_im
       output(1, 1)%matrix => matrix_out_re
       output(2, 1)%matrix => matrix_out_im
-      CALL apply_preconditioner_complex_batch(preconditioners, input, output, handled)
+      CALL apply_preconditioner_complex_batch(preconditioners, input, output, handled, pool)
+      CALL pool%release()
       IF (handled) RETURN
 
       CALL timeset(routineN, handle)

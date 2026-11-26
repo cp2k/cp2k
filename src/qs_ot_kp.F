@@ -2019,7 +2019,8 @@ CONTAINS
             END IF
          END DO
          CALL apply_preconditioner_complex_batch(preconditioners(1:nbatch), &
-                                                 matrix_in(:, 1:nbatch), matrix_out(:, 1:nbatch), handled)
+                                                 matrix_in(:, 1:nbatch), matrix_out(:, 1:nbatch), handled, &
+                                                 qs_ot_env(1)%preconditioner_gemm)
          DO j = 1, nbatch
             IF (.NOT. handled .AND. ASSOCIATED(preconditioners(j)%preconditioner)) THEN
                CALL apply_preconditioner(preconditioners(j)%preconditioner, &

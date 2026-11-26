@@ -48,6 +48,7 @@ MODULE qs_ot_types
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE local_gemm_api,                  ONLY: local_gemm_pool_type
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
    USE preconditioner_types,            ONLY: preconditioner_type
@@ -152,6 +153,8 @@ MODULE qs_ot_types
       ! add a preconditioner matrix. should be symmetric and positive definite
       ! the type of this matrix might change in the future
       TYPE(preconditioner_type), POINTER :: preconditioner => NULL()
+      ! Only the first local channel owns the worker contexts for the whole batch.
+      TYPE(local_gemm_pool_type) :: preconditioner_gemm
 
       ! these will/might change during iterations
 
@@ -1381,6 +1384,7 @@ CONTAINS
 
       INTEGER                                            :: physical_spin
 
+      CALL qs_ot_env%preconditioner_gemm%release()
       IF (.NOT. qs_ot_env%state_allocated) RETURN
 
       CALL mp_para_env_release(qs_ot_env%para_env)
