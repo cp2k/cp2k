@@ -1,0 +1,1804 @@
+[GW_orbital_self_energy]
+class = 'GWOrbitalSelfEnergyMatcher'
+
+# CC4S export invariants (independent of orbital phases).
+[CC4S_vertex_norm]
+class   = 'GenericMatcher'
+pattern = 'CC4S| Vertex norm squared [Ha]:'
+col     = 6
+
+[CC4S_eigenenergy_sum]
+class   = 'GenericMatcher'
+pattern = 'CC4S| Sum of exported orbital energies [Ha]:'
+col     = 8
+
+# Total energy in Hartree
+[E_total]
+class   = 'GenericMatcher'
+pattern = 'Total energy:'
+col     = 3
+
+[OT_SCF_convergence]
+class   = 'GenericMatcher'
+pattern = '^\s*\d+\s+OT\s+\S+\s+\S+\s+\S+\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+
+[OT_SCF_initial_energy]
+class   = 'GenericMatcher'
+pattern = '^\s*1\s+OT\s+\S+\s+\S+\s+\S+\s+\S+\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+first   = true
+
+[Electronic_entropic_energy]
+class   = 'GenericMatcher'
+pattern = 'Electronic entropic energy:'
+col     = 4
+
+[Integrated_spin_density]
+class   = 'GenericMatcher'
+pattern = 'Integrated spin density:'
+col     = 4
+
+[FOD_orbital_sum]
+class   = 'GenericMatcher'
+pattern = 'FOD| N_FOD (orbital sum)'
+col     = 5
+
+[FOD_grid_integral]
+class   = 'GenericMatcher'
+pattern = 'FOD| Grid integral'
+col     = 4
+
+[COMMUTATOR_HR_X]
+class   = 'GenericMatcher'
+pattern = 'COMMUTATOR_HR| CheckSum X ='
+col     = 5
+
+[COMMUTATOR_HR_Y]
+class   = 'GenericMatcher'
+pattern = 'COMMUTATOR_HR| CheckSum Y ='
+col     = 5
+
+[COMMUTATOR_HR_Z]
+class   = 'GenericMatcher'
+pattern = 'COMMUTATOR_HR| CheckSum Z ='
+col     = 5
+
+[Cube_Si_effective_charge]
+class   = 'GenericMatcher'
+pattern = '^\s*14\s+([-+0-9.EeDd]+)\s+'
+col     = 1
+regex   = true
+first   = true
+
+[Cube_O_effective_charge]
+class   = 'GenericMatcher'
+pattern = '^\s*8\s+([-+0-9.EeDd]+)\s+'
+col     = 1
+regex   = true
+first   = true
+
+[Shake_colvar_multiplier]
+class   = 'GenericMatcher'
+pattern = 'Shake  Lagrangian Multipliers:'
+col     = 4
+
+[M002]
+class   = 'GenericMatcher'
+pattern = 'MD| Potential energy'
+col     = 5
+
+[M003]
+class   = 'GenericMatcher'
+pattern = 'Total energy [eV]:'
+col     = 4
+
+[S2_estimate]
+class   = 'GenericMatcher'
+pattern = 'Ideal and single determinant'
+col     = 8
+
+[M005]
+class   = 'GenericMatcher'
+pattern = 'BSSE-free interaction energy:'
+col     = 5
+
+[M006]
+class   = 'GenericMatcher'
+pattern = 'Average Energy'
+col     = 4
+
+[M007]
+class   = 'GenericMatcher'
+pattern = 'OPT| Total energy [hartree]'
+col     = 5
+
+[Cell_vector_a_y]
+class   = 'GenericMatcher'
+pattern = 'CELL| Vector a [angstrom]:'
+col     = 6
+
+[Cell_angle_alpha]
+class   = 'GenericMatcher'
+pattern = 'CELL| Angle (b,c), alpha [degree]:'
+col     = 6
+
+[Cell_angle_beta]
+class   = 'GenericMatcher'
+pattern = 'CELL| Angle (a,c), beta  [degree]:'
+col     = 6
+
+[Cell_angle_gamma]
+class   = 'GenericMatcher'
+pattern = 'CELL| Angle (a,b), gamma [degree]:'
+col     = 6
+
+# GenericMatcher escapes []()|+*? but not ^. Escape \^ in [angstrom\^3]
+# so regex does not treat ^ as a start-of-line anchor.
+[Cell_volume]
+class   = 'GenericMatcher'
+pattern = 'CELL| Volume [angstrom\^3]:'
+col     = 4
+
+# The '|a| =  ...' column of the cell-vector lines: the vector length,
+# as printed by write_cell_low (last occurrence = the final cell).
+[Cell_length_a]
+class   = 'GenericMatcher'
+pattern = 'CELL| Vector a [angstrom]:'
+col     = 10
+
+[Cell_length_b]
+class   = 'GenericMatcher'
+pattern = 'CELL| Vector b [angstrom]:'
+col     = 10
+
+[Cell_length_c]
+class   = 'GenericMatcher'
+pattern = 'CELL| Vector c [angstrom]:'
+col     = 10
+
+[Vib_freq]
+class   = 'GenericMatcher'
+pattern = 'VIB|Frequency'
+col     = 3
+
+[Vib_frc_const]
+class   = 'GenericMatcher'
+pattern = 'VIB|Frc consts'
+col     = 4
+
+[M009]
+class   = 'GenericMatcher'
+pattern = 'PINT| Total energy ='
+col     = 5
+
+[M010]
+class   = 'GenericMatcher'
+pattern = 'BAND TOTAL ENERGY [au]'
+col     = 6
+
+[IDPP_min_distance_before]
+class   = 'GenericMatcher'
+pattern = 'NEB| IDPP minimum pair distance [angstrom]:'
+col     = 7
+
+[IDPP_min_distance_after]
+class   = 'GenericMatcher'
+pattern = 'NEB| IDPP minimum pair distance [angstrom]:'
+col     = 9
+
+[SIDPP_min_distance]
+class   = 'GenericMatcher'
+pattern = 'NEB\| S-IDPP \d+ images; minimum pair distance \[angstrom\]:'
+col     = 9
+regex   = true
+
+[Ssneb_initial_shear_force]
+class   = 'GenericMatcher'
+pattern = 'SS-NEB| Cell force 2 '
+col     = 8
+first   = true
+
+[Ssneb_final_middle_volume]
+class   = 'GenericMatcher'
+pattern = 'SS-NEB\| Volume \[bohr\^3\] 2\s+(\S+)'
+col     = 1
+regex   = true
+
+[Ssdimer_curvature]
+class   = 'GenericMatcher'
+pattern = 'SS-DIMER| Curvature [au]'
+col     = 4
+
+[Ssdimer_joint_force_norm]
+class   = 'GenericMatcher'
+pattern = 'SS-DIMER| Joint-force norm [au]'
+col     = 5
+
+[Ssdimer_completed]
+class = 'TextPresenceMatcher'
+text  = 'GEOMETRY OPTIMIZATION COMPLETED'
+
+[M011]
+class   = 'GenericMatcher'
+pattern = 'ENERGY| Total FORCE_EVAL'
+col     = 9
+
+[Geometry_optimization_converged]
+class = 'TextPresenceMatcher'
+text  = 'GEOMETRY OPTIMIZATION COMPLETED'
+
+[NEB_optimization_converged]
+class = 'TextPresenceMatcher'
+text  = 'BAND TASK COMPLETED'
+
+[FIST_periodic_dipole_x]
+class   = 'GenericMatcher'
+pattern = 'MM_DIPOLE| Moment [a.u.]'
+col     = 4
+first   = true
+
+[FIST_periodic_dipole_derivative_x]
+class   = 'GenericMatcher'
+pattern = 'MM_DIPOLE| Derivative [a.u.]'
+col     = 4
+first   = true
+
+[FIST_atom_1_force_x]
+class   = 'GenericMatcher'
+pattern = '^\s*FORCES\|\s+1\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+first   = true
+
+[QS_atom_2_force_y]
+class   = 'GenericMatcher'
+pattern = '^\s*FORCES\|\s+2\s+\S+\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+
+[QS_atom_1_force_z]
+class   = 'GenericMatcher'
+pattern = '^\s*FORCES\|\s+1\s+\S+\s+\S+\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+
+[N_special_kpoints]
+class   = 'GenericMatcher'
+pattern = 'Number of Special K-points:'
+col     = 5
+
+[QS_number_of_molecular_orbitals]
+class   = 'GenericMatcher'
+pattern = 'Number of molecular orbitals:'
+col     = 5
+
+[QS_cartesian_mo_output]
+class = 'TextPresenceMatcher'
+text  = 'CARTESIAN EIGENVECTORS'
+
+[QS_MO_OCCUPATION_STATS]
+class = 'TextPresenceMatcher'
+text  = 'MO| Total occupied (ALPHA):'
+
+[OT_lbfgs_skipped_update]
+class = 'TextPresenceMatcher'
+text  = 'OT LSKIP'
+
+[OT_lbfgs_update]
+class = 'TextPresenceMatcher'
+text  = 'OT LBFGS'
+
+[OT_diis_update]
+class = 'TextPresenceMatcher'
+text  = 'OT DIIS'
+
+[OT_mermin_response_update]
+class = 'TextPresenceMatcher'
+text  = 'OT CG-R'
+
+[OT_mermin_exact_hxc]
+class = 'TextPresenceMatcher'
+text  = 'apply_hxc_kernel_kp'
+
+[OT_mermin_lbfgs_response_update]
+class = 'TextPresenceMatcher'
+text  = 'OT L-R'
+
+[OT_kpoint_ref_refresh]
+class = 'TextPresenceMatcher'
+text  = 'K-point OT: rebuilding physical virtual subspace'
+
+[OT_added_mos_auto_grow]
+class = 'TextPresenceMatcher'
+text  = 'K-point ADDED_MOS AUTO: growing virtual-space buffer'
+
+[OT_lattice_fft_selected]
+class = 'TextPresenceMatcher'
+text  = 'selected: T'
+
+[OT_lattice_fft_fallback]
+class = 'TextPresenceMatcher'
+text  = 'selected: F'
+
+[OT_lattice_local_correction]
+class = 'TextPresenceMatcher'
+text  = 'Balanced local correction cells:'
+
+[Kubo_sigma_iso]
+class   = 'GenericMatcher'
+pattern = 'KUBO_TRANSPORT| sigma_iso[S/cm]'
+col     = 3
+
+[Kubo_sigma_iso_2d]
+class   = 'GenericMatcher'
+pattern = 'KUBO_TRANSPORT| sigma_iso[S]'
+col     = 3
+
+[Kubo_sigma_iso_1d]
+class   = 'GenericMatcher'
+pattern = 'KUBO_TRANSPORT| sigma_iso[S*m]'
+col     = 3
+
+[NLO_chi2_3d_zzz_real]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| 3D\s+ZZZ\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+
+[NLO_chi2_3d_zzz_imag]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| 3D\s+ZZZ\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+
+[NLO_chi2_3d_xxz_real]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| 3D\s+XXZ\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+
+[NLO_chi2_3d_xxz_imag]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| 3D\s+XXZ\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+
+[NLO_chi2_2d_zzz_real]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| 2D\s+ZZZ\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+
+[NLO_chi2_3d_zzz_real_first]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| 3D\s+ZZZ\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+first   = true
+
+[NLO_chi2_3d_zzz_imag_first]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| 3D\s+ZZZ\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+first   = true
+
+[NLO_chi2_2d_zzz_real_first]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| 2D\s+ZZZ\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+first   = true
+
+# nlo_order=3
+[NLO_chi3_3d_zz_real]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| 3D\s+Z{4}\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+
+[NLO_chi3_3d_zz_imag]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| 3D\s+Z{4}\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+
+# nlo_order=4
+[NLO_chi4_3d_zz_real]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| 3D\s+Z{5}\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+
+[NLO_chi4_3d_zz_imag]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| 3D\s+Z{5}\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+
+# nlo_order=5
+[NLO_chi5_3d_zz_real]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| 3D\s+Z{6}\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+
+[NLO_chi5_3d_zz_imag]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| 3D\s+Z{6}\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)'
+col     = 1
+regex   = true
+
+[NLO_T1_T2_fs]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| T1 = T2:\s+([-+0-9.EeDd]+)\s+fs'
+col     = 1
+regex   = true
+
+[NLO_T1_fs]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| T1:\s+([-+0-9.EeDd]+)\s+fs'
+col     = 1
+regex   = true
+
+[NLO_T2_fs]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| T2:\s+([-+0-9.EeDd]+)\s+fs'
+col     = 1
+regex   = true
+
+[NLO_hbar_T1_meV]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| ℏ/T1:\s+([-+0-9.EeDd]+)\s+meV'
+col     = 1
+regex   = true
+
+[NLO_hbar_T2_meV]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| ℏ/T2:\s+([-+0-9.EeDd]+)\s+meV'
+col     = 1
+regex   = true
+
+[NLO_transition_width_meV]
+class   = 'GenericMatcher'
+pattern = 'NONLINEAR_OPTICS\| Band transition width:\s+([-+0-9.EeDd]+)\s+meV'
+col     = 1
+regex   = true
+
+[Kubo_internal_diag]
+class = 'TextPresenceMatcher'
+text  = 'internal diagonalization'
+
+[Kubo_reused_mos]
+class = 'TextPresenceMatcher'
+text  = 'CP2K canonical MOs'
+
+[Kubo_reference]
+class = 'TextPresenceMatcher'
+text  = 'https://doi.org/10.1016/j.aop.2020.168290'
+
+[SKALA_GPW_feature_electrons]
+class   = 'GenericMatcher'
+pattern = 'SKALA_GPW| Native grid feature electrons'
+col     = 6
+
+[SKALA_GPW_feature_spin_moment]
+class   = 'GenericMatcher'
+pattern = 'SKALA_GPW| Native grid feature spin moment'
+col     = 7
+
+[SKALA_GPW_feature_weight_sum]
+class   = 'GenericMatcher'
+pattern = 'SKALA_GPW| Native grid feature weight sum'
+col     = 7
+
+[SKALA_GAPW_composite_electrons]
+class   = 'GenericMatcher'
+pattern = 'SKALA_GPW| Active atom-composite electrons'
+col     = 5
+
+# Fail the -cuda regtests when Torch silently falls back to the CPU.  This
+# exact substring is printed only when a visible CUDA device was selected for
+# rank 0; the fallback line says 'no Torch CUDA device is visible'.
+[SKALA_native_cuda_device]
+class = 'TextPresenceMatcher'
+text  = 'SKALA_GPW| Native grid Torch CUDA device 0 of'
+
+# Fail the GauXC device regtests when the device runtime is not used.
+[GAUXC_device_execution]
+class = 'TextPresenceMatcher'
+text  = 'GAUXC| Execution spaces: LB DEVICE, INT DEVICE, runtime DEVICE'
+
+# Covers INT_EXECUTION_SPACE DEVICE with the default LB_EXECUTION_SPACE HOST:
+# the device integrator needs a device runtime even though the load balancer
+# stays on the host.
+[GAUXC_integrator_device]
+class = 'TextPresenceMatcher'
+text  = 'GAUXC| Execution spaces: LB HOST, INT DEVICE, runtime DEVICE'
+
+[WANNIER90_SCF_MO_REUSE]
+class = 'TextPresenceMatcher'
+text  = 'WANNIER90| Reused SCF MO coefficients for the Wannier90 full k-point mesh.'
+
+[WANNIER90_PROJECTION_MIN_SVALUE]
+class   = 'GenericMatcher'
+pattern = 'WANNIER90| Minimum projection singular value'
+col     = 6
+
+[WANNIER90_HYBRID_CANDIDATE_COUNT]
+class   = 'GenericMatcher'
+pattern = 'WANNIER90| Exported hybrid projection candidates'
+col     = 6
+
+[WANNIER90_FULL_MESH_DIAG]
+class = 'TextPresenceMatcher'
+text  = 'WANNIER90| Falling back to full-mesh diagonalization for the Wannier90 files.'
+
+[TOPOLOGY_SURFACE_CONVERGED]
+class = 'TextPresenceMatcher'
+text  = 'TOPOLOGY| Wilson surface sampling converged.'
+
+[TOPOLOGY_Z2_TRIVIAL]
+class = 'TextPresenceMatcher'
+text  = 'TOPOLOGY| Converged Z2 invariant: 0'
+
+[TOPOLOGY_CHERN_TRIVIAL]
+class = 'TextPresenceMatcher'
+text  = 'TOPOLOGY| Converged first Chern number: 0'
+
+[TQC_PARITY_INDEX]
+class   = 'GenericMatcher'
+pattern = 'TQC| Fu-Kane parity index:'
+col     = 5
+
+[TQC_INVERSION_Z4]
+class   = 'GenericMatcher'
+pattern = 'TQC| Inversion Z4 (sum odd pairs mod 4):'
+col     = 9
+
+[TQC_ATOMIC_SIGNATURE]
+class = 'TextPresenceMatcher'
+text  = 'TQC| Nonnegative atomic signature: T'
+
+[TOPOLOGY_BERRY_PHASE]
+class     = 'GenericMatcher'
+pattern   = 'Berry phase [rad]:'
+col       = 7
+abs_value = true
+
+[WANNIER90_DEGENERATE_GUARD]
+class = 'TextPresenceMatcher'
+text  = 'degenerate atom/AO W90 reuse guarded'
+
+[WANNIER90_DEGENERATE_SUBSPACE_ALIGN]
+class = 'TextPresenceMatcher'
+text  = 'degenerate SCF MO subspace(s)'
+
+[WANNIER90_USE_BLOCH_PHASES]
+class = 'TextPresenceMatcher'
+text  = 'WANNIER90| Wrote identity projections for Bloch-phase complete band subspaces.'
+
+[WANNIER90_BLOCH_PHASE_GAUGE]
+class = 'TextPresenceMatcher'
+text  = 'WANNIER90| Applied Bloch phase gauge to reused overlaps'
+
+[WANNIER90_REUSE_VALIDATION]
+class = 'TextPresenceMatcher'
+text  = 'WANNIER90| Reused MO validation: subspace deviation'
+
+[WANNIER90_CANDIDATE_METRIC_DEVIATION]
+class   = 'GenericMatcher'
+pattern = 'WANNIER90\| Best atom/AO candidate.*max metric deviation\s+([^,\s]+)'
+col     = 1
+regex   = true
+
+[M012]
+class   = 'GenericMatcher'
+pattern = 'B2(T) ='
+col     = 4
+
+[M013]
+class   = 'GenericMatcher'
+pattern = 'sparseness function f2 ='
+col     = 5
+
+[M014]
+class   = 'GenericMatcher'
+pattern = 'CheckSum Shifts ='
+col     = 4
+
+[M015]
+class   = 'GenericMatcher'
+pattern = 'CheckSum NICS ='
+col     = 4
+
+[M016]
+class   = 'GenericMatcher'
+pattern = 'CheckSum Chi ='
+col     = 4
+
+[M017]
+class   = 'GenericMatcher'
+pattern = 'Total='
+col     = 8
+
+[Dipole_trajectory_norm]
+class   = 'GenericMatcher'
+pattern = 'MOMENTS|'
+col     = 6
+
+[Dipole_trajectory_cell_xx]
+class   = 'GenericMatcher'
+pattern = 'MOMENTS|'
+col     = 7
+
+[Dipole_z_first]
+class   = 'GenericMatcher'
+pattern = 'X='
+col     = 6
+first   = true
+
+[Dipole_z]
+class   = 'GenericMatcher'
+pattern = 'X='
+col     = 6
+
+[Molecular_moment_x]
+class   = 'GenericMatcher'
+pattern = 'Order: 1'
+col     = 3
+
+[M018]
+class   = 'GenericMatcher'
+pattern = 'MS| TRACKED FREQUENCY'
+col     = 6
+
+[M019]
+class   = 'GenericMatcher'
+pattern = 'CheckSum splines ='
+col     = 4
+
+[M020]
+class   = 'GenericMatcher'
+pattern = 'epr|TOT:checksum'
+col     = 2
+
+[M021]
+class   = 'GenericMatcher'
+pattern = 'VIB|'
+col     = 3
+
+[M022]
+class   = 'GenericMatcher'
+pattern = 'PW exchange energy'
+col     = 5
+
+[M023]
+class   = 'GenericMatcher'
+pattern = 'Total Spread'
+col     = 5
+
+[M024]
+class   = 'GenericMatcher'
+pattern = 'DFT+U energy:'
+col     = 3
+
+[M025]
+class   = 'GenericMatcher'
+pattern = 'OPT| Local curvature'
+col     = 4
+
+[M026]
+class   = 'GenericMatcher'
+pattern = 'Total electronic charge (G-space):'
+col     = 6
+
+[M027]
+class   = 'GenericMatcher'
+pattern = 'Total electronic charge (R-space):'
+col     = 5
+
+[M028]
+class   = 'GenericMatcher'
+pattern = 'Total spin density (R-space)           :'
+col     = 6
+
+[M029]
+class   = 'GenericMatcher'
+pattern = 'Heat of formation [kcal/mol]:'
+col     = 5
+
+# HOMO-LUMO gap / bandgap at Gamma-point of a DFT calculation
+[E_gap_DFT]
+class   = 'GenericMatcher'
+pattern = 'HOMO - LUMO gap [eV]'
+col     = 7
+
+# TODO merge with prev.
+[E_gap_DFT_2]
+class   = 'GenericMatcher'
+pattern = 'Band gap:'
+col     = 4
+
+# HOMO-LUMO gaps reported by frontier-orbital basis optimization.
+[BASOPT_frontier_optimized_gap]
+class   = 'GenericMatcher'
+pattern = '^\s*Opt\. small basis.*\s([-+0-9.EeDd]+)\s*$'
+col     = 9
+regex   = true
+
+[BASOPT_frontier_screened_gap]
+class   = 'GenericMatcher'
+pattern = '^\s*Basis 1\s+([-+0-9.EeDd]+)\s+'
+col     = 3
+regex   = true
+
+[M031]
+class   = 'GenericMatcher'
+pattern = 'STRESS| 1/3 Trace'
+col     = 4
+
+[M032]
+class   = 'GenericMatcher'
+pattern = 'MD| Potential energy'
+col     = 6
+
+[M033]
+class   = 'GenericMatcher'
+pattern = 'Dispersion energy:'
+col     = 3
+
+[M034]
+class   = 'GenericMatcher'
+pattern = 'ISSC| all operator: CheckSum ='
+col     = 6
+
+[M035]
+class   = 'GenericMatcher'
+pattern = 'Energy components'
+col     = 7
+
+[M036]
+class   = 'GenericMatcher'
+pattern = 'ISSC| response: CheckSum ='
+col     = 5
+
+[TDDFPT_Check_Energy]
+class   = 'GenericMatcher'
+pattern = 'TDDFPT : CheckSum E ='
+col     = 6
+
+[TDDFPT_Check_Osc_Strength]
+class   = 'GenericMatcher'
+pattern = 'TDDFPT : CheckSum F ='
+col     = 6
+
+[M038]
+class   = 'GenericMatcher'
+pattern = 'ISSC| CheckSum K ='
+col     = 5
+
+[M039]
+class   = 'GenericMatcher'
+pattern = 'X='
+col     = 2
+
+[M040]
+class   = 'GenericMatcher'
+pattern = 'HELIUM| Total energy ='
+col     = 5
+
+[M041]
+class   = 'GenericMatcher'
+pattern = 'Total charge and spin'
+col     = 9
+
+[M042]
+class   = 'GenericMatcher'
+pattern = 'DEBUG| Sum of differences'
+col     = 5
+
+[M043]
+class   = 'GenericMatcher'
+pattern = 'FORCES| Total core particle force'
+col     = 6
+
+[M044]
+class   = 'GenericMatcher'
+pattern = 'FORCES| Total shell particle force'
+col     = 6
+
+[M045]
+class   = 'GenericMatcher'
+pattern = 'PRM01'
+col     = 2
+
+[M046]
+class   = 'GenericMatcher'
+pattern = 'Final value'
+col     = 6
+
+[M047]
+class   = 'GenericMatcher'
+pattern = 'SUMMARY:: Number of molecule kinds found:'
+col     = 7
+
+[PDB_KIND_H_MASS]
+class   = 'GenericMatcher'
+pattern = 'NEW ATOMIC KIND\s+HW1\s+([-+0-9.EeDd]+)'
+col     = 5
+regex   = true
+
+[M048]
+class   = 'GenericMatcher'
+pattern = 'E(Fermi):'
+col     = 3
+
+[M049]
+class   = 'GenericMatcher'
+pattern = 'Total Multiplication'
+col     = 9
+
+[M050]
+class   = 'GenericMatcher'
+pattern = 'Direct MP2 Canonical Energy ='
+col     = 6
+
+[M051]
+class   = 'GenericMatcher'
+pattern = 'RESP       1'
+col     = 4
+
+[M053]
+class   = 'GenericMatcher'
+pattern = 'Exchange-correlation energy:'
+col     = 3
+
+[M054]
+class   = 'GenericMatcher'
+pattern = 'FORCES| Grand total force'
+col     = 6
+
+[M055]
+class   = 'GenericMatcher'
+pattern = 'BASOPT| Total residuum value:'
+col     = 5
+
+[M056]
+class   = 'GenericMatcher'
+pattern = 'Final value of function'
+col     = 6
+
+[M057]
+class   = 'GenericMatcher'
+pattern = 'Emp2-RI ='
+col     = 3
+
+[M058]
+class   = 'GenericMatcher'
+pattern = 'Final checksums'
+col     = 3
+
+[M059]
+class   = 'GenericMatcher'
+pattern = 'GLBOPT| Lowest reported potential energy'
+col     = 7
+
+[M060]
+class   = 'GenericMatcher'
+pattern = 'POLAR| xx,yy,zz'
+col     = 3
+
+[M061]
+class   = 'GenericMatcher'
+pattern = 'POWELL| Final value of function'
+col     = 6
+
+[M062]
+class   = 'GenericMatcher'
+pattern = 'Gibbs energy correction'
+col     = 6
+
+[M063]
+class   = 'GenericMatcher'
+pattern = '^  C'
+col     = 2
+
+[M064]
+class   = 'GenericMatcher'
+pattern = '^  C'
+col     = 3
+
+[M065]
+class   = 'GenericMatcher'
+pattern = '^  C'
+col     = 4
+
+[M066]
+class   = 'GenericMatcher'
+pattern = 'HF Etotal'
+col     = 3
+
+[M067]
+class   = 'GenericMatcher'
+pattern = 'Energy Level:'
+col     = 9
+
+[M069]
+class   = 'GenericMatcher'
+pattern = 'Log(1-CN):'
+col     = 10
+
+[M070]
+class   = 'GenericMatcher'
+pattern = 'MD| Temperature [K]'
+col     = 4
+
+[M071]
+class   = 'GenericMatcher'
+pattern = 'Current value of constraint'
+col     = 6
+
+[M072]
+class   = 'GenericMatcher'
+pattern = 'FORCES| Total atomic force'
+col     = 5
+
+[Atomic_force_1_x]
+class   = 'GenericMatcher'
+pattern = '^\s*FORCES\|\s+1\s+'
+col     = 3
+regex   = true
+
+[Atomic_force_1_y]
+class   = 'GenericMatcher'
+pattern = '^\s*FORCES\|\s+1\s+'
+col     = 4
+regex   = true
+
+[Atomic_force_1_z]
+class   = 'GenericMatcher'
+pattern = '^\s*FORCES\|\s+1\s+'
+col     = 5
+regex   = true
+
+[Atomic_force_2_x]
+class   = 'GenericMatcher'
+pattern = '^\s*FORCES\|\s+2\s+'
+col     = 3
+regex   = true
+
+[Atomic_force_2_y]
+class   = 'GenericMatcher'
+pattern = '^\s*FORCES\|\s+2\s+'
+col     = 4
+regex   = true
+
+[Atomic_force_2_z]
+class   = 'GenericMatcher'
+pattern = '^\s*FORCES\|\s+2\s+'
+col     = 5
+regex   = true
+
+[M073]
+class   = 'GenericMatcher'
+pattern = 'Diabatic electronic coupling (rotation'
+col     = 6
+
+[M074]
+class   = 'GenericMatcher'
+pattern = 'Diabatic electronic coupling (wfn'
+col     = 7
+
+[M075]
+class   = 'GenericMatcher'
+pattern = 'Charge transfer energy'
+col     = 6
+
+[M076]
+class   = 'GenericMatcher'
+pattern = 'Diabatic electronic coupling (Lowdin'
+col     = 6
+
+[M077]
+class   = 'GenericMatcher'
+pattern = 'Ground state energy'
+col     = 4
+
+# G0W0 HOMO-LUMO gap of molecule
+[E_G0W0_gap]
+class   = 'GenericMatcher'
+pattern = 'G0W0 HOMO-LUMO gap (eV)'
+col     = 5
+
+# G0W0 HOMO-LUMO gap of second spin channel of molecule
+[E_G0W0_gap_beta]
+class   = 'GenericMatcher'
+pattern = 'Beta GW HOMO-LUMO gap (eV)'
+col     = 6
+
+# static COHSEX HOMO-LUMO gap of molecule in the O(N^4) GW code, diagonal (DG) and canonical (CN)
+[E_static_COHSEX_gap_DG]
+class   = 'GenericMatcher'
+pattern = 'static COHSEX HOMO-LUMO gap, diagonal (eV)'
+col     = 7
+
+[E_static_COHSEX_gap_CN]
+class   = 'GenericMatcher'
+pattern = 'static COHSEX HOMO-LUMO gap, canonical (eV)'
+col     = 7
+
+[IC_gap]
+class   = 'GenericMatcher'
+pattern = 'IC HOMO-LUMO gap (eV)'
+col     = 5
+
+[M081]
+class   = 'GenericMatcher'
+pattern = 'HOMO SCF Cycle:     4'
+col     = 9
+
+[M082]
+class   = 'GenericMatcher'
+pattern = 'DEBUG| Sum of differences:'
+col     = 5
+
+[DEBUG_stress_sum]
+class   = 'GenericMatcher'
+pattern = 'DEBUG\|\s+Sum of differences\s+([-+0-9.EeDd]+)$'
+col     = 5
+regex   = true
+
+[DEBUG_periodic_stress_sum]
+class   = 'GenericMatcher'
+pattern = 'DEBUG\|\s+Periodic-subspace sum of differences\s+([-+0-9.EeDd]+)$'
+col     = 5
+regex   = true
+
+[DEBUG_force_sum]
+class   = 'GenericMatcher'
+pattern = 'DEBUG\|\s+Sum of differences:\s+([-+0-9.EeDd]+)'
+col     = 5
+regex   = true
+
+[GAUXC_molecular_xc_virial_trace]
+class   = 'GenericMatcher'
+pattern = 'GAUXC\|\s+Molecular XC gradient virial 1/3 Trace\s+([-+0-9.EeDd]+)'
+col     = 8
+regex   = true
+
+[GAUXC_analytical_gradient]
+class = 'TextPresenceMatcher'
+text  = 'GAUXC| Molecular XC gradient method: ANALYTICAL'
+
+[GAUXC_numerical_gradient]
+class = 'TextPresenceMatcher'
+text  = 'GAUXC| Molecular XC gradient method: FD'
+
+[GAUXC_self_gradient]
+class = 'TextPresenceMatcher'
+text  = 'GAUXC| Molecular XC gradient runtime: SELF'
+
+[GAUXC_molecular_xc_virial_fd_diff]
+class   = 'GenericMatcher'
+pattern = 'GAUXC\|\s+Molecular XC virial FD 1/3 Trace\s+[-+0-9.EeDd]+\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)'
+col     = 9
+regex   = true
+
+[XTB_reference_cli_failed]
+class = 'TextPresenceMatcher'
+text  = 'tblite reference CLI check failed to run.'
+
+[NO_TEXT]
+class = 'TextAbsenceMatcher'
+
+[M083]
+class   = 'GenericMatcher'
+pattern = '1[   1] - 2[   1]'
+col     = 7
+
+[M084]
+class   = 'GenericMatcher'
+pattern = 'Ionization potential of the excited atom:'
+col     = 7
+
+[M085]
+class   = 'GenericMatcher'
+pattern = 'Total FORCE_EVAL ( SIRIUS ) energy'
+col     = 9
+
+[M086]
+class   = 'GenericMatcher'
+pattern = 'DIPOLE : CheckSum  ='
+col     = 5
+
+[M087]
+class   = 'GenericMatcher'
+pattern = 'POLAR : CheckSum  ='
+col     = 5
+
+[XAS_excit_ener]
+class   = 'GenericMatcher'
+pattern = 'XAS excitation energy (eV):'
+col     = 7
+
+# Squared dipoles for the first RIXS absorption and emission.
+[RIXS_absorption_dipole_squared]
+class   = 'GenericMatcher'
+pattern = '^\s*[-+0-9.EeDd]+(?:\s+[-+0-9.EeDd]+){4}\s*$'
+col     = 5
+regex   = true
+first   = true
+
+[RIXS_emission_dipole_squared]
+class   = 'GenericMatcher'
+pattern = '^\s*[-+0-9.EeDd]+(?:\s+[-+0-9.EeDd]+){5}\s*$'
+col     = 6
+regex   = true
+first   = true
+
+[M089]
+class   = 'GenericMatcher'
+pattern = 'Electronic density on regular grids:'
+col     = 7
+
+[M090]
+class   = 'GenericMatcher'
+pattern = 'Final localization:'
+col     = 3
+
+[M091]
+class   = 'GenericMatcher'
+pattern = 'Ionization potentials for XPS'
+col     = 8
+
+[M092]
+class   = 'GenericMatcher'
+pattern = 'FCIDUMP| Checksum:'
+col     = 3
+
+[AS_NMIXING_deprecated]
+class = 'TextPresenceMatcher'
+text  = 'NMIXING has no effect'
+
+[AS_embedding_iterations]
+class   = 'GenericMatcher'
+pattern = 'rs-DFT embedding run converged in'
+col     = 7
+
+[FCIDUMP_MS2]
+class   = 'GenericMatcher'
+pattern = '&FCI .*MS2=\s*([-+0-9]+),'
+col     = 1
+regex   = true
+
+[FCIDUMP_reference_energy]
+class   = 'GenericMatcher'
+pattern = 'FCIDUMP| Reference determinant energy offset [hartree]:'
+col     = 7
+
+[ROKS_FCIDUMP_spin_warning]
+class = 'TextPresenceMatcher'
+text  = 'ROKS FCIDUMP spin blocks'
+
+[M093]
+class   = 'GenericMatcher'
+pattern = 'SPGR| SPACE GROUP NUMBER:'
+col     = 5
+
+[M094]
+class   = 'GenericMatcher'
+pattern = 'KS CSR write|'
+col     = 4
+
+[M095]
+class   = 'GenericMatcher'
+pattern = 'Fermi energy:'
+col     = 3
+
+[M096]
+class   = 'GenericMatcher'
+pattern = 'APT |   1  2'
+col     = 7
+
+[M097]
+class   = 'GenericMatcher'
+pattern = 'r(1)'
+col     = 3
+
+# G0W0 bandgap of solid (old low-scaling GW implementation)
+[E_G0W0_gap_old]
+class   = 'GenericMatcher'
+pattern = 'GW bandgap (eV)'
+col     = 4
+
+# G0W0 bandgap of majority spin channel of solid (old low-scaling GW implementation)
+[E_G0W0_alpha_gap_old]
+class   = 'GenericMatcher'
+pattern = 'Alpha GW direct gap'
+col     = 9
+
+# G0W0 bandgap of minority spin channel of solid (old low-scaling GW implementation)
+[E_G0W0_beta_gap_old]
+class   = 'GenericMatcher'
+pattern = 'Beta GW direct gap'
+col     = 9
+
+# G0W0 + perturbative SOC bandgap of solid (old low-scaling GW implementation)
+[E_G0W0_SOC_gap_old]
+class   = 'GenericMatcher'
+pattern = 'GW+SOC bandgap (eV)'
+col     = 4
+
+[Spread_Berry]
+class   = 'GenericMatcher'
+pattern = 'Total Spread (Berry) :'
+col     = 6
+
+[Spread]
+class   = 'GenericMatcher'
+pattern = '   Iteration: '
+col     = 4
+
+[M100]
+class   = 'GenericMatcher'
+pattern = 'NVP |   1  2'
+col     = 8
+
+[M104]
+class   = 'GenericMatcher'
+pattern = 'Ground state stabilisation:'
+col     = 4
+
+[M105]
+class   = 'GenericMatcher'
+pattern = 'TDDFT+SOC'
+col     = 5
+
+# G0W0 bandgap of solid
+[E_G0W0_direct_gap]
+class   = 'GenericMatcher'
+pattern = 'G0W0 direct band gap'
+col     = 6
+
+[E_G0W0_indirect_gap]
+class   = 'GenericMatcher'
+pattern = 'G0W0 indirect band gap'
+col     = 6
+
+# DFT + perturbative SOC bandgap of solid
+[E_SCF_SOC_gap]
+class   = 'GenericMatcher'
+pattern = 'SCF+SOC direct band gap'
+col     = 6
+
+# G0W0 + perturbative SOC bandgap of solid
+[E_G0W0_SOC_gap]
+class   = 'GenericMatcher'
+pattern = 'G0W0+SOC direct band gap'
+col     = 6
+
+# Lowest BSE excitation energy in Tamm-Dancoff approximation (TDA)
+[BSE_1st_excit_ener_TDA]
+class   = 'GenericMatcher'
+pattern = 'BSE|                1       Singlet          -TDA-'
+col     = 5
+
+# Lowest BSE excitation energy
+[BSE_1st_excit_ener]
+class   = 'GenericMatcher'
+pattern = 'BSE|                1       Singlet         -ABBA-'
+col     = 5
+
+# evGW0 HOMO-LUMO gap of molecule
+[E_evGW0_gap]
+class   = 'GenericMatcher'
+pattern = 'HOMO-LUMO gap in evGW0 iteration  3 (eV)'
+col     = 8
+
+# evGW HOMO-LUMO gap of molecule
+[E_evGW_gap]
+class   = 'GenericMatcher'
+pattern = 'HOMO-LUMO gap in evGW iteration  3 (eV)'
+col     = 8
+
+[M113]
+class   = 'GenericMatcher'
+pattern = 'BSE|             1     -TDA-'
+col     = 7
+
+[M114]
+class   = 'GenericMatcher'
+pattern = 'BSE|             1    -ABBA-'
+col     = 7
+
+# Open-shell (UKS) BSE matchers: joint-spectrum energies and oscillator strength
+[BSE_1st_excit_ener_UKS]
+class   = 'GenericMatcher'
+pattern = 'BSE|                1       UKS              -TDA-'
+col     = 5
+
+[BSE_2nd_excit_ener_UKS]
+class   = 'GenericMatcher'
+pattern = 'BSE|                2       UKS              -TDA-'
+col     = 5
+
+[BSE_osc_str_n2_UKS]
+class   = 'GenericMatcher'
+pattern = 'BSE|             2     -TDA-'
+col     = 7
+
+[BSE_osc_str_n11_UKS]
+class   = 'GenericMatcher'
+pattern = 'BSE|            11     -TDA-'
+col     = 7
+
+[BSE_1st_excit_ener_UKS_ABBA]
+class   = 'GenericMatcher'
+pattern = 'BSE|                1       UKS             -ABBA-'
+col     = 5
+
+[BSE_2nd_excit_ener_UKS_ABBA]
+class   = 'GenericMatcher'
+pattern = 'BSE|                2       UKS             -ABBA-'
+col     = 5
+
+[BSE_osc_str_n2_UKS_ABBA]
+class   = 'GenericMatcher'
+pattern = 'BSE|             2    -ABBA-'
+col     = 7
+
+[BSE_ampl_n2_UKS_ABBA]
+class   = 'GenericMatcher'
+pattern = 'BSE|            2   α      1    =>     2        -ABBA-'
+col     = 8
+
+# Closed-shell ABBA: a de-excitation amplitude |Y_ia^n| (needs EPS_X below it) and the
+# Davidson reference check against the full diagonalization (needs BSE_DEBUG_PRINT)
+[BSE_Y_ampl_n1_ABBA]
+class   = 'GenericMatcher'
+pattern = 'BSE|            1           4    <=     5        -ABBA-'
+col     = 7
+
+[BSE_refcheck_overlap]
+class   = 'GenericMatcher'
+pattern = 'BSE|DEBUG| Min subspace overlap vs full diagonalization'
+col     = 8
+
+[M115]
+class   = 'GenericMatcher'
+pattern = 'MOMENTS_TRACE_RE|     0.10000000E+000'
+col     = 3
+
+[M116]
+class   = 'GenericMatcher'
+pattern = 'MOMENTS_TRACE_IM|     0.10000000E+000'
+col     = 3
+
+[M117]
+class   = 'GenericMatcher'
+pattern = 'MOMENTS_TRACE_RE|     0.20000000E+000'
+col     = 3
+
+[M118]
+class   = 'GenericMatcher'
+pattern = 'POLARIZABILITY|     0.28949671E+002'
+col     = 4
+
+[M119]
+class   = 'GenericMatcher'
+pattern = 'DEBUG:: Total Force'
+col     = 6
+
+[M120]
+class   = 'GenericMatcher'
+pattern = 'SMEAGOL| Number of electrons:'
+col     = 5
+
+[M121]
+class   = 'GenericMatcher'
+pattern = 'BSE|             3     -TDA-                2'
+col     = 5
+
+[M122]
+class   = 'GenericMatcher'
+pattern = 'BSE|             3    -ABBA-                2'
+col     = 5
+
+[M123]
+class   = 'GenericMatcher'
+pattern = 'Checksum exciton descriptors'
+col     = 4
+
+[M124]
+class   = 'GenericMatcher'
+pattern = 'BSE|DEBUG| Averaged dynamical dipole polarizability at 8.2 eV:'
+col     = 9
+
+[M125]
+class   = 'GenericMatcher'
+pattern = 'BSE|DEBUG| Averaged photoabsorption cross section at 8.2 eV:'
+col     = 9
+
+# Checking maximum polarizability reported by GX-AC@RTBSE
+[RTBSE_GXAC_H2_pol]
+class   = 'GenericMatcher'
+pattern = 'POLARIZABILITY_PADE|     0.30450000E+002'
+col     = 4
+
+# Lowest excitation energy from the linRTBSE Liouvillian diagnostic.
+# Tied to the F12.4 eV column of the n=1 row.
+[LinRTBSE_1st_excit_ener]
+class   = 'GenericMatcher'
+pattern = ' RTBSE\|\s+1\s+\d+\.\d+\s*$'
+col     = 3
+regex   = true
+
+# 2nd and 3rd excitation energy on the same table; the '\s+N\s+' boundary
+# uniquely selects each row (e.g. '12' / '20' / '22' never matches '\s+2\s+').
+[LinRTBSE_2nd_excit_ener]
+class   = 'GenericMatcher'
+pattern = ' RTBSE\|\s+2\s+\d+\.\d+\s*$'
+col     = 3
+regex   = true
+
+[LinRTBSE_3rd_excit_ener]
+class   = 'GenericMatcher'
+pattern = ' RTBSE\|\s+3\s+\d+\.\d+\s*$'
+col     = 3
+regex   = true
+
+# Static polarizability alpha(0), Re part, spin=1, xx element.
+[LinRTBSE_static_pol_xx]
+class   = 'GenericMatcher'
+pattern = ' STATIC_POL\|\s+1\s+1,\s*1\s+'
+col     = 5
+regex   = true
+
+# Spin-summed total static polarizability alpha(0), Re part, xx element (open shell).
+[LinRTBSE_static_pol_xx_total]
+class   = 'GenericMatcher'
+pattern = ' STATIC_POL\|\s+TOT\s+1,\s*1\s+'
+col     = 5
+regex   = true
+
+[M126]
+class   = 'GenericMatcher'
+pattern = ' # Total charge '
+col     = 5
+
+[M127]
+class   = 'GenericMatcher'
+pattern = 'Checksum (Acoustic Sum Rule):'
+col     = 5
+
+# Dipole moment calculated at a specific k-point (-0.375,-0.375, 0.00)
+[Dipole_at_kp_1]
+class     = 'GenericMatcher'
+pattern   = '  1   1   2'
+col       = 4
+abs_value = true
+
+# Dipole moment calculated at a specific k-point (-0.375,-0.375, 0.00)
+[Dipole_for_CrSBr]
+class     = 'GenericMatcher'
+pattern   = '  1  31  32'
+col       = 4
+abs_value = true
+
+# Berry total dipole moment in trajectory format
+[Dipole_berry_traj]
+class   = 'GenericMatcher'
+pattern = 'MOMENTS|'
+col     = 6
+
+# Berry curvature calculated from dipoles near K point in graphene BZ
+[BC_near_K_point]
+class   = 'GenericMatcher'
+pattern = '   1    4'
+col     = 5
+
+# SOC k-point dipole (spinor HOMO->LUMO pair) read from the KPOINT_DIPOLE_FILE
+[Dipole_SOC_file]
+class     = 'GenericMatcher'
+pattern   = '     1  10  11'
+col       = 4
+abs_value = true
+
+# SOC Berry curvature Omega_z (XY) of the spinor HOMO read from the BERRY_CURVATURE_FILE
+[BC_SOC_file]
+class   = 'GenericMatcher'
+pattern = '      1   10'
+col     = 5
+
+# GEXT extrapolation
+[gext]
+class   = 'GenericMatcher'
+pattern = 'GEXT overlap fitting error:'
+col     = 5
+
+# RI-RS G0W0 calculation for molecules
+[E_HF_SCF_direct_gap]
+class   = 'GenericMatcher'
+pattern = 'Hartree-Fock with SCF orbitals direct band gap (eV):'
+col     = 9
+
+[Auto_RI_Size]
+class   = 'GenericMatcher'
+pattern = 'Number of automatic RI functions'
+col     = 11
+
+[RIRS_Grid]
+class   = 'GenericMatcher'
+pattern = 'Total grid points used for RI-RS:'
+col     = 7
+
+[RIRS_CUTOFF]
+class   = 'GenericMatcher'
+pattern = 'INPUT: Cutoff radius for grid points in RI-RS'
+col     = 9
+
+[RIRS_Grid_Optimization_Error]
+class   = 'GenericMatcher'
+pattern = 'Normalized 3C error:'
+col     = 4
+
+[E_RIRS_HOMO]
+class   = 'GenericMatcher'
+pattern = 'G0W0 valence band maximum'
+col     = 6
+
+[E_RIRS_LUMO]
+class   = 'GenericMatcher'
+pattern = 'G0W0 conduction band minimum'
+col     = 6
+
+# RI-RS RPA with k-points (WF_CORRELATION%RI_RS_RPA)
+[E_RIRS_RPA_EXX]
+class   = 'GenericMatcher'
+pattern = 'RI-RS-RPA| Exact exchange energy'
+col     = 6
+
+[E_RIRS_RPA_correlation]
+class   = 'GenericMatcher'
+pattern = 'RI-RS-RPA| RPA correlation energy'
+col     = 6
+
+# RI-RS evGW0 calculation for molecules; the band edges are labelled evGW0 rather than
+# G0W0 once SELF_CONSISTENCY EVGW0 is requested, so these need their own matchers
+[E_RIRS_evGW0_HOMO]
+class   = 'GenericMatcher'
+pattern = 'evGW0 valence band maximum'
+col     = 6
+
+[E_static_COHSEX_HOMO]
+class   = 'GenericMatcher'
+pattern = 'static COHSEX valence band maximum'
+col     = 7
+
+[E_static_COHSEX_LUMO]
+class   = 'GenericMatcher'
+pattern = 'static COHSEX conduction band minimum'
+col     = 7
+
+[E_static_COHSEX_gap]
+class   = 'GenericMatcher'
+pattern = 'static COHSEX indirect band gap'
+col     = 7
+
+[E_RIRS_evGW0_LUMO]
+class   = 'GenericMatcher'
+pattern = 'evGW0 conduction band minimum'
+col     = 6
+
+[E_evGW0_direct_gap]
+class   = 'GenericMatcher'
+pattern = 'evGW0 direct band gap'
+col     = 6
+
+# Floquet Calculations
+[Quasienergy]
+class   = 'GenericMatcher'
+pattern = '   3'
+col     = 2
+
+[Floquet_BS]
+class   = 'GenericMatcher'
+pattern = '   5'
+col     = 2
+
+[Floquet_DOS]
+class   = 'GenericMatcher'
+pattern = ' 0.1200'
+col     = 2
+
+[Floquet_OCC]
+class   = 'GenericMatcher'
+pattern = ' 0.1200'
+col     = 3
+
+# MTLR Calculations
+[MTLR_U_MINUS_J]
+class   = 'GenericMatcher'
+pattern = 'U_MINUS_J [eV]'
+col     = 4
+
+[MTLR_REFERENCE_MOS]
+class = 'TextPresenceMatcher'
+text  = ' MTLR| Perturbation initial guess:                               REFERENCE MOs'
+
+[WFN_RESTART_READ]
+class = 'TextPresenceMatcher'
+text  = 'WFN_RESTART| Restart file'
+
+# NNP MD matchers. M_INIT_ENERGY passes first=true because ENERGY|Total
+# FORCE_EVAL is printed once per MD step, and the default (last-line)
+# strategy would return step N rather than the step-0 initial value.
+# M_CONS_QTY reads the final-step MD|Conserved quantity.
+[M_INIT_ENERGY]
+class   = 'GenericMatcher'
+pattern = 'ENERGY| Total FORCE_EVAL'
+col     = 9
+first   = true
+
+[M_CONS_QTY]
+class   = 'GenericMatcher'
+pattern = 'MD| Conserved quantity'
+col     = 5
+
+# Instantaneous pressure of the final MD step, printed only when the force
+# environment makes a virial available. It is the quantity in an MD output that
+# the virial moves directly, so it is what pins an analytic virial: an energy
+# matcher still passes when the virial is identically zero.
+[M_PRESSURE]
+class   = 'GenericMatcher'
+pattern = 'MD| Pressure [bar]'
+col     = 4
+
+# REFTRAJ output must retain the frame index read from the trajectory, including
+# in nested print-key filenames.
+[REFTRAJ_first_frame_index]
+class   = 'GenericMatcher'
+pattern = 'i\s*=\s*(\d+)'
+col     = 1
+regex   = true
+first   = true
+
+[REFTRAJ_last_frame_index]
+class   = 'GenericMatcher'
+pattern = 'i\s*=\s*(\d+)'
+col     = 1
+regex   = true
+
+[REFTRAJ_force_file]
+class = 'TextPresenceMatcher'
+text  = 'ATOMIC FORCES'
+
+# STRUCTURE_DATA uses the same torsion sign convention as the TORSION COLVAR.
+[STRUCTURE_DATA_dihedral_angle]
+class   = 'GenericMatcher'
+pattern = 'd\(1,2,3,4\)\s*=\s*([-+0-9.]+)'
+col     = 1
+regex   = true
+
+# Checksum of the integrated RTP current (paramagnetic + nonlocal-PP commutator terms)
+[RTP_current_checksum]
+class   = 'GenericMatcher'
+pattern = 'RTP_CURRENT| CheckSum j_int='
+col     = 4
+
+# Vacuum level (plane-averaged, dipole-corrected Hartree potential) just below/above the
+# surface dipole correction reference plane; both values are printed on the same line.
+[Vacuum_level_below]
+class   = 'GenericMatcher'
+pattern = 'dipole correction plane [eV]:'
+col     = 5
+
+[Vacuum_level_above]
+class   = 'GenericMatcher'
+pattern = 'dipole correction plane [eV]:'
+col     = 6
+
+# Electron count imposed on a cube density fitted in the nonorthogonal AO basis.
+[Harris_fit_electron_count]
+class   = 'GenericMatcher'
+pattern = 'HARRIS\| AO density-matrix electron count:'
+col     = 6
+
+[Harris_fit_relative_entropy]
+class   = 'GenericMatcher'
+pattern = 'HARRIS\| Final fermionic relative entropy:'
+col     = 6
+
+[Harris_fit_prior_commutator]
+class   = 'GenericMatcher'
+pattern = 'HARRIS\| Prior-Hamiltonian commutator norm:'
+col     = 5
+
+[Harris_fit_idempotency_error]
+class   = 'GenericMatcher'
+pattern = 'HARRIS\| Occupation idempotency error:'
+col     = 5
+
+[Harris_direct_trial_energy]
+class   = 'GenericMatcher'
+pattern = 'Consistent trial-DM energy:'
+col     = 4
+
+[Harris_direct_energy_difference]
+class   = 'GenericMatcher'
+pattern = 'Trial-DM minus Harris-like energy:'
+col     = 5
+
+[LOCALIZER_GAP]
+class   = 'GenericMatcher'
+pattern = 'SPECTRAL_LOCALIZER| Gap [hartree]:'
+col     = 4
+
+[QUADRATIC_GAP]
+class   = 'GenericMatcher'
+pattern = 'QUADRATIC_PSEUDOSPECTRUM| Gap [hartree]:'
+col     = 4
+
+[QUADRATIC_ENERGY_RESIDUAL]
+class   = 'GenericMatcher'
+pattern = 'QUADRATIC_PSEUDOSPECTRUM| Energy residual [hartree]:'
+col     = 5
+
+[QUADRATIC_TRANSLATION_LEAKAGE]
+class   = 'GenericMatcher'
+pattern = 'QUADRATIC_PSEUDOSPECTRUM| Translation residual 1 full/projected/leakage:'
+col     = 8
+
+[QUADRATIC_TRANSLATION_IMAG]
+class   = 'GenericMatcher'
+pattern = 'QUADRATIC_PSEUDOSPECTRUM| Translation expectation 1 real/imag:'
+col     = 7
+
+[LOCALIZER_CHERN]
+class   = 'GenericMatcher'
+pattern = 'SPECTRAL_LOCALIZER| Chern index:'
+col     = 4
+
+[LOCALIZER_Z2]
+class   = 'GenericMatcher'
+pattern = 'SPECTRAL_LOCALIZER| Z2 index:'
+col     = 4
+
+[LOCALIZER_UNRESOLVED]
+class = 'TextPresenceMatcher'
+text  = 'SPECTRAL_LOCALIZER| UNRESOLVED:'
+
+[Band_first_eigenvalue]
+class   = 'GenericMatcher'
+pattern = '^\s*1\s+([-+]?\d+\.\d{8})\s+\d+\.\d{8}\s*$'
+col     = 2
+regex   = true
+
+[Kubo_hall_max]
+class   = 'GenericMatcher'
+pattern = 'KUBO_TRANSPORT| hall_max'
+col     = 3
+
+[Kubo_symmetry_current_error]
+class   = 'GenericMatcher'
+pattern = 'KUBO_TRANSPORT| Symmetry errors S/H/current:'
+col     = 7
+
+[Kubo_symmetry_points]
+class   = 'GenericMatcher'
+pattern = 'KUBO_TRANSPORT| Property symmetry representatives:'
+col     = 5
+
+# Band structure unfolding (&UNFOLDING): energy of the first band in the .bs
+# file (the row carries extra occupation/weight columns, hence no end anchor)
+[Unfold_band1_energy]
+class   = 'GenericMatcher'
+pattern = '^\s*1\s+([-+]?\d+\.\d+)\s+\d+\.\d+\s+\d+\.\d+'
+col     = 2
+regex   = true
+
+# EOF
