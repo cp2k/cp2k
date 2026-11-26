@@ -30,6 +30,13 @@
 
 static int chosen_device_id = -1;
 
+#if defined(__OFFLOAD_CUDA)
+// Records a failed cuInit(0) so that startup does not abort before the input
+// (and thus USE_GPU) has been processed. A fatal diagnostic is only produced
+// later, when a GPU execution space is actually requested.
+static int offload_cuda_init_failed = 0;
+#endif
+
 const uint32_t colormap[] = {0xFFFFFF00,  // Yellow
                              0xFFFF00FF,  // Fuchsia
                              0xFFFF0000,  // Red
@@ -51,15 +58,11 @@ const uint32_t colormap[] = {0xFFFFFF00,  // Yellow
  ******************************************************************************/
 void offload_init(void) {
 #if defined(__OFFLOAD_CUDA)
-  CUresult error = cuInit(0);
-  if (error != CUDA_SUCCESS) {
-    fprintf(
-        stderr,
-        "ERROR: cuInit failed with error %d; no usable CUDA device was found. "
-        "Set USE_GPU HOST to run on the CPU if a CPU-only run is intended. "
-        "(%s %d)\n",
-        error, __FILE__, __LINE__);
-    abort();
+  // Defer any failure: returning here lets a CPU-only run (USE_GPU HOST)
+  // proceed, while a genuinely requested GPU job is rejected later by the
+  // execution-space resolution, which has already read USE_GPU.
+  if (cuInit(0) != CUDA_SUCCESS) {
+    offload_cuda_init_failed = 1;
   }
 #elif defined(__OFFLOAD_HIP)
   OFFLOAD_CHECK(hipInit(0));
@@ -75,6 +78,9 @@ void offload_init(void) {
 int offload_get_device_count(void) {
   int count = 0;
 #if defined(__OFFLOAD_CUDA)
+  if (offload_cuda_init_failed) {
+    return 0;
+  }
   OFFLOAD_CHECK(cudaGetDeviceCount(&count));
 #elif defined(__OFFLOAD_HIP)
   OFFLOAD_CHECK(hipGetDeviceCount(&count));
