@@ -94,6 +94,11 @@ MODULE xc_gauxc_cache
       LOGICAL                                      :: gradient_is_init = .FALSE.
       LOGICAL                                      :: gradient_notice_printed = .FALSE.
       LOGICAL                                      :: execution_spaces_logged = .FALSE.
+      LOGICAL                                      :: kind_data_valid = .FALSE.
+      LOGICAL                                      :: has_pseudopotentials = .FALSE.
+      LOGICAL                                      :: all_pseudopotentials = .FALSE.
+      LOGICAL                                      :: has_paw_pseudopotentials = .FALSE.
+      LOGICAL                                      :: all_all_electron = .FALSE.
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: last_positions
    CONTAINS
 

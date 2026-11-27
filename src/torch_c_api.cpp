@@ -92,7 +92,17 @@ cblas_dgemm_batch(const CBLAS_ORDER order, const CBLAS_TRANSPOSE *trans_a,
 
 typedef torch::Tensor torch_c_tensor_t;
 typedef c10::Dict<std::string, torch::Tensor> torch_c_dict_t;
-typedef torch::jit::Module torch_c_model_t;
+
+// Wraps a TorchScript module together with its resolved method handles so the
+// forward path does not have to lock and look up a global method cache.
+struct torch_c_model_t {
+  torch::jit::Module module;
+  mutable std::mutex method_mutex;
+  bool has_primary_method = false;
+  std::string primary_method_name;
+  std::optional<torch::jit::Method> primary_method;
+  std::unordered_map<std::string, torch::jit::Method> extra_methods;
+};
 
 class TorchFloatingPointMaskGuard {
 public:
@@ -1479,9 +1489,9 @@ void torch_c_model_load(torch_c_model_t **model_out, const char *filename) {
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
   set_jit_fusion_strategy();
-  torch::jit::Module *model = new torch::jit::Module();
-  *model = load_module_for_device(filename, device);
-  model->eval(); // Set inference behavior for modules such as dropout.
+  torch_c_model_t *model = new torch_c_model_t();
+  model->module = load_module_for_device(filename, device);
+  model->module.eval(); // Set inference behavior for modules such as dropout.
   *model_out = model;
   TORCH_C_CATCH("torch_c_model_load")
 }
@@ -1501,11 +1511,11 @@ void torch_c_model_load_with_metadata(torch_c_model_t **model_out,
   std::unordered_map<std::string, std::string> extra_files = {{key1, ""},
                                                               {key2, ""}};
   set_jit_fusion_strategy();
-  torch::jit::Module *model = new torch::jit::Module();
+  torch_c_model_t *model = new torch_c_model_t();
   // Deduplicate Skala constants on CPU without repeated CUDA synchronization.
-  *model =
+  model->module =
       load_module_for_device(filename, device, &extra_files, device.is_cuda());
-  model->eval(); // Set inference behavior for modules such as dropout.
+  model->module.eval(); // Set inference behavior for modules such as dropout.
   *model_out = model;
   copy_string_to_c_buffer(extra_files[key1], content1, length1);
   copy_string_to_c_buffer(extra_files[key2], content2, length2);
@@ -1519,14 +1529,14 @@ void torch_c_model_remap_device_constants(torch_c_model_t *model) {
   TORCH_C_TRY
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
-  remap_model_device_constants(*model, device);
+  remap_model_device_constants(model->module, device);
   if (device.is_cuda()) {
     initialize_cuda_linalg(device);
   }
 
   bool has_cuda = false;
   bool has_cpu = false;
-  collect_model_device_constants(*model, has_cuda, has_cpu);
+  collect_model_device_constants(model->module, has_cuda, has_cpu);
   if (device.is_cuda()) {
     torch_c_check(!has_cpu,
                   "SKALA TorchScript model still targets the CPU "
@@ -1547,7 +1557,7 @@ void torch_c_model_promote_float32(torch_c_model_t *model) {
   TORCH_C_TRY
   TorchFloatingPointMaskGuard fpe_guard;
   torch::NoGradGuard no_grad;
-  promote_model_float32(*model);
+  promote_model_float32(model->module);
   TORCH_C_CATCH("torch_c_model_promote_float32")
 }
 
@@ -1567,7 +1577,7 @@ graph(%x):
   %y = aten::mul(%x, %s)
   return (%y))IR");
   std::unordered_set<torch::jit::Graph *> prepared;
-  for (const auto &module : model->modules()) {
+  for (const auto &module : model->module.modules()) {
     for (const auto &method : module.get_methods()) {
       auto graph = method.graph();
       if (prepared.insert(graph.get()).second) {
@@ -1653,7 +1663,7 @@ void torch_c_tensor_hessian_vector(const torch_c_tensor_t *tensor,
 void torch_c_model_disable_parameter_gradients(torch_c_model_t *model) {
   TORCH_C_TRY
   torch::NoGradGuard no_grad;
-  for (auto parameter : model->parameters()) {
+  for (auto parameter : model->module.parameters()) {
     parameter.set_requires_grad(false);
   }
   TORCH_C_CATCH("torch_c_model_disable_parameter_gradients")
@@ -1670,7 +1680,7 @@ void torch_c_model_forward(torch_c_model_t *model, const torch_c_dict_t *inputs,
   TorchFloatingPointMaskGuard fpe_guard;
   c10::OptionalDeviceGuard guard;
   get_device_with_guard(guard);
-  auto untyped_output = model->forward({*inputs}).toGenericDict();
+  auto untyped_output = model->module.forward({*inputs}).toGenericDict();
   outputs->clear();
   for (const auto &entry : untyped_output) {
     outputs->insert(entry.key().toStringView(), entry.value().toTensor());
@@ -1681,33 +1691,21 @@ void torch_c_model_forward(torch_c_model_t *model, const torch_c_dict_t *inputs,
 /*******************************************************************************
  * \brief Evaluates a TorchScript model method expecting argument "mol".
  ******************************************************************************/
-static std::mutex model_method_mutex;
-static std::unordered_map<const torch_c_model_t *,
-                          std::unordered_map<std::string, torch::jit::Method>>
-    *model_method_cache = nullptr;
-
-static torch::jit::Method get_cached_method(torch_c_model_t *model,
-                                            const char *method_name) {
-  std::lock_guard<std::mutex> lock(model_method_mutex);
-  if (model_method_cache == nullptr) {
-    model_method_cache = new std::unordered_map<
-        const torch_c_model_t *,
-        std::unordered_map<std::string, torch::jit::Method>>();
+// Returns the cached method handle for a frozen model. The primary method
+// (resolved at freeze time) is served lock-free on the hot path; other names
+// fall back to a per-model map guarded by the model's own mutex.
+static torch::jit::Method get_model_method(torch_c_model_t *model,
+                                           const char *method_name) {
+  if (model->has_primary_method && model->primary_method_name == method_name) {
+    return *model->primary_method;
   }
-  auto &methods = (*model_method_cache)[model];
+  std::lock_guard<std::mutex> lock(model->method_mutex);
   const std::string key(method_name);
-  auto it = methods.find(key);
-  if (it == methods.end()) {
-    it = methods.emplace(key, model->get_method(key)).first;
+  auto it = model->extra_methods.find(key);
+  if (it == model->extra_methods.end()) {
+    it = model->extra_methods.emplace(key, model->module.get_method(key)).first;
   }
   return it->second;
-}
-
-static void invalidate_model_method_cache(const torch_c_model_t *model) {
-  std::lock_guard<std::mutex> lock(model_method_mutex);
-  if (model_method_cache != nullptr) {
-    model_method_cache->erase(model);
-  }
 }
 
 void torch_c_model_forward_mol_tensor(torch_c_model_t *model,
@@ -1724,7 +1722,7 @@ void torch_c_model_forward_mol_tensor(torch_c_model_t *model,
     graph_optimization.emplace(false);
   }
   torch_c_check(*output == NULL, "Torch tensor output must be NULL");
-  auto method = get_cached_method(model, method_name);
+  auto method = get_model_method(model, method_name);
   *output = new torch_c_tensor_t(method({*inputs}).toTensor());
   TORCH_C_CATCH("torch_c_model_forward_mol_tensor")
 }
@@ -1835,10 +1833,7 @@ double torch_c_tensor_item_double(const torch_c_tensor_t *tensor) {
  * \brief Releases a Torch model and all its ressources.
  * \author Ole Schuett
  ******************************************************************************/
-void torch_c_model_release(torch_c_model_t *model) {
-  invalidate_model_method_cache(model);
-  delete (model);
-}
+void torch_c_model_release(torch_c_model_t *model) { delete (model); }
 
 /*******************************************************************************
  * \brief Writes a size+mtime fingerprint of a file into a caller buffer.
@@ -1961,11 +1956,6 @@ void torch_c_model_metadata_clear() {
     std::lock_guard<std::mutex> lock(model_metadata_mutex);
     model_metadata_cache.clear();
   }
-  {
-    std::lock_guard<std::mutex> lock(model_method_mutex);
-    delete model_method_cache;
-    model_method_cache = nullptr;
-  }
   TORCH_C_CATCH("torch_c_model_metadata_clear")
 }
 
@@ -2006,8 +1996,14 @@ void torch_c_allow_tf32(const bool allow_tf32) {
 void torch_c_model_freeze(torch_c_model_t *model) {
   TORCH_C_TRY
 
-  invalidate_model_method_cache(model);
-  *model = torch::jit::freeze(*model);
+  {
+    std::lock_guard<std::mutex> lock(model->method_mutex);
+    model->has_primary_method = false;
+    model->primary_method_name.clear();
+    model->primary_method.reset();
+    model->extra_methods.clear();
+  }
+  model->module = torch::jit::freeze(model->module);
   TORCH_C_CATCH("torch_c_model_freeze")
 }
 
@@ -2019,8 +2015,19 @@ void torch_c_model_freeze_preserving_method(torch_c_model_t *model,
   TORCH_C_TRY
 
   const std::vector<std::string> preserved_methods = {method_name};
-  invalidate_model_method_cache(model);
-  torch::jit::freeze_module_inplace(model, preserved_methods);
+  {
+    std::lock_guard<std::mutex> lock(model->method_mutex);
+    model->has_primary_method = false;
+    model->primary_method_name.clear();
+    model->primary_method.reset();
+    model->extra_methods.clear();
+  }
+  torch::jit::freeze_module_inplace(&model->module, preserved_methods);
+  // Resolve the preserved method now so the forward path is lock-free.
+  std::lock_guard<std::mutex> lock(model->method_mutex);
+  model->primary_method = model->module.get_method(method_name);
+  model->primary_method_name = method_name;
+  model->has_primary_method = true;
   TORCH_C_CATCH("torch_c_model_freeze_preserving_method")
 }
 
@@ -2031,7 +2038,7 @@ void torch_c_model_freeze_preserving_method(torch_c_model_t *model,
 void torch_c_model_get_attr_int64(const torch_c_model_t *model, const char *key,
                                   int64_t *dest) {
   TORCH_C_TRY
-  *dest = model->attr(key).toInt();
+  *dest = model->module.attr(key).toInt();
   TORCH_C_CATCH("torch_c_model_get_attr_int64")
 }
 
@@ -2042,7 +2049,7 @@ void torch_c_model_get_attr_int64(const torch_c_model_t *model, const char *key,
 void torch_c_model_get_attr_double(const torch_c_model_t *model,
                                    const char *key, double *dest) {
   TORCH_C_TRY
-  *dest = model->attr(key).toDouble();
+  *dest = model->module.attr(key).toDouble();
   TORCH_C_CATCH("torch_c_model_get_attr_double")
 }
 
@@ -2054,7 +2061,8 @@ void torch_c_model_get_attr_string(const torch_c_model_t *model,
                                    const char *key, char *dest,
                                    const int dest_len) {
   TORCH_C_TRY
-  copy_attr_string_to_fortran(model->attr(key).toStringRef(), dest, dest_len);
+  copy_attr_string_to_fortran(model->module.attr(key).toStringRef(), dest,
+                              dest_len);
   TORCH_C_CATCH("torch_c_model_get_attr_string")
 }
 
@@ -2065,7 +2073,7 @@ void torch_c_model_get_attr_string(const torch_c_model_t *model,
 void torch_c_model_get_attr_list_size(const torch_c_model_t *model,
                                       const char *key, int *size) {
   TORCH_C_TRY
-  const auto list_size = model->attr(key).toList().size();
+  const auto list_size = model->module.attr(key).toList().size();
   torch_c_check(list_size <= static_cast<size_t>(INT_MAX),
                 "Torch attribute list is too long");
   *size = static_cast<int>(list_size);
@@ -2080,7 +2088,7 @@ void torch_c_model_get_attr_strlist(const torch_c_model_t *model,
                                     const char *key, const int index,
                                     char *dest, const int dest_len) {
   TORCH_C_TRY
-  const auto list = model->attr(key).toList();
+  const auto list = model->module.attr(key).toList();
   torch_c_check(index >= 0 && static_cast<size_t>(index) < list.size(),
                 "Torch attribute list index is out of bounds");
   copy_attr_string_to_fortran(list[index].toStringRef(), dest, dest_len);

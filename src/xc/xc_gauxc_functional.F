@@ -1404,7 +1404,7 @@ CONTAINS
          grid_explicit, has_paw_pseudopotentials, has_pseudopotentials, have_zeta, &
          int_space_explicit, is_periodic, lb_space_explicit, low_spin_scope, molecular_virial, &
          molecular_virial_debug, need_xc_gradient, periodic_reference, pruning_explicit, &
-         replicated, replicated_scalar, replicated_zeta, use_cuda, use_skala_model, &
+         replicated, replicated_scalar, replicated_zeta, reuse_kind, use_cuda, use_skala_model, &
          write_hdf5_output
       REAL(KIND=dp)                                      :: exc_value, force_numerical_gradient_dx, &
                                                             molecular_virial_debug_dx
@@ -1492,28 +1492,45 @@ CONTAINS
       params%nspins = dft_control%nspins
       params%nimages = dft_control%nimages
       params%nkind = SIZE(qs_kind_set)
-      ALLOCATE (params%kind_basis_names(params%nkind))
-      DO ikind = 1, params%nkind
-         NULLIFY (basis_set)
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set)
-         IF (ASSOCIATED(basis_set)) THEN
-            params%kind_basis_names(ikind) = TRIM(basis_set%name)
-         ELSE
-            params%kind_basis_names(ikind) = ""
+      low_spin_scope = external_density .OR. (dft_control%low_spin_roks .AND. gapw_method)
+      ! The per-kind basis names and pseudopotential/PAW flags depend only on the
+      ! (fixed) kind set, so cache them and skip the get_qs_kind/flag scan on hits.
+      NULLIFY (cache)
+      IF (ASSOCIATED(qs_env%gauxc_cache)) cache => qs_env%gauxc_cache
+      reuse_kind = .FALSE.
+      IF (ASSOCIATED(cache)) THEN
+         IF (cache%kind_data_valid .AND. cache%nkind == params%nkind) THEN
+            IF (ALLOCATED(cache%kind_basis_names)) reuse_kind = .TRUE.
          END IF
-      END DO
+      END IF
+      IF (reuse_kind) THEN
+         ALLOCATE (params%kind_basis_names(params%nkind))
+         params%kind_basis_names(:) = cache%kind_basis_names(:)
+         has_pseudopotentials = cache%has_pseudopotentials
+         all_pseudopotentials = cache%all_pseudopotentials
+         has_paw_pseudopotentials = cache%has_paw_pseudopotentials
+         all_all_electron = cache%all_all_electron
+      ELSE
+         ALLOCATE (params%kind_basis_names(params%nkind))
+         DO ikind = 1, params%nkind
+            NULLIFY (basis_set)
+            CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set)
+            IF (ASSOCIATED(basis_set)) THEN
+               params%kind_basis_names(ikind) = TRIM(basis_set%name)
+            ELSE
+               params%kind_basis_names(ikind) = ""
+            END IF
+         END DO
+         has_pseudopotentials = .FALSE.
+         all_pseudopotentials = .TRUE.
+         has_paw_pseudopotentials = .FALSE.
+         all_all_electron = .FALSE.
+         CALL gauxc_gapw_kind_flags(qs_kind_set, has_pseudopotentials, all_pseudopotentials, &
+                                    has_paw_pseudopotentials, all_all_electron)
+      END IF
       IF (external_density) THEN
          CPASSERT(SIZE(rho_ao, 1) == params%nspins)
          CPASSERT(SIZE(rho_ao, 2) == nimages)
-      END IF
-      low_spin_scope = external_density .OR. (dft_control%low_spin_roks .AND. gapw_method)
-      has_pseudopotentials = .FALSE.
-      all_pseudopotentials = .TRUE.
-      has_paw_pseudopotentials = .FALSE.
-      all_all_electron = .FALSE.
-      IF (gapw_method .OR. low_spin_scope) THEN
-         CALL gauxc_gapw_kind_flags(qs_kind_set, has_pseudopotentials, all_pseudopotentials, &
-                                    has_paw_pseudopotentials, all_all_electron)
       END IF
       gapw_pseudopotentials = gapw_method .AND. has_pseudopotentials
       gapw_paw_pseudopotentials = gapw_method .AND. has_paw_pseudopotentials
@@ -1772,6 +1789,14 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(qs_env%gauxc_cache)) ALLOCATE (qs_env%gauxc_cache)
       cache => qs_env%gauxc_cache
+      IF (.NOT. cache%kind_data_valid .OR. cache%nkind /= params%nkind) THEN
+         cache%nkind = params%nkind
+         cache%has_pseudopotentials = has_pseudopotentials
+         cache%all_pseudopotentials = all_pseudopotentials
+         cache%has_paw_pseudopotentials = has_paw_pseudopotentials
+         cache%all_all_electron = all_all_electron
+         cache%kind_data_valid = .TRUE.
+      END IF
       CALL gauxc_cache_init( &
          cache, &
          params, &

@@ -577,7 +577,7 @@ CONTAINS
                local_grid_coord_grad=grid_coord_grad_g, &
                local_grid_weight_grad=grid_weight_grad_g, &
                local_atomic_grid_weight_grad=atomic_grid_weight_grad_g, &
-               atom_coord_grad=atom_coord_grad_g)
+               atom_coord_grad=atom_coord_grad_g, need_virial=compute_virial)
             grid_coord_grad_p => grid_coord_grad_g
             grid_weight_grad_p => grid_weight_grad_g
             atomic_grid_weight_grad_p => atomic_grid_weight_grad_g
@@ -3168,14 +3168,17 @@ CONTAINS
 !> \param local_grid_weight_grad ...
 !> \param local_atomic_grid_weight_grad ...
 !> \param atom_coord_grad ...
+!> \param need_virial ...
 ! **************************************************************************************************
    SUBROUTINE fetch_and_route_atom_chunk_grads(features, group, weight_only, &
                                                local_grid_coord_grad, local_grid_weight_grad, &
-                                               local_atomic_grid_weight_grad, atom_coord_grad)
+                                               local_atomic_grid_weight_grad, atom_coord_grad, &
+                                               need_virial)
       TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
 
       CLASS(mp_comm_type), INTENT(IN)                    :: group
       LOGICAL, INTENT(IN)                                :: weight_only
+      LOGICAL, INTENT(IN), OPTIONAL                      :: need_virial
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT), OPTIONAL                           :: local_grid_coord_grad, atom_coord_grad
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -3184,35 +3187,50 @@ CONTAINS
 
       INTEGER                                            :: base, comps, feature_pos, irow, &
                                                             local_feature, natom, nfeature_local, &
-                                                            phase_handle
+                                                            phase_handle, fetch_count, coord_slot, &
+                                                            gw_slot, agw_slot, atom_slot
+      LOGICAL                                            :: need_coord, need_weights, my_need_virial
       INTEGER, DIMENSION(:), POINTER                     :: recv_counts, recv_displs, send_counts, &
                                                             send_displs
       REAL(KIND=dp), DIMENSION(:), POINTER               :: recv_buffer, send_buffer
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: chunk_atom_coord_grad, chunk_coord_grad
       REAL(KIND=dp), DIMENSION(:), POINTER               :: chunk_atomic_grid_weight_grad, &
                                                             chunk_grid_weight_grad
-      TYPE(torch_tensor_type), DIMENSION(4)              :: grad_batch_t
+      TYPE(torch_tensor_type), DIMENSION(4)              :: grad_batch_t, fetch_tensors
       TYPE(torch_tensor_type)                            :: grid_weight_grad_t
 
       CPASSERT(features%uses_atom_chunks)
       CPASSERT(PRESENT(local_grid_weight_grad))
 
+      my_need_virial = .FALSE.
+      IF (PRESENT(need_virial)) my_need_virial = need_virial
+      need_coord = (.NOT. weight_only) .AND. my_need_virial
+      need_weights = (.NOT. weight_only) .AND. &
+                     (my_need_virial .OR. &
+                      features%atom_partition == skala_gpw_atom_partition_smooth)
       comps = 1
-      IF (.NOT. weight_only) comps = 5
+      IF (.NOT. weight_only) THEN
+         comps = MERGE(3, 0, need_coord) + MERGE(2, 0, need_weights)
+      END IF
       nfeature_local = SIZE(features%route_send_local_features)
 
       ALLOCATE (local_grid_weight_grad(nfeature_local))
       local_grid_weight_grad = 0.0_dp
       IF (.NOT. weight_only) THEN
-         CPASSERT(PRESENT(local_grid_coord_grad))
-         CPASSERT(PRESENT(local_atomic_grid_weight_grad))
          CPASSERT(PRESENT(atom_coord_grad))
          natom = SIZE(features%atomic_grid_sizes)
-         ALLOCATE (local_grid_coord_grad(3, nfeature_local), &
-                   local_atomic_grid_weight_grad(nfeature_local), atom_coord_grad(3, natom))
-         local_grid_coord_grad = 0.0_dp
-         local_atomic_grid_weight_grad = 0.0_dp
+         ALLOCATE (atom_coord_grad(3, natom))
          atom_coord_grad = 0.0_dp
+         IF (need_coord) THEN
+            CPASSERT(PRESENT(local_grid_coord_grad))
+            ALLOCATE (local_grid_coord_grad(3, nfeature_local))
+            local_grid_coord_grad = 0.0_dp
+         END IF
+         IF (need_weights) THEN
+            CPASSERT(PRESENT(local_atomic_grid_weight_grad))
+            ALLOCATE (local_atomic_grid_weight_grad(nfeature_local))
+            local_atomic_grid_weight_grad = 0.0_dp
+         END IF
       END IF
 
       CALL prepare_route_exchange(skala_state%scratch%feature_grad_plan, &
@@ -3240,29 +3258,57 @@ CONTAINS
          ELSE
             NULLIFY (chunk_coord_grad, chunk_grid_weight_grad, chunk_atomic_grid_weight_grad, &
                      chunk_atom_coord_grad)
-            CALL torch_tensor_grad_batch( &
-               [features%grid_coords_t, features%grid_weights_t, &
-                features%atomic_grid_weights_t, features%coarse_0_atomic_coords_t], &
-               grad_batch_t)
-            CALL torch_tensor_data_ptr(grad_batch_t(1), chunk_coord_grad)
-            CALL torch_tensor_data_ptr(grad_batch_t(2), chunk_grid_weight_grad)
-            CALL torch_tensor_data_ptr(grad_batch_t(3), chunk_atomic_grid_weight_grad)
-            CALL torch_tensor_data_ptr(grad_batch_t(4), chunk_atom_coord_grad)
-            DO feature_pos = 1, features%chunk_feature_count
-               irow = features%route_recv_chunk_rows(feature_pos)
-               base = comps*(feature_pos - 1)
-               send_buffer(base + 1:base + 3) = chunk_coord_grad(:, irow)
-               send_buffer(base + 4) = chunk_grid_weight_grad(irow)
-               send_buffer(base + 5) = chunk_atomic_grid_weight_grad(irow)
-            END DO
+            ! Fetch only the adjoints this pass consumes: grid coordinates only for
+            ! the virial, grid/atomic-grid weights only for the virial or a smooth
+            ! partition force, atom coordinates always.
+            fetch_count = 0
+            coord_slot = 0
+            gw_slot = 0
+            agw_slot = 0
+            IF (need_coord) THEN
+               fetch_count = fetch_count + 1
+               coord_slot = fetch_count
+               fetch_tensors(fetch_count) = features%grid_coords_t
+            END IF
+            IF (need_weights) THEN
+               fetch_count = fetch_count + 1
+               gw_slot = fetch_count
+               fetch_tensors(fetch_count) = features%grid_weights_t
+               fetch_count = fetch_count + 1
+               agw_slot = fetch_count
+               fetch_tensors(fetch_count) = features%atomic_grid_weights_t
+            END IF
+            fetch_count = fetch_count + 1
+            atom_slot = fetch_count
+            fetch_tensors(fetch_count) = features%coarse_0_atomic_coords_t
+            CALL torch_tensor_grad_batch(fetch_tensors(1:fetch_count), grad_batch_t(1:fetch_count))
+            IF (need_coord) CALL torch_tensor_data_ptr(grad_batch_t(coord_slot), chunk_coord_grad)
+            IF (need_weights) THEN
+               CALL torch_tensor_data_ptr(grad_batch_t(gw_slot), chunk_grid_weight_grad)
+               CALL torch_tensor_data_ptr(grad_batch_t(agw_slot), chunk_atomic_grid_weight_grad)
+            END IF
+            CALL torch_tensor_data_ptr(grad_batch_t(atom_slot), chunk_atom_coord_grad)
+            IF (comps > 0) THEN
+               DO feature_pos = 1, features%chunk_feature_count
+                  irow = features%route_recv_chunk_rows(feature_pos)
+                  base = comps*(feature_pos - 1)
+                  IF (need_coord) THEN
+                     send_buffer(base + 1:base + 3) = chunk_coord_grad(:, irow)
+                     base = base + 3
+                  END IF
+                  IF (need_weights) THEN
+                     send_buffer(base + 1) = chunk_grid_weight_grad(irow)
+                     send_buffer(base + 2) = chunk_atomic_grid_weight_grad(irow)
+                  END IF
+               END DO
+            END IF
             DO irow = 1, features%chunk_natom
                atom_coord_grad(:, features%chunk_atom_begin + irow - 1) = &
                   chunk_atom_coord_grad(:, irow)
             END DO
-            CALL torch_tensor_release(grad_batch_t(1))
-            CALL torch_tensor_release(grad_batch_t(2))
-            CALL torch_tensor_release(grad_batch_t(3))
-            CALL torch_tensor_release(grad_batch_t(4))
+            DO irow = 1, fetch_count
+               CALL torch_tensor_release(grad_batch_t(irow))
+            END DO
          END IF
          CALL timestop(phase_handle)
       END IF
@@ -3277,9 +3323,14 @@ CONTAINS
             local_grid_weight_grad(local_feature) = recv_buffer(feature_pos)
          ELSE
             base = comps*(feature_pos - 1)
-            local_grid_coord_grad(:, local_feature) = recv_buffer(base + 1:base + 3)
-            local_grid_weight_grad(local_feature) = recv_buffer(base + 4)
-            local_atomic_grid_weight_grad(local_feature) = recv_buffer(base + 5)
+            IF (need_coord) THEN
+               local_grid_coord_grad(:, local_feature) = recv_buffer(base + 1:base + 3)
+               base = base + 3
+            END IF
+            IF (need_weights) THEN
+               local_grid_weight_grad(local_feature) = recv_buffer(base + 1)
+               local_atomic_grid_weight_grad(local_feature) = recv_buffer(base + 2)
+            END IF
          END IF
       END DO
 
