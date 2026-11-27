@@ -314,10 +314,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (auto_ri_sec, chi_sec, cohsex_sec, evgw0_sec, grid_opt_sec, gw_sec, input, ri_rs_sec, &
-               rtbse_sec)
-      CALL get_qs_env(qs_env, input=input)
-      rtbse_sec => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%RTBSE")
+      NULLIFY (auto_ri_sec, chi_sec, cohsex_sec, evgw0_sec, grid_opt_sec, gw_sec, ri_rs_sec)
       gw_sec => section_vals_get_subs_vals(bs_sec, "GW")
       chi_sec => gw_sec
       IF (PRESENT(rpa_sec)) chi_sec => rpa_sec
@@ -353,6 +350,9 @@ CONTAINS
       CALL read_rirs_grid_opt(bs_env%ri_rs, grid_opt_sec)
       CALL read_evgw0_input(bs_env, evgw0_sec, do_evgw0)
       CALL read_auto_ri_input(bs_env%auto_ri, auto_ri_sec)
+      ! AUTO_RI depends on a subsequent RT-BSE (checked in check_gw_input)
+      CALL get_qs_env(qs_env, input=input)
+      rtbse_sec => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%RTBSE")
       CALL check_gw_input(bs_env, do_evgw0, rtbse_sec, rpa_sec)
 
       CALL timestop(handle)
