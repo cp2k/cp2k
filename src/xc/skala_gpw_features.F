@@ -19,10 +19,10 @@ MODULE skala_gpw_features
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_types,                        ONLY: pw_r3d_rs_type
    USE skala_env_types,                 ONLY: &
-        atom_chunk_layout_cache_type, skala_atom_ws_type, skala_execution_target_type, &
-        skala_gapw_atom_cuda_tensor_cache_type, skala_gpw_feature_type, &
-        skala_gpw_layout_cache_type, skala_gpw_scratch_type, skala_gpw_state_type, &
-        skala_grad_scratch_type, skala_model_context_type, skala_state, &
+        atom_chunk_layout_cache_type, route_exchange_plan_type, skala_atom_ws_type, &
+        skala_execution_target_type, skala_gapw_atom_cuda_tensor_cache_type, &
+        skala_gpw_feature_type, skala_gpw_layout_cache_type, skala_gpw_scratch_type, &
+        skala_gpw_state_type, skala_grad_scratch_type, skala_model_context_type, skala_state, &
         skala_weight_grad_cache_type
    USE skala_feature_keys,              ONLY: &
         skala_key_atomic_grid_size_bound_shape, skala_key_atomic_grid_sizes, &
@@ -1851,9 +1851,34 @@ CONTAINS
       IF (ALLOCATED(env%scratch%route_recv_displs)) THEN
          DEALLOCATE (env%scratch%route_recv_displs)
       END IF
+      CALL release_route_plan(env%scratch%grad_return_plan)
+      CALL release_route_plan(env%scratch%feature_grad_plan)
       env%layout_mode_known = .FALSE.
       env%layout_mode_full = .FALSE.
    END SUBROUTINE skala_gpw_features_release_cache
+
+! **************************************************************************************************
+!> \brief Release a cached route-exchange plan.
+!> \param plan ...
+! **************************************************************************************************
+   SUBROUTINE release_route_plan(plan)
+      TYPE(route_exchange_plan_type), INTENT(INOUT)      :: plan
+
+      IF (ASSOCIATED(plan%src_send_counts)) DEALLOCATE (plan%src_send_counts)
+      IF (ASSOCIATED(plan%src_send_displs)) DEALLOCATE (plan%src_send_displs)
+      IF (ASSOCIATED(plan%src_recv_counts)) DEALLOCATE (plan%src_recv_counts)
+      IF (ASSOCIATED(plan%src_recv_displs)) DEALLOCATE (plan%src_recv_displs)
+      IF (ASSOCIATED(plan%send_counts)) DEALLOCATE (plan%send_counts)
+      IF (ASSOCIATED(plan%send_displs)) DEALLOCATE (plan%send_displs)
+      IF (ASSOCIATED(plan%recv_counts)) DEALLOCATE (plan%recv_counts)
+      IF (ASSOCIATED(plan%recv_displs)) DEALLOCATE (plan%recv_displs)
+      IF (ASSOCIATED(plan%send_buffer)) DEALLOCATE (plan%send_buffer)
+      IF (ASSOCIATED(plan%recv_buffer)) DEALLOCATE (plan%recv_buffer)
+      plan%factor = -1
+      plan%send_base = -1
+      plan%recv_base = -1
+      plan%valid = .FALSE.
+   END SUBROUTINE release_route_plan
 
 ! **************************************************************************************************
 !> \brief Release cached layout arrays.

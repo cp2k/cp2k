@@ -29,6 +29,7 @@ MODULE skala_env_types
    PUBLIC :: atom_chunk_layout_cache_type, skala_atom_ws_type, skala_execution_target_type
    PUBLIC :: skala_gapw_atom_cuda_tensor_cache_type, skala_gpw_feature_type
    PUBLIC :: skala_gpw_layout_cache_type, skala_gpw_scratch_type, skala_gpw_state_type
+   PUBLIC :: route_exchange_plan_type
    PUBLIC :: skala_grad_scratch_type, skala_model_context_type, skala_weight_grad_cache_type
    PUBLIC :: native_atom_cache_type, native_need_entry_type, native_geometry_key_type
 
@@ -175,11 +176,24 @@ MODULE skala_env_types
                                                             uses_collapsed_rks_dynamic = .FALSE.
    END TYPE skala_gpw_feature_type
 
+   TYPE :: route_exchange_plan_type
+      LOGICAL :: valid = .FALSE.
+      INTEGER :: factor = -1, send_base = -1, recv_base = -1
+      INTEGER, POINTER, DIMENSION(:) :: src_send_counts => NULL(), &
+                                        src_send_displs => NULL(), &
+                                        src_recv_counts => NULL(), &
+                                        src_recv_displs => NULL()
+      INTEGER, POINTER, DIMENSION(:) :: send_counts => NULL(), send_displs => NULL(), &
+                                        recv_counts => NULL(), recv_displs => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: send_buffer => NULL(), recv_buffer => NULL()
+   END TYPE route_exchange_plan_type
+
    TYPE :: skala_gpw_scratch_type
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: local_dynamic, global_dynamic, &
                                                          route_send_dynamic, route_recv_dynamic
       INTEGER, ALLOCATABLE, DIMENSION(:)              :: route_send_counts, route_send_displs, &
                                                          route_recv_counts, route_recv_displs
+      TYPE(route_exchange_plan_type)                   :: grad_return_plan, feature_grad_plan
    END TYPE skala_gpw_scratch_type
 
    TYPE :: skala_gapw_atom_cuda_tensor_cache_type
