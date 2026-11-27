@@ -9,11 +9,11 @@
   BASIS_OUTPUT_FILE BASIS_OUTPUT
   BASIS_TEMPLATE_FILE BASIS_GTH_MOLOPT_AUG_H2O
   &FIT_KIND H
-    BASIS_SET aug-SZV-MOLOPT-GTH-tier-2
+    BASIS_SET aug-SZV-MOLOPT-GTH-q1-tier-2
     INITIAL_DEGREES_OF_FREEDOM NONE
   &END FIT_KIND
   &FIT_KIND O
-    BASIS_SET aug-SZV-MOLOPT-GTH-tier-2
+    BASIS_SET aug-SZV-MOLOPT-GTH-q6-tier-2
     INITIAL_DEGREES_OF_FREEDOM NONE
     ! Optimize only the three tier-2 augmentation contractions.
     ! The inherited SZV s and p contractions remain fixed.

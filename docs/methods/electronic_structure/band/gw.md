@@ -359,10 +359,13 @@ used 12×12×12 for 3D crystals and 16×16×1 for 2D materials.
 
 ### 4.4 Basis sets
 
-We recommend the augmented basis sets `aug-SZV-MOLOPT-GTH-tier-2`, `aug-DZVP-MOLOPT-GTH-tier-2` and
-`aug-TZVP-MOLOPT-GTH-tier-2` from the file `BASIS_AUG_MOLOPT_GTH` together with GTH
-pseudopotentials. `aug-SZV-MOLOPT-GTH-tier-2` is a cheap choice for a first band structure,
-`aug-TZVP-MOLOPT-GTH-tier-2` is the accurate choice.
+We recommend the augmented basis sets `aug-SZV-MOLOPT-GTH-qN-tier-2`,
+`aug-DZVP-MOLOPT-GTH-qN-tier-2` and `aug-TZVP-MOLOPT-GTH-qN-tier-2` from the file
+`BASIS_AUG_MOLOPT_GTH` together with GTH pseudopotentials. `aug-SZV-MOLOPT-GTH-qN-tier-2` is a cheap
+choice for a first band structure, `aug-TZVP-MOLOPT-GTH-qN-tier-2` is the accurate choice. N is the
+number of valence electrons of the GTH pseudopotential, e.g. `aug-TZVP-MOLOPT-GTH-q6-tier-2` for
+oxygen with `GTH-PBE-q6`; the pseudopotential of every basis set is given in the comment line above
+it in `BASIS_AUG_MOLOPT_GTH`.
 
 **Why augmented basis sets?** The MOLOPT basis sets are optimized for ground-state total energies,
 which depend only on the occupied orbitals. The occupied orbitals and their energies are therefore
@@ -381,9 +384,9 @@ momentum $l$:
 
 - `tier-1`: one additional function for every $l$ from 0 to the highest angular momentum
   $l_\text{max}$ of the MOLOPT basis set. Example carbon: `SZV-MOLOPT-GTH` has one *s* and one *p*
-  function, `aug-SZV-MOLOPT-GTH-tier-1` has two *s* and two *p* functions.
+  function, `aug-SZV-MOLOPT-GTH-q4-tier-1` has two *s* and two *p* functions.
 - `tier-2`: as `tier-1`, and one additional function with $l_\text{max}+1$. Example carbon:
-  `aug-SZV-MOLOPT-GTH-tier-2` has two *s*, two *p* and one *d* function.
+  `aug-SZV-MOLOPT-GTH-q4-tier-2` has two *s*, two *p* and one *d* function.
 
 The additional functions were optimized on a set of molecules such that the five lowest
 *GW*+Bethe-Salpeter excitation energies agree with the complete-basis-set limit. At the same time,
@@ -438,12 +441,12 @@ sets are available in the GitHub repository
 We recommend to start from one of these inputs. The table summarizes the mean computational cost and
 the mean absolute error (MAE) of the *G*<sub>0</sub>*W*<sub>0</sub>@PBE band gap:
 
-| Materials                                | Basis set                    | Cost (core-h) | Gap MAE to ref. (eV) |
-| ---------------------------------------- | ---------------------------- | ------------: | -------------------: |
-| 2D materials<br>(MoS₂, MoSe₂, WS₂, WSe₂) | `aug-SZV-MOLOPT-GTH-tier-2`  |           2.2 |                0.074 |
-| 2D materials<br>(MoS₂, MoSe₂, WS₂, WSe₂) | `aug-TZVP-MOLOPT-GTH-tier-2` |          22.8 |                0.040 |
-| 3D crystals                              | `aug-SZV-MOLOPT-GTH-tier-2`  |          42.7 |                0.205 |
-| 3D crystals                              | `aug-TZVP-MOLOPT-GTH-tier-2` |         973.4 |                0.137 |
+| Materials                                | Basis set                       | Cost (core-h) | Gap MAE to ref. (eV) |
+| ---------------------------------------- | ------------------------------- | ------------: | -------------------: |
+| 2D materials<br>(MoS₂, MoSe₂, WS₂, WSe₂) | `aug-SZV-MOLOPT-GTH-qN-tier-2`  |           2.2 |                0.074 |
+| 2D materials<br>(MoS₂, MoSe₂, WS₂, WSe₂) | `aug-TZVP-MOLOPT-GTH-qN-tier-2` |          22.8 |                0.040 |
+| 3D crystals                              | `aug-SZV-MOLOPT-GTH-qN-tier-2`  |          42.7 |                0.205 |
+| 3D crystals                              | `aug-TZVP-MOLOPT-GTH-qN-tier-2` |         973.4 |                0.137 |
 
 The cost is the mean over all materials. As an example, 22.8 core-hours correspond to about 11
 minutes on a single compute node with 128 cores. For 2D materials, the *GW* calculation is very
@@ -457,9 +460,9 @@ computed with CP2K (indirect gap, without spin-orbit coupling, *k*-point mesh 12
 parameters at their default values) together with plane-wave *G*<sub>0</sub>*W*<sub>0</sub>@PBE band
 gaps from VASP ([Klimeš 2014](https://doi.org/10.1103/PhysRevB.90.075125) and
 [Varrassi 2025](https://doi.org/10.1038/s41524-025-01833-w)). The CP2K columns are labeled by the
-basis set, where aug-SZV tier-2 stands for `aug-SZV-MOLOPT-GTH-tier-2` etc. The last row is the mean
-absolute deviation (MAD) of CP2K from VASP over the 28 crystals with a VASP value; where two VASP
-values are available, their mean is the reference.
+basis set, where aug-SZV tier-2 stands for `aug-SZV-MOLOPT-GTH-qN-tier-2` etc. The last row is the
+mean absolute deviation (MAD) of CP2K from VASP over the 28 crystals with a VASP value; where two
+VASP values are available, their mean is the reference.
 
 | Material         | CP2K<br>aug-SZV<br>tier-2 | CP2K<br>aug-DZVP<br>tier-2 | CP2K<br>aug-TZVP<br>tier-2 | VASP<br>[Klimeš 2014](https://doi.org/10.1103/PhysRevB.90.075125) | VASP<br>[Varrassi 2025](https://doi.org/10.1038/s41524-025-01833-w) |
 | ---------------- | ------------------------: | -------------------------: | -------------------------: | ----------------------------------------------------------------: | ------------------------------------------------------------------: |
@@ -521,8 +524,8 @@ For the four 2D materials MoS₂, MoSe₂, WS₂ and WSe₂, the table lists the
 | **MAD to VASP** |                  **0.07** |                   **0.03** |                   **0.03** |      |
 
 These numbers are preliminary; a publication is in preparation. All raw data (inputs, outputs, band
-structures and compute times, also for the basis sets `aug-DZVP-MOLOPT-GTH-tier-1` and
-`aug-TZVP-MOLOPT-GTH-tier-1`) are available in the GitHub repository
+structures and compute times, also for the basis sets `aug-DZVP-MOLOPT-GTH-qN-tier-1` and
+`aug-TZVP-MOLOPT-GTH-qN-tier-1`) are available in the GitHub repository
 [CP2K_GW_RIRS_Bandstructures_3D_2D](https://github.com/JWilhelm/CP2K_GW_RIRS_Bandstructures_3D_2D).
 
 In case anything does not work, please feel free to contact jan.wilhelm (at) ur.de.

@@ -649,7 +649,8 @@ CONTAINS
 !>
 !> A positive RS_AO_RATIO applies to every kind. The default (a negative value) is 7 points per AO
 !> function, except for full-k periodic GW with the small augmented MOLOPT basis sets: 14 for
-!> aug-SZV-MOLOPT-GTH-tier-2, 9 for aug-DZVP-MOLOPT-GTH-tier-1 and 8 for aug-DZVP-MOLOPT-GTH-tier-2.
+!> aug-SZV-MOLOPT-GTH-qN-tier-2, 9 for aug-DZVP-MOLOPT-GTH-qN-tier-1 and 8 for
+!> aug-DZVP-MOLOPT-GTH-qN-tier-2, for every valence electron number N.
 !> \param bs_env ...
 !> \param ikind ...
 !> \return α of the kind
@@ -660,6 +661,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: ratio
 
       CHARACTER(LEN=default_string_length)               :: basis_name
+      INTEGER                                            :: i_q, n_digits
 
       ratio = bs_env%ri_rs%grid_opt%rs_ao_ratio
       IF (ratio > 0.0_dp) RETURN
@@ -667,6 +669,12 @@ CONTAINS
       IF (bs_env%gw_implementation /= ri_rs_small_cell_full_kp) RETURN
       basis_name = bs_env%basis_set_AO(ikind)%gto_basis_set%name
       CALL uppercase(basis_name)
+      ! the default does not depend on the valence electron number: remove -qN from the name
+      i_q = INDEX(basis_name, "-Q")
+      IF (i_q > 0) THEN
+         n_digits = VERIFY(basis_name(i_q + 2:), "0123456789") - 1
+         basis_name = basis_name(:i_q - 1)//basis_name(i_q + 2 + n_digits:)
+      END IF
       SELECT CASE (TRIM(basis_name))
       CASE ("AUG-SZV-MOLOPT-GTH-TIER-2")
          ratio = 14.0_dp
