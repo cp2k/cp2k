@@ -2314,16 +2314,7 @@ CONTAINS
 
       !Vxg, first term (to be multiplied by drhoa)
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_norm_drhoa])
-      IF (ASSOCIATED(deriv)) THEN
-         CALL xc_derivative_get(deriv, deriv_data=d2e)
-!$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
-         DO ir = 1, nr
-            DO ia = 1, na
-               tmp(ia, ir) = d2e(ia, ir, 1)*so(ia, ir)
-            END DO !ia
-         END DO !ir
-!$OMP END DO NOWAIT
-      END IF
+      CALL start_gradient_term(deriv, so, tmp)
 
       !Vxg, second term (to be multiplied by drhoa)
       deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa, deriv_norm_drho])
@@ -2378,16 +2369,7 @@ CONTAINS
 
       !Vxg, fifth term (to be multiplied by drhob)
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_norm_drho])
-      IF (ASSOCIATED(deriv)) THEN
-         CALL xc_derivative_get(deriv, deriv_data=d2e)
-!$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
-         DO ir = 1, nr
-            DO ia = 1, na
-               tmp(ia, ir) = d2e(ia, ir, 1)*so(ia, ir)
-            END DO !ia
-         END DO !ir
-!$OMP END DO NOWAIT
-      END IF
+      CALL start_gradient_term(deriv, so, tmp)
 
       !Vxg, sixth term (to be multiplied by drhob)
       deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa, deriv_norm_drho])
@@ -2491,16 +2473,7 @@ CONTAINS
 
       !Vxg, first term (to be multiplied by drhoa)
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_norm_drhoa])
-      IF (ASSOCIATED(deriv)) THEN
-         CALL xc_derivative_get(deriv, deriv_data=d2e)
-!$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
-         DO ir = 1, nr
-            DO ia = 1, na
-               tmp(ia, ir) = d2e(ia, ir, 1)*so(ia, ir)
-            END DO !ia
-         END DO !ir
-!$OMP END DO NOWAIT
-      END IF
+      CALL start_gradient_term(deriv, so, tmp)
 
       !Vxg, second term (to be multiplied by drhoa)
       deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa, deriv_norm_drho])
@@ -2541,16 +2514,7 @@ CONTAINS
 
       !Vxg, fourth term (to be multiplied by drhob)
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_norm_drho])
-      IF (ASSOCIATED(deriv)) THEN
-         CALL xc_derivative_get(deriv, deriv_data=d2e)
-!$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
-         DO ir = 1, nr
-            DO ia = 1, na
-               tmp(ia, ir) = d2e(ia, ir, 1)*so(ia, ir)
-            END DO !ia
-         END DO !ir
-!$OMP END DO NOWAIT
-      END IF
+      CALL start_gradient_term(deriv, so, tmp)
 
       !Vxg, fifth term (to be multiplied by drhob)
       deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho, deriv_norm_drhob])
@@ -2655,16 +2619,7 @@ CONTAINS
 
          !Vxg, first term (to be multiplied by drhob)
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_norm_drhob])
-         IF (ASSOCIATED(deriv)) THEN
-            CALL xc_derivative_get(deriv, deriv_data=d2e)
-!$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
-            DO ir = 1, nr
-               DO ia = 1, na
-                  tmp(ia, ir) = d2e(ia, ir, 1)*so(ia, ir)
-               END DO !ia
-            END DO !ir
-!$OMP END DO NOWAIT
-         END IF
+         CALL start_gradient_term(deriv, so, tmp)
 
          !Vxg, second term (to be multiplied by drhob)
          deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob, deriv_norm_drho])
@@ -2719,16 +2674,7 @@ CONTAINS
 
          !Vxg, fifth term (to be multiplied by drhoa)
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_norm_drho])
-         IF (ASSOCIATED(deriv)) THEN
-            CALL xc_derivative_get(deriv, deriv_data=d2e)
-!$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
-            DO ir = 1, nr
-               DO ia = 1, na
-                  tmp(ia, ir) = d2e(ia, ir, 1)*so(ia, ir)
-               END DO !ia
-            END DO !ir
-!$OMP END DO NOWAIT
-         END IF
+         CALL start_gradient_term(deriv, so, tmp)
 
          !Vxg, sixth term (to be multiplied by drhoa)
          deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob, deriv_norm_drho])
@@ -2801,6 +2747,33 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_vxc_vxg
+
+! **************************************************************************************************
+!> \brief Start one density-gradient contribution to the GGA kernel. An absent mixed
+!>        derivative contributes zero, independently of the preceding spin or gradient term.
+!> \param deriv mixed density and gradient derivative of the functional
+!> \param so spherical orbital on the integration grid
+!> \param tmp accumulator shared by the threads integrating the orbital
+! **************************************************************************************************
+   SUBROUTINE start_gradient_term(deriv, so, tmp)
+      TYPE(xc_derivative_type), INTENT(IN), POINTER      :: deriv
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: so
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: tmp
+
+      INTEGER                                            :: ia, ir
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: d2e
+
+      NULLIFY (d2e)
+      IF (ASSOCIATED(deriv)) CALL xc_derivative_get(deriv, deriv_data=d2e)
+!$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
+      DO ir = 1, SIZE(so, 2)
+         DO ia = 1, SIZE(so, 1)
+            tmp(ia, ir) = 0.0_dp
+            IF (ASSOCIATED(d2e)) tmp(ia, ir) = d2e(ia, ir, 1)*so(ia, ir)
+         END DO
+      END DO
+!$OMP END DO NOWAIT
+   END SUBROUTINE start_gradient_term
 
 ! **************************************************************************************************
 !> \brief Integrate the fxc kernel in the spin-conserving case, be it closed- or open-shell

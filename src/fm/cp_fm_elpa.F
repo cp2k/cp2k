@@ -162,15 +162,14 @@ MODULE cp_fm_elpa
                     elpa_print = .FALSE., &
                     elpa_qr = .FALSE.
 
-#if defined(__OFFLOAD_OPENCL)
-   LOGICAL, SAVE :: elpa_one_stage = .TRUE.
-#else
    LOGICAL, SAVE :: elpa_one_stage = .FALSE.
-#endif
+   LOGICAL, SAVE :: elpa_auto_stage = .FALSE., elpa_gpu_available = .TRUE.
 
    PUBLIC :: cp_fm_diag_elpa, &
              set_elpa_kernel, &
+             set_elpa_options, &
              elpa_one_stage, &
+             elpa_auto_stage, elpa_gpu_available, elpa_select_one_stage, &
              elpa_print, &
              elpa_qr, &
              elpa_kernel_ids, &
@@ -180,6 +179,38 @@ MODULE cp_fm_elpa
              finalize_elpa_library
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Choose the ELPA stage after redistribution, using the active kernel and communicator.
+!> \param n matrix order
+!> \param nev number of requested eigenvectors
+!> \param nranks ranks participating in this solve
+!> \param is_complex complex rather than real matrix
+!> \param nvidia NVIDIA GPU kernel
+!> \param intel Intel GPU kernel
+!> \param generic generic CPU kernel
+!> \return Whether to use the one-stage algorithm
+! **************************************************************************************************
+   LOGICAL FUNCTION elpa_select_one_stage(n, nev, nranks, is_complex, nvidia, intel, generic) RESULT(one_stage)
+      INTEGER, INTENT(IN)                                :: n, nev, nranks
+      LOGICAL, INTENT(IN)                                :: is_complex, nvidia, intel, generic
+
+      one_stage = elpa_one_stage
+      IF (.NOT. elpa_auto_stage) RETURN
+      one_stage = intel
+      IF (nranks == 1 .AND. (nvidia .OR. generic)) THEN
+         ! With one rank the NVIDIA crossover occurs earlier for Hermitian
+         ! matrices. On the CPU the cost of backtransforming the requested
+         ! eigenvectors weighs more heavily than the matrix order alone.
+         IF (is_complex) THEN
+            one_stage = (nvidia .AND. n >= 1024) .OR. (generic .AND. nev >= n - nev)
+         ELSE IF (nvidia) THEN
+            one_stage = n >= 2048 .AND. nev >= n - nev
+         ELSE IF (n >= 512 .AND. n <= 2048) THEN
+            one_stage = nev == n .OR. (n <= 1024 .AND. nev >= n - nev)
+         END IF
+      END IF
+   END FUNCTION elpa_select_one_stage
 
 #if defined(__ELPA)
 ! **************************************************************************************************
@@ -205,28 +236,37 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Initialize the ELPA library
-!> \param one_stage ...
-!> \param qr ...
-!> \param should_print flag that determines if additional information
-!>        is printed when the diagonalization routine is called.
 ! **************************************************************************************************
-   SUBROUTINE initialize_elpa_library(one_stage, qr, should_print)
-      LOGICAL, INTENT(IN), OPTIONAL                      :: one_stage, qr, should_print
-
+   SUBROUTINE initialize_elpa_library()
 #if defined(__ELPA)
       IF (elpa_init(20180525) /= ELPA_OK) THEN
          CPABORT("The linked ELPA library does not support the required API version")
       END IF
-      IF (PRESENT(one_stage)) elpa_one_stage = one_stage
-      IF (PRESENT(should_print)) elpa_print = should_print
-      IF (PRESENT(qr)) elpa_qr = qr
 #else
-      MARK_USED(one_stage)
-      MARK_USED(qr)
-      MARK_USED(should_print)
       CPABORT("Initialization of ELPA library requested but not enabled during build")
 #endif
    END SUBROUTINE initialize_elpa_library
+
+! **************************************************************************************************
+!> \brief Set options for the current input, independently of library initialization.
+!> \param one_stage explicit stage selection
+!> \param qr enable the two-stage QR variant on suitable real matrices
+!> \param should_print print diagonalization information
+!> \param auto_stage select the stage for each solve
+!> \param gpu_available every participating rank has a device
+! **************************************************************************************************
+   SUBROUTINE set_elpa_options(one_stage, qr, should_print, auto_stage, gpu_available)
+      LOGICAL, INTENT(IN)                                :: one_stage, qr, should_print
+      LOGICAL, INTENT(IN), OPTIONAL                      :: auto_stage, gpu_available
+
+      elpa_one_stage = one_stage
+      elpa_qr = qr
+      elpa_print = should_print
+      elpa_auto_stage = .FALSE.
+      IF (PRESENT(auto_stage)) elpa_auto_stage = auto_stage
+      elpa_gpu_available = .TRUE.
+      IF (PRESENT(gpu_available)) elpa_gpu_available = gpu_available
+   END SUBROUTINE set_elpa_options
 
 ! **************************************************************************************************
 !> \brief Finalize the ELPA library
@@ -270,13 +310,13 @@ CONTAINS
          ! Prefer GPU kernel if available.
 #if !defined(__NO_OFFLOAD_ELPA)
 #if defined(__OFFLOAD_CUDA)
-         elpa_kernel = ELPA_2STAGE_REAL_NVIDIA_GPU
+         IF (elpa_gpu_available) elpa_kernel = ELPA_2STAGE_REAL_NVIDIA_GPU
 #endif
 #if defined(__OFFLOAD_HIP)
-         elpa_kernel = ELPA_2STAGE_REAL_AMD_GPU
+         IF (elpa_gpu_available) elpa_kernel = ELPA_2STAGE_REAL_AMD_GPU
 #endif
 #if defined(__OFFLOAD_OPENCL)
-         elpa_kernel = ELPA_2STAGE_REAL_INTEL_GPU_SYCL
+         IF (elpa_gpu_available) elpa_kernel = ELPA_2STAGE_REAL_INTEL_GPU_SYCL
 #endif
 #endif
          ! If we could not find a suitable kernel then use ELPA_2STAGE_REAL_DEFAULT.
@@ -360,7 +400,7 @@ CONTAINS
                                                   n_rows, n_cols, &
                                                   nblk, neig, io_unit, &
                                                   success, debug_value
-      LOGICAL                                  :: use_qr, check_eigenvalues
+      LOGICAL                                  :: use_qr, check_eigenvalues, one_stage
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: eval, eval_noqr
       TYPE(cp_blacs_env_type), POINTER         :: context
       TYPE(cp_fm_type)                         :: matrix_noqr, eigenvectors_noqr
@@ -416,6 +456,10 @@ CONTAINS
       IF (.NOT. elpa_qr_unsafe) THEN
          use_qr = use_qr .AND. (n >= 64) .AND. (nblk >= 64)
       END IF
+      one_stage = elpa_select_one_stage(n, neig, group%num_pe, .FALSE., elpa_kernel == ELPA_2STAGE_REAL_NVIDIA_GPU, &
+                                        elpa_kernel == ELPA_2STAGE_REAL_INTEL_GPU_SYCL, elpa_kernel == ELPA_2STAGE_REAL_GENERIC)
+      IF (elpa_auto_stage .AND. use_qr) one_stage = .FALSE.
+      IF (one_stage) use_qr = .FALSE.
 
       ! Check if eigenvalues computed with elpa_qr_unsafe should be verified
       IF (use_qr .AND. elpa_qr_unsafe .AND. elpa_print) THEN
@@ -438,6 +482,7 @@ CONTAINS
             "ELPA| Matrix diagonalization information"
 
          kernel_name = get_elpa_kernel_name(elpa_kernel)
+         WRITE (UNIT=io_unit, FMT="(T2,A,T71,I10)") "ELPA| Solver stages ", MERGE(1, 2, one_stage)
 
          WRITE (UNIT=io_unit, FMT="(T2,A,T71,I10)") &
             "ELPA| Matrix order (NA) ", n, &
@@ -514,7 +559,7 @@ CONTAINS
       CPASSERT(success == ELPA_OK)
 
       CALL elpa_obj%set("solver", &
-                        MERGE(ELPA_SOLVER_1STAGE, ELPA_SOLVER_2STAGE, elpa_one_stage), &
+                        MERGE(ELPA_SOLVER_1STAGE, ELPA_SOLVER_2STAGE, one_stage), &
                         success)
       IF (success /= ELPA_OK) THEN
          CPABORT("Setting solver for ELPA failed")
@@ -547,7 +592,7 @@ CONTAINS
       CALL elpa_obj%set("debug", debug_value, success)
       CPASSERT(success == ELPA_OK)
 
-      IF (.NOT. elpa_one_stage) THEN
+      IF (.NOT. one_stage) THEN
          ! Keep ELPA's configured default in case the requested kernel is unavailable.
          CALL elpa_obj%get("real_kernel", fallback_kernel, success)
          CPASSERT(success == ELPA_OK)

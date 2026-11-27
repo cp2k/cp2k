@@ -360,7 +360,8 @@ def main() -> None:
     with OutputFile(f"Dockerfile.test_cuda_A40", args.check) as f:
         # TODO Revert A100 -> A40 once #6450 is resolved.
         f.write(install_deps_toolchain_cuda(gpu_ver="A100"))
-        f.write(regtest(f"toolchain_cuda_A40", "psmp"))
+        # Four two-rank regression runs share the CI worker's single GPU.
+        f.write(regtest("toolchain_cuda_A40", "psmp", "--maxtasks 8"))
 
     with OutputFile(f"Dockerfile.test_performance_cuda_A40", args.check) as f:
         # TODO Revert A100 -> A40 once #6450 is resolved.

@@ -1666,6 +1666,7 @@ set(CP2K_PROGS_F
     common/memory_utilities_unittest.F
     common/parallel_rng_types_unittest.F
     pseudopotentials/upf_inverse_unittest.F
+    fm/cp_cfm_diag_unittest.F
     pseudopotentials/atom_upf_unittest.F
     xc/xc_semilocal_unittest.F
     pseudopotentials/upf_projector_integrals_unittest.F

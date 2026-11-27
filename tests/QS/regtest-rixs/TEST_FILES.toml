@@ -12,18 +12,18 @@
 ]
 
 "CH3-PBE-roks.inp" = [
-  {matcher = "XAS_excit_ener", tol = 1e-07, ref = 265.667636},
+  {matcher = "XAS_excit_ener", tol = 1e-07, ref = 265.668274},
   {matcher = "TDDFPT_Check_Energy", tol = 5.0E-06, ref = 0.53118944},
   {matcher = "TDDFPT_Check_Osc_Strength", tol = 1.0E-06, ref = 0.024402234},
-  {matcher = "RIXS_absorption_dipole_squared", file = "CH3-PBE-roks.rixs", tol = 1.0E-04, ref = 0.0045002},
+  {matcher = "RIXS_absorption_dipole_squared", file = "CH3-PBE-roks.rixs", tol = 1.0E-04, ref = 0.0045057},
   {matcher = "RIXS_emission_dipole_squared", file = "CH3-PBE-roks.rixs", tol = 1.0E-04, ref = 0.00020821}
 ]
 
 "CH3-PBE-uks.inp" = [
-  {matcher = "XAS_excit_ener", tol = 1e-07, ref = 265.746518},
+  {matcher = "XAS_excit_ener", tol = 1e-07, ref = 265.747149},
   {matcher = "TDDFPT_Check_Energy", tol = 5.0E-06, ref = 0.57948051},
   {matcher = "TDDFPT_Check_Osc_Strength", tol = 1.0E-06, ref = 0.034065264},
-  {matcher = "RIXS_absorption_dipole_squared", file = "CH3-PBE-uks.rixs", tol = 1.0E-04, ref = 0.0044557},
+  {matcher = "RIXS_absorption_dipole_squared", file = "CH3-PBE-uks.rixs", tol = 1.0E-04, ref = 0.0044612},
   {matcher = "RIXS_emission_dipole_squared", file = "CH3-PBE-uks.rixs", tol = 1.0E-04, ref = 0.00087757}
 ]
 

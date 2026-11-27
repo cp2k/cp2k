@@ -35,7 +35,6 @@ MODULE input_cp2k_global
    USE cp_fm_elpa,                      ONLY: elpa_kernel_descriptions,&
                                               elpa_kernel_ids,&
                                               elpa_kernel_names,&
-                                              elpa_one_stage,&
                                               elpa_print,&
                                               elpa_qr
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get_ncol_block,&
@@ -159,7 +158,10 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="DIRECT_GENERALIZED_DIAGONALIZATION", &
                           description="Request direct generalized eigenvalue problem diagonalization "// &
                           "without a CP2K-side Cholesky reduction in supported dense matrix paths. "// &
-                          "The eigensolver is still selected by PREFERRED_DIAG_LIBRARY.", &
+                          "When omitted, a one-rank LAPACK solve and suitable one- or two-rank cuSOLVER solves "// &
+                          "can use a direct driver. At Gamma, CP2K normally reuses the overlap decomposition, "// &
+                          "but selects a direct one-rank cuSOLVER solve from order 1248. "// &
+                          "An explicit F disables this automatic selection.", &
                           usage="DIRECT_GENERALIZED_DIAGONALIZATION", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -227,7 +229,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ELPA_NEIGVEC_MIN", &
-                          description="Minimum number of eigenvectors for the use of the eigensolver from "// &
+                          description="Minimum matrix order for the use of the eigensolver from "// &
                           "the ELPA library. The eigensolver from the ScaLAPACK library is used as fallback "// &
                           "for all smaller cases", &
                           usage="ELPA_NEIGVEC_MIN 32", &
@@ -247,10 +249,11 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ELPA_ONE_STAGE", &
-                          description="For ELPA, enable the one-stage solver (instead of the two-stage solver). "// &
-                          "Please note, ELPA_QR and ELPA_KERNEL settings may be ignored.", &
+                          description="Force the one-stage (T) or two-stage (F) ELPA solver. When omitted, "// &
+                          "CP2K chooses based on the kernel, process grid, matrix order and number of eigenvectors. "// &
+                          "ELPA_QR and two-stage kernel settings do not apply to a one-stage solve.", &
                           usage="ELPA_ONE_STAGE", &
-                          default_l_val=elpa_one_stage, lone_keyword_l_val=.TRUE.)
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -262,11 +265,19 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DLAF_NEIGVEC_MIN", &
-                          description="Minimum number of eigenvectors for the use of the eigensolver from "// &
+                          description="Minimum matrix order for the use of the eigensolver from "// &
                           "the DLA-Future library. The eigensolver from the ScaLAPACK library is used as fallback "// &
                           "for all smaller cases", &
                           usage="DLAF_NEIGVEC_MIN 512", &
                           default_i_val=1024)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CUSOLVER_N_MIN", &
+                          description="Minimum matrix order for cuSOLVER diagonalization. Smaller problems use a CPU solver. "// &
+                          "Zero selects 512 for a one-rank solve and 2048 for a distributed solve. "// &
+                          "A positive value overrides either threshold.", &
+                          usage="CUSOLVER_N_MIN 512", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

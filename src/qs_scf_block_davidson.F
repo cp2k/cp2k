@@ -21,7 +21,9 @@ MODULE qs_scf_block_davidson
                                               cp_cfm_gemm,&
                                               cp_cfm_get_diag,&
                                               cp_cfm_scale_and_add,&
+                                              cp_cfm_triangular_multiply,&
                                               cp_cfm_vectorsnorm
+   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_submatrix,&
@@ -513,8 +515,8 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: lambda_c
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cdiag, scaling
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: colbuf, submat_buffer
-      INTEGER :: handle, homo, i_first, i_last, imo, iter, j, jj, max_iter, n, nao, ncol_z, nmat, &
-         nmat2, nmo, nmo_converged, nmo_not_converged, nset, nset_conv, nset_not_conv
+      INTEGER :: handle, homo, i_first, i_last, imo, info, iter, j, jj, max_iter, n, nao, ncol_z, &
+         nmat, nmat2, nmo, nmo_converged, nmo_not_converged, nset, nset_conv, nset_not_conv
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iconv, inotconv
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: iconv_set, inotconv_set
       LOGICAL                                            :: converged, do_apply_preconditioner, &
@@ -889,7 +891,7 @@ CONTAINS
             CALL cp_cfm_release(m_tmp)
 
             CALL cp_cfm_vectorsnorm(c_mz, vnorm_pz)
-            IF (ANY(vnorm_pz < eps_exhaust)) THEN
+            IF (ANY(vnorm_pz < eps_exhaust) .OR. ncol_z > nao - nmo) THEN
                exhausted = .TRUE.
             ELSE
                IF (ALLOCATED(scaling)) DEALLOCATE (scaling)
@@ -897,6 +899,20 @@ CONTAINS
                scaling(:) = CMPLX(1.0_dp/vnorm_pz, 0.0_dp, KIND=dp)
                CALL cp_cfm_column_scale(c_mz, scaling)
             END IF
+         END IF
+         IF (.NOT. exhausted .AND. ncol_z > 1) THEN
+            ! Individually normalized corrections can still be nearly parallel.
+            ! Use Cholesky QR on Z before forming the projected H and S.
+            CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_z, ncol_global=ncol_z, &
+                                     context=cmo%matrix_struct%context, para_env=cmo%matrix_struct%para_env)
+            CALL cp_cfm_create(m_tmp, fm_struct_tmp, name="Z^H Z")
+            CALL cp_fm_struct_release(fm_struct_tmp)
+            CALL cp_cfm_gemm('C', 'N', ncol_z, ncol_z, nao, z_one, c_mz, c_mz, z_zero, m_tmp)
+            CALL cp_cfm_cholesky_decompose(m_tmp, info_out=info)
+            CPASSERT(info >= 0)
+            exhausted = info > 0
+            IF (.NOT. exhausted) CALL cp_cfm_triangular_multiply(m_tmp, c_mz, side="R", invert_tr=.TRUE.)
+            CALL cp_cfm_release(m_tmp)
          END IF
          DEALLOCATE (vnorm_pz)
          IF (exhausted) EXIT

@@ -59,6 +59,7 @@ MODULE cp_blacs_env
       INTEGER, DIMENSION(:, :), POINTER :: mpi2blacs => NULL()
       LOGICAL :: repeatable = .FALSE.
       TYPE(C_PTR) :: cusolver_context = C_NULL_PTR
+      INTEGER :: cusolver_devices_ok = -1
    CONTAINS
       PROCEDURE, PUBLIC, PASS, NON_OVERRIDABLE :: create => cp_blacs_env_create_low
       PROCEDURE, PUBLIC, PASS, NON_OVERRIDABLE :: retain => cp_blacs_env_retain
