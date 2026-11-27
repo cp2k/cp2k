@@ -5,9 +5,9 @@
 
 FROM docker.io/ubuntu:26.04
 
-# Provide OpenMPI, OpenBLAS and libtorch (via pip) from external
-# sources. libtorch is the official CPU wheel; OpenMPI and OpenBLAS
-# come from the distribution.
+# Provide OpenBLAS and libtorch (via pip) from external sources.
+# libtorch is the official CPU wheel; OpenBLAS comes from the
+# distribution.
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update -qq && \
     apt-get install -qq --no-install-recommends \
@@ -16,8 +16,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     libopenblas-dev \
     python3 \
     python3-pip \
-    openmpi-bin \
-    libopenmpi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Fetch the official CPU wheel for a fixed Python ABI and unpack it; CP2K only
@@ -46,14 +44,13 @@ COPY ./tools/toolchain/scripts/VERSION \
 COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
     --install-all \
-    --mpi-mode=openmpi \
+    --mpi-mode=mpich \
     --with-dbcsr \
     --with-gcc=system \
     --with-libtorch=/opt/libtorch/torch \
     --with-openblas=system \
     --with-gauxc=install \
     --with-deepmd=install \
-    --with-openmpi=system \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.

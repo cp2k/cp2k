@@ -35,8 +35,8 @@ def main() -> None:
                 # Serial build with libtorch, but no MPI.
                 f.write(install_deps_toolchain(mpi_mode="no"))
             elif version == "pdbg":
-                # Debug build with libtorch; use the same OpenMPI as libtorch.
-                f.write(install_deps_toolchain(system_openmpi=True))
+                # Debug build with libtorch; the pip libtorch is MPI-free.
+                f.write(install_deps_toolchain())
             else:
                 # Keep an MPICH build, but without libtorch.
                 f.write(install_deps_toolchain(mpi_mode="mpich", **WITHOUT_LIBTORCH))
@@ -44,7 +44,7 @@ def main() -> None:
 
     with OutputFile(f"Dockerfile.test_psmp_4ranks", args.check) as f:
         testopts = f"--ompthreads=1 --mpiranks=4"
-        f.write(install_deps_toolchain(system_openmpi=True))
+        f.write(install_deps_toolchain())
         f.write(regtest("toolchain", "psmp", testopts=testopts))
 
     with OutputFile(f"Dockerfile.test_generic_psmp", args.check) as f:
@@ -375,7 +375,7 @@ def main() -> None:
         f.write(regtest("toolchain_arm64", "psmp"))
 
     with OutputFile(f"Dockerfile.test_performance", args.check) as f:
-        f.write(install_deps_toolchain(system_openmpi=True))
+        f.write(install_deps_toolchain())
         f.write(performance("toolchain"))
 
     with OutputFile(f"Dockerfile.test_cuda_A40", args.check) as f:
@@ -393,11 +393,11 @@ def main() -> None:
         f.write(test_build(f"toolchain_hip_Mi100", "psmp"))
 
     with OutputFile(f"Dockerfile.test_conventions", args.check) as f:
-        f.write(install_deps_toolchain(system_openmpi=True))
+        f.write(install_deps_toolchain())
         f.write(conventions())
 
     with OutputFile(f"Dockerfile.test_manual", args.check) as f:
-        f.write(install_deps_toolchain(system_openmpi=True))
+        f.write(install_deps_toolchain())
         f.write(manual())
 
     with OutputFile(f"Dockerfile.test_precommit", args.check) as f:
