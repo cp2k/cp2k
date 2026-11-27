@@ -1,29 +1,218 @@
 #!/usr/bin/env bash
 #
-# build_cp2k.sh: CMake configuration, build, and installation of CP2K (step 3 of make_cp2k.sh)
+# build_cp2k.sh: CMake configuration, build, and installation of CP2K
 #
 # Usage: build_cp2k.sh CONFIG_FILE...
+#        build_cp2k.sh [OPTIONS]
 #
-# The settings are read from the configuration files options.conf and deps.conf
-# written by make_cp2k.sh and build_deps.sh. The settings provided by the CP2K
-# build are written to CONFIG_PATH/build.conf.
+# This script is used for both the Spack-based and the toolchain-based CP2K builds:
+#
+#  - With configuration files (options.conf and deps.conf written by make_cp2k.sh
+#    and build_deps.sh), the settings are taken from these files and the Spack
+#    environment with the CP2K dependencies is activated (step 3 of make_cp2k.sh).
+#    After the installation, the environment of the CP2K binaries is set up
+#    (launch and run_tests scripts) and the settings provided by the CP2K build
+#    are written to CONFIG_PATH/build.conf.
+#  - Without configuration files, CP2K is only configured, built, and installed
+#    with the settings given by the flags, e.g. for a toolchain build:
+#
+#      build_cp2k.sh --setup /opt/cp2k-toolchain/install/setup \
+#                    --preset native-gnu-x86_64 --install_prefix /opt/cp2k \
+#                    --cmake_args "-DCP2K_USE_EVERYTHING=ON -DCP2K_USE_DLAF=OFF"
+#
+# The flags cannot be combined with configuration files.
 
 # shellcheck disable=SC2154 # the variables are defined by the configuration files
 
 set -uo pipefail
 
+CP2K_ROOT_DIR="$(realpath "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../..")"
+
 # shellcheck source=/dev/null
-source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/common.sh"
-load_config "$@"
-activate_spack_env
-spack env status
+source "${CP2K_ROOT_DIR}/tools/make_cp2k/common.sh"
+
+print_usage() {
+  echo "Usage: $(basename "${0}") CONFIG_FILE..."
+  echo "       $(basename "${0}") [OPTIONS]"
+  echo ""
+  echo "Options (only without configuration files):"
+  echo " -s, --setup FILE          : Source FILE to set up the environment, e.g. the toolchain setup file"
+  echo " -p, --preset NAME         : CMake configure preset (default: none)"
+  echo " -c, --cmake_args ARGS     : Further CMake arguments as one string, e.g. \"-DCP2K_USE_MPI=OFF -DCP2K_USE_LIBXC=ON\""
+  echo "                             (\${VAR} references are expanded after sourcing the setup file)"
+  echo " -b, --build_dir DIR       : CMake build folder (default: ${CP2K_ROOT_DIR}/build)"
+  echo " -i, --install_prefix DIR  : CMake installation prefix (default: ${CP2K_ROOT_DIR}/install)"
+  echo " -j, --jobs N              : Number of parallel build jobs (default: $(nproc))"
+  echo " -fw, --fail_on_warnings   : Fail if the CMake configuration step issues any warning"
+  echo " -ni, --no_install         : Skip the installation step and only link the data folder to"
+  echo "                             <install_prefix>/share/cp2k/data (binaries remain in <build_dir>/bin)"
+  echo " -q, --quiet               : Write the build output only to <build_dir>/ninja.log, print the end"
+  echo "                             of the log and copy it to /workspace/artifacts if the build fails,"
+  echo "                             and report failures with Summary: and Status: lines (for the CP2K CI)"
+  echo " -v, --verbose             : Print the full compiler and linker command lines"
+  echo " -h, --help                : Print this help information"
+}
+
+if (($# == 0)); then
+  echo "ERROR: Neither configuration files nor flags specified"
+  print_usage
+  exit 1
+fi
+
+# Parse the flags
+SETUP_FILE=""
+CMAKE_PRESET_FLAG=""
+CMAKE_ARGS=""
+BUILD_DIR=""
+INSTALL_DIR=""
+JOBS=""
+FAIL_ON_WARNINGS="no"
+NO_INSTALL="no"
+QUIET="no"
+VERBOSE_BUILD="no"
+FLAGS_FOUND="no"
+CONFIG_FILES=()
+while (($# > 0)); do
+  case "${1}" in
+    -s | --setup | -p | --preset | -c | --cmake_args | -b | --build_dir | -i | --install_prefix | \
+      -j | --jobs)
+      if (($# < 2)) || [[ -z "${2}" ]]; then
+        echo "ERROR: No argument found for flag \"${1}\""
+        exit 1
+      fi
+      case "${1}" in
+        -s | --setup) SETUP_FILE="${2}" ;;
+        -p | --preset) CMAKE_PRESET_FLAG="${2}" ;;
+        -c | --cmake_args) CMAKE_ARGS="${2}" ;;
+        -b | --build_dir) BUILD_DIR="${2}" ;;
+        -i | --install_prefix) INSTALL_DIR="${2}" ;;
+        -j | --jobs) JOBS="${2}" ;;
+      esac
+      FLAGS_FOUND="yes"
+      shift 2
+      ;;
+    -fw | --fail_on_warnings | -ni | --no_install | -q | --quiet | -v | --verbose)
+      case "${1}" in
+        -fw | --fail_on_warnings) FAIL_ON_WARNINGS="yes" ;;
+        -ni | --no_install) NO_INSTALL="yes" ;;
+        -q | --quiet) QUIET="yes" ;;
+        -v | --verbose) VERBOSE_BUILD="yes" ;;
+      esac
+      FLAGS_FOUND="yes"
+      shift 1
+      ;;
+    -h | --help)
+      print_usage
+      exit 0
+      ;;
+    -*)
+      echo "ERROR: Unknown flag \"${1}\" found"
+      print_usage
+      exit 1
+      ;;
+    *)
+      CONFIG_FILES+=("${1}")
+      shift 1
+      ;;
+  esac
+done
+
+# Print an error message and also the Summary and Status lines for the CP2K CI if requested
+report_failure() {
+  echo -e "\nERROR: ${1}"
+  if [[ "${QUIET}" == "yes" ]]; then
+    echo -e "\nSummary: ${2}"
+    echo -e "Status: FAILED\n"
+  fi
+}
+
+# Expand the ${VAR} references in the given string without evaluating anything else
+expand_variables() {
+  local string="${1}" name
+  while [[ "${string}" =~ \$\{([A-Za-z_][A-Za-z0-9_]*)\} ]]; do
+    name="${BASH_REMATCH[1]}"
+    if [[ ! -v ${name} ]]; then
+      echo "ERROR: The variable ${name} referenced in \"${1}\" is not set" >&2
+      return 1
+    fi
+    string="${string//"\${${name}}"/${!name}}"
+  done
+  echo "${string}"
+}
+
+if ((${#CONFIG_FILES[@]} > 0)); then
+  if [[ "${FLAGS_FOUND}" == "yes" ]]; then
+    echo "ERROR: The flags cannot be combined with configuration files"
+    print_usage
+    exit 1
+  fi
+  load_config "${CONFIG_FILES[@]}"
+  activate_spack_env
+  spack env status
+  set_cmake_werror_flags
+  NINJA_OUTPUT_FLAG="${VERBOSE_FLAG}"
+else
+  # Set up the environment for a build without configuration files
+  if [[ -n "${SETUP_FILE}" ]]; then
+    if [[ ! -f "${SETUP_FILE}" ]]; then
+      echo "ERROR: The setup file ${SETUP_FILE} was not found"
+      exit 1
+    fi
+    # The setup file is not necessarily safe for unset variables
+    set +u
+    # shellcheck source=/dev/null
+    source "${SETUP_FILE}"
+    set -u
+  fi
+  if [[ -n "${JOBS}" ]] && [[ ! "${JOBS}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "ERROR: Invalid number of build jobs \"${JOBS}\" (flag --jobs)"
+    exit 1
+  fi
+  CMAKE_ARGS="$(expand_variables "${CMAKE_ARGS}")" || exit 1
+  read -ra CMAKE_ARGV <<< "${CMAKE_ARGS}"
+  if [[ -n "${CMAKE_PRESET_FLAG}" ]]; then
+    CMAKE_ARGV=(--preset "${CMAKE_PRESET_FLAG}" "${CMAKE_ARGV[@]}")
+  fi
+  # The variable names used by the build and installation steps below
+  CP2K_ROOT="${CP2K_ROOT_DIR}"
+  CMAKE_BUILD_PATH="${BUILD_DIR:-${CP2K_ROOT_DIR}/build}"
+  INSTALL_PREFIX="${INSTALL_DIR:-${CP2K_ROOT_DIR}/install}"
+  NUM_PROCS="${JOBS:-$(nproc)}"
+  if [[ "${VERBOSE_BUILD}" == "yes" ]]; then
+    NINJA_OUTPUT_FLAG="--verbose"
+  else
+    NINJA_OUTPUT_FLAG="--quiet"
+  fi
+  # Record the CP2K revision when building from a source tree without git metadata
+  if [[ -n "${GIT_COMMIT_SHA:-}" ]]; then
+    echo "git:${GIT_COMMIT_SHA::7}" > "${CP2K_ROOT_DIR}"/REVISION
+  fi
+fi
 
 ### Build CP2K ###
 
-if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
+if ((${#CONFIG_FILES[@]} == 0)); then
+  # CMake configuration step from scratch for a build without configuration files
+  echo -e "\n*** Configuring CP2K ***\n"
+  mkdir -p "${CMAKE_BUILD_PATH}"
+  cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" --fresh \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    "${CMAKE_ARGV[@]}" |&
+    tee "${CMAKE_BUILD_PATH}/cmake.log"
+  EXIT_CODE=${PIPESTATUS[0]}
+  if ((EXIT_CODE != 0)); then
+    report_failure "The CMake configuration step failed with the error code ${EXIT_CODE}" "CMake failed"
+    exit "${EXIT_CODE}"
+  fi
+  if [[ "${FAIL_ON_WARNINGS}" == "yes" ]] && grep -A5 'CMake Warning' "${CMAKE_BUILD_PATH}/cmake.log"; then
+    report_failure "The CMake configuration step issued warnings" "Found CMake warnings"
+    exit 1
+  fi
+elif [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
   mkdir -p "${CMAKE_BUILD_PATH}"
   case "${CP2K_VERSION}" in
-    pdbg | psmp)
+    pdbg | psmp | sdbg | ssmp)
       # shellcheck disable=SC2086
       cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" --preset "${CMAKE_PRESET}" \
         -GNinja \
@@ -37,25 +226,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCMAKE_VERBOSE_MAKEFILE="${VERBOSE_MAKEFILE}" \
         ${CMAKE_FEATURE_FLAGS} \
         ${CMAKE_CUDA_FLAGS} \
-        -Werror=dev |&
-        tee "${CMAKE_BUILD_PATH}/cmake.log"
-      EXIT_CODE=$?
-      ;;
-    sdbg | ssmp)
-      # shellcheck disable=SC2086
-      cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" --preset "${CMAKE_PRESET}" \
-        -GNinja \
-        -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} \
-        -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
-        -DCMAKE_Fortran_COMPILER_LAUNCHER="${Fortran_COMPILER_LAUNCHER}" \
-        -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-        -DCMAKE_INSTALL_LIBDIR="lib" \
-        -DCMAKE_INSTALL_MESSAGE="${INSTALL_MESSAGE}" \
-        -DCMAKE_SKIP_RPATH="ON" \
-        -DCMAKE_VERBOSE_MAKEFILE="${VERBOSE_MAKEFILE}" \
-        ${CMAKE_FEATURE_FLAGS} \
-        ${CMAKE_CUDA_FLAGS} \
-        -Werror=dev |&
+        "${CMAKE_WERROR_FLAGS[@]}" |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
       ;;
@@ -83,13 +254,15 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCP2K_BLAS_LINK_LIBRARIES="${LIBOPENBLAS};${LIBM}" \
         -DCP2K_LAPACK_LINK_LIBRARIES="${LIBOPENBLAS};${LIBM}" \
         ${CMAKE_FEATURE_FLAGS} \
-        -Werror=dev |&
+        "${CMAKE_WERROR_FLAGS[@]}" |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
       # It is almost impossible to avoid that shared libraries are pulled in
       # when the CP2K dependencies are built and thus just change all shared
       # to static libraries hoping that these are also available
-      sed -E -e "s/\.so/.a/g" -i build/build.ninja
+      if ((EXIT_CODE == 0)); then
+        sed -E -e "s/\.so/.a/g" -i "${CMAKE_BUILD_PATH}"/build.ninja
+      fi
       ;;
     *)
       echo "ERROR: Unknown CP2K version ${CP2K_VERSION} specified"
@@ -106,11 +279,32 @@ fi
 
 # CMake build step
 echo -e "\n*** Compiling CP2K ***\n"
-cmake --build "${CMAKE_BUILD_PATH}" --parallel "${NUM_PROCS}" -- "${VERBOSE_FLAG}" |& tee "${CMAKE_BUILD_PATH}"/ninja.log
+if [[ "${QUIET}" == "yes" ]]; then
+  cmake --build "${CMAKE_BUILD_PATH}" --parallel "${NUM_PROCS}" -- "${NINJA_OUTPUT_FLAG}" &> "${CMAKE_BUILD_PATH}"/ninja.log
+else
+  cmake --build "${CMAKE_BUILD_PATH}" --parallel "${NUM_PROCS}" -- "${NINJA_OUTPUT_FLAG}" |& tee "${CMAKE_BUILD_PATH}"/ninja.log
+fi
 EXIT_CODE=${PIPESTATUS[0]}
 if ((EXIT_CODE != 0)); then
-  echo "ERROR: The CMake build step failed with the error code ${EXIT_CODE}"
+  if [[ "${QUIET}" == "yes" ]]; then
+    # Stay below the 3 MB limit for the CP2K dashboard reports
+    tail -n 500 "${CMAKE_BUILD_PATH}"/ninja.log
+    mkdir -p /workspace/artifacts
+    cp "${CMAKE_BUILD_PATH}"/ninja.log /workspace/artifacts/
+  fi
+  report_failure "The CMake build step failed with the error code ${EXIT_CODE}" "Compilation failed"
   exit "${EXIT_CODE}"
+fi
+
+# Only link the data folder to the installation prefix if the installation is skipped,
+# since CP2K looks for its data files in <install_prefix>/share/cp2k/data by default
+if [[ "${NO_INSTALL}" == "yes" ]]; then
+  if [[ ! -e "${INSTALL_PREFIX}"/share/cp2k/data ]]; then
+    mkdir -p "${INSTALL_PREFIX}"/share/cp2k
+    ln -s "${CP2K_ROOT}"/data "${INSTALL_PREFIX}"/share/cp2k/data
+  fi
+  echo -e "\n*** CP2K was built in ${CMAKE_BUILD_PATH} without installation ***\n"
+  exit 0
 fi
 
 # CMake install step
@@ -118,8 +312,14 @@ echo -e "\n*** Installing CP2K ***\n"
 cmake --install "${CMAKE_BUILD_PATH}" |& tee "${CMAKE_BUILD_PATH}"/install.log
 EXIT_CODE=${PIPESTATUS[0]}
 if ((EXIT_CODE != 0)); then
-  echo -e "\nERROR: The CMake installation step failed with the error code ${EXIT_CODE}"
+  report_failure "The CMake installation step failed with the error code ${EXIT_CODE}" "Installation failed"
   exit "${EXIT_CODE}"
+fi
+
+# The following set-up of the environment for the CP2K binaries requires the configuration files
+if ((${#CONFIG_FILES[@]} == 0)); then
+  echo -e "\n*** CP2K was installed in ${INSTALL_PREFIX} ***\n"
+  exit 0
 fi
 
 # Install Skala resource files if needed
