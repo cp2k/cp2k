@@ -190,7 +190,7 @@ CONTAINS
 
       CALL get_parameters_from_qs_env(qs_env, bs_env)
 
-      CALL read_gw_input_parameters(bs_env, bs_sec, rpa_sec)
+      CALL read_gw_input_parameters(qs_env, bs_env, bs_sec, rpa_sec)
 
       CALL print_header_and_input_parameters(bs_env)
 
@@ -292,12 +292,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Reads the GW input parameters.
+!> \param qs_env ...
 !> \param bs_env ...
 !> \param bs_sec BAND_STRUCTURE input section
 !> \param rpa_sec WF_CORRELATION%RI_RS_RPA section; when present, its χ/ε keywords are read
 !>        instead of those of BANDSTRUCTURE%GW
 ! **************************************************************************************************
-   SUBROUTINE read_gw_input_parameters(bs_env, bs_sec, rpa_sec)
+   SUBROUTINE read_gw_input_parameters(qs_env, bs_env, bs_sec, rpa_sec)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(section_vals_type), POINTER                   :: bs_sec
       TYPE(section_vals_type), OPTIONAL, POINTER         :: rpa_sec
@@ -308,11 +310,14 @@ CONTAINS
       LOGICAL                                            :: do_evgw0
       TYPE(section_vals_type), POINTER                   :: auto_ri_sec, chi_sec, cohsex_sec, &
                                                             evgw0_sec, grid_opt_sec, gw_sec, &
-                                                            ri_rs_sec
+                                                            input, ri_rs_sec, rtbse_sec
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (auto_ri_sec, chi_sec, cohsex_sec, evgw0_sec, grid_opt_sec, gw_sec, ri_rs_sec)
+      NULLIFY (auto_ri_sec, chi_sec, cohsex_sec, evgw0_sec, grid_opt_sec, gw_sec, input, ri_rs_sec, &
+               rtbse_sec)
+      CALL get_qs_env(qs_env, input=input)
+      rtbse_sec => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%RTBSE")
       gw_sec => section_vals_get_subs_vals(bs_sec, "GW")
       chi_sec => gw_sec
       IF (PRESENT(rpa_sec)) chi_sec => rpa_sec
@@ -348,7 +353,7 @@ CONTAINS
       CALL read_rirs_grid_opt(bs_env%ri_rs, grid_opt_sec)
       CALL read_evgw0_input(bs_env, evgw0_sec, do_evgw0)
       CALL read_auto_ri_input(bs_env%auto_ri, auto_ri_sec)
-      CALL check_gw_input(bs_env, do_evgw0, rpa_sec)
+      CALL check_gw_input(bs_env, do_evgw0, rtbse_sec, rpa_sec)
 
       CALL timestop(handle)
 
@@ -459,7 +464,9 @@ CONTAINS
       END IF
 
       CALL section_vals_val_get(auto_ri_sec, "RI_AO_RATIO", r_val=auto_ri%ri_ao_ratio)
-      CALL section_vals_val_get(auto_ri_sec, "OCC_EMPTY_FRONTIER_ORBITAL_WINDOW", r_val=auto_ri%occ_energy_window)
+      CALL section_vals_val_get(auto_ri_sec, "OCC_EMPTY_FRONTIER_ORBITAL_WINDOW", &
+                                r_val=auto_ri%energy_window_below_homo)
+      auto_ri%energy_window_above_lumo = auto_ri%energy_window_below_homo
 
       CALL timestop(handle)
 
@@ -469,17 +476,20 @@ CONTAINS
 !> \brief Checks compatibility among the GW input sections and assigns the GW flavour.
 !> \param bs_env ...
 !> \param do_evgw0 whether eigenvalue self-consistency is requested
+!> \param rtbse_sec REAL_TIME_PROPAGATION%RTBSE section, read when AUTO_RI precedes an RT-BSE
 !> \param rpa_sec WF_CORRELATION%RI_RS_RPA section, present for RI-RS RPA
 ! **************************************************************************************************
-   SUBROUTINE check_gw_input(bs_env, do_evgw0, rpa_sec)
+   SUBROUTINE check_gw_input(bs_env, do_evgw0, rtbse_sec, rpa_sec)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       LOGICAL, INTENT(IN)                                :: do_evgw0
+      TYPE(section_vals_type), POINTER                   :: rtbse_sec
       TYPE(section_vals_type), OPTIONAL, POINTER         :: rpa_sec
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_gw_input'
 
-      INTEGER                                            :: handle
-      LOGICAL                                            :: explicit
+      INTEGER                                            :: handle, kernel_ri
+      LOGICAL                                            :: explicit, linearized
+      REAL(KIND=dp)                                      :: energy_cutoff_empty, energy_cutoff_occ
 
       CALL timeset(routineN, handle)
 
@@ -527,14 +537,42 @@ CONTAINS
             CPABORT('Periodic AUTO_RI requires RI_RS_SMALL_CELL_FULL_KP')
          END IF
          IF (.NOT. (bs_env%auto_ri%ri_ao_ratio > 0.0_dp)) CPABORT("AUTO_RI%RI_AO_RATIO must be positive")
-         IF (.NOT. (bs_env%auto_ri%occ_energy_window >= 0.0_dp)) THEN
+         IF (.NOT. (bs_env%auto_ri%energy_window_below_homo >= 0.0_dp)) THEN
             CPABORT("AUTO_RI%OCC_EMPTY_FRONTIER_ORBITAL_WINDOW must be nonnegative")
          END IF
          ! RT-BSE: the RI basis must also represent the empty-empty products of the BSE kernel.
          bs_env%auto_ri%include_empty_empty_products = (bs_env%rtp_method == rtp_method_bse .OR. &
                                                         bs_env%rtp_method == rtp_method_bse_linearized)
-         IF (bs_env%auto_ri%include_empty_empty_products .AND. bs_env%do_periodic) THEN
-            CPABORT("AUTO_RI with RT-BSE requires PERIODIC NONE")
+         IF (bs_env%auto_ri%include_empty_empty_products) THEN
+            IF (bs_env%do_periodic) CPABORT("AUTO_RI with RT-BSE requires PERIODIC NONE")
+            ! bs_env%rtp_method is rtp_method_bse also for the linearized RT-BSE, so read the keyword.
+            CALL section_vals_val_get(rtbse_sec, "LINEARIZED_BSE_PROPAGATION", l_val=linearized)
+            IF (.NOT. linearized) THEN
+               CPABORT("AUTO_RI with RT-BSE requires RTBSE%LINEARIZED_BSE_PROPAGATION")
+            END IF
+            ! The AO-RI kernels integrate over the reference RI basis, not over the AUTO_RI functions.
+            ! AUTO_RI implies RI-RS GW, so KERNEL_RI DEFAULT resolves to RS.
+            CALL section_vals_val_get(rtbse_sec, "KERNEL_RI", i_val=kernel_ri)
+            IF (kernel_ri == rtp_bse_kernel_ri_ao) THEN
+               CPABORT("AUTO_RI with RT-BSE requires RTBSE%KERNEL_RI RS or DEFAULT")
+            END IF
+            ! The RT-BSE propagates the orbitals within ENERGY_CUTOFF_OCC below the HOMO and
+            ! ENERGY_CUTOFF_EMPTY above the LUMO, all orbitals for a non-positive cutoff. The RI
+            ! basis is optimized for the larger of the cutoff and OCC_EMPTY_FRONTIER_ORBITAL_WINDOW.
+            CALL section_vals_val_get(rtbse_sec, "ENERGY_CUTOFF_OCC", r_val=energy_cutoff_occ)
+            CALL section_vals_val_get(rtbse_sec, "ENERGY_CUTOFF_EMPTY", r_val=energy_cutoff_empty)
+            IF (energy_cutoff_occ > 0.0_dp) THEN
+               bs_env%auto_ri%energy_window_below_homo = MAX(bs_env%auto_ri%energy_window_below_homo, &
+                                                             energy_cutoff_occ)
+            ELSE
+               bs_env%auto_ri%energy_window_below_homo = HUGE(1.0_dp)
+            END IF
+            IF (energy_cutoff_empty > 0.0_dp) THEN
+               bs_env%auto_ri%energy_window_above_lumo = MAX(bs_env%auto_ri%energy_window_above_lumo, &
+                                                             energy_cutoff_empty)
+            ELSE
+               bs_env%auto_ri%energy_window_above_lumo = HUGE(1.0_dp)
+            END IF
          END IF
       END IF
 
@@ -732,8 +770,25 @@ CONTAINS
             'Input: AUTO_RI basis optimization activated:', .TRUE.
          WRITE (unit_nr, '(T2,A,T69,F12.1)') &
             'Input: AUTO_RI number of RI functions per AO function:', bs_env%auto_ri%ri_ao_ratio
-         WRITE (unit_nr, '(T2,A,T74,F4.1,A)') &
-            'Input: AUTO_RI frontier orbital window:', bs_env%auto_ri%occ_energy_window*evolt, ' eV'
+         IF (.NOT. bs_env%auto_ri%include_empty_empty_products) THEN
+            WRITE (unit_nr, '(T2,A,T74,F4.1,A)') &
+               'Input: AUTO_RI frontier orbital window:', bs_env%auto_ri%energy_window_below_homo*evolt, ' eV'
+         ELSE
+            IF (bs_env%auto_ri%energy_window_below_homo == HUGE(1.0_dp)) THEN
+               WRITE (unit_nr, '(T2,A,T60,A)') 'Input: AUTO_RI window below HOMO (RT-BSE):', &
+                  'all occupied orbitals'
+            ELSE
+               WRITE (unit_nr, '(T2,A,T72,F6.1,A)') 'Input: AUTO_RI window below HOMO (RT-BSE):', &
+                  bs_env%auto_ri%energy_window_below_homo*evolt, ' eV'
+            END IF
+            IF (bs_env%auto_ri%energy_window_above_lumo == HUGE(1.0_dp)) THEN
+               WRITE (unit_nr, '(T2,A,T63,A)') 'Input: AUTO_RI window above LUMO (RT-BSE):', &
+                  'all empty orbitals'
+            ELSE
+               WRITE (unit_nr, '(T2,A,T72,F6.1,A)') 'Input: AUTO_RI window above LUMO (RT-BSE):', &
+                  bs_env%auto_ri%energy_window_above_lumo*evolt, ' eV'
+            END IF
+         END IF
       END IF
 
       IF (bs_env%gw_flavour == evGW0) THEN

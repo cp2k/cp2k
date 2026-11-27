@@ -2219,7 +2219,8 @@ CONTAINS
                           "AO-RI otherwise. RS/AO force that framework regardless of how GW was run. The "// &
                           "RI-RS grid (mat_phi_mu_l, mat_Z_lP) and the V_grid/W0_grid kernels are built on "// &
                           "demand. RI-RS is implemented for linearized RT-BSE only; for full RT-BSE an "// &
-                          "explicit RS is overridden to AO with a warning.", &
+                          "explicit RS is overridden to AO with a warning. AO is not available with "// &
+                          "AUTO_RI (the run aborts before the GW).", &
                           usage="KERNEL_RI RS", &
                           enum_c_vals=s2a("DEFAULT", "RS", "AO"), &
                           enum_i_vals=[rtp_bse_kernel_ri_default, rtp_bse_kernel_ri_rs, rtp_bse_kernel_ri_ao], &

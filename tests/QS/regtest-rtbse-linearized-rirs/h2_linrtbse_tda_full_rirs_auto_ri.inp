@@ -5,7 +5,8 @@
 
 ! AUTO_RI and RI-RS grid optimization: the RT-BSE kernels use the AUTO_RI basis of the GW step,
 ! which is also optimized for the empty-empty products of the screened exchange.
-! Full RI-RS: GW step (RI_RS T) AND linRTBSE kernels (KERNEL_RI RS) both in real-space.
+! Full RI-RS: GW step (RI_RS T) AND linRTBSE kernels (KERNEL_RI DEFAULT, which is RS with AUTO_RI)
+! both in real-space.
 ! TDA: Liouvillian-diagnostic peaks + propagated alpha(0) in one job.
 &MOTION
   &MD
@@ -47,7 +48,7 @@
       &END PRINT
       &RTBSE
         DIAGNOSE_LIOUVILLIAN_EIG T
-        KERNEL_RI RS
+        KERNEL_RI DEFAULT
         LRRTBSE T
         TDA T
       &END RTBSE

@@ -48,10 +48,10 @@
 ]
 # AUTO_RI and RI-RS grid optimization in the GW step and the RT-BSE kernels
 "h2_linrtbse_tda_full_rirs_auto_ri.inp"    = [
-  {matcher = "Auto_RI_Size", tol = 1e-12, ref = 14},
+  {matcher = "Auto_RI_Size", tol = 1e-12, ref = 36},
   {matcher = "RIRS_Grid", tol = 1e-12, ref = 96},
-  {matcher = "LinRTBSE_1st_excit_ener", tol = 1e-04, ref = 17.3969},
-  {matcher = "LinRTBSE_2nd_excit_ener", tol = 1e-04, ref = 29.292},
-  {matcher = "LinRTBSE_3rd_excit_ener", tol = 1e-04, ref = 39.5383},
-  {matcher = "LinRTBSE_static_pol_xx", tol = 1e-03, ref = 0.84698175302}
+  {matcher = "LinRTBSE_1st_excit_ener", tol = 1e-04, ref = 17.4313},
+  {matcher = "LinRTBSE_2nd_excit_ener", tol = 1e-04, ref = 29.2647},
+  {matcher = "LinRTBSE_3rd_excit_ener", tol = 1e-04, ref = 39.5568},
+  {matcher = "LinRTBSE_static_pol_xx", tol = 1e-03, ref = 0.84826374775}
 ]

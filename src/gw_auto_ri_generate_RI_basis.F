@@ -110,14 +110,17 @@ CONTAINS
 !                                                                                                  !
 ! B_PQ^{A,X} = (1/N_X^A) Σ_{n∈W_occ} Σ_i^occ (φ_P^A|ρ_ni^AA)(ρ_ni^AA|φ_Q^A).                 (4)   !
 !                                                                                                  !
-! W_occ = [ε_HOMO-E_win, ε_LUMO+E_win], where E_win is OCC_EMPTY_FRONTIER_ORBITAL_WINDOW.          !
+! W_occ = [ε_HOMO-E_occ, ε_LUMO+E_emp]. For GW, E_occ = E_emp = OCC_EMPTY_FRONTIER_ORBITAL_WINDOW. !
 !                                                                                                  !
 ! When an RT-BSE follows the GW, a third matrix mimics the products of two empty orbitals in       !
 ! the screened exchange -(ij|W|ab) of the BSE kernel; B^A in Eq. (6) then also contains it:        !
 !                                                                                                  !
 ! B_PQ^{A,E} = (1/N_E^A) Σ_{a,b∈W_emp} (φ_P^A|ρ_ab^AA)(ρ_ab^AA|φ_Q^A).                      (4a)   !
 !                                                                                                  !
-! W_emp = [ε_LUMO, ε_LUMO+E_win] contains both empty orbitals a and b.                             !
+! W_emp = [ε_LUMO, ε_LUMO+E_emp] contains both empty orbitals a and b. With an RT-BSE,             !
+! E_occ = MAX(OCC_EMPTY_FRONTIER_ORBITAL_WINDOW, RTBSE%ENERGY_CUTOFF_OCC) and                      !
+! E_emp = MAX(OCC_EMPTY_FRONTIER_ORBITAL_WINDOW, RTBSE%ENERGY_CUTOFF_EMPTY) in Eqs. (4), (4a);     !
+! a non-positive RT-BSE cutoff (no truncation in the RT-BSE) includes all orbitals.                !
 !                                                                                                  !
 ! Here w_ia gives larger weight to frontier-orbital products close to the HOMO and LUMO:           !
 !                                                                                                  !
@@ -238,6 +241,9 @@ CONTAINS
 !>
 !>          B_PQ^{A,E} = (1/N_E^A) Σ_{a,b∈W_emp} (φ_P^A|ρ_ab^AA)(ρ_ab^AA|φ_Q^A),      (4a)
 !>          only when an RT-BSE follows,
+!>
+!>          W_occ = [ε_HOMO-E_occ, ε_LUMO+E_emp],  W_emp = [ε_LUMO, ε_LUMO+E_emp],
+!>          E_occ = auto_ri%energy_window_below_homo,  E_emp = auto_ri%energy_window_above_lumo,
 !>
 !>          w_ia = 1/(|ε_i-E_F| |ε_a-E_F|),  E_F = (ε_HOMO+ε_LUMO)/2,                   (5)
 !>
@@ -487,8 +493,8 @@ CONTAINS
             WRITE (unit_nr, '(A)') ' '
             WRITE (unit_nr, '(T2,A)') &
                'AUTO_RI| RT-BSE follows: the RI basis is also optimized for the products', &
-               'AUTO_RI| ψ_a(r) ψ_b(r) of two empty orbitals a, b with energies up to', &
-               'AUTO_RI| ε_LUMO + OCC_EMPTY_FRONTIER_ORBITAL_WINDOW (BSE screened exchange).', &
+               'AUTO_RI| ψ_a(r) ψ_b(r) of two empty orbitals a, b (BSE screened exchange) up to', &
+               'AUTO_RI| ε_LUMO + window above LUMO, see "Input: AUTO_RI window above LUMO".', &
                'AUTO_RI| RI basis and GW energies can differ slightly from a GW-only run.'
          END IF
       END IF
@@ -947,20 +953,23 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Computes the frontier-exchange contribution B_PQ^X in Eqs. (4) or (11).
 !>
-!>        B_PQ^X = Σ_{n∈W_occ} Σ_i^occ (P|ρ_ni)(ρ_ni|Q).
+!>        B_PQ^X = Σ_{n∈W_occ} Σ_i^occ (P|ρ_ni)(ρ_ni|Q),   W_occ = [ε_HOMO-E_occ, ε_LUMO+E_emp].
 !>
 !> \param Int_3c atom-local or atom-pair three-center integrals (μν|P)
 !> \param C_mu_n molecular-orbital coefficients restricted to the relevant AO rows
 !> \param eigenval_MO molecular-orbital eigenvalues, occupied first, in Hartree
 !> \param homo Last occupied state in this spin channel.
-!> \param occ_energy_window frontier-window extension in Hartree
+!> \param energy_window_below_homo window E_occ below the HOMO in Hartree
+!> \param energy_window_above_lumo window E_emp above the LUMO in Hartree
 !> \param B_PQ unnormalized exchange matrix
 ! **************************************************************************************************
-   SUBROUTINE compute_B_PQ_exchange(Int_3c, C_mu_n, eigenval_MO, homo, occ_energy_window, B_PQ)
+   SUBROUTINE compute_B_PQ_exchange(Int_3c, C_mu_n, eigenval_MO, homo, energy_window_below_homo, &
+                                    energy_window_above_lumo, B_PQ)
       REAL(KIND=dp), CONTIGUOUS, INTENT(IN)              :: Int_3c(:, :, :), C_mu_n(:, :), &
                                                             eigenval_MO(:)
       INTEGER, INTENT(IN)                                :: homo
-      REAL(KIND=dp), INTENT(IN)                          :: occ_energy_window
+      REAL(KIND=dp), INTENT(IN)                          :: energy_window_below_homo, &
+                                                            energy_window_above_lumo
       REAL(KIND=dp), INTENT(OUT)                         :: B_PQ(:, :)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_B_PQ_exchange'
@@ -977,24 +986,26 @@ CONTAINS
       IF (homo < 1 .OR. homo >= nstates) THEN
          CPABORT("AUTO_RI exchange target requires occupied and empty states")
       END IF
-      IF (.NOT. ieee_is_finite(occ_energy_window) .OR. &
+      IF (.NOT. ieee_is_finite(energy_window_below_homo) .OR. &
+          .NOT. ieee_is_finite(energy_window_above_lumo) .OR. &
           .NOT. ALL(ieee_is_finite(eigenval_MO))) THEN
          CPABORT("AUTO_RI exchange target requires finite input")
       END IF
-      IF (occ_energy_window < 0.0_dp .OR. eigenval_MO(homo + 1) <= eigenval_MO(homo)) THEN
+      IF (energy_window_below_homo < 0.0_dp .OR. energy_window_above_lumo < 0.0_dp .OR. &
+          eigenval_MO(homo + 1) <= eigenval_MO(homo)) THEN
          CPABORT("AUTO_RI exchange target requires a valid frontier window")
       END IF
       nAO = SIZE(C_mu_n, 1)
       CPASSERT(SIZE(C_mu_n, 2) == nstates)
       ALLOCATE (occupied(nAO, nAO), frontier(nAO, nAO), selected(nAO, nstates), source=0.0_dp)
       DO n = 1, nstates
-         IF (eigenval_MO(n) < eigenval_MO(homo) - occ_energy_window .OR. &
-             eigenval_MO(n) > eigenval_MO(homo + 1) + occ_energy_window) CYCLE
+         IF (eigenval_MO(n) < eigenval_MO(homo) - energy_window_below_homo .OR. &
+             eigenval_MO(n) > eigenval_MO(homo + 1) + energy_window_above_lumo) CYCLE
          selected(:, n) = C_mu_n(:, n)
       END DO
       CALL gemm_context%create(LOCAL_GEMM_PU_HOST)
       ! D_μν = Σ_i^occ C_μi C_νi.
-      ! F_μν = Σ_{n: ε_n ∈ [ε_H−E_win,ε_L+E_win]} C_μn C_νn.
+      ! F_μν = Σ_{n: ε_n ∈ [ε_H−E_occ,ε_L+E_emp]} C_μn C_νn.
       CALL gemm_context%gemm('N', 'T', nAO, nAO, homo, 1.0_dp, C_mu_n, nAO, C_mu_n, nAO, &
                              0.0_dp, occupied, nAO)
       CALL gemm_context%gemm('N', 'T', nAO, nAO, nstates, 1.0_dp, selected, nAO, selected, nAO, &
@@ -1009,20 +1020,20 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Computes the empty-empty contribution B_PQ^E in Eq. (4a), used when an RT-BSE follows.
 !>
-!>        B_PQ^E = Σ_{a,b∈W_emp} (P|ρ_ab)(ρ_ab|Q),   W_emp = [ε_LUMO, ε_LUMO+E_win].
+!>        B_PQ^E = Σ_{a,b∈W_emp} (P|ρ_ab)(ρ_ab|Q),   W_emp = [ε_LUMO, ε_LUMO+E_emp].
 !>
 !> \param Int_3c atom-local three-center integrals (μν|P)
 !> \param C_mu_n molecular-orbital coefficients restricted to the relevant AO rows
 !> \param eigenval_MO molecular-orbital eigenvalues, occupied first, in Hartree
 !> \param homo Last occupied state in this spin channel.
-!> \param occ_energy_window window E_win above the LUMO in Hartree
+!> \param energy_window_above_lumo window E_emp above the LUMO in Hartree
 !> \param B_PQ unnormalized empty-empty matrix
 ! **************************************************************************************************
-   SUBROUTINE compute_B_PQ_empty_empty(Int_3c, C_mu_n, eigenval_MO, homo, occ_energy_window, B_PQ)
+   SUBROUTINE compute_B_PQ_empty_empty(Int_3c, C_mu_n, eigenval_MO, homo, energy_window_above_lumo, B_PQ)
       REAL(KIND=dp), CONTIGUOUS, INTENT(IN)              :: Int_3c(:, :, :), C_mu_n(:, :), &
                                                             eigenval_MO(:)
       INTEGER, INTENT(IN)                                :: homo
-      REAL(KIND=dp), INTENT(IN)                          :: occ_energy_window
+      REAL(KIND=dp), INTENT(IN)                          :: energy_window_above_lumo
       REAL(KIND=dp), INTENT(OUT)                         :: B_PQ(:, :)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_B_PQ_empty_empty'
@@ -1037,7 +1048,7 @@ CONTAINS
       nAO = SIZE(C_mu_n, 1)
       CPASSERT(SIZE(C_mu_n, 2) == nstates .AND. homo > 0 .AND. homo < nstates)
       ! The eigenvalues are ascending, so W_emp holds the states homo+1, ..., homo+n_empty.
-      n_empty = COUNT(eigenval_MO(homo + 1:) <= eigenval_MO(homo + 1) + occ_energy_window)
+      n_empty = COUNT(eigenval_MO(homo + 1:) <= eigenval_MO(homo + 1) + energy_window_above_lumo)
       ALLOCATE (D_mu_nu_empty(nAO, nAO))
       ! D_μν = Σ_{a∈W_emp} C_μa C_νa.
       CALL gemm_context%create(LOCAL_GEMM_PU_HOST)
@@ -1265,11 +1276,12 @@ CONTAINS
          B_PQ(:, :) = B_PQ + B_PQ_spin
          CALL compute_B_PQ_exchange(Int_3c, C_mu_n, &
                                     bs_env%eigenval_scf_Gamma(1:nstates, spin), &
-                                    bs_env%n_occ(spin), bs_env%auto_ri%occ_energy_window, B_PQ_spin)
+                                    bs_env%n_occ(spin), bs_env%auto_ri%energy_window_below_homo, &
+                                    bs_env%auto_ri%energy_window_above_lumo, B_PQ_spin)
          B_PQ_exchange(:, :) = B_PQ_exchange + B_PQ_spin
          IF (bs_env%auto_ri%include_empty_empty_products) THEN
             CALL compute_B_PQ_empty_empty(Int_3c, C_mu_n, bs_env%eigenval_scf_Gamma(1:nstates, spin), &
-                                          bs_env%n_occ(spin), bs_env%auto_ri%occ_energy_window, &
+                                          bs_env%n_occ(spin), bs_env%auto_ri%energy_window_above_lumo, &
                                           B_PQ_spin)
             B_PQ_empty_empty(:, :) = B_PQ_empty_empty + B_PQ_spin
          END IF
@@ -2014,8 +2026,9 @@ CONTAINS
             weight = bs_env%kpoints_scf_desymm%wkp(ikp)
             CALL accumulate_AA_density_matrices( &
                coefficients(first:last, :nstates, ikp_local, ispin), bs_env%eigenval_scf(1:nstates, ikp, ispin), &
-               weights, bs_env%n_occ(ispin), weight, VBM, CBM, bs_env%auto_ri%occ_energy_window, &
-               density(:, :, d_occ), density(:, :, d_empty), density(:, :, d_occ_exchange), density(:, :, d_frontier))
+               weights, bs_env%n_occ(ispin), weight, VBM, CBM, bs_env%auto_ri%energy_window_below_homo, &
+               bs_env%auto_ri%energy_window_above_lumo, density(:, :, d_occ), density(:, :, d_empty), &
+               density(:, :, d_occ_exchange), density(:, :, d_frontier))
          END DO
          ! Sum both densities over k before forming the bilinear target on the atom owner.
          IF (n_rank > 1) CALL bs_env%para_env%sum(density_buffer, root_rank)
@@ -2047,19 +2060,21 @@ CONTAINS
 !> \param wk ...
 !> \param VBM ...
 !> \param CBM ...
-!> \param energy_window ...
+!> \param energy_window_below_vbm ...
+!> \param energy_window_above_cbm ...
 !> \param D_occ ...
 !> \param D_empty ...
 !> \param D_occ_exchange ...
 !> \param D_frontier ...
 ! **************************************************************************************************
    SUBROUTINE accumulate_AA_density_matrices(C_mu_n, eigenval, weights, homo, wk, VBM, CBM, &
-                                             energy_window, D_occ, D_empty, D_occ_exchange, &
-                                             D_frontier)
+                                             energy_window_below_vbm, energy_window_above_cbm, D_occ, &
+                                             D_empty, D_occ_exchange, D_frontier)
       COMPLEX(KIND=dp), INTENT(IN)                       :: C_mu_n(:, :)
       REAL(KIND=dp), INTENT(IN)                          :: eigenval(:), weights(:)
       INTEGER, INTENT(IN)                                :: homo
-      REAL(KIND=dp), INTENT(IN)                          :: wk, VBM, CBM, energy_window
+      REAL(KIND=dp), INTENT(IN)                          :: wk, VBM, CBM, energy_window_below_vbm, &
+                                                            energy_window_above_cbm
       COMPLEX(KIND=dp), INTENT(INOUT)                    :: D_occ(:, :), D_empty(:, :), &
                                                             D_occ_exchange(:, :), D_frontier(:, :)
 
@@ -2076,8 +2091,8 @@ CONTAINS
                ELSE
                   D_empty(imu, inu) = D_empty(imu, inu) + weights(imode)*product
                END IF
-               IF (eigenval(imode) >= VBM - energy_window .AND. &
-                   eigenval(imode) <= CBM + energy_window) THEN
+               IF (eigenval(imode) >= VBM - energy_window_below_vbm .AND. &
+                   eigenval(imode) <= CBM + energy_window_above_cbm) THEN
                   D_frontier(imu, inu) = D_frontier(imu, inu) + product
                END IF
             END DO

@@ -27,7 +27,11 @@ MODULE gw_auto_ri_types
    TYPE auto_ri_type
 
       ! Input parameters.
-      REAL(KIND=dp)                   :: occ_energy_window = -1.0_dp
+      ! Orbitals from ε_HOMO - energy_window_below_homo to ε_LUMO + energy_window_above_lumo
+      ! enter Eq. (4), empty orbitals up to ε_LUMO + energy_window_above_lumo Eq. (4a);
+      ! both windows differ from OCC_EMPTY_FRONTIER_ORBITAL_WINDOW only when an RT-BSE follows
+      REAL(KIND=dp)                   :: energy_window_below_homo = -1.0_dp
+      REAL(KIND=dp)                   :: energy_window_above_lumo = -1.0_dp
       LOGICAL                         :: enabled = .FALSE.
       REAL(KIND=dp)                   :: ri_ao_ratio = -1.0_dp
       ! An RT-BSE follows: optimize also for products of two empty orbitals, Eq. (4a)
