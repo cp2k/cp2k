@@ -27,7 +27,8 @@ MODULE gw_ri_rs_small_cell_full_kp
    USE post_scf_bandstructure_types,    ONLY: band_edges_type,&
                                               post_scf_bandstructure_type
    USE post_scf_bandstructure_utils,    ONLY: get_VBM_CBM_bandgaps,&
-                                              get_all_VBM_CBM_bandgaps
+                                              get_all_VBM_CBM_bandgaps,&
+                                              write_band_edges
    USE qs_environment_types,            ONLY: qs_environment_type
    USE time_frequency_grids,            ONLY: transform_time_to_frequency
 #include "./base/base_uses.f90"
@@ -219,20 +220,16 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_first_cycle_band_edges'
 
-      INTEGER                                            :: handle, u
+      INTEGER                                            :: handle
       TYPE(band_edges_type)                              :: band_edges
 
       CALL timeset(routineN, handle)
 
       CALL get_VBM_CBM_bandgaps(band_edges, bs_env%eigenval_GW, bs_env)
-      u = bs_env%unit_nr
-      IF (u > 0) THEN
-         WRITE (u, '(T2,A)') 'G0W0 from the first evGW0 cycle (without SOC):'
-         WRITE (u, '(T2,A,T61,F20.3)') 'G0W0 valence band maximum (eV):', band_edges%VBM*evolt
-         WRITE (u, '(T2,A,T61,F20.3)') 'G0W0 conduction band minimum (eV):', band_edges%CBM*evolt
-         WRITE (u, '(T2,A,T61,F20.3)') 'G0W0 indirect band gap (eV):', band_edges%IDBG*evolt
-         WRITE (u, '(T2,A,T61,F20.3)') 'G0W0 direct band gap (eV):', band_edges%DBG*evolt
+      IF (bs_env%unit_nr > 0) THEN
+         WRITE (bs_env%unit_nr, '(T2,A)') 'G0W0 from the first evGW0 cycle (without SOC):'
       END IF
+      CALL write_band_edges(band_edges, 'G0W0', bs_env, bs_env%eigenval_GW)
 
       CALL timestop(handle)
 

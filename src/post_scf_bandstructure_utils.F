@@ -150,7 +150,7 @@ MODULE post_scf_bandstructure_utils
              eval_bandstructure_properties, cfm_ikp_from_fm_Gamma, &
              MIC_contribution_from_ikp, compute_xkp, kpoint_init_cell_index_simple, &
              rsmat_to_kp, create_operator_kpoints, soc, get_VBM_CBM_bandgaps, &
-             get_all_VBM_CBM_bandgaps, diagonalize_ks_matrix, gw_flavour_label
+             get_all_VBM_CBM_bandgaps, diagonalize_ks_matrix, gw_flavour_label, write_band_edges
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'post_scf_bandstructure_utils'
 
@@ -1145,7 +1145,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_parameters_from_qs_env'
 
-      INTEGER                                            :: color_sub, handle, homo, n_ao, n_atom, &
+      INTEGER                                            :: color_sub, handle, n_ao, n_atom, &
                                                             nelectron, u
       INTEGER, DIMENSION(3)                              :: periodic
       REAL(KIND=dp)                                      :: maxocc
@@ -1169,21 +1169,21 @@ CONTAINS
       IF (bs_env%n_spin == 1) bs_env%spin_degeneracy = 2.0_dp
       IF (bs_env%n_spin == 2) bs_env%spin_degeneracy = 1.0_dp
 
-      CALL get_mo_set(mo_set=mos(1), nao=n_ao, homo=homo, nelectron=nelectron, maxocc=maxocc)
+      ! GW, BSE and the band edges use integer occupations: the number of occupied levels is
+      ! the electron count and not the HOMO index of the SCF, which under smearing is the
+      ! highest level with a non-zero fractional occupation
+      CALL get_mo_set(mo_set=mos(1), nao=n_ao, nelectron=nelectron, maxocc=maxocc)
       bs_env%n_ao = n_ao
-      bs_env%n_occ_nosmear(1:2) = NINT(nelectron/maxocc) !fix for moire large-cell Gamma
       bs_env%n_electron(1:2) = nelectron
       ! lowered by the diagonalization below if the canonical orthogonalization removes modes
       bs_env%n_mo_retained = n_ao
-      bs_env%n_occ(1:2) = homo
-      bs_env%n_vir(1:2) = n_ao - homo
+      bs_env%n_occ(1:2) = NINT(nelectron/maxocc)
       IF (bs_env%n_spin == 2) THEN
-         CALL get_mo_set(mo_set=mos(2), homo=homo, nelectron=nelectron, maxocc=maxocc)
-         bs_env%n_occ_nosmear(2) = NINT(nelectron/maxocc)
-         bs_env%n_occ(2) = homo
-         bs_env%n_vir(2) = n_ao - homo
+         CALL get_mo_set(mo_set=mos(2), nelectron=nelectron, maxocc=maxocc)
+         bs_env%n_occ(2) = NINT(nelectron/maxocc)
          bs_env%n_electron(2) = nelectron
       END IF
+      bs_env%n_vir(1:2) = n_ao - bs_env%n_occ(1:2)
       bs_env%eps_eigval_mat_s = scf_control%eps_eigval
       ! reuse the ground-state SCF's &SMEAR settings (if any) for the metal-capable Fermi
       ! level search (get_fermi_level_1c/2c); SMEAR_ENERGY_WINDOW and SMEAR_LIST are not
@@ -1259,9 +1259,9 @@ CONTAINS
 
       IF (u > 0) THEN
          WRITE (u, FMT="(T2,2A,T73,I8)") "Number of occupied molecular orbitals (MOs) ", &
-            "= Number of occupied bands", homo
+            "= Number of occupied bands", bs_env%n_occ(bs_env%n_spin)
          WRITE (u, FMT="(T2,2A,T73,I8)") "Number of unoccupied (= virtual) MOs ", &
-            "= Number of unoccupied bands", n_ao - homo
+            "= Number of unoccupied bands", bs_env%n_vir(bs_env%n_spin)
          WRITE (u, FMT="(T2,A,T73,I8)") "Number of Gaussian basis functions for MOs", n_ao
          IF (bs_env%gw_implementation == tensor_small_cell_full_kp .OR. &
              bs_env%gw_implementation == ri_rs_small_cell_full_kp) THEN
@@ -1368,10 +1368,8 @@ CONTAINS
                                                             n_ao, n_E, nkind, nkp
       LOGICAL                                            :: is_bandstruc_kpoint, print_DOS_kpoints, &
                                                             print_ikp
-      REAL(KIND=dp)                                      :: broadening, E_max, E_max_GW, E_min, &
-                                                            E_min_GW, E_total_window, &
-                                                            energy_step_DOS, energy_window_DOS, &
-                                                            n_el_spinor, t1
+      REAL(KIND=dp) :: broadening, E_CBM_at_ikp, E_max, E_max_GW, E_min, E_min_GW, E_total_window, &
+         E_VBM_at_ikp, energy_step_DOS, energy_window_DOS, n_el_spinor, t1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: DOS_G0W0_SOC, DOS_GW, DOS_GW_SOC, DOS_scf, &
          DOS_scf_SOC, eigenval, eigenval_spinor, eigenval_spinor_G0W0, eigenval_spinor_GW, &
          eigenval_spinor_no_SOC
@@ -1408,12 +1406,12 @@ CONTAINS
       ELSE
 
          IF (bs_env%n_spin == 1) THEN
-            homo = bs_env%n_occ_nosmear(1)
+            homo = bs_env%n_occ(1)
             band_edges_scf_guess%VBM = bs_env%eigenval_scf_Gamma(homo, 1)
             band_edges_scf_guess%CBM = bs_env%eigenval_scf_Gamma(homo + 1, 1)
          ELSE
-            homo_1 = bs_env%n_occ_nosmear(1)
-            homo_2 = bs_env%n_occ_nosmear(2)
+            homo_1 = bs_env%n_occ(1)
+            homo_2 = bs_env%n_occ(2)
             band_edges_scf_guess%VBM = MAX(bs_env%eigenval_scf_Gamma(homo_1, 1), &
                                            bs_env%eigenval_scf_Gamma(homo_2, 2))
             band_edges_scf_guess%CBM = MIN(bs_env%eigenval_scf_Gamma(homo_1 + 1, 1), &
@@ -1526,7 +1524,7 @@ CONTAINS
          CALL cp_cfm_create(cfm_s_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
          CALL cp_cfm_create(cfm_spinor_wf_ikp, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
 
-         homo_spinor = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
+         homo_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
 
          SELECT CASE (bs_env%n_spin)
          CASE (1)
@@ -1614,6 +1612,9 @@ CONTAINS
 
          t1 = m_walltime()
 
+         E_VBM_at_ikp = -1000.0_dp
+         E_CBM_at_ikp = 1000.0_dp
+
          DO ispin = 1, bs_env%n_spin
 
             SELECT CASE (bs_env%gw_implementation)
@@ -1676,13 +1677,17 @@ CONTAINS
 
             END IF
 
-            homo = bs_env%n_occ_nosmear(ispin)
+            homo = bs_env%n_occ(ispin)
 
-            band_edges_scf%VBM = MAX(band_edges_scf%VBM, eigenval(homo))
-            band_edges_scf%CBM = MIN(band_edges_scf%CBM, eigenval(homo + 1))
-            band_edges_scf%DBG = MIN(band_edges_scf%DBG, eigenval(homo + 1) - eigenval(homo))
+            E_VBM_at_ikp = MAX(E_VBM_at_ikp, eigenval(homo))
+            E_CBM_at_ikp = MIN(E_CBM_at_ikp, eigenval(homo + 1))
 
          END DO ! spin
+
+         ! direct gap: lowest empty minus highest occupied level of both spin channels at the same k
+         band_edges_scf%VBM = MAX(band_edges_scf%VBM, E_VBM_at_ikp)
+         band_edges_scf%CBM = MIN(band_edges_scf%CBM, E_CBM_at_ikp)
+         band_edges_scf%DBG = MIN(band_edges_scf%DBG, E_CBM_at_ikp - E_VBM_at_ikp)
 
          ! now the same with spin-orbit coupling
          IF (bs_env%do_soc) THEN
@@ -1780,7 +1785,7 @@ CONTAINS
       IF (bs_env%do_soc) THEN
          band_edges_scf_SOC%IDBG = band_edges_scf_SOC%CBM - band_edges_scf_SOC%VBM
          ! SOC merges both spins into 2*n_ao spinor states, each holding at most one
-         ! electron (maxocc=1); homo_spinor = n_occ_nosmear(1)+n_occ_nosmear(n_spin) is the total spinor
+         ! electron (maxocc=1); homo_spinor = n_occ(1)+n_occ(n_spin) is the total spinor
          ! electron count, same quantity SOC_ev uses to locate the occupied/unoccupied edge
          CALL get_fermi_level_1c(bs_env, eigenval_spinor_all_scf, &
                                  n_el_spinor, 1.0_dp, &
@@ -1801,7 +1806,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL write_band_edges(band_edges_scf, "SCF", bs_env)
+      CALL write_band_edges(band_edges_scf, "SCF", bs_env, bs_env%eigenval_scf)
       IF (bs_env%do_dos_pdos) THEN
          CALL write_dos_pdos(DOS_scf, PDOS_scf, bs_env, qs_env, "SCF", E_min, band_edges_scf%VBM)
       END IF
@@ -1828,8 +1833,9 @@ CONTAINS
       gw_soc_label = TRIM(gw_label)//"+SOC"
 
       IF (bs_env%do_gw) THEN
-         CALL write_band_edges(band_edges_GW, TRIM(gw_label), bs_env)
-         CALL write_band_edges(bs_env%band_edges_HF, "Hartree-Fock with SCF orbitals", bs_env)
+         CALL write_band_edges(band_edges_GW, TRIM(gw_label), bs_env, bs_env%eigenval_GW)
+         CALL write_band_edges(bs_env%band_edges_HF, "Hartree-Fock with SCF orbitals", bs_env, &
+                               bs_env%eigenval_HF)
          IF (bs_env%do_dos_pdos) THEN
             CALL write_dos_pdos(DOS_GW, PDOS_GW, bs_env, qs_env, "G0W0", E_min, &
                                 band_edges_GW%VBM)
@@ -2193,7 +2199,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       n_ao = bs_env%n_ao
-      homo_spinor = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
+      homo_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
       CALL get_qs_env(qs_env, nkind=nkind)
 
       CALL cp_cfm_create(cfm_ks_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
@@ -2344,25 +2350,25 @@ CONTAINS
 
       ! Energy window per k-point: keep the non-SOC states in [E_HOMO(k) - SOC_DIAG_OCC, E_HOMO(k)]
       ! and [E_LUMO(k), E_LUMO(k) + SOC_DIAG_VIRT], where E_HOMO(k)/E_LUMO(k) are the k-local
-      ! non-SOC edges at the smearing-independent electron count n_occ_nosmear. Eigenvalues are
+      ! non-SOC edges at the smearing-independent electron count n_occ. Eigenvalues are
       ! ascending, so the counts give contiguous index ranges; both spins share one window size
       ! (the larger of the two counts). An unset (<= 0) SOC_DIAG_OCC or SOC_DIAG_VIRT keeps all
       ! occupied or all virtual states, respectively.
-      CPASSERT(bs_env%n_occ_nosmear(1) >= 1 .AND. bs_env%n_occ_nosmear(1) < n_ao)
-      CPASSERT(bs_env%n_occ_nosmear(2) >= 1 .AND. bs_env%n_occ_nosmear(2) < n_ao)
-      e_homo_k = MAX(eigenval_no_SOC(bs_env%n_occ_nosmear(1), ikp, 1), &
-                     eigenval_no_SOC(bs_env%n_occ_nosmear(bs_env%n_spin), ikp, bs_env%n_spin))
-      e_lumo_k = MIN(eigenval_no_SOC(bs_env%n_occ_nosmear(1) + 1, ikp, 1), &
-                     eigenval_no_SOC(bs_env%n_occ_nosmear(bs_env%n_spin) + 1, ikp, bs_env%n_spin))
+      CPASSERT(bs_env%n_occ(1) >= 1 .AND. bs_env%n_occ(1) < n_ao)
+      CPASSERT(bs_env%n_occ(2) >= 1 .AND. bs_env%n_occ(2) < n_ao)
+      e_homo_k = MAX(eigenval_no_SOC(bs_env%n_occ(1), ikp, 1), &
+                     eigenval_no_SOC(bs_env%n_occ(bs_env%n_spin), ikp, bs_env%n_spin))
+      e_lumo_k = MIN(eigenval_no_SOC(bs_env%n_occ(1) + 1, ikp, 1), &
+                     eigenval_no_SOC(bs_env%n_occ(bs_env%n_spin) + 1, ikp, bs_env%n_spin))
       e_occ_min = -HUGE(1.0_dp)
       IF (bs_env%soc_diag_occ > 0.0_dp) e_occ_min = e_homo_k - bs_env%soc_diag_occ
       e_virt_max = HUGE(1.0_dp)
       IF (bs_env%soc_diag_virt > 0.0_dp) e_virt_max = e_lumo_k + bs_env%soc_diag_virt
-      nocc_sp1 = COUNT(eigenval_no_SOC(1:bs_env%n_occ_nosmear(1), ikp, 1) >= e_occ_min)
-      nocc_sp2 = COUNT(eigenval_no_SOC(1:bs_env%n_occ_nosmear(bs_env%n_spin), ikp, bs_env%n_spin) >= &
+      nocc_sp1 = COUNT(eigenval_no_SOC(1:bs_env%n_occ(1), ikp, 1) >= e_occ_min)
+      nocc_sp2 = COUNT(eigenval_no_SOC(1:bs_env%n_occ(bs_env%n_spin), ikp, bs_env%n_spin) >= &
                        e_occ_min)
-      nvirt_sp1 = COUNT(eigenval_no_SOC(bs_env%n_occ_nosmear(1) + 1:n_ao, ikp, 1) <= e_virt_max)
-      nvirt_sp2 = COUNT(eigenval_no_SOC(bs_env%n_occ_nosmear(bs_env%n_spin) + 1:n_ao, ikp, bs_env%n_spin) <= &
+      nvirt_sp1 = COUNT(eigenval_no_SOC(bs_env%n_occ(1) + 1:n_ao, ikp, 1) <= e_virt_max)
+      nvirt_sp2 = COUNT(eigenval_no_SOC(bs_env%n_occ(bs_env%n_spin) + 1:n_ao, ikp, bs_env%n_spin) <= &
                         e_virt_max)
       ! safety net only: with the k-local reference both counts are >= 1 by construction
       nocc = MAX(nocc_sp1, nocc_sp2, 1)
@@ -2374,14 +2380,14 @@ CONTAINS
             ' virt states per spin  (E_HOMO(k), E_LUMO(k) =', e_homo_k*evolt, ',', &
             e_lumo_k*evolt, ' eV)'
       END IF
-      CPASSERT(nocc <= bs_env%n_occ_nosmear(1))
-      CPASSERT(nocc <= bs_env%n_occ_nosmear(bs_env%n_spin))
-      CPASSERT(nvirt <= n_ao - bs_env%n_occ_nosmear(1))
-      CPASSERT(nvirt <= n_ao - bs_env%n_occ_nosmear(bs_env%n_spin))
+      CPASSERT(nocc <= bs_env%n_occ(1))
+      CPASSERT(nocc <= bs_env%n_occ(bs_env%n_spin))
+      CPASSERT(nvirt <= n_ao - bs_env%n_occ(1))
+      CPASSERT(nvirt <= n_ao - bs_env%n_occ(bs_env%n_spin))
       CPASSERT(.NOT. bs_env%do_dos_pdos)
 
-      mo_index_start_1 = bs_env%n_occ_nosmear(1) - nocc + 1
-      mo_index_start_2 = bs_env%n_occ_nosmear(bs_env%n_spin) - nocc + 1
+      mo_index_start_1 = bs_env%n_occ(1) - nocc + 1
+      mo_index_start_2 = bs_env%n_occ(bs_env%n_spin) - nocc + 1
       n_window = nocc + nvirt
       n_window2tot = 2*n_window
 
@@ -2481,7 +2487,7 @@ CONTAINS
       ! 7. valence band max. (VBM), conduction band min. (CBM) and direct bandgap (DBG),
       !    taken from the merged spectrum at the smearing-independent spinor electron count
       !    (not a window-local index): SOC can move states across the occupied/virtual boundary.
-      homo_used = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
+      homo_used = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
       band_edges%VBM = MAX(band_edges%VBM, eigenval_spinor(homo_used))
       band_edges%CBM = MIN(band_edges%CBM, eigenval_spinor(homo_used + 1))
       band_edges%DBG = MIN(band_edges%DBG, eigenval_spinor(homo_used + 1) - eigenval_spinor(homo_used))
@@ -3000,7 +3006,7 @@ CONTAINS
             WRITE (iunit, "(A8,A12,A22)") "n", "k", "ϵ_nk^DFT+SOC (eV)"
          END IF
 
-         n_occ_spinor = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
+         n_occ_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
 
          DO i_mo = 1, SIZE(eigenval_spinor)
             IF (i_mo <= n_occ_spinor) occ_vir = 'occ'
@@ -3050,35 +3056,85 @@ CONTAINS
    END FUNCTION count_digits
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param band_edges ...
+!> \brief Print the band edges (molecules: HOMO, LUMO and HOMO-LUMO gap). An open-shell system
+!>        without spin-orbit coupling gets the edges of the alpha channel, of the beta channel
+!>        and of both spin channels together; the lines of one spin channel carry its name.
+!> \param band_edges edges of both spin channels together
 !> \param scf_gw_soc ...
 !> \param bs_env ...
+!> \param eigenval_no_soc eigenvalues (band, k-point, spin) without spin-orbit coupling
 ! **************************************************************************************************
-   SUBROUTINE write_band_edges(band_edges, scf_gw_soc, bs_env)
+   SUBROUTINE write_band_edges(band_edges, scf_gw_soc, bs_env, eigenval_no_soc)
 
       TYPE(band_edges_type)                              :: band_edges
       CHARACTER(LEN=*)                                   :: scf_gw_soc
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL        :: eigenval_no_soc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_band_edges'
-
+      CHARACTER(LEN=6), DIMENSION(2), PARAMETER :: spin_name = [" alpha", " beta "]
+      CHARACTER(LEN=14)                                  :: per_unit_cell
       CHARACTER(LEN=17)                                  :: print_format
-      INTEGER                                            :: handle, u
+      CHARACTER(LEN=6)                                   :: spin
+      CHARACTER(LEN=18), DIMENSION(3), PARAMETER :: &
+         channel_name = ["Alpha channel     ", "Beta channel      ", "Both spin channels"]
+
+      INTEGER                                            :: handle, homo, i_channel, n_channel, &
+                                                            n_electron, n_mo, u
+      TYPE(band_edges_type)                              :: edges
 
       CALL timeset(routineN, handle)
 
       ! print format
-      print_format = "(T2,2A,T61,F20.3)"
+      print_format = "(T2,3A,T68,F13.3)"
+
+      n_channel = 0
+      IF (PRESENT(eigenval_no_soc) .AND. bs_env%n_spin == 2) n_channel = 2
+
+      per_unit_cell = ''
+      IF (bs_env%do_periodic) per_unit_cell = ' per unit cell'
+
+      n_mo = bs_env%n_ao
 
       u = bs_env%unit_nr
-      IF (u > 0) THEN
-         WRITE (u, '(T2,A)') ''
-         WRITE (u, print_format) scf_gw_soc, ' valence band maximum (eV):', band_edges%VBM*evolt
-         WRITE (u, print_format) scf_gw_soc, ' conduction band minimum (eV):', band_edges%CBM*evolt
-         WRITE (u, print_format) scf_gw_soc, ' indirect band gap (eV):', band_edges%IDBG*evolt
-         WRITE (u, print_format) scf_gw_soc, ' direct band gap (eV):', band_edges%DBG*evolt
-      END IF
+
+      DO i_channel = 1, n_channel + 1
+
+         spin = ''
+         IF (i_channel <= n_channel) THEN
+            spin = spin_name(i_channel)
+            homo = bs_env%n_occ(i_channel)
+            n_electron = bs_env%n_electron(i_channel)
+            edges%VBM = MAXVAL(eigenval_no_soc(1:homo, :, i_channel))
+            edges%CBM = MINVAL(eigenval_no_soc(homo + 1:n_mo, :, i_channel))
+            edges%IDBG = edges%CBM - edges%VBM
+            edges%DBG = MINVAL(MINVAL(eigenval_no_soc(homo + 1:n_mo, :, i_channel), DIM=1) - &
+                               MAXVAL(eigenval_no_soc(1:homo, :, i_channel), DIM=1))
+         ELSE
+            n_electron = SUM(bs_env%n_electron(1:2))
+            edges = band_edges
+         END IF
+
+         IF (u > 0) THEN
+            WRITE (u, '(T2,A)') ''
+            IF (n_channel == 2) THEN
+               WRITE (u, '(T2,2A,I0,3A)') TRIM(channel_name(i_channel)), ' (', &
+                  n_electron, ' electrons', TRIM(per_unit_cell), '):'
+            END IF
+            IF (bs_env%do_periodic) THEN
+               WRITE (u, print_format) scf_gw_soc, TRIM(spin), ' valence band maximum (eV):', edges%VBM*evolt
+               WRITE (u, print_format) scf_gw_soc, TRIM(spin), ' conduction band minimum (eV):', edges%CBM*evolt
+               WRITE (u, print_format) scf_gw_soc, TRIM(spin), ' indirect band gap (eV):', edges%IDBG*evolt
+               WRITE (u, print_format) scf_gw_soc, TRIM(spin), ' direct band gap (eV):', edges%DBG*evolt
+            ELSE
+               ! a molecule has no k-points and hence no direct or indirect gap
+               WRITE (u, print_format) scf_gw_soc, TRIM(spin), ' HOMO (eV):', edges%VBM*evolt
+               WRITE (u, print_format) scf_gw_soc, TRIM(spin), ' LUMO (eV):', edges%CBM*evolt
+               WRITE (u, print_format) scf_gw_soc, TRIM(spin), ' HOMO-LUMO gap (eV):', edges%IDBG*evolt
+            END IF
+         END IF
+
+      END DO
 
       CALL timestop(handle)
 
@@ -3931,7 +3987,7 @@ CONTAINS
 
       INTEGER                                            :: handle, homo, homo_1, homo_2, ikp, &
                                                             ispin, lumo, lumo_1, lumo_2, n_mo
-      REAL(KIND=dp)                                      :: E_DBG_at_ikp
+      REAL(KIND=dp)                                      :: E_CBM_at_ikp, E_VBM_at_ikp
 
       CALL timeset(routineN, handle)
 
@@ -3958,17 +4014,19 @@ CONTAINS
 
       band_edges%IDBG = band_edges%CBM - band_edges%VBM
 
-      DO ispin = 1, bs_env%n_spin
+      ! direct gap: lowest empty minus highest occupied level of both spin channels at the same k
+      DO ikp = 1, bs_env%nkp_bs_and_DOS
 
-         homo = bs_env%n_occ(ispin)
+         E_VBM_at_ikp = -1000.0_dp
+         E_CBM_at_ikp = 1000.0_dp
 
-         DO ikp = 1, bs_env%nkp_bs_and_DOS
-
-            E_DBG_at_ikp = -MAXVAL(ev(1:homo, ikp, ispin)) + MINVAL(ev(homo + 1:n_mo, ikp, ispin))
-
-            IF (E_DBG_at_ikp < band_edges%DBG) band_edges%DBG = E_DBG_at_ikp
-
+         DO ispin = 1, bs_env%n_spin
+            homo = bs_env%n_occ(ispin)
+            E_VBM_at_ikp = MAX(E_VBM_at_ikp, MAXVAL(ev(1:homo, ikp, ispin)))
+            E_CBM_at_ikp = MIN(E_CBM_at_ikp, MINVAL(ev(homo + 1:n_mo, ikp, ispin)))
          END DO
+
+         band_edges%DBG = MIN(band_edges%DBG, E_CBM_at_ikp - E_VBM_at_ikp)
 
       END DO
       SELECT CASE (bs_env%n_spin)
@@ -4311,7 +4369,7 @@ CONTAINS
          WRITE (iunit, "(A)") " "
          WRITE (iunit, "(A5,A8,A4,A16,7A10)") "n", "", "deg", "E (eV)", "<S_x>", "<S_y>", "<S_z>", &
             "w_A", "<S_x>_A", "<S_y>_A", "<S_z>_A"
-         n_occ_spinor = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
+         n_occ_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
          DO j = 1, nwf
             occ_vir = 'vir'
             IF (bs_env%soc_wf_state_index(j) <= n_occ_spinor) occ_vir = 'occ'

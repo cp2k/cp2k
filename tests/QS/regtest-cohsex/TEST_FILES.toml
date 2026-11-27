@@ -1,7 +1,7 @@
 "01_static_COHSEX_PBE_H2O.inp" = [
-  {matcher = "E_static_COHSEX_HOMO", tol = 1e-03, ref = -7.554},
-  {matcher = "E_static_COHSEX_LUMO", tol = 1e-03, ref = 17.913},
-  {matcher = "E_static_COHSEX_gap", tol = 1e-03, ref = 25.468}
+  {matcher = "E_molecule_static_COHSEX_HOMO", tol = 1e-03, ref = -7.554},
+  {matcher = "E_molecule_static_COHSEX_LUMO", tol = 1e-03, ref = 17.913},
+  {matcher = "E_molecule_static_COHSEX_gap", tol = 1e-03, ref = 25.468}
 ]
 
 "02_static_COHSEX_PBE_H2O_periodic.inp" = [
