@@ -558,10 +558,60 @@ static std::unordered_map<const torch_c_tensor_t *, grad_pinned_entry>
 static int64_t grad_pinned_bytes = 0;
 static uint64_t grad_pinned_clock = 0;
 
+// A returned gradient wrapper shares storage with the pool entry, so it can
+// outlive that entry. Keep the bytes of such aliased pinned buffers accounted
+// until the last reference to the storage disappears instead of subtracting
+// them when the map entry is erased.
+struct retired_pinned_entry {
+  c10::weak_intrusive_ptr<c10::TensorImpl> weak;
+  int64_t bytes = 0;
+};
+static std::vector<retired_pinned_entry> grad_pinned_retired;
+
+// Release the bytes of retired pinned buffers whose storage has been freed.
+// Must be called with grad_pinned_mutex held.
+static void reclaim_retired_pinned_locked() {
+  if (grad_pinned_retired.empty())
+    return;
+  auto out = grad_pinned_retired.begin();
+  for (auto it = grad_pinned_retired.begin(); it != grad_pinned_retired.end();
+       ++it) {
+    if (it->weak.expired()) {
+      grad_pinned_bytes -= it->bytes;
+    } else {
+      if (out != it) {
+        *out = std::move(*it);
+      }
+      ++out;
+    }
+  }
+  grad_pinned_retired.erase(out, grad_pinned_retired.end());
+}
+
+// Drop one pool entry. Must be called with grad_pinned_mutex held. Pinned bytes
+// are only released when erasing drops the last reference to the storage;
+// otherwise a caller-held gradient still keeps the allocation alive.
+static void drop_grad_pool_entry_locked(
+    std::unordered_map<const torch_c_tensor_t *, grad_pinned_entry>::iterator
+        it) {
+  if (it->second.pinned) {
+    const auto &t = it->second.tensor;
+    if (!t.defined() || t.getIntrusivePtr().use_count() == 1) {
+      grad_pinned_bytes -= it->second.bytes;
+    } else {
+      grad_pinned_retired.push_back(retired_pinned_entry{
+          c10::weak_intrusive_ptr<c10::TensorImpl>(t.getIntrusivePtr()),
+          it->second.bytes});
+    }
+  }
+  grad_pinned_pool->erase(it);
+}
+
 static void erase_grad_pool_entry(const torch_c_tensor_t *tensor) {
   if (tensor == nullptr)
     return;
   std::lock_guard<std::mutex> lock(grad_pinned_mutex);
+  reclaim_retired_pinned_locked();
   if (grad_pinned_pool != nullptr) {
     const auto it = grad_pinned_pool->find(tensor);
     if (it != grad_pinned_pool->end()) {
@@ -571,10 +621,7 @@ static void erase_grad_pool_entry(const torch_c_tensor_t *tensor) {
         // evict_grad_pool_locked: grad_pinned_mutex -> pending_grad_mutex.
         synchronize_pending_grad_copies();
       }
-      if (it->second.pinned) {
-        grad_pinned_bytes -= it->second.bytes;
-      }
-      grad_pinned_pool->erase(it);
+      drop_grad_pool_entry_locked(it);
     }
   }
 }
@@ -585,6 +632,7 @@ static void evict_grad_pool_locked(const int64_t need) {
   if (grad_pinned_pool == nullptr) {
     return;
   }
+  reclaim_retired_pinned_locked();
   const int64_t budget = torch_pinned_budget_bytes();
   while (grad_pinned_bytes + need > budget && !grad_pinned_pool->empty()) {
     auto victim = grad_pinned_pool->end();
@@ -609,10 +657,7 @@ static void evict_grad_pool_locked(const int64_t need) {
     if (victim == grad_pinned_pool->end()) {
       break; // nothing safe to evict
     }
-    if (victim->second.pinned) {
-      grad_pinned_bytes -= victim->second.bytes;
-    }
-    grad_pinned_pool->erase(victim);
+    drop_grad_pool_entry_locked(victim);
   }
 }
 
@@ -1219,6 +1264,7 @@ static void grad_batch_impl(const torch_c_tensor_t *const *tensors,
                                                   grad_pinned_entry>();
       }
       ++grad_pinned_clock;
+      reclaim_retired_pinned_locked();
       for (int i = 0; i < count; ++i) {
         const auto sizes = sources[i].sizes();
         auto it = grad_pinned_pool->find(tensors[i]);
@@ -1241,10 +1287,7 @@ static void grad_batch_impl(const torch_c_tensor_t *const *tensors,
             // Wait before dropping the last reference to it.
             synchronize_pending_grad_copies();
           }
-          if (it->second.pinned) {
-            grad_pinned_bytes -= it->second.bytes;
-          }
-          grad_pinned_pool->erase(it);
+          drop_grad_pool_entry_locked(it);
         }
         const int64_t need =
             sources[i].numel() * static_cast<int64_t>(sizeof(double));
@@ -1331,6 +1374,7 @@ void torch_c_grad_pool_clear() {
     std::lock_guard<std::mutex> lock(grad_pinned_mutex);
     delete grad_pinned_pool;
     grad_pinned_pool = nullptr;
+    grad_pinned_retired.clear();
     grad_pinned_bytes = 0;
   }
   TORCH_C_CATCH("torch_c_grad_pool_clear")
@@ -1817,13 +1861,18 @@ static std::string file_stamp(const char *filename) {
 void torch_c_file_stamp(const char *filename, char *buf, int *length) {
   TORCH_C_TRY
   const std::string stamp = file_stamp(filename);
-  if (buf != nullptr && length != nullptr && *length > 0) {
-    std::memset(buf, ' ', *length);
-    const int n = std::min<int>(static_cast<int>(stamp.size()), *length);
-    std::memcpy(buf, stamp.data(), n);
-  }
   if (length != nullptr) {
-    *length = static_cast<int>(stamp.size());
+    if (buf != nullptr && *length > 0) {
+      // Report the number of bytes actually written so callers can detect a
+      // truncation instead of assuming the full stamp was copied.
+      std::memset(buf, ' ', *length);
+      const int n = std::min<int>(static_cast<int>(stamp.size()), *length);
+      std::memcpy(buf, stamp.data(), n);
+      *length = n;
+    } else {
+      // No buffer requested: return the required size.
+      *length = static_cast<int>(stamp.size());
+    }
   }
   TORCH_C_CATCH("torch_c_file_stamp")
 }

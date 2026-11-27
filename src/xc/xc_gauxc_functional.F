@@ -1404,7 +1404,8 @@ CONTAINS
          grid_explicit, has_paw_pseudopotentials, has_pseudopotentials, have_zeta, &
          int_space_explicit, is_periodic, lb_space_explicit, low_spin_scope, molecular_virial, &
          molecular_virial_debug, need_xc_gradient, periodic_reference, pruning_explicit, &
-         replicated, use_cuda, use_skala_model, write_hdf5_output
+         replicated, replicated_scalar, replicated_zeta, use_cuda, use_skala_model, &
+         write_hdf5_output
       REAL(KIND=dp)                                      :: exc_value, force_numerical_gradient_dx, &
                                                             molecular_virial_debug_dx
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1837,10 +1838,13 @@ CONTAINS
             ! scalar <- rho_ao(1, :) + rho_ao(2, :)
             ! zeta   <- rho_ao(1, :) - rho_ao(2, :)
             CALL timeset("gauxc_density_dense", density_handle)
-            CALL dbcsr_to_dense(rho_ao(1, img), cache%density_scalar, replicated=replicated)
-            CALL dbcsr_to_dense(rho_ao(2, img), cache%density_zeta, replicated=replicated)
-            IF (.NOT. replicated) THEN
+            CALL dbcsr_to_dense(rho_ao(1, img), cache%density_scalar, replicated=replicated_scalar)
+            CALL dbcsr_to_dense(rho_ao(2, img), cache%density_zeta, replicated=replicated_zeta)
+            ! Sum each spin matrix only if it is not already replicated on every rank.
+            IF (.NOT. replicated_scalar) THEN
                CALL para_env%sum(cache%density_scalar)
+            END IF
+            IF (.NOT. replicated_zeta) THEN
                CALL para_env%sum(cache%density_zeta)
             END IF
             CALL timestop(density_handle)

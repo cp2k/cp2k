@@ -2005,7 +2005,8 @@ CONTAINS
                   ! deform with the periodic cell. Correct the standard PW response,
                   ! which follows fixed fractional coordinates, by the corresponding
                   ! non-affine interpolation derivative.
-                  virial%pv_xc = composite_feature_virial - composite_interpolation_virial
+                  virial%pv_xc = virial%pv_xc + composite_feature_virial - &
+                                 composite_interpolation_virial
                   virial%pv_gapw = virial%pv_gapw + composite_explicit_virial
                   virial%pv_virial = virial%pv_virial + composite_explicit_virial
                END IF
