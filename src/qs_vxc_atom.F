@@ -217,9 +217,7 @@ CONTAINS
    SUBROUTINE release_native_skala_caches()
       IF (.NOT. ASSOCIATED(skala_state)) RETURN
       IF (ALLOCATED(skala_state%native_atom%native_need_base)) DEALLOCATE (skala_state%native_atom%native_need_base)
-      IF (ALLOCATED(skala_state%native_atom%native_need_lin)) DEALLOCATE (skala_state%native_atom%native_need_lin)
-      IF (ALLOCATED(skala_state%native_atom%native_need_bucket_start)) DEALLOCATE (skala_state%native_atom%native_need_bucket_start)
-      IF (ALLOCATED(skala_state%native_atom%native_need_bucket_entry)) DEALLOCATE (skala_state%native_atom%native_need_bucket_entry)
+      CALL native_need_index_release()
       IF (ALLOCATED(skala_state%native_atom%native_need_local)) DEALLOCATE (skala_state%native_atom%native_need_local)
       IF (ALLOCATED(skala_state%native_atom%native_need_scount)) DEALLOCATE (skala_state%native_atom%native_need_scount)
       IF (ALLOCATED(skala_state%native_atom%native_need_sdispl)) DEALLOCATE (skala_state%native_atom%native_need_sdispl)
@@ -229,14 +227,16 @@ CONTAINS
       IF (ALLOCATED(skala_state%native_atom%native_need_ridx)) DEALLOCATE (skala_state%native_atom%native_need_ridx)
       IF (ALLOCATED(skala_state%native_atom%native_need_values)) DEALLOCATE (skala_state%native_atom%native_need_values)
       IF (ALLOCATED(skala_state%native_atom%native_need_reply)) DEALLOCATE (skala_state%native_atom%native_need_reply)
-  IF (ALLOCATED(skala_state%native_atom%native_need_geometry%atoms)) DEALLOCATE (skala_state%native_atom%native_need_geometry%atoms)
+      IF (ALLOCATED(skala_state%native_atom%native_need_geometry%atoms)) &
+         DEALLOCATE (skala_state%native_atom%native_need_geometry%atoms)
       skala_state%native_atom%native_need_geometry%ready = .FALSE.
       skala_state%native_atom%native_need_ready = .FALSE.
       IF (ALLOCATED(skala_state%native_atom%native_comp_coords)) DEALLOCATE (skala_state%native_atom%native_comp_coords)
       IF (ALLOCATED(skala_state%native_atom%native_comp_base_w)) DEALLOCATE (skala_state%native_atom%native_comp_base_w)
       IF (ALLOCATED(skala_state%native_atom%native_comp_grid_w)) DEALLOCATE (skala_state%native_atom%native_comp_grid_w)
       IF (ALLOCATED(skala_state%native_atom%native_comp_local_atoms)) DEALLOCATE (skala_state%native_atom%native_comp_local_atoms)
-  IF (ALLOCATED(skala_state%native_atom%native_comp_geometry%atoms)) DEALLOCATE (skala_state%native_atom%native_comp_geometry%atoms)
+      IF (ALLOCATED(skala_state%native_atom%native_comp_geometry%atoms)) &
+         DEALLOCATE (skala_state%native_atom%native_comp_geometry%atoms)
       skala_state%native_atom%native_comp_geometry%ready = .FALSE.
       skala_state%native_atom%native_comp_ready = .FALSE.
       skala_state%native_atom%native_comp_nrows = -1
@@ -1069,7 +1069,7 @@ CONTAINS
                      DO ia = 1, na
                         composite_row = composite_atom_start(iatom) + (ir - 1)*na + ia - 1
                         composite_point = composite_grid_coords(:, composite_row)
-                        CALL get_native_grid_stencil(qs_env, smooth_rho_r(1)%pw_grid, cell, &
+                        CALL get_native_grid_stencil(smooth_rho_r(1)%pw_grid, cell, &
                                                      composite_row, composite_point, &
                                                      interpolation_stencil, .TRUE.)
                         IF (lsd) THEN
@@ -1585,7 +1585,7 @@ CONTAINS
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
                   DO composite_row = composite_atom_start(iatom), composite_atom_end(iatom)
-                     CALL get_native_grid_stencil(qs_env, smooth_rho_r(1)%pw_grid, cell, &
+                     CALL get_native_grid_stencil(smooth_rho_r(1)%pw_grid, cell, &
                                                   composite_row, composite_grid_coords(:, composite_row), &
                                                   interpolation_stencil, .FALSE.)
                      IF (lsd) THEN
@@ -1661,7 +1661,7 @@ CONTAINS
                      composite_grid_coord_force_local(:, iatom) = &
                         composite_grid_coord_force_local(:, iatom) + &
                         composite_grid_coord_grad(:, composite_row)
-                     CALL get_native_grid_stencil(qs_env, smooth_rho_r(1)%pw_grid, cell, &
+                     CALL get_native_grid_stencil(smooth_rho_r(1)%pw_grid, cell, &
                                                   composite_row, composite_grid_coords(:, composite_row), &
                                                   interpolation_stencil, .FALSE.)
                      IF (lsd) THEN
@@ -2114,7 +2114,7 @@ CONTAINS
             thread_adj = 0.0_dp
 !$OMP DO SCHEDULE(DYNAMIC)
             DO composite_row = 1, composite_nflat
-               CALL get_native_grid_stencil(qs_env, smooth_rho_r(1)%pw_grid, cell, &
+               CALL get_native_grid_stencil(smooth_rho_r(1)%pw_grid, cell, &
                                             composite_row, composite_grid_coords(:, composite_row), &
                                             interpolation_stencil, .FALSE.)
                IF (.NOT. interpolation_stencil%active) CYCLE
@@ -3149,7 +3149,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Fetch a cached interpolation stencil, creating (and optionally storing) it on a miss.
-!> \param qs_env qs environment holding the stencil cache
 !> \param pw_grid auxiliary real-space grid
 !> \param cell current cell
 !> \param row composite row index
@@ -3157,8 +3156,7 @@ CONTAINS
 !> \param stencil returned stencil
 !> \param store whether to store a newly built stencil in the cache
 ! **************************************************************************************************
-   SUBROUTINE get_native_grid_stencil(qs_env, pw_grid, cell, row, point, stencil, store)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   SUBROUTINE get_native_grid_stencil(pw_grid, cell, row, point, stencil, store)
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(cell_type), POINTER                           :: cell
       INTEGER, INTENT(IN)                                :: row

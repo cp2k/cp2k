@@ -247,6 +247,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Return true if a GAUXC MODEL key selects or names a SKALA model.
 !>        Matches both the "SKALA" keyword and model paths/names containing SKALA.
+!>        Use this for presence/dispersion detection; the runtime-selection path in
+!>        xc_gauxc_functional deliberately requires the literal "SKALA" keyword.
 !> \param model_name the MODEL keyword value
 !> \return ...
 ! **************************************************************************************************

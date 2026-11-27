@@ -1711,9 +1711,9 @@ void torch_c_tensor_weighted_sum(const torch_c_tensor_t *values,
 }
 
 /*******************************************************************************
- * \brief Like torch_c_tensor_weighted_sum_segments, but also returns the total
- *        weighted sum as a differentiable scalar tensor (the sum of the segment
- *        dots). Avoids a second full-length reduction and weight conversion.
+ * \brief Compute per-segment weighted sums and also return the total weighted
+ *        sum as a differentiable scalar tensor (the sum of the segment dots).
+ *        Avoids a second full-length reduction and weight conversion.
  ******************************************************************************/
 void torch_c_tensor_weighted_sum_segments_total(const torch_c_tensor_t *values,
                                                 const torch_c_tensor_t *weights,

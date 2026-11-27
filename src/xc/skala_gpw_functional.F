@@ -2041,7 +2041,6 @@ CONTAINS
    END SUBROUTINE add_smooth_partition_force_virial
 
 ! **************************************************************************************************
-!> \brief Return the Cartesian coordinate of a regular GPW grid point.
 !> \brief Prepare scaled alltoall counts/displacements and exchange buffers.
 !> \param send_src_counts ...
 !> \param send_src_displs ...

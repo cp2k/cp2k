@@ -358,7 +358,6 @@ CONTAINS
       cache%dense_layout%valid = .FALSE.
       cache%gradient_is_init = .FALSE.
       cache%gradient_notice_printed = .FALSE.
-      cache%execution_spaces_logged = .FALSE.
       cache%is_init = .FALSE.
 
    END SUBROUTINE gauxc_cache_release

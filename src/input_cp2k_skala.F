@@ -427,7 +427,7 @@ CONTAINS
                           enum_i_vals=[skala_gpw_atom_partition_hard, skala_gpw_atom_partition_smooth], &
                           enum_desc=s2a("Assign each grid point to the nearest atom", &
                                         "Use a smooth Becke-like native-grid atom partition"), &
-                          default_i_val=2)
+                          default_i_val=skala_gpw_atom_partition_smooth)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

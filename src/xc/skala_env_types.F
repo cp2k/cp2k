@@ -7,11 +7,10 @@
 
 ! **************************************************************************************************
 !> \brief Consolidated SKALA runtime state (layout, features, scratch, model context) and the
-!>        cached XC section pointers, with create/get/release helpers.
+!>        cached XC section pointers, with create/release helpers.
 ! **************************************************************************************************
 MODULE skala_env_types
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type
+   USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               dp,&
                                               int_8
@@ -26,7 +25,7 @@ MODULE skala_env_types
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: skala_env_create, skala_env_finalize, skala_env_get, skala_env_release, skala_state
+   PUBLIC :: skala_env_create, skala_env_finalize, skala_env_release, skala_state
    PUBLIC :: atom_chunk_layout_cache_type, skala_atom_ws_type, skala_execution_target_type
    PUBLIC :: skala_gapw_atom_cuda_tensor_cache_type, skala_gpw_feature_type
    PUBLIC :: skala_gpw_layout_cache_type, skala_gpw_scratch_type, skala_gpw_state_type
@@ -327,37 +326,17 @@ MODULE skala_env_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Resolve and cache the XC_FUNCTIONAL subsections used by SKALA.
+!> \brief Allocate (if needed) and bind the qs_env-owned SKALA state as the active state.
 !> \param env ...
-!> \param xc_section the XC input section
 ! **************************************************************************************************
-   SUBROUTINE skala_env_create(env, xc_section)
+   SUBROUTINE skala_env_create(env)
       TYPE(skala_gpw_state_type), INTENT(INOUT), POINTER :: env
-      TYPE(section_vals_type), INTENT(IN), OPTIONAL, &
-         POINTER                                         :: xc_section
 
       IF (.NOT. ASSOCIATED(env)) ALLOCATE (env)
       skala_state => env
       NULLIFY (env%native_section, env%gauxc_section, env%resolved_xc_section)
       env%sections_resolved = .FALSE.
-      IF (PRESENT(xc_section)) THEN
-         IF (.NOT. ASSOCIATED(xc_section)) RETURN
-         env%resolved_xc_section => xc_section
-         env%native_section => find_named_section(xc_section, "SKALA_NATIVE")
-         env%gauxc_section => find_named_section(xc_section, "GAUXC")
-         env%sections_resolved = .TRUE.
-      END IF
    END SUBROUTINE skala_env_create
-
-! **************************************************************************************************
-!> \brief Return the consolidated SKALA state instance.
-!> \return pointer to the SKALA state
-! **************************************************************************************************
-   FUNCTION skala_env_get() RESULT(env)
-      TYPE(skala_gpw_state_type), POINTER                :: env
-
-      env => skala_state
-   END FUNCTION skala_env_get
 
 ! **************************************************************************************************
 !> \brief Release the SKALA section cache of one state. Heavy Torch/layout caches are freed by
@@ -386,30 +365,5 @@ CONTAINS
       DEALLOCATE (env)
       NULLIFY (env)
    END SUBROUTINE skala_env_finalize
-
-! **************************************************************************************************
-!> \brief Return the named XC_FUNCTIONAL subsection present in the input.
-!> \param xc_section the XC input section
-!> \param name subsection name
-!> \return the subsection pointer or NULL
-! **************************************************************************************************
-   FUNCTION find_named_section(xc_section, name) RESULT(res)
-      TYPE(section_vals_type), POINTER                   :: xc_section
-      CHARACTER(len=*), INTENT(IN)                       :: name
-      TYPE(section_vals_type), POINTER                   :: res
-
-      INTEGER                                            :: i
-      TYPE(section_vals_type), POINTER                   :: functionals, sub
-
-      NULLIFY (res)
-      IF (.NOT. ASSOCIATED(xc_section)) RETURN
-      functionals => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-      IF (.NOT. ASSOCIATED(functionals)) RETURN
-      DO i = 1, functionals%section%n_subsections
-         sub => functionals%subs_vals(i, 1)%section_vals
-         IF (SIZE(sub%values, 2) == 0) CYCLE
-         IF (TRIM(sub%section%name) == TRIM(name)) res => sub
-      END DO
-   END FUNCTION find_named_section
 
 END MODULE skala_env_types

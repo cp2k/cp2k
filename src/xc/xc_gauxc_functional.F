@@ -1362,9 +1362,9 @@ CONTAINS
 
    END SUBROUTINE skala_info
 
-! GauXC uses replicated dense density and VXC matrices. The DBCSR density matrix
-! is distributed over MPI ranks, so apply_gauxc allreduces the dense copy before
-! passing it to GauXC.
+! GauXC uses dense density and VXC matrices. The DBCSR density matrix is
+! distributed over MPI ranks; apply_gauxc sums the dense copy across ranks before
+! passing it to GauXC unless the backend runs with a replicated distribution.
 
 ! **************************************************************************************************
 !> \brief Evaluate molecular GauXC, optionally for an explicit configuration density.
@@ -1646,6 +1646,9 @@ CONTAINS
       int_exec_space_key = ADJUSTL(params%int_exec_space)
       CALL uppercase(int_exec_space_key)
       params%use_gauxc_model = .NOT. model_key_is_none(model_name, params%xc_fun_name)
+      ! The built-in SKALA runtime selector is the literal MODEL keyword; unlike
+      ! model_is_skala, arbitrary custom model paths that merely contain "SKALA"
+      ! must not opt into the SKALA-native runtime behaviour here.
       use_skala_model = (TRIM(model_key) == "SKALA")
       lwd_kernel_key = ADJUSTL(params%lwd_kernel)
       CALL uppercase(lwd_kernel_key)
