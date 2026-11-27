@@ -1219,29 +1219,6 @@ if [ "${with_libtorch}" = "__INSTALL__" ]; then
 existing libtorch via --with-libtorch=system or --with-libtorch=<path>."
 fi
 
-# libtorch bundles its own BLAS and exports those symbols globally. To avoid
-# symbol clashes, BLAS/LAPACK has to come from the same (external) numerical
-# stack and must not be installed by the toolchain alongside libtorch.
-if [ "${with_libtorch}" != "__DONTUSE__" ]; then
-  case "${MATH_MODE}" in
-    mkl) math_mode_with="${with_mkl}" ;;
-    acml) math_mode_with="${with_acml}" ;;
-    openblas) math_mode_with="${with_openblas}" ;;
-    *) math_mode_with="__DONTUSE__" ;;
-  esac
-  if [ "${math_mode_with}" = "__INSTALL__" ]; then
-    report_error ${LINENO} \
-      "libtorch requires an externally provided BLAS/LAPACK library, but
-${MATH_MODE} was requested to be installed. Provide ${MATH_MODE} via system or
-a path as well, or do not use libtorch."
-  elif [ "${math_mode_with}" = "__DONTUSE__" ]; then
-    report_error ${LINENO} \
-      "libtorch requires an externally provided BLAS/LAPACK library, but no
-${MATH_MODE} installation was provided. Provide ${MATH_MODE} via system or a
-path as well, or do not use libtorch."
-  fi
-fi
-
 # Features built on top of libtorch can only be activated when libtorch itself
 # has been provided. They never trigger a libtorch download.
 if [ "${with_libtorch}" = "__DONTUSE__" ]; then

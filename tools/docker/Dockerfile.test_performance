@@ -5,15 +5,13 @@
 
 FROM docker.io/ubuntu:26.04
 
-# Provide OpenBLAS and libtorch (via pip) from external sources.
-# libtorch is the official CPU wheel; OpenBLAS comes from the
-# distribution.
+# Provide libtorch from the official CPU pip wheel. OpenBLAS is
+# built by the toolchain.
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update -qq && \
     apt-get install -qq --no-install-recommends \
     binutils \
     ca-certificates \
-    libopenblas-dev \
     python3 \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
@@ -48,7 +46,6 @@ RUN ./install_cp2k_toolchain.sh \
     --with-dbcsr \
     --with-gcc=system \
     --with-libtorch=/opt/libtorch/torch \
-    --with-openblas=system \
     --with-gauxc=install \
     --with-deepmd=install \
     --dry-run

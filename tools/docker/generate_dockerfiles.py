@@ -619,22 +619,19 @@ RUN ./build_cp2k.sh {profile} {version}
 def install_pip_libtorch(base_image: str, with_openmpi: bool = False) -> str:
     if with_openmpi:
         header = (
-            "# Provide OpenMPI, OpenBLAS and libtorch (via pip) from external\n"
-            "# sources. libtorch is the official CPU wheel; OpenMPI and OpenBLAS\n"
-            "# come from the distribution.\n"
+            "# Provide OpenMPI from the distribution and libtorch from the\n"
+            "# official CPU pip wheel. OpenBLAS is built by the toolchain.\n"
         )
     else:
         header = (
-            "# Provide OpenBLAS and libtorch (via pip) from external sources.\n"
-            "# libtorch is the official CPU wheel; OpenBLAS comes from the\n"
-            "# distribution.\n"
+            "# Provide libtorch from the official CPU pip wheel. OpenBLAS is\n"
+            "# built by the toolchain.\n"
         )
     if "fedora" in base_image:
         mpi_pkgs = "    openmpi \\\n    openmpi-devel \\\n" if with_openmpi else ""
         packages = rf"""RUN dnf -qy install \
     binutils \
     ca-certificates \
-    openblas-devel \
     python3 \
     python3-pip \
 {mpi_pkgs}    && dnf clean -q all
@@ -646,7 +643,6 @@ def install_pip_libtorch(base_image: str, with_openmpi: bool = False) -> str:
     apt-get install -qq --no-install-recommends \
     binutils \
     ca-certificates \
-    libopenblas-dev \
     python3 \
     python3-pip \
 {mpi_pkgs}    && rm -rf /var/lib/apt/lists/*
@@ -683,10 +679,9 @@ def install_deps_toolchain(
         output += install_pip_libtorch(base_image, with_openmpi=system_openmpi).lstrip(
             "\n"
         )
-        # Provide the distro libtorch and BLAS to the toolchain and keep the
-        # libtorch-dependent features enabled (as --install-all used to do).
+        # Provide libtorch and keep the libtorch-dependent features enabled
+        # (as --install-all used to do).
         kwargs.setdefault("with_libtorch", LIBTORCH_PIP_PREFIX)
-        kwargs.setdefault("with_openblas", "system")
         kwargs.setdefault("with_gauxc", "install")
         kwargs.setdefault("with_deepmd", "install")
         if system_openmpi:
