@@ -37,7 +37,8 @@ MODULE skala_gpw_functional
    USE skala_feature_keys,              ONLY: &
         skala_key_atomic_grid_size_bound_shape, skala_key_atomic_grid_sizes, &
         skala_key_atomic_grid_weights, skala_key_coarse_0_atomic_coords, skala_key_density, &
-        skala_key_grad, skala_key_grid_coords, skala_key_grid_weights, skala_key_kin
+        skala_key_grad, skala_key_grid_coords, skala_key_grid_weights, skala_key_kin, &
+        skala_n_collapsed_dynamic_per_point, skala_n_dynamic_per_point
    USE skala_gpw_features,              ONLY: &
         allocate_empty_bound_shape, grid_coordinate, skala_execution_target_type, &
         skala_gpw_atom_subchunk_count, skala_gpw_atom_subchunk_layout, skala_gpw_feature_build, &
@@ -94,8 +95,8 @@ MODULE skala_gpw_functional
    INTEGER, PARAMETER, PRIVATE          :: atom_chunk_auto_max_rows = 400000, &
                                            atom_chunk_auto_min_rows = 100000, &
                                            atom_chunk_auto_row_quantum = 100000, &
-                                           ncollapsed_grad_per_point = 5, &
-                                           ngrad_per_point = 10
+                                           ncollapsed_grad_per_point = skala_n_collapsed_dynamic_per_point, &
+                                           ngrad_per_point = skala_n_dynamic_per_point
    REAL(KIND=dp), PARAMETER, PRIVATE    :: weight_cache_cell_tol = 1.0E-12_dp
    REAL(KIND=dp), PARAMETER, PRIVATE    :: weight_cache_weight_tol = 1.0E-10_dp
    INTEGER, PARAMETER, PUBLIC           :: skala_gapw_density_partition_hard_minus_soft = 1, &

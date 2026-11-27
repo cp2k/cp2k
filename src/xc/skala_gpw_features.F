@@ -27,7 +27,8 @@ MODULE skala_gpw_features
    USE skala_feature_keys,              ONLY: &
         skala_key_atomic_grid_size_bound_shape, skala_key_atomic_grid_sizes, &
         skala_key_atomic_grid_weights, skala_key_coarse_0_atomic_coords, skala_key_density, &
-        skala_key_grad, skala_key_grid_coords, skala_key_grid_weights, skala_key_kin
+        skala_key_grad, skala_key_grid_coords, skala_key_grid_weights, skala_key_kin, &
+        skala_n_collapsed_dynamic_per_point, skala_n_dynamic_per_point
    USE skala_periodic_partition,        ONLY: build_periodic_atom_image_layout,&
                                               periodic_atom_image_partition_from_layout,&
                                               skala_periodic_partition_type
@@ -48,7 +49,8 @@ MODULE skala_gpw_features
    PRIVATE
 
    REAL(KIND=dp), PARAMETER, PRIVATE    :: layout_tol = 1.0E-12_dp
-   INTEGER, PARAMETER, PRIVATE          :: ndynamic_per_point = 10, nrks_dynamic_per_point = 5, &
+   INTEGER, PARAMETER, PRIVATE          :: ndynamic_per_point = skala_n_dynamic_per_point, &
+                                           nrks_dynamic_per_point = skala_n_collapsed_dynamic_per_point, &
                                            nstatic_per_point = 5
    REAL(KIND=dp), PARAMETER, PRIVATE    :: smooth_partition_eps = 1.0E-12_dp
    REAL(KIND=dp), PARAMETER, PRIVATE    :: smooth_partition_taper_end = &
@@ -2737,7 +2739,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: pair_distances
 
       INTEGER                                            :: iatom, jatom, natom
-      REAL(KIND=dp)                                      :: mu, rab, rsum, switch, total
+      REAL(KIND=dp)                                      :: mu, rab, switch, total
       REAL(KIND=dp), DIMENSION(3)                        :: rij
 
       natom = SIZE(atom_coords, 2)
@@ -2782,19 +2784,34 @@ CONTAINS
       IF (total > 0.0_dp) THEN
          weights = weights/total
       ELSE
-         rsum = HUGE(1.0_dp)
-         jatom = 1
-         DO iatom = 1, natom
-            IF (distances(iatom) < rsum) THEN
-               rsum = distances(iatom)
-               jatom = iatom
-            END IF
-         END DO
+         jatom = nearest_distance_atom(distances)
          weights = 0.0_dp
          weights(jatom) = 1.0_dp
       END IF
 
    END SUBROUTINE smooth_atom_partition
+
+! **************************************************************************************************
+!> \brief Return the index of the atom closest to the grid point.
+!> \param distances point-to-atom distances
+!> \return index of the nearest atom
+! **************************************************************************************************
+   PURE FUNCTION nearest_distance_atom(distances) RESULT(jatom)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: distances
+      INTEGER                                            :: jatom
+
+      INTEGER                                            :: iatom
+      REAL(KIND=dp)                                      :: rsum
+
+      rsum = HUGE(1.0_dp)
+      jatom = 1
+      DO iatom = 1, SIZE(distances)
+         IF (distances(iatom) < rsum) THEN
+            rsum = distances(iatom)
+            jatom = iatom
+         END IF
+      END DO
+   END FUNCTION nearest_distance_atom
 
 ! **************************************************************************************************
 !> \brief Linear index into the packed strict upper triangle of an (natom, natom) matrix.
@@ -2836,7 +2853,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: distances_out
 
       INTEGER                                            :: iatom, jatom, natom
-      REAL(KIND=dp)                                      :: included_sum, rsum
+      REAL(KIND=dp)                                      :: included_sum
       REAL(KIND=dp), DIMENSION(3, SIZE(atom_coords, 2))  :: partition_atom_coords
       REAL(KIND=dp), DIMENSION(SIZE(atom_coords, 2))     :: distances
 
@@ -2852,14 +2869,7 @@ CONTAINS
       included_sum = SUM(weights, MASK=included)
 
       IF (included_sum <= 0.0_dp) THEN
-         rsum = HUGE(1.0_dp)
-         jatom = 1
-         DO iatom = 1, natom
-            IF (distances(iatom) < rsum) THEN
-               rsum = distances(iatom)
-               jatom = iatom
-            END IF
-         END DO
+         jatom = nearest_distance_atom(distances)
          included = .FALSE.
          included(jatom) = .TRUE.
          weights = 0.0_dp

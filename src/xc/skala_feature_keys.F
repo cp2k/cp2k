@@ -23,6 +23,10 @@ MODULE skala_feature_keys
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'skala_feature_keys'
 
    INTEGER, PARAMETER :: skala_n_features = 9
+   ! Width of the per-point dynamic feature block (full and collapsed-RKS spins);
+   ! shared so the layout builders cannot drift apart.
+   INTEGER, PARAMETER :: skala_n_dynamic_per_point = 10
+   INTEGER, PARAMETER :: skala_n_collapsed_dynamic_per_point = 5
 
    CHARACTER(len=*), PARAMETER :: &
       skala_key_grid_coords = "grid_coords", &
@@ -45,6 +49,7 @@ MODULE skala_feature_keys
    PUBLIC :: skala_key_atomic_grid_sizes, skala_key_atomic_grid_size_bound_shape
    PUBLIC :: skala_key_density, skala_key_grad, skala_key_kin, skala_key_coarse_0_atomic_coords
    PUBLIC :: skala_validate_feature_list
+   PUBLIC :: skala_n_dynamic_per_point, skala_n_collapsed_dynamic_per_point
 
 CONTAINS
 
