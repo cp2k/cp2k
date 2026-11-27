@@ -1078,16 +1078,9 @@ CONTAINS
                                                      composite_row, composite_point, &
                                                      interpolation_stencil, .TRUE.)
                         IF (lsd) THEN
-                           CALL interpolate_native_grid_fields_compact( &
-                              1, 5, 6, 7, 3, interpolation_stencil, &
-                              composite_smooth_density_value(1), &
-                              composite_smooth_gradient_value(:, 1), &
-                              composite_smooth_kin_value(1))
-                           CALL interpolate_native_grid_fields_compact( &
-                              2, 8, 9, 10, 4, interpolation_stencil, &
-                              composite_smooth_density_value(2), &
-                              composite_smooth_gradient_value(:, 2), &
-                              composite_smooth_kin_value(2))
+                           CALL interpolate_native_grid_fields_compact_lsd( &
+                              interpolation_stencil, composite_smooth_density_value, &
+                              composite_smooth_gradient_value, composite_smooth_kin_value)
                            IF (atom_composite_diagnostic) THEN
                               composite_smooth_density_cache(composite_row, :) = &
                                  composite_smooth_density_value
@@ -3706,6 +3699,66 @@ CONTAINS
       END DO
 
    END SUBROUTINE interpolate_native_grid_fields_compact
+
+! **************************************************************************************************
+!> \brief Interpolate the compact density, gradient and kinetic-density fields for both spins of
+!>        an LSD atom-composite point in a single stencil traversal.
+!> \param stencil interpolation stencil
+!> \param density_value per-spin density
+!> \param grad_value per-spin density gradient
+!> \param kin_value per-spin kinetic-density value
+! **************************************************************************************************
+   SUBROUTINE interpolate_native_grid_fields_compact_lsd(stencil, density_value, grad_value, kin_value)
+      TYPE(native_grid_interpolation_stencil_type), &
+         INTENT(IN)                                      :: stencil
+      REAL(dp), DIMENSION(2), INTENT(OUT)                :: density_value
+      REAL(dp), DIMENSION(3, 2), INTENT(OUT)             :: grad_value
+      REAL(dp), DIMENSION(2), INTENT(OUT)                :: kin_value
+
+      INTEGER                                            :: inode_x, inode_y, inode_z, pos
+      INTEGER(int_8)                                     :: lin
+      REAL(dp)                                           :: coefficient
+
+      density_value = 0.0_dp
+      grad_value = 0.0_dp
+      kin_value = 0.0_dp
+      IF (.NOT. stencil%active) RETURN
+      DO inode_z = 1, native_grid_interp_npts
+         IF (.NOT. stencil%valid(inode_z, 3)) CYCLE
+         DO inode_y = 1, native_grid_interp_npts
+            IF (.NOT. stencil%valid(inode_y, 2)) CYCLE
+            DO inode_x = 1, native_grid_interp_npts
+               IF (.NOT. stencil%valid(inode_x, 1)) CYCLE
+               lin = native_need_linear_index(stencil, inode_x, inode_y, inode_z, skala_state%native_atom%native_need_npts)
+               pos = native_need_lookup(lin)
+               CPASSERT(pos > 0)
+               coefficient = stencil%weight(inode_x, 1)* &
+                             stencil%weight(inode_y, 2)* &
+                             stencil%weight(inode_z, 3)
+               density_value(1) = density_value(1) + &
+                                  coefficient*skala_state%native_atom%native_need_values(1, pos)
+               density_value(2) = density_value(2) + &
+                                  coefficient*skala_state%native_atom%native_need_values(2, pos)
+               kin_value(1) = kin_value(1) + &
+                              coefficient*skala_state%native_atom%native_need_values(3, pos)
+               kin_value(2) = kin_value(2) + &
+                              coefficient*skala_state%native_atom%native_need_values(4, pos)
+               grad_value(1, 1) = grad_value(1, 1) + &
+                                  coefficient*skala_state%native_atom%native_need_values(5, pos)
+               grad_value(2, 1) = grad_value(2, 1) + &
+                                  coefficient*skala_state%native_atom%native_need_values(6, pos)
+               grad_value(3, 1) = grad_value(3, 1) + &
+                                  coefficient*skala_state%native_atom%native_need_values(7, pos)
+               grad_value(1, 2) = grad_value(1, 2) + &
+                                  coefficient*skala_state%native_atom%native_need_values(8, pos)
+               grad_value(2, 2) = grad_value(2, 2) + &
+                                  coefficient*skala_state%native_atom%native_need_values(9, pos)
+               grad_value(3, 2) = grad_value(3, 2) + &
+                                  coefficient*skala_state%native_atom%native_need_values(10, pos)
+            END DO
+         END DO
+      END DO
+   END SUBROUTINE interpolate_native_grid_fields_compact_lsd
 
 ! **************************************************************************************************
 !> \brief Interpolate several compact field values from one precomputed stencil, traversing the
