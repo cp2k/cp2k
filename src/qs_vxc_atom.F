@@ -424,6 +424,12 @@ CONTAINS
       REAL(dp), DIMENSION(3, 2) :: composite_smooth_gradient_adjoint_value, &
          composite_smooth_gradient_value, cross_density_spatial, cross_grad, cross_grad_adjoint, &
          cross_kin_spatial
+      REAL(dp), DIMENSION(3, 10) :: composite_grad_batch
+      REAL(dp), DIMENSION(10) :: composite_value_batch
+      INTEGER, PARAMETER :: lsd_value_slots(6) = [5, 6, 7, 8, 9, 10], &
+                            rks_value_slots(3) = [3, 4, 5], &
+                            lsd_grad_slots(10) = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], &
+                            rks_grad_slots(5) = [1, 2, 3, 4, 5]
       REAL(dp), DIMENSION(3, 3) :: composite_cross_image_virial, &
          composite_cross_image_virial_local, composite_explicit_virial, composite_feature_virial, &
          composite_interpolation_virial, composite_partition_strain_virial, &
@@ -1571,7 +1577,7 @@ CONTAINS
                CALL timeset("calculate_vxc_atom_force", force_handle)
 !$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE) &
 !$OMP PRIVATE(composite_local_atom, composite_row, composite_smooth_gradient_value, &
-!$OMP         iatom, idir, ispin, jdir, interpolation_stencil) &
+!$OMP         composite_value_batch, iatom, idir, ispin, jdir, interpolation_stencil) &
 !$OMP SHARED(cell, composite_atom_end, composite_atom_start, composite_grad_grad, &
 !$OMP        composite_grid_coords, composite_local_atoms, composite_local_natom, &
 !$OMP        lsd, qs_env, smooth_rho_r) &
@@ -1583,16 +1589,17 @@ CONTAINS
                                                   composite_row, composite_grid_coords(:, composite_row), &
                                                   interpolation_stencil, .FALSE.)
                      IF (lsd) THEN
+                        CALL interpolate_native_grid_values_compact(lsd_value_slots, 6, &
+                                                                    interpolation_stencil, composite_value_batch)
                         DO jdir = 1, 3
-                           composite_smooth_gradient_value(jdir, 1) = &
-                              interpolate_native_grid_value_compact(4 + jdir, interpolation_stencil)
-                           composite_smooth_gradient_value(jdir, 2) = &
-                              interpolate_native_grid_value_compact(7 + jdir, interpolation_stencil)
+                           composite_smooth_gradient_value(jdir, 1) = composite_value_batch(jdir)
+                           composite_smooth_gradient_value(jdir, 2) = composite_value_batch(3 + jdir)
                         END DO
                      ELSE
+                        CALL interpolate_native_grid_values_compact(rks_value_slots, 3, &
+                                                                    interpolation_stencil, composite_value_batch)
                         DO jdir = 1, 3
-                           composite_smooth_gradient_value(jdir, :) = 0.5_dp* &
-                                                              interpolate_native_grid_value_compact(2 + jdir, interpolation_stencil)
+                           composite_smooth_gradient_value(jdir, :) = 0.5_dp*composite_value_batch(jdir)
                         END DO
                      END IF
                      DO ispin = 1, 2
@@ -1622,7 +1629,8 @@ CONTAINS
 !$OMP         composite_moving_smooth_force_local, composite_nlcc_target_force_local, &
 !$OMP         local_partition_datom, local_partition_dstrain, &
 !$OMP         local_partition_target_image, local_partition_weight, sgp_potential, source_atom, &
-!$OMP         spatial_derivative, target_atom, target_partition_adjoint, interpolation_stencil) &
+!$OMP         spatial_derivative, composite_grad_batch, target_atom, target_partition_adjoint, &
+!$OMP         interpolation_stencil) &
 !$OMP REDUCTION(+:composite_interpolation_virial, composite_partition_strain_virial) &
 !$OMP SHARED(cell, chunk_atom, chunk_begin, chunk_end, composite_atom_coords, composite_atom_end, &
 !$OMP        composite_atom_kind, composite_atom_start, composite_atomic_grid_weight_grad, &
@@ -1657,43 +1665,33 @@ CONTAINS
                                                   composite_row, composite_grid_coords(:, composite_row), &
                                                   interpolation_stencil, .FALSE.)
                      IF (lsd) THEN
+                        CALL interpolate_native_grid_gradients_compact(lsd_grad_slots, 10, &
+                                                                       smooth_rho_r(1)%pw_grid, &
+                                                                       interpolation_stencil, composite_grad_batch)
                         spatial_derivative = &
-                           composite_density_grad(composite_row, 1)* &
-                           interpolate_native_grid_gradient_compact(1, smooth_rho_r(1)%pw_grid, &
-                                                                    interpolation_stencil) + &
-                           composite_density_grad(composite_row, 2)* &
-                           interpolate_native_grid_gradient_compact(2, smooth_rho_r(1)%pw_grid, &
-                                                                    interpolation_stencil) + &
-                           composite_kin_grad(composite_row, 1)* &
-                           interpolate_native_grid_gradient_compact(3, smooth_rho_r(1)%pw_grid, &
-                                                                    interpolation_stencil) + &
-                           composite_kin_grad(composite_row, 2)* &
-                           interpolate_native_grid_gradient_compact(4, smooth_rho_r(1)%pw_grid, &
-                                                                    interpolation_stencil)
+                           composite_density_grad(composite_row, 1)*composite_grad_batch(:, 1) + &
+                           composite_density_grad(composite_row, 2)*composite_grad_batch(:, 2) + &
+                           composite_kin_grad(composite_row, 1)*composite_grad_batch(:, 3) + &
+                           composite_kin_grad(composite_row, 2)*composite_grad_batch(:, 4)
                         DO idir = 1, 3
                            spatial_derivative = spatial_derivative + &
                                                 composite_grad_grad(composite_row, idir, 1)* &
-                                                interpolate_native_grid_gradient_compact(4 + idir, &
-                                                                                         smooth_rho_r(1)%pw_grid, &
-                                                                                         interpolation_stencil) + &
+                                                composite_grad_batch(:, 4 + idir) + &
                                                 composite_grad_grad(composite_row, idir, 2)* &
-                                                interpolate_native_grid_gradient_compact(7 + idir, &
-                                                                                         smooth_rho_r(1)%pw_grid, &
-                                                                                         interpolation_stencil)
+                                                composite_grad_batch(:, 7 + idir)
                         END DO
                      ELSE
+                        CALL interpolate_native_grid_gradients_compact(rks_grad_slots, 5, &
+                                                                       smooth_rho_r(1)%pw_grid, &
+                                                                       interpolation_stencil, composite_grad_batch)
                         spatial_derivative = 0.5_dp*SUM(composite_density_grad(composite_row, :))* &
-                                             interpolate_native_grid_gradient_compact(1, smooth_rho_r(1)%pw_grid, &
-                                                                                      interpolation_stencil) + &
+                                             composite_grad_batch(:, 1) + &
                                              0.5_dp*SUM(composite_kin_grad(composite_row, :))* &
-                                             interpolate_native_grid_gradient_compact(2, smooth_rho_r(1)%pw_grid, &
-                                                                                      interpolation_stencil)
+                                             composite_grad_batch(:, 2)
                         DO idir = 1, 3
                            spatial_derivative = spatial_derivative + &
                                                 0.5_dp*SUM(composite_grad_grad(composite_row, idir, :))* &
-                                                interpolate_native_grid_gradient_compact(2 + idir, &
-                                                                                         smooth_rho_r(1)%pw_grid, &
-                                                                                         interpolation_stencil)
+                                                composite_grad_batch(:, 2 + idir)
                         END DO
                      END IF
                      DO idir = 1, 3
@@ -3660,22 +3658,25 @@ CONTAINS
    END SUBROUTINE interpolate_native_grid_fields_compact
 
 ! **************************************************************************************************
-!> \brief Interpolate one compact field value from a precomputed stencil (cached weights).
-!> \param slot field slot
+!> \brief Interpolate several compact field values from one precomputed stencil, traversing the
+!>        stencil once for all requested slots.
+!> \param nslots number of requested slots
+!> \param slots field slots
 !> \param stencil precomputed interpolation stencil
-!> \return interpolated value
+!> \param values interpolated values, one per slot
 ! **************************************************************************************************
-   FUNCTION interpolate_native_grid_value_compact(slot, stencil) RESULT(value)
-      INTEGER, INTENT(IN)                                :: slot
+   SUBROUTINE interpolate_native_grid_values_compact(slots, nslots, stencil, values)
+      INTEGER, INTENT(IN)                                :: nslots
+      INTEGER, DIMENSION(nslots), INTENT(IN)             :: slots
       TYPE(native_grid_interpolation_stencil_type), &
          INTENT(IN)                                      :: stencil
-      REAL(dp)                                           :: value
+      REAL(dp), DIMENSION(nslots), INTENT(OUT)           :: values
 
-      INTEGER                                            :: inode_x, inode_y, inode_z, pos
+      INTEGER                                            :: inode_x, inode_y, inode_z, islot, pos
       INTEGER(int_8)                                     :: lin
       REAL(dp)                                           :: coefficient
 
-      value = 0.0_dp
+      values = 0.0_dp
       IF (.NOT. stencil%active) RETURN
       DO inode_z = 1, native_grid_interp_npts
          IF (.NOT. stencil%valid(inode_z, 3)) CYCLE
@@ -3689,34 +3690,41 @@ CONTAINS
                coefficient = stencil%weight(inode_x, 1)* &
                              stencil%weight(inode_y, 2)* &
                              stencil%weight(inode_z, 3)
-               value = value + coefficient*skala_state%native_atom%native_need_values(slot, pos)
+               DO islot = 1, nslots
+                  values(islot) = values(islot) + &
+                                  coefficient*skala_state%native_atom%native_need_values(slots(islot), pos)
+               END DO
             END DO
          END DO
       END DO
 
-   END FUNCTION interpolate_native_grid_value_compact
+   END SUBROUTINE interpolate_native_grid_values_compact
 
 ! **************************************************************************************************
-!> \brief Interpolate the Cartesian gradient of one compact field from a precomputed stencil.
-!> \param slot field slot
+!> \brief Interpolate the Cartesian gradients of several compact fields from one precomputed
+!>        stencil, traversing the stencil once for all requested slots.
+!> \param nslots number of requested slots
+!> \param slots field slots
 !> \param pw_grid auxiliary grid (for the incremental cell matrix)
 !> \param stencil precomputed interpolation stencil
-!> \return interpolated gradient
+!> \param gradients interpolated gradients, gradients(:, islot) per slot
 ! **************************************************************************************************
-   FUNCTION interpolate_native_grid_gradient_compact(slot, pw_grid, stencil) RESULT(gradient)
-      INTEGER, INTENT(IN)                                :: slot
+   SUBROUTINE interpolate_native_grid_gradients_compact(slots, nslots, pw_grid, stencil, gradients)
+      INTEGER, INTENT(IN)                                :: nslots
+      INTEGER, DIMENSION(nslots), INTENT(IN)             :: slots
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
       TYPE(native_grid_interpolation_stencil_type), &
          INTENT(IN)                                      :: stencil
-      REAL(dp), DIMENSION(3)                             :: gradient
+      REAL(dp), DIMENSION(3, nslots), INTENT(OUT)        :: gradients
 
-      INTEGER                                            :: idir, inode_x, inode_y, inode_z, pos
+      INTEGER                                            :: idir, inode_x, inode_y, inode_z, islot, pos
       INTEGER(int_8)                                     :: lin
-      REAL(dp)                                           :: coefficient
-      REAL(dp), DIMENSION(3)                             :: gradient_relative
+      REAL(dp)                                           :: value
+      REAL(dp), DIMENSION(3)                             :: coefficient
+      REAL(dp), DIMENSION(3, nslots)                     :: gradient_relative
 
       CPASSERT(ASSOCIATED(pw_grid))
-      gradient = 0.0_dp
+      gradients = 0.0_dp
       IF (.NOT. stencil%active) RETURN
       gradient_relative = 0.0_dp
       DO inode_z = 1, native_grid_interp_npts
@@ -3728,32 +3736,25 @@ CONTAINS
                lin = native_need_linear_index(stencil, inode_x, inode_y, inode_z, skala_state%native_atom%native_need_npts)
                pos = native_need_lookup(lin)
                CPASSERT(pos > 0)
-               DO idir = 1, 3
-                  coefficient = 1.0_dp
-                  IF (idir == 1) THEN
-                     coefficient = coefficient*stencil%derivative_weight(inode_x, 1)
-                  ELSE
-                     coefficient = coefficient*stencil%weight(inode_x, 1)
-                  END IF
-                  IF (idir == 2) THEN
-                     coefficient = coefficient*stencil%derivative_weight(inode_y, 2)
-                  ELSE
-                     coefficient = coefficient*stencil%weight(inode_y, 2)
-                  END IF
-                  IF (idir == 3) THEN
-                     coefficient = coefficient*stencil%derivative_weight(inode_z, 3)
-                  ELSE
-                     coefficient = coefficient*stencil%weight(inode_z, 3)
-                  END IF
-                  gradient_relative(idir) = gradient_relative(idir) + &
-                                            coefficient*skala_state%native_atom%native_need_values(slot, pos)
+               coefficient(1) = stencil%derivative_weight(inode_x, 1)* &
+                                stencil%weight(inode_y, 2)*stencil%weight(inode_z, 3)
+               coefficient(2) = stencil%weight(inode_x, 1)* &
+                                stencil%derivative_weight(inode_y, 2)*stencil%weight(inode_z, 3)
+               coefficient(3) = stencil%weight(inode_x, 1)* &
+                                stencil%weight(inode_y, 2)*stencil%derivative_weight(inode_z, 3)
+               DO islot = 1, nslots
+                  value = skala_state%native_atom%native_need_values(slots(islot), pos)
+                  DO idir = 1, 3
+                     gradient_relative(idir, islot) = gradient_relative(idir, islot) + &
+                                                      coefficient(idir)*value
+                  END DO
                END DO
             END DO
          END DO
       END DO
-      gradient = MATMUL(TRANSPOSE(pw_grid%dh_inv), gradient_relative)
+      gradients = MATMUL(TRANSPOSE(pw_grid%dh_inv), gradient_relative)
 
-   END FUNCTION interpolate_native_grid_gradient_compact
+   END SUBROUTINE interpolate_native_grid_gradients_compact
 
 ! **************************************************************************************************
 !> \brief Build the tensor-product interpolation stencil for one Cartesian point.

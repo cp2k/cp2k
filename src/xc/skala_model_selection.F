@@ -53,14 +53,12 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: section_name
       TYPE(section_vals_type), POINTER                   :: functional_section
 
-      INTEGER                                            :: n_subsections
-
-      CALL find_single_functional_subsection(xc_section, section_name, functional_section, &
-                                             n_subsections)
+      CALL find_single_functional_subsection(xc_section, section_name, functional_section)
    END FUNCTION find_functional_subsection
 
 ! **************************************************************************************************
-!> \brief Return the named functional subsection and the number of explicit XC_FUNCTIONAL subsections.
+!> \brief Return the named functional subsection and, optionally, the number of explicit
+!>        XC_FUNCTIONAL subsections.
 !> \param xc_section ...
 !> \param section_name ...
 !> \param functional_section ...
@@ -71,13 +69,13 @@ CONTAINS
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       CHARACTER(len=*), INTENT(IN)                       :: section_name
       TYPE(section_vals_type), POINTER                   :: functional_section
-      INTEGER, INTENT(OUT)                               :: n_subsections
+      INTEGER, INTENT(OUT), OPTIONAL                     :: n_subsections
 
       INTEGER                                            :: ifun
       TYPE(section_vals_type), POINTER                   :: functionals, xc_fun
 
       NULLIFY (functional_section)
-      n_subsections = 0
+      IF (PRESENT(n_subsections)) n_subsections = 0
       IF (.NOT. ASSOCIATED(xc_section)) RETURN
 
       functionals => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
@@ -88,7 +86,7 @@ CONTAINS
          ifun = ifun + 1
          xc_fun => section_vals_get_subs_vals2(functionals, i_section=ifun)
          IF (.NOT. ASSOCIATED(xc_fun)) EXIT
-         n_subsections = n_subsections + 1
+         IF (PRESENT(n_subsections)) n_subsections = n_subsections + 1
          IF (TRIM(xc_fun%section%name) == TRIM(section_name)) functional_section => xc_fun
       END DO
 

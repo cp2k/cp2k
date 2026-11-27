@@ -936,25 +936,28 @@ bool torch_c_tensor_upload_pinned(torch_c_tensor_t **tensor,
                         pinned_current_slot < static_cast<int>(slots.size()),
                     "Torch staging buffer was not reserved for this thread");
       auto &slot = slots[pinned_current_slot];
-      torch_c_check(slot.tensor.defined(),
-                    "Torch pinned staging buffer is undefined");
-      const int64_t capacity = slot.tensor.numel();
-      torch_c_check(offset >= 0 && offset <= capacity &&
-                        count <= capacity - offset,
-                    "Torch pinned staging buffer is too small");
-      staging = slot.tensor;
       staged_pinned = slot.pinned;
+      if (staged_pinned) {
+        torch_c_check(slot.tensor.defined(),
+                      "Torch pinned staging buffer is undefined");
+        const int64_t capacity = slot.tensor.numel();
+        torch_c_check(offset >= 0 && offset <= capacity &&
+                          count <= capacity - offset,
+                      "Torch pinned staging buffer is too small");
+        staging = slot.tensor;
+      }
     }
-    auto staging_slice = staging.narrow(0, offset, count).view(sizes_ref);
-    {
-      torch::NoGradGuard no_grad;
+    torch::NoGradGuard no_grad;
+    if (staged_pinned) {
+      auto staging_slice = staging.narrow(0, offset, count).view(sizes_ref);
       staging_slice.copy_(source_tensor);
+      (*tensor)->copy_(staging_slice, /*non_blocking=*/true);
+    } else {
+      // Pageable staging would only add a redundant host-to-host copy; upload
+      // straight from the source buffer (synchronous host-to-device).
+      (*tensor)->copy_(source_tensor);
     }
-    {
-      torch::NoGradGuard no_grad;
-      (*tensor)->copy_(staging_slice, /*non_blocking=*/staged_pinned);
-      (*tensor)->mutable_grad() = torch::Tensor();
-    }
+    (*tensor)->mutable_grad() = torch::Tensor();
   } else {
     torch::NoGradGuard no_grad;
     (*tensor)->copy_(source_tensor);
