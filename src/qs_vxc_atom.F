@@ -357,22 +357,24 @@ CONTAINS
          lsd_value_slots(6) = [5, 6, 7, 8, 9, 10], rks_grad_slots(5) = [1, 2, 3, 4, 5], &
          rks_value_slots(3) = [3, 4, 5]
 
-      INTEGER :: adjoint_handle, adjoint_nchannels, atom_composite_components, bo(2), &
-         chunk_end_row, chunk_start_row, composite_image_periodicity(3), composite_local_atom, &
-         composite_local_natom, composite_nflat, composite_partition_target_image, composite_row, &
-         force_handle, gapw_density_partition, gapw_representation, gather_handle, handle, ia, &
-         iat, iatom, ichunk, icomponent, idir, ikind, image_i1, image_i2, image_i3, &
-         image_lower(3), image_shell(3), image_shift(3), image_upper(3), inode_x, inode_y, &
-         inode_z, interp_handle, ir, ispin, itask, iw, jdir, local_partition_target_image, myfun, &
-         na, natom
-      INTEGER :: nchunks_per_atom, ngl, nr, nrows_chunk, nspins, ntasks, nthread, num_pe, on, pos, &
-         source_atom, target_atom, thread_id, xc_deriv_method_id, xc_rho_smooth_id, zatom
+      INTEGER :: adjoint_handle, adjoint_nchannels, adjoint_nn, adjoint_off, &
+         atom_composite_components, bo(2), chunk_end_row, chunk_start_row, &
+         composite_image_periodicity(3), composite_local_atom, composite_local_natom, &
+         composite_nflat, composite_partition_target_image, composite_row, force_handle, &
+         gapw_density_partition, gapw_representation, gather_handle, handle, ia, iat, iatom, &
+         ichunk, icomponent, idir, ikind, image_i1, image_i2, image_i3, image_lower(3), &
+         image_shell(3), image_shift(3), image_upper(3), inode_x, inode_y, inode_z, interp_handle, &
+         ir, ispin, itask, iw, jdir
+      INTEGER :: local_partition_target_image, myfun, na, natom, nchunks_per_atom, ngl, nr, &
+         nrows_chunk, nspins, ntasks, nthread, num_pe, on, owner_rank, pos, row, source_atom, &
+         target_atom, thread_id, xc_deriv_method_id, xc_rho_smooth_id, zatom
       INTEGER(int_8)                                     :: lin
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: composite_atomic_grid_sizes, &
                                                             composite_local_grid_sizes
       INTEGER, ALLOCATABLE, DIMENSION(:) :: chunk_atom, chunk_begin, chunk_end, &
          composite_atom_end, composite_atom_kind, composite_atom_kind_index, composite_atom_start, &
          composite_grid_atom, composite_local_atoms
+      INTEGER, DIMENSION(2)                              :: owner_bounds
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL :: accint, atom_composite_active, atom_composite_diagnostic, &
@@ -396,8 +398,9 @@ CONTAINS
          one_center_rho_grad_matrix_contraction, one_center_tau_field_contraction, &
          one_center_tau_matrix_contraction, one_center_tensor_contraction, partition_weight, &
          smooth_grid_contraction, smooth_input_contraction, target_partition_adjoint, tau_cut, zeff
-      REAL(dp), ALLOCATABLE, DIMENSION(:) :: composite_atomic_grid_weight_grad, &
-         composite_base_grid_weights, composite_grid_weight_grad, composite_grid_weights, fw
+      REAL(dp), ALLOCATABLE, DIMENSION(:) :: adjoint_reduce_buf, &
+         composite_atomic_grid_weight_grad, composite_base_grid_weights, &
+         composite_grid_weight_grad, composite_grid_weights, fw
       REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: adjoint_compact, adjoint_local_flat, &
          composite_atom_coord_grad, composite_atom_coords, composite_cross_density, &
          composite_cross_force, composite_cross_force_local, composite_cross_kin, &
@@ -2323,6 +2326,7 @@ CONTAINS
                   CALL reallocate(vtau_h, 1, na, 1, nr, 1, nspins)
                   CALL reallocate(vtau_s, 1, na, 1, nr, 1, nspins)
                   CALL create_tau_basis_cache(tau_basis_cache, grid_atom, basis_1c, harmonics)
+                  ALLOCATE (adjoint_reduce_buf(10*na*nr*nspins))
 
                   bo = get_limit(natom, para_env%num_pe, para_env%mepos)
                   DO iat = 1, natom
@@ -2512,15 +2516,56 @@ CONTAINS
                      END IF
 
                      ! Model rows are distributed by target atom, while CP2K stores each
-                     ! one-center matrix on the rank owning its source atom. Sum the exact
-                     ! interpolation transpose before forming that matrix.
-                     CALL para_env%sum(vxc_h)
-                     CALL para_env%sum(vxc_s)
-                     CALL para_env%sum(vxg_h)
-                     CALL para_env%sum(vxg_s)
-                     CALL para_env%sum(vtau_h)
-                     CALL para_env%sum(vtau_s)
+                     ! one-center matrix on the rank owning its source atom. Reduce the exact
+                     ! interpolation transpose to that owner in one collective (only the
+                     ! owner consumes the result), packing the six arrays into one buffer.
+                     owner_rank = para_env%mepos
+                     DO row = 0, para_env%num_pe - 1
+                        owner_bounds = get_limit(natom, para_env%num_pe, row)
+                        IF (iat >= owner_bounds(1) .AND. iat <= owner_bounds(2)) THEN
+                           owner_rank = row
+                           EXIT
+                        END IF
+                     END DO
+                     adjoint_nn = na*nr*nspins
+                     adjoint_off = 0
+                     adjoint_reduce_buf(adjoint_off + 1:adjoint_off + adjoint_nn) = &
+                        RESHAPE(vxc_h, [adjoint_nn])
+                     adjoint_off = adjoint_off + adjoint_nn
+                     adjoint_reduce_buf(adjoint_off + 1:adjoint_off + adjoint_nn) = &
+                        RESHAPE(vxc_s, [adjoint_nn])
+                     adjoint_off = adjoint_off + adjoint_nn
+                     adjoint_reduce_buf(adjoint_off + 1:adjoint_off + 3*adjoint_nn) = &
+                        RESHAPE(vxg_h, [3*adjoint_nn])
+                     adjoint_off = adjoint_off + 3*adjoint_nn
+                     adjoint_reduce_buf(adjoint_off + 1:adjoint_off + 3*adjoint_nn) = &
+                        RESHAPE(vxg_s, [3*adjoint_nn])
+                     adjoint_off = adjoint_off + 3*adjoint_nn
+                     adjoint_reduce_buf(adjoint_off + 1:adjoint_off + adjoint_nn) = &
+                        RESHAPE(vtau_h, [adjoint_nn])
+                     adjoint_off = adjoint_off + adjoint_nn
+                     adjoint_reduce_buf(adjoint_off + 1:adjoint_off + adjoint_nn) = &
+                        RESHAPE(vtau_s, [adjoint_nn])
+                     CALL para_env%sum(adjoint_reduce_buf, owner_rank)
                      IF (.NOT. source_matrix_local) CYCLE
+                     adjoint_off = 0
+                     vxc_h = RESHAPE(adjoint_reduce_buf(adjoint_off + 1:adjoint_off + adjoint_nn), &
+                                     SHAPE(vxc_h))
+                     adjoint_off = adjoint_off + adjoint_nn
+                     vxc_s = RESHAPE(adjoint_reduce_buf(adjoint_off + 1:adjoint_off + adjoint_nn), &
+                                     SHAPE(vxc_s))
+                     adjoint_off = adjoint_off + adjoint_nn
+                     vxg_h = RESHAPE(adjoint_reduce_buf(adjoint_off + 1:adjoint_off + 3*adjoint_nn), &
+                                     SHAPE(vxg_h))
+                     adjoint_off = adjoint_off + 3*adjoint_nn
+                     vxg_s = RESHAPE(adjoint_reduce_buf(adjoint_off + 1:adjoint_off + 3*adjoint_nn), &
+                                     SHAPE(vxg_s))
+                     adjoint_off = adjoint_off + 3*adjoint_nn
+                     vtau_h = RESHAPE(adjoint_reduce_buf(adjoint_off + 1:adjoint_off + adjoint_nn), &
+                                      SHAPE(vtau_h))
+                     adjoint_off = adjoint_off + adjoint_nn
+                     vtau_s = RESHAPE(adjoint_reduce_buf(adjoint_off + 1:adjoint_off + adjoint_nn), &
+                                      SHAPE(vtau_s))
 
                      IF (atom_composite_diagnostic) THEN
                         one_center_rho_grad_field_contraction = &
@@ -2593,6 +2638,7 @@ CONTAINS
                      END DO
                      DEALLOCATE (composite_int_h, composite_int_s)
                   END DO
+                  DEALLOCATE (adjoint_reduce_buf)
                   CALL release_tau_basis_cache(tau_basis_cache)
                END DO
             END IF

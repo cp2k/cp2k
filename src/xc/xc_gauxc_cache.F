@@ -162,7 +162,7 @@ CONTAINS
       TYPE(cp_gauxc_status_type), INTENT(inout)          :: status
 
 #ifdef __GAUXC
-      INTEGER                                            :: gradient_error, unit_nr
+      INTEGER                                            :: unit_nr
 
       IF (gauxc_cache_is_valid( &
           cache, &
@@ -172,6 +172,18 @@ CONTAINS
          params%use_fd_gradient = cache%use_fd_gradient
          params%use_gradient_mpi_runtime = cache%use_gradient_mpi_runtime
          params%use_gradient_self_runtime = cache%use_gradient_self_runtime
+         ! The energy/VXC cache does not depend on whether a gradient is needed,
+         ! so a force step can reuse it. Only re-resolve the gradient policy
+         ! (and drop an unneeded gradient runtime) when the need changed.
+         IF (cache%need_xc_gradient .NEQV. params%need_xc_gradient) THEN
+            CALL apply_gradient_policy(cache, params, para_env)
+            cache%gradient_notice_printed = .FALSE.
+            IF (.NOT. params%use_gradient_self_runtime .AND. cache%gradient_is_init) THEN
+               CALL gauxc_destroy_integrator(cache%gradient_integrator, status)
+               CALL gauxc_destroy_grid(cache%gradient_grid, status)
+               cache%gradient_is_init = .FALSE.
+            END IF
+         END IF
          status%status%code = 0
          RETURN
       END IF
@@ -189,25 +201,7 @@ CONTAINS
                        status)
       CALL gauxc_check_status(status)
 
-      CALL gauxc_resolve_gradient_policy( &
-         params%need_xc_gradient, params%gapw_method, cache%max_l(), params%use_gauxc_model, &
-         para_env%num_pe, params%use_self_runtime, TRIM(params%gradient_runtime), &
-         params%force_fd_gradient, params%use_fd_gradient, params%use_gradient_mpi_runtime, &
-         params%use_gradient_self_runtime, gradient_error)
-      SELECT CASE (gradient_error)
-      CASE (1)
-         CALL cp_abort(__LOCATION__, &
-                       "MODEL_GRADIENT_RUNTIME MPI requires verified GauXC OneDFT gradient support (PR #222).")
-      CASE (2)
-         CALL cp_abort(__LOCATION__, &
-                       "MODEL_GRADIENT_RUNTIME MPI requires an MPI energy/VXC runtime. "// &
-                       "Use AUTO/SELF to retain the open-shell replicated-runtime safeguard.")
-      CASE (3)
-         CALL cp_abort(__LOCATION__, &
-                       "MODEL_GRADIENT_RUNTIME MPI is incompatible with FORCE_NUMERICAL_GRADIENT.")
-      CASE (4)
-         CALL cp_abort(__LOCATION__, "Unknown GAUXC%MODEL_GRADIENT_RUNTIME value.")
-      END SELECT
+      CALL apply_gradient_policy(cache, params, para_env)
 
       IF (params%use_self_runtime) THEN
          ! open-shell densities across CP2K MPI ranks.
@@ -306,6 +300,47 @@ CONTAINS
 #endif
 
    END SUBROUTINE gauxc_cache_init
+
+#if defined(__GAUXC)
+! **************************************************************************************************
+!> \brief Resolve the gradient policy for the current params and store it in the cache.
+!> \param cache ...
+!> \param params ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE apply_gradient_policy(cache, params, para_env)
+      TYPE(cp_gauxc_cache_type), INTENT(INOUT)           :: cache
+      TYPE(cp_gauxc_cache_params), INTENT(INOUT)         :: params
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
+
+      INTEGER                                            :: gradient_error
+
+      CALL gauxc_resolve_gradient_policy( &
+         params%need_xc_gradient, params%gapw_method, cache%max_l(), params%use_gauxc_model, &
+         para_env%num_pe, params%use_self_runtime, TRIM(params%gradient_runtime), &
+         params%force_fd_gradient, params%use_fd_gradient, params%use_gradient_mpi_runtime, &
+         params%use_gradient_self_runtime, gradient_error)
+      SELECT CASE (gradient_error)
+      CASE (1)
+         CALL cp_abort(__LOCATION__, &
+                       "MODEL_GRADIENT_RUNTIME MPI requires verified GauXC OneDFT gradient support (PR #222).")
+      CASE (2)
+         CALL cp_abort(__LOCATION__, &
+                       "MODEL_GRADIENT_RUNTIME MPI requires an MPI energy/VXC runtime. "// &
+                       "Use AUTO/SELF to retain the open-shell replicated-runtime safeguard.")
+      CASE (3)
+         CALL cp_abort(__LOCATION__, &
+                       "MODEL_GRADIENT_RUNTIME MPI is incompatible with FORCE_NUMERICAL_GRADIENT.")
+      CASE (4)
+         CALL cp_abort(__LOCATION__, "Unknown GAUXC%MODEL_GRADIENT_RUNTIME value.")
+      END SELECT
+
+      cache%use_fd_gradient = params%use_fd_gradient
+      cache%use_gradient_mpi_runtime = params%use_gradient_mpi_runtime
+      cache%use_gradient_self_runtime = params%use_gradient_self_runtime
+      cache%need_xc_gradient = params%need_xc_gradient
+   END SUBROUTINE apply_gradient_policy
+#endif
 
 ! **************************************************************************************************
 !> \brief Release all GauXC objects in a cache and deallocate arrays
@@ -489,7 +524,6 @@ CONTAINS
       IF (TRIM(cache%lwd_kernel) /= TRIM(params%lwd_kernel)) RETURN
       IF (cache%use_self_runtime .NEQV. params%use_self_runtime) RETURN
 
-      IF (cache%need_xc_gradient .NEQV. params%need_xc_gradient) RETURN
       IF (cache%gradient_runtime /= params%gradient_runtime) RETURN
       IF (cache%gapw_method .NEQV. params%gapw_method) RETURN
       IF (cache%force_fd_gradient .NEQV. params%force_fd_gradient) RETURN

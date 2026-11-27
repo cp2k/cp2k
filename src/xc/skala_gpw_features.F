@@ -1233,15 +1233,19 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Ensure the full-grid static Torch tensors expose the requested differentiability,
 !>        reusing the cached leaves instead of re-uploading them every evaluation.
-!> \param grad_mode ...
+!> \param coords_grad ...
+!> \param weights_grad ...
+!> \param atomic_grid_weights_grad ...
 ! **************************************************************************************************
-   SUBROUTINE ensure_full_static_tensor_grad(grad_mode)
-      INTEGER, INTENT(IN)                                :: grad_mode
+   SUBROUTINE ensure_full_static_tensor_grad(coords_grad, weights_grad, atomic_grid_weights_grad)
+      LOGICAL, INTENT(IN)                                :: coords_grad, weights_grad, &
+                                                            atomic_grid_weights_grad
 
       CPASSERT(skala_state%layout%static_tensors_active)
-      CALL torch_tensor_set_requires_grad(skala_state%layout%grid_coords_t, grad_mode >= 2)
-      CALL torch_tensor_set_requires_grad(skala_state%layout%grid_weights_t, grad_mode >= 1)
-      CALL torch_tensor_set_requires_grad(skala_state%layout%atomic_grid_weights_t, grad_mode >= 2)
+      CALL torch_tensor_set_requires_grad(skala_state%layout%grid_coords_t, coords_grad)
+      CALL torch_tensor_set_requires_grad(skala_state%layout%grid_weights_t, weights_grad)
+      CALL torch_tensor_set_requires_grad(skala_state%layout%atomic_grid_weights_t, &
+                                          atomic_grid_weights_grad)
    END SUBROUTINE ensure_full_static_tensor_grad
 
 ! **************************************************************************************************
@@ -2627,13 +2631,13 @@ CONTAINS
          skala_state%layout%dynamic_tensors_active = .TRUE.
 
          IF (requires_coordinate_grad .OR. requires_stress_grad .OR. my_requires_weight_grad) THEN
-            grad_mode = 0
-            IF (requires_coordinate_grad .OR. requires_stress_grad) THEN
-               grad_mode = 2
-            ELSE IF (my_requires_weight_grad) THEN
-               grad_mode = 1
-            END IF
-            CALL ensure_full_static_tensor_grad(grad_mode)
+            ! Only the virial/stress needs differentiable grid coordinates; a
+            ! plain force reuses grid/atomic-grid weight gradients (for the
+            ! smooth partition) and the separately created atom coordinates.
+            CALL ensure_full_static_tensor_grad( &
+               coords_grad=requires_stress_grad, &
+               weights_grad=(requires_stress_grad .OR. my_requires_weight_grad), &
+               atomic_grid_weights_grad=(requires_stress_grad .OR. my_requires_weight_grad))
             IF (requires_stress_grad .OR. my_requires_weight_grad) THEN
                IF (.NOT. skala_state%layout%grad_inputs_active) THEN
                   CALL torch_dict_clone(skala_state%layout%static_inputs, skala_state%layout%grad_inputs)
@@ -2659,7 +2663,7 @@ CONTAINS
             CALL torch_dict_set(features%inputs, skala_key_grad, features%grad_t)
             CALL torch_dict_set(features%inputs, skala_key_kin, features%kin_t)
          ELSE
-            CALL ensure_full_static_tensor_grad(0)
+            CALL ensure_full_static_tensor_grad(.FALSE., .FALSE., .FALSE.)
             IF (.NOT. skala_state%layout%inputs_active) THEN
                CALL torch_dict_clone(skala_state%layout%static_inputs, skala_state%layout%inputs)
                CALL torch_dict_insert(skala_state%layout%inputs, skala_key_density, &

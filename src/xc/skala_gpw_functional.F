@@ -2330,18 +2330,13 @@ CONTAINS
       tau_sum = 0.0_dp
       tau_sumsq = 0.0_dp
       DO ispin = 1, SIZE(rho_r)
+         CPASSERT(ALL(SHAPE(tau(ispin)%array) == SHAPE(rho_r(ispin)%array)))
          DO k = 1, SIZE(rho_r(ispin)%array, 3)
             DO j = 1, SIZE(rho_r(ispin)%array, 2)
                DO i = 1, SIZE(rho_r(ispin)%array, 1)
                   x = rho_r(ispin)%array(i, j, k)
                   rho_sum = rho_sum + x
                   rho_sumsq = rho_sumsq + x*x
-               END DO
-            END DO
-         END DO
-         DO k = 1, SIZE(tau(ispin)%array, 3)
-            DO j = 1, SIZE(tau(ispin)%array, 2)
-               DO i = 1, SIZE(tau(ispin)%array, 1)
                   y = tau(ispin)%array(i, j, k)
                   tau_sum = tau_sum + y
                   tau_sumsq = tau_sumsq + y*y
