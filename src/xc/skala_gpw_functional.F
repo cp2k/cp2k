@@ -26,6 +26,7 @@ MODULE skala_gpw_functional
                                               int_8
    USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
+   USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_methods,                      ONLY: pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
@@ -95,6 +96,7 @@ MODULE skala_gpw_functional
                                            ncollapsed_grad_per_point = 5, &
                                            ngrad_per_point = 10
    REAL(KIND=dp), PARAMETER, PRIVATE    :: weight_cache_cell_tol = 1.0E-12_dp
+   REAL(KIND=dp), PARAMETER, PRIVATE    :: weight_cache_weight_tol = 1.0E-10_dp
    INTEGER, PARAMETER, PUBLIC           :: skala_gapw_density_partition_hard_minus_soft = 1, &
                                            skala_gapw_density_partition_hard_only = 2, &
                                            skala_gapw_density_partition_soft_only = 3, &
@@ -637,7 +639,7 @@ CONTAINS
          IF (features%atom_partition == skala_gpw_atom_partition_smooth .AND. &
              (needs_atom_force .OR. compute_virial) .AND. ASSOCIATED(grid_weight_grad_p)) THEN
             CALL store_weight_grad_cache(grid_weight_grad_p, features, particle_set, cell, &
-                                         rho_r, tau)
+                                         rho_r, tau, weights)
          END IF
          IF (compute_virial) THEN
             IF (native_grid_diagnostics) virial_before = virial_xc
@@ -865,8 +867,7 @@ CONTAINS
       IF (skala_state%layout%active .AND. skala_state%weight_grad%valid) THEN
          cache_hit = weight_grad_cache_matches(rho_r(1)%pw_grid%para%group, particle_set, cell, &
                                                rho_r, tau, nspins, native_grid_atom_chunks, &
-                                               native_grid_atom_partition, &
-                                               skala_state%weight_grad%nvals)
+                                               native_grid_atom_partition, weights)
       END IF
       IF (cache_hit) THEN
          nvals = skala_state%weight_grad%nvals
@@ -2287,6 +2288,51 @@ CONTAINS
    END SUBROUTINE weight_grad_signature
 
 ! **************************************************************************************************
+!> \brief Capture the grid identity and integration-weight signature that determine the layout
+!>        and the grid weights used by the cached weight gradient.
+!> \param pw_grid auxiliary real-space grid
+!> \param weights optional external integration weights
+!> \param npts grid point counts
+!> \param bounds_local local grid bounds
+!> \param dh_inv inverse grid step matrix
+!> \param has_weights whether external weights are present
+!> \param weight_sum sum of the external weights
+!> \param weight_sumsq sum of squares of the external weights
+! **************************************************************************************************
+   SUBROUTINE weight_grad_grid_key(pw_grid, weights, npts, bounds_local, dh_inv, &
+                                   has_weights, weight_sum, weight_sumsq)
+      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
+      INTEGER, DIMENSION(3), INTENT(OUT)                 :: npts
+      INTEGER, DIMENSION(2, 3), INTENT(OUT)              :: bounds_local
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: dh_inv
+      LOGICAL, INTENT(OUT)                               :: has_weights
+      REAL(KIND=dp), INTENT(OUT)                         :: weight_sum, weight_sumsq
+
+      INTEGER                                            :: i, j, k
+      REAL(KIND=dp)                                      :: x
+
+      npts = pw_grid%npts
+      bounds_local = pw_grid%bounds_local
+      dh_inv = pw_grid%dh_inv
+      has_weights = .FALSE.
+      IF (PRESENT(weights)) has_weights = ASSOCIATED(weights)
+      weight_sum = 0.0_dp
+      weight_sumsq = 0.0_dp
+      IF (has_weights) THEN
+         DO k = 1, SIZE(weights%array, 3)
+            DO j = 1, SIZE(weights%array, 2)
+               DO i = 1, SIZE(weights%array, 1)
+                  x = weights%array(i, j, k)
+                  weight_sum = weight_sum + x
+                  weight_sumsq = weight_sumsq + x*x
+               END DO
+            END DO
+         END DO
+      END IF
+   END SUBROUTINE weight_grad_grid_key
+
+! **************************************************************************************************
 !> \brief Store the smooth-partition weight gradient for later reuse.
 !> \param gradient ...
 !> \param features ...
@@ -2294,13 +2340,15 @@ CONTAINS
 !> \param cell ...
 !> \param rho_r ...
 !> \param tau ...
+!> \param weights ...
 ! **************************************************************************************************
-   SUBROUTINE store_weight_grad_cache(gradient, features, particle_set, cell, rho_r, tau)
+   SUBROUTINE store_weight_grad_cache(gradient, features, particle_set, cell, rho_r, tau, weights)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: gradient
       TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
 
       INTEGER                                            :: iatom
 
@@ -2329,6 +2377,12 @@ CONTAINS
       CALL weight_grad_signature(rho_r, tau, skala_state%weight_grad%rho_sum, &
                                  skala_state%weight_grad%rho_sumsq, &
                                  skala_state%weight_grad%tau_sum, skala_state%weight_grad%tau_sumsq)
+      CALL weight_grad_grid_key(rho_r(1)%pw_grid, weights, skala_state%weight_grad%npts, &
+                                skala_state%weight_grad%bounds_local, &
+                                skala_state%weight_grad%dh_inv, &
+                                skala_state%weight_grad%has_weights, &
+                                skala_state%weight_grad%weight_sum, &
+                                skala_state%weight_grad%weight_sumsq)
       skala_state%weight_grad%nvals = SIZE(gradient)
       skala_state%weight_grad%nspins = SIZE(rho_r)
       skala_state%weight_grad%atom_chunks = features%uses_atom_chunks
@@ -2354,22 +2408,23 @@ CONTAINS
 !> \param nspins ...
 !> \param atom_chunks ...
 !> \param atom_partition ...
-!> \param nvals ...
+!> \param weights external integration weights
 !> \return ...
 ! **************************************************************************************************
    FUNCTION weight_grad_cache_matches(group, particle_set, cell, rho_r, tau, nspins, &
-                                      atom_chunks, atom_partition, nvals) RESULT(matches)
+                                      atom_chunks, atom_partition, weights) RESULT(matches)
       CLASS(mp_comm_type), INTENT(IN)                    :: group
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau
-      INTEGER, INTENT(IN)                                :: nspins, atom_partition, nvals
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
+      INTEGER, INTENT(IN)                                :: nspins, atom_partition
       LOGICAL, INTENT(IN)                                :: atom_chunks
       LOGICAL                                            :: matches
       INTEGER                                            :: hit
 
       hit = MERGE(1, 0, weight_grad_cache_matches_local(particle_set, cell, rho_r, tau, &
-                                                        nspins, atom_chunks, atom_partition, nvals))
+                                                        nspins, atom_chunks, atom_partition, weights))
       CALL group%min(hit)
       matches = (hit == 1)
 
@@ -2384,29 +2439,34 @@ CONTAINS
 !> \param nspins ...
 !> \param atom_chunks ...
 !> \param atom_partition ...
-!> \param nvals ...
+!> \param weights external integration weights
 !> \return ...
 ! **************************************************************************************************
    FUNCTION weight_grad_cache_matches_local(particle_set, cell, rho_r, tau, nspins, &
-                                            atom_chunks, atom_partition, nvals) RESULT(matches)
+                                            atom_chunks, atom_partition, weights) RESULT(matches)
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau
       INTEGER, INTENT(IN)                                :: nspins
       LOGICAL, INTENT(IN)                                :: atom_chunks
-      INTEGER, INTENT(IN)                                :: atom_partition, nvals
+      INTEGER, INTENT(IN)                                :: atom_partition
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
       LOGICAL                                            :: matches
 
       INTEGER                                            :: iatom
-      REAL(KIND=dp)                                      :: rho_sum, rho_sumsq, tau_sum, tau_sumsq
+      INTEGER, DIMENSION(2, 3)                           :: bounds_local
+      INTEGER, DIMENSION(3)                              :: npts
+      LOGICAL                                            :: has_weights
+      REAL(KIND=dp)                                      :: rho_sum, rho_sumsq, tau_sum, tau_sumsq, &
+                                                            weight_sum, weight_sumsq
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: dh_inv
 
       matches = .FALSE.
-      IF (nvals <= 0) RETURN
+      IF (skala_state%weight_grad%nvals <= 0) RETURN
       IF (.NOT. skala_state%weight_grad%valid) RETURN
       IF (skala_state%weight_grad%nspins /= nspins) RETURN
       IF (skala_state%weight_grad%atom_chunks .NEQV. atom_chunks) RETURN
       IF (skala_state%weight_grad%atom_partition /= atom_partition) RETURN
-      IF (skala_state%weight_grad%nvals /= nvals) RETURN
       IF (ANY(ABS(skala_state%weight_grad%cell_hmat - cell%hmat) > weight_cache_cell_tol)) RETURN
       IF (ANY(skala_state%weight_grad%cell_perd /= cell%perd)) RETURN
       IF (.NOT. ALLOCATED(skala_state%weight_grad%positions)) RETURN
@@ -2414,6 +2474,22 @@ CONTAINS
       DO iatom = 1, SIZE(particle_set)
          IF (ANY(skala_state%weight_grad%positions(:, iatom) /= particle_set(iatom)%r)) RETURN
       END DO
+
+      ! The cached gradient is dE/d(grid_weights); the layout and grid weights depend on the
+      ! auxiliary grid, the external integration weights and the atom partition. Validate the grid
+      ! identity and weight signature so a grid/weight change cannot reuse a stale gradient.
+      CALL weight_grad_grid_key(rho_r(1)%pw_grid, weights, npts, bounds_local, dh_inv, &
+                                has_weights, weight_sum, weight_sumsq)
+      IF (ANY(skala_state%weight_grad%npts /= npts)) RETURN
+      IF (ANY(skala_state%weight_grad%bounds_local /= bounds_local)) RETURN
+      IF (ANY(ABS(skala_state%weight_grad%dh_inv - dh_inv) > weight_cache_cell_tol)) RETURN
+      IF (skala_state%weight_grad%has_weights .NEQV. has_weights) RETURN
+      IF (has_weights) THEN
+         IF (ABS(skala_state%weight_grad%weight_sum - weight_sum) > &
+             weight_cache_weight_tol*MAX(1.0_dp, ABS(skala_state%weight_grad%weight_sum))) RETURN
+         IF (ABS(skala_state%weight_grad%weight_sumsq - weight_sumsq) > &
+             weight_cache_weight_tol*MAX(1.0_dp, ABS(skala_state%weight_grad%weight_sumsq))) RETURN
+      END IF
 
       CALL weight_grad_signature(rho_r, tau, rho_sum, rho_sumsq, tau_sum, tau_sumsq)
       IF (rho_sum /= skala_state%weight_grad%rho_sum) RETURN
@@ -3748,9 +3824,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Release the reusable per-atom workspace (host arrays, tensors, dict).
+!> \param env ...
 ! **************************************************************************************************
    SUBROUTINE release_atom_ws(env)
       TYPE(skala_gpw_state_type), INTENT(INOUT), POINTER :: env
+
       IF (.NOT. ASSOCIATED(env)) RETURN
       IF (env%atom_ws%tensors_active) THEN
          CALL torch_tensor_release(env%atom_ws%grid_coords_t)
@@ -3791,11 +3869,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Release all module-level SKALA/Torch caches.
+!> \param env ...
 ! **************************************************************************************************
    SUBROUTINE skala_gpw_release_caches(env)
-      TYPE(skala_gpw_state_type), INTENT(INOUT), POINTER, OPTIONAL :: env
-      TYPE(skala_gpw_state_type), POINTER                :: st
+      TYPE(skala_gpw_state_type), INTENT(INOUT), &
+         OPTIONAL, POINTER                               :: env
+
       LOGICAL                                            :: clear_global
+      TYPE(skala_gpw_state_type), POINTER                :: st
 
       IF (PRESENT(env)) THEN
          st => env

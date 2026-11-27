@@ -1791,9 +1791,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Release the module-level layout cache.
+!> \param env ...
 ! **************************************************************************************************
    SUBROUTINE skala_gpw_features_release_cache(env)
       TYPE(skala_gpw_state_type), INTENT(INOUT), POINTER :: env
+
       IF (.NOT. ASSOCIATED(env)) RETURN
       CALL release_layout_cache(env%layout)
       IF (ALLOCATED(env%scratch%local_dynamic)) THEN

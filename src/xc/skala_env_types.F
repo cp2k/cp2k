@@ -238,11 +238,14 @@ MODULE skala_env_types
       REAL(KIND=dp), POINTER, DIMENSION(:)       :: gradient => NULL()
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: positions
       REAL(KIND=dp)                              :: rho_sum = 0.0_dp, rho_sumsq = 0.0_dp, &
-                                                    tau_sum = 0.0_dp, tau_sumsq = 0.0_dp
-      REAL(KIND=dp), DIMENSION(3, 3)             :: cell_hmat = 0.0_dp
-      INTEGER, DIMENSION(3)                      :: cell_perd = 0
+                                                    tau_sum = 0.0_dp, tau_sumsq = 0.0_dp, &
+                                                    weight_sum = 0.0_dp, weight_sumsq = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3, 3)             :: cell_hmat = 0.0_dp, dh_inv = 0.0_dp
+      INTEGER, DIMENSION(3)                      :: cell_perd = 0, npts = 0
+      INTEGER, DIMENSION(2, 3)                   :: bounds_local = 0
       INTEGER                                    :: nvals = -1, nspins = -1, atom_partition = -1
-      LOGICAL                                    :: atom_chunks = .FALSE., valid = .FALSE.
+      LOGICAL                                    :: atom_chunks = .FALSE., valid = .FALSE., &
+                                                    has_weights = .FALSE.
    END TYPE skala_weight_grad_cache_type
 
    TYPE :: native_need_entry_type

@@ -227,16 +227,18 @@ CONTAINS
       IF (ALLOCATED(skala_state%native_atom%native_need_ridx)) DEALLOCATE (skala_state%native_atom%native_need_ridx)
       IF (ALLOCATED(skala_state%native_atom%native_need_values)) DEALLOCATE (skala_state%native_atom%native_need_values)
       IF (ALLOCATED(skala_state%native_atom%native_need_reply)) DEALLOCATE (skala_state%native_atom%native_need_reply)
-      IF (ALLOCATED(skala_state%native_atom%native_need_geometry%atoms)) &
+      IF (ALLOCATED(skala_state%native_atom%native_need_geometry%atoms)) THEN
          DEALLOCATE (skala_state%native_atom%native_need_geometry%atoms)
+      END IF
       skala_state%native_atom%native_need_geometry%ready = .FALSE.
       skala_state%native_atom%native_need_ready = .FALSE.
       IF (ALLOCATED(skala_state%native_atom%native_comp_coords)) DEALLOCATE (skala_state%native_atom%native_comp_coords)
       IF (ALLOCATED(skala_state%native_atom%native_comp_base_w)) DEALLOCATE (skala_state%native_atom%native_comp_base_w)
       IF (ALLOCATED(skala_state%native_atom%native_comp_grid_w)) DEALLOCATE (skala_state%native_atom%native_comp_grid_w)
       IF (ALLOCATED(skala_state%native_atom%native_comp_local_atoms)) DEALLOCATE (skala_state%native_atom%native_comp_local_atoms)
-      IF (ALLOCATED(skala_state%native_atom%native_comp_geometry%atoms)) &
+      IF (ALLOCATED(skala_state%native_atom%native_comp_geometry%atoms)) THEN
          DEALLOCATE (skala_state%native_atom%native_comp_geometry%atoms)
+      END IF
       skala_state%native_atom%native_comp_geometry%ready = .FALSE.
       skala_state%native_atom%native_comp_ready = .FALSE.
       skala_state%native_atom%native_comp_nrows = -1
@@ -351,6 +353,9 @@ CONTAINS
                                                             atom_composite_grid
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom'
+      INTEGER, PARAMETER :: lsd_grad_slots(10) = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], &
+         lsd_value_slots(6) = [5, 6, 7, 8, 9, 10], rks_grad_slots(5) = [1, 2, 3, 4, 5], &
+         rks_value_slots(3) = [3, 4, 5]
 
       INTEGER :: adjoint_handle, adjoint_nchannels, atom_composite_components, bo(2), &
          chunk_end_row, chunk_start_row, composite_image_periodicity(3), composite_local_atom, &
@@ -414,6 +419,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :, :)       :: vxg_h_local, vxg_s_local
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
+      REAL(dp), DIMENSION(10)                            :: composite_value_batch
       REAL(dp), DIMENSION(2) :: composite_smooth_density_adjoint_value, &
          composite_smooth_density_value, composite_smooth_kin_adjoint_value, &
          composite_smooth_kin_value, cross_density, cross_density_adjoint, cross_kin, &
@@ -421,15 +427,10 @@ CONTAINS
       REAL(dp), DIMENSION(3) :: composite_point, cross_displacement, cross_spatial_derivative, &
          fractional, image_translation, nlcc_gradient, nlcc_spatial_derivative, &
          skala_atom_force_h, skala_atom_force_s, spatial_derivative
+      REAL(dp), DIMENSION(3, 10)                         :: composite_grad_batch
       REAL(dp), DIMENSION(3, 2) :: composite_smooth_gradient_adjoint_value, &
          composite_smooth_gradient_value, cross_density_spatial, cross_grad, cross_grad_adjoint, &
          cross_kin_spatial
-      REAL(dp), DIMENSION(3, 10) :: composite_grad_batch
-      REAL(dp), DIMENSION(10) :: composite_value_batch
-      INTEGER, PARAMETER :: lsd_value_slots(6) = [5, 6, 7, 8, 9, 10], &
-                            rks_value_slots(3) = [3, 4, 5], &
-                            lsd_grad_slots(10) = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], &
-                            rks_grad_slots(5) = [1, 2, 3, 4, 5]
       REAL(dp), DIMENSION(3, 3) :: composite_cross_image_virial, &
          composite_cross_image_virial_local, composite_explicit_virial, composite_feature_virial, &
          composite_interpolation_virial, composite_partition_strain_virial, &
@@ -1158,7 +1159,7 @@ CONTAINS
                            END IF
                         END IF
                         IF (atom_composite_reference .AND. nlcc) THEN
-                           nlcc_spin_factor = MERGE(1.0_dp, 0.5_dp, lsd)
+                           nlcc_spin_factor = 0.5_dp
                            DO source_atom = 1, SIZE(particle_set)
                               NULLIFY (gth_potential, sgp_potential)
                               CALL get_qs_kind(my_kind_set(composite_atom_kind(source_atom)), &
@@ -1706,7 +1707,7 @@ CONTAINS
                      composite_moving_smooth_force_local(:, iatom) = &
                         composite_moving_smooth_force_local(:, iatom) + spatial_derivative
                      IF (nlcc) THEN
-                        nlcc_spin_factor = MERGE(1.0_dp, 0.5_dp, lsd)
+                        nlcc_spin_factor = 0.5_dp
                         DO source_atom = 1, SIZE(particle_set)
                            NULLIFY (gth_potential, sgp_potential)
                            CALL get_qs_kind(my_kind_set(composite_atom_kind(source_atom)), &
@@ -3658,8 +3659,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Interpolate several compact field values from one precomputed stencil, traversing the
 !>        stencil once for all requested slots.
-!> \param nslots number of requested slots
 !> \param slots field slots
+!> \param nslots number of requested slots
 !> \param stencil precomputed interpolation stencil
 !> \param values interpolated values, one per slot
 ! **************************************************************************************************
@@ -3701,8 +3702,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Interpolate the Cartesian gradients of several compact fields from one precomputed
 !>        stencil, traversing the stencil once for all requested slots.
-!> \param nslots number of requested slots
 !> \param slots field slots
+!> \param nslots number of requested slots
 !> \param pw_grid auxiliary grid (for the incremental cell matrix)
 !> \param stencil precomputed interpolation stencil
 !> \param gradients interpolated gradients, gradients(:, islot) per slot
@@ -3715,7 +3716,8 @@ CONTAINS
          INTENT(IN)                                      :: stencil
       REAL(dp), DIMENSION(3, nslots), INTENT(OUT)        :: gradients
 
-      INTEGER                                            :: idir, inode_x, inode_y, inode_z, islot, pos
+      INTEGER                                            :: idir, inode_x, inode_y, inode_z, islot, &
+                                                            pos
       INTEGER(int_8)                                     :: lin
       REAL(dp)                                           :: value
       REAL(dp), DIMENSION(3)                             :: coefficient
