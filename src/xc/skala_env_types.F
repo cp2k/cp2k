@@ -360,15 +360,17 @@ CONTAINS
    END FUNCTION skala_env_get
 
 ! **************************************************************************************************
-!> \brief Release the SKALA section cache. Heavy Torch/layout caches are freed by
+!> \brief Release the SKALA section cache of one state. Heavy Torch/layout caches are freed by
 !>        skala_gpw_release_caches before this is called.
+!> \param env the SKALA state to release
 ! **************************************************************************************************
-   SUBROUTINE skala_env_release()
-      IF (.NOT. ASSOCIATED(skala_state)) RETURN
-      CALL release_native_grid_cache(skala_state%native_grid_cache)
-      NULLIFY (skala_state%native_section, skala_state%gauxc_section, &
-               skala_state%resolved_xc_section)
-      skala_state%sections_resolved = .FALSE.
+   SUBROUTINE skala_env_release(env)
+      TYPE(skala_gpw_state_type), INTENT(INOUT), POINTER :: env
+
+      IF (.NOT. ASSOCIATED(env)) RETURN
+      CALL release_native_grid_cache(env%native_grid_cache)
+      NULLIFY (env%native_section, env%gauxc_section, env%resolved_xc_section)
+      env%sections_resolved = .FALSE.
    END SUBROUTINE skala_env_release
 
 ! **************************************************************************************************
@@ -379,11 +381,10 @@ CONTAINS
       TYPE(skala_gpw_state_type), INTENT(INOUT), POINTER :: env
 
       IF (.NOT. ASSOCIATED(env)) RETURN
-      IF (ASSOCIATED(skala_state, env)) THEN
-         CALL skala_env_release()
-         NULLIFY (skala_state)
-      END IF
+      CALL skala_env_release(env)
+      IF (ASSOCIATED(skala_state, env)) NULLIFY (skala_state)
       DEALLOCATE (env)
+      NULLIFY (env)
    END SUBROUTINE skala_env_finalize
 
 ! **************************************************************************************************

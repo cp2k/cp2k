@@ -40,8 +40,8 @@ MODULE skala_gpw_functional
         allocate_empty_bound_shape, grid_coordinate, skala_execution_target_type, &
         skala_gpw_atom_subchunk_count, skala_gpw_atom_subchunk_layout, skala_gpw_feature_build, &
         skala_gpw_feature_build_atom_subchunk_bounds, skala_gpw_feature_release, &
-        skala_gpw_feature_type, skala_gpw_features_release_cache, skala_model_context_type, &
-        skala_state, skala_weight_grad_cache_type, &
+        skala_gpw_feature_type, skala_gpw_features_release_cache, skala_gpw_state_type, &
+        skala_model_context_type, skala_state, skala_weight_grad_cache_type, &
         smooth_partition_atomic_weight_scale_derivative, smooth_partition_derivative_action, &
         smooth_partition_weights, sort_chunks_by_padded_rows
    USE skala_model_selection,           ONLY: get_gauxc_section,&
@@ -1123,7 +1123,7 @@ CONTAINS
       IF (skala_state%atom_ws%nflat_tot /= nflat_tot .OR. skala_state%atom_ws%na /= na .OR. skala_state%atom_ws%nr /= nr .OR. &
           skala_state%atom_ws%nspins /= nspins .OR. skala_state%atom_ws%nblocks /= nblocks .OR. &
           skala_state%atom_ws%device /= selected_cuda_device) THEN
-         CALL release_atom_ws()
+         CALL release_atom_ws(skala_state)
          ALLOCATE (skala_state%atom_ws%density(nflat_tot, 2), skala_state%atom_ws%grad(nflat_tot, 3, 2), &
                    skala_state%atom_ws%kin(nflat_tot, 2), skala_state%atom_ws%grid_coords(3, nflat_tot), &
                    skala_state%atom_ws%grid_weights(nflat_tot), skala_state%atom_ws%atomic_grid_weights(nflat_tot), &
@@ -2615,7 +2615,7 @@ CONTAINS
       ! modes); otherwise reuse it so repeated response vectors do not rebuild the
       ! atom-chunk layout and static tensors on every call.
       IF (skala_state%layout_mode_known .AND. skala_state%layout_mode_full) THEN
-         CALL skala_gpw_features_release_cache()
+         CALL skala_gpw_features_release_cache(skala_state)
       END IF
 
       CALL skala_gpw_fxc_prep(rho1_set, rho1_r, tau1_r, xc_section, pw_pool)
@@ -3750,110 +3750,127 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Release the reusable per-atom workspace (host arrays, tensors, dict).
 ! **************************************************************************************************
-   SUBROUTINE release_atom_ws()
-      IF (skala_state%atom_ws%tensors_active) THEN
-         CALL torch_tensor_release(skala_state%atom_ws%grid_coords_t)
-         CALL torch_tensor_release(skala_state%atom_ws%grid_weights_t)
-         CALL torch_tensor_release(skala_state%atom_ws%atomic_grid_weights_t)
-         CALL torch_tensor_release(skala_state%atom_ws%coarse_0_atomic_coords_t)
-         CALL torch_tensor_release(skala_state%atom_ws%density_t)
-         CALL torch_tensor_release(skala_state%atom_ws%grad_t)
-         CALL torch_tensor_release(skala_state%atom_ws%kin_t)
-         skala_state%atom_ws%tensors_active = .FALSE.
+   SUBROUTINE release_atom_ws(env)
+      TYPE(skala_gpw_state_type), INTENT(INOUT), POINTER :: env
+      IF (.NOT. ASSOCIATED(env)) RETURN
+      IF (env%atom_ws%tensors_active) THEN
+         CALL torch_tensor_release(env%atom_ws%grid_coords_t)
+         CALL torch_tensor_release(env%atom_ws%grid_weights_t)
+         CALL torch_tensor_release(env%atom_ws%atomic_grid_weights_t)
+         CALL torch_tensor_release(env%atom_ws%coarse_0_atomic_coords_t)
+         CALL torch_tensor_release(env%atom_ws%density_t)
+         CALL torch_tensor_release(env%atom_ws%grad_t)
+         CALL torch_tensor_release(env%atom_ws%kin_t)
+         env%atom_ws%tensors_active = .FALSE.
       END IF
-      IF (skala_state%atom_ws%int_tensors_active) THEN
-         CALL torch_tensor_release(skala_state%atom_ws%atomic_grid_sizes_t)
-         CALL torch_tensor_release(skala_state%atom_ws%atomic_grid_size_bound_shape_t)
-         skala_state%atom_ws%int_tensors_active = .FALSE.
+      IF (env%atom_ws%int_tensors_active) THEN
+         CALL torch_tensor_release(env%atom_ws%atomic_grid_sizes_t)
+         CALL torch_tensor_release(env%atom_ws%atomic_grid_size_bound_shape_t)
+         env%atom_ws%int_tensors_active = .FALSE.
       END IF
-      IF (skala_state%atom_ws%dict_active) THEN
-         CALL torch_dict_release(skala_state%atom_ws%inputs)
-         skala_state%atom_ws%dict_active = .FALSE.
+      IF (env%atom_ws%dict_active) THEN
+         CALL torch_dict_release(env%atom_ws%inputs)
+         env%atom_ws%dict_active = .FALSE.
       END IF
-      IF (ALLOCATED(skala_state%atom_ws%density)) THEN
-         DEALLOCATE (skala_state%atom_ws%density, skala_state%atom_ws%grad, &
-                     skala_state%atom_ws%kin, skala_state%atom_ws%grid_coords, &
-                     skala_state%atom_ws%grid_weights, skala_state%atom_ws%atomic_grid_weights, &
-                     skala_state%atom_ws%atomic_grid_sizes, &
-                     skala_state%atom_ws%coarse_0_atomic_coords, &
-                     skala_state%atom_ws%atomic_grid_size_bound_shape, &
-                     skala_state%atom_ws%weight_b, skala_state%atom_ws%seg_offsets, &
-                     skala_state%atom_ws%seg_lengths, skala_state%atom_ws%exc_segments)
+      IF (ALLOCATED(env%atom_ws%density)) THEN
+         DEALLOCATE (env%atom_ws%density, env%atom_ws%grad, &
+                     env%atom_ws%kin, env%atom_ws%grid_coords, &
+                     env%atom_ws%grid_weights, env%atom_ws%atomic_grid_weights, &
+                     env%atom_ws%atomic_grid_sizes, &
+                     env%atom_ws%coarse_0_atomic_coords, &
+                     env%atom_ws%atomic_grid_size_bound_shape, &
+                     env%atom_ws%weight_b, env%atom_ws%seg_offsets, &
+                     env%atom_ws%seg_lengths, env%atom_ws%exc_segments)
       END IF
-      skala_state%atom_ws%na = -1
-      skala_state%atom_ws%nr = -1
-      skala_state%atom_ws%nspins = -1
-      skala_state%atom_ws%nblocks = -1
-      skala_state%atom_ws%nflat_tot = -1
-      skala_state%atom_ws%device = -2
+      env%atom_ws%na = -1
+      env%atom_ws%nr = -1
+      env%atom_ws%nspins = -1
+      env%atom_ws%nblocks = -1
+      env%atom_ws%nflat_tot = -1
+      env%atom_ws%device = -2
    END SUBROUTINE release_atom_ws
 
 ! **************************************************************************************************
 !> \brief Release all module-level SKALA/Torch caches.
 ! **************************************************************************************************
-   SUBROUTINE skala_gpw_release_caches()
-      IF (.NOT. ASSOCIATED(skala_state)) RETURN
-      IF (skala_state%model_loaded) THEN
-         CALL skala_torch_model_release(skala_state%model)
-         skala_state%model_loaded = .FALSE.
+   SUBROUTINE skala_gpw_release_caches(env)
+      TYPE(skala_gpw_state_type), INTENT(INOUT), POINTER, OPTIONAL :: env
+      TYPE(skala_gpw_state_type), POINTER                :: st
+      LOGICAL                                            :: clear_global
+
+      IF (PRESENT(env)) THEN
+         st => env
+      ELSE
+         st => skala_state
       END IF
-      CALL torch_grad_pool_clear()
-      CALL torch_pinned_release()
-      CALL torch_model_metadata_clear()
-      CALL skala_gpw_feature_release(skala_state%features)
-      IF (skala_state%atom_cuda_tensors_active) THEN
-         CALL torch_tensor_release(skala_state%atom_cuda_tensors%grid_coords_t)
-         CALL torch_tensor_release(skala_state%atom_cuda_tensors%grid_weights_t)
-         CALL torch_tensor_release(skala_state%atom_cuda_tensors%atomic_grid_weights_t)
-         CALL torch_tensor_release(skala_state%atom_cuda_tensors%atomic_coords_t)
-         CALL torch_tensor_release(skala_state%atom_cuda_tensors%density_t)
-         CALL torch_tensor_release(skala_state%atom_cuda_tensors%grad_t)
-         CALL torch_tensor_release(skala_state%atom_cuda_tensors%kin_t)
-         skala_state%atom_cuda_tensors_active = .FALSE.
+      ! Process-wide Torch pools/metadata are shared; only clear them for the active
+      ! state (or the legacy no-argument call) so releasing an inactive SKALA state
+      ! cannot disturb the caches of the qs_env that is still in use.
+      clear_global = (.NOT. PRESENT(env)) .OR. ASSOCIATED(skala_state, st)
+      IF (clear_global) THEN
+         CALL torch_grad_pool_clear()
+         CALL torch_pinned_release()
+         CALL torch_model_metadata_clear()
       END IF
-      skala_state%atom_static_valid = .FALSE.
-      skala_state%atom_static_device = -1
-      skala_state%atom_static_nrow = -1
-      skala_state%atom_static_natom = -1
-      CALL release_atom_ws()
-      skala_state%model_context%valid = .FALSE.
-      NULLIFY (skala_state%model_context%xc_section)
-      skala_state%stress_mode_entered = .FALSE.
-      IF (ASSOCIATED(skala_state%grad_scratch%density_grad)) THEN
-         DEALLOCATE (skala_state%grad_scratch%density_grad, skala_state%grad_scratch%grad_grad, skala_state%grad_scratch%kin_grad)
+      IF (.NOT. ASSOCIATED(st)) RETURN
+      IF (st%model_loaded) THEN
+         CALL skala_torch_model_release(st%model)
+         st%model_loaded = .FALSE.
       END IF
-      skala_state%weight_grad%valid = .FALSE.
-      IF (ASSOCIATED(skala_state%weight_grad%gradient)) DEALLOCATE (skala_state%weight_grad%gradient)
-      IF (ALLOCATED(skala_state%weight_grad%positions)) DEALLOCATE (skala_state%weight_grad%positions)
-      skala_state%weight_grad = skala_weight_grad_cache_type()
-      skala_state%model_context = skala_model_context_type()
-      IF (ALLOCATED(skala_state%chunk_layout%atom_begin)) THEN
-         DEALLOCATE (skala_state%chunk_layout%atom_begin)
+      CALL skala_gpw_feature_release(st%features)
+      IF (st%atom_cuda_tensors_active) THEN
+         CALL torch_tensor_release(st%atom_cuda_tensors%grid_coords_t)
+         CALL torch_tensor_release(st%atom_cuda_tensors%grid_weights_t)
+         CALL torch_tensor_release(st%atom_cuda_tensors%atomic_grid_weights_t)
+         CALL torch_tensor_release(st%atom_cuda_tensors%atomic_coords_t)
+         CALL torch_tensor_release(st%atom_cuda_tensors%density_t)
+         CALL torch_tensor_release(st%atom_cuda_tensors%grad_t)
+         CALL torch_tensor_release(st%atom_cuda_tensors%kin_t)
+         st%atom_cuda_tensors_active = .FALSE.
       END IF
-      IF (ALLOCATED(skala_state%chunk_layout%atom_count)) THEN
-         DEALLOCATE (skala_state%chunk_layout%atom_count)
+      st%atom_static_valid = .FALSE.
+      st%atom_static_device = -1
+      st%atom_static_nrow = -1
+      st%atom_static_natom = -1
+      CALL release_atom_ws(st)
+      st%model_context%valid = .FALSE.
+      NULLIFY (st%model_context%xc_section)
+      st%stress_mode_entered = .FALSE.
+      IF (ASSOCIATED(st%grad_scratch%density_grad)) THEN
+         DEALLOCATE (st%grad_scratch%density_grad, st%grad_scratch%grad_grad, st%grad_scratch%kin_grad)
       END IF
-      IF (ALLOCATED(skala_state%chunk_layout%row_begin)) THEN
-         DEALLOCATE (skala_state%chunk_layout%row_begin)
+      st%weight_grad%valid = .FALSE.
+      IF (ASSOCIATED(st%weight_grad%gradient)) DEALLOCATE (st%weight_grad%gradient)
+      IF (ALLOCATED(st%weight_grad%positions)) DEALLOCATE (st%weight_grad%positions)
+      st%weight_grad = skala_weight_grad_cache_type()
+      st%model_context = skala_model_context_type()
+      IF (ALLOCATED(st%chunk_layout%atom_begin)) THEN
+         DEALLOCATE (st%chunk_layout%atom_begin)
       END IF
-      IF (ALLOCATED(skala_state%chunk_layout%row_counts)) THEN
-         DEALLOCATE (skala_state%chunk_layout%row_counts)
+      IF (ALLOCATED(st%chunk_layout%atom_count)) THEN
+         DEALLOCATE (st%chunk_layout%atom_count)
       END IF
-      IF (ALLOCATED(skala_state%chunk_layout%grid_sizes)) THEN
-         DEALLOCATE (skala_state%chunk_layout%grid_sizes)
+      IF (ALLOCATED(st%chunk_layout%row_begin)) THEN
+         DEALLOCATE (st%chunk_layout%row_begin)
       END IF
-      skala_state%chunk_layout%max_rows = -1
-      skala_state%logged_torch_threads = .FALSE.
-      skala_state%logged_cuda_device = -3
-      skala_state%logged_cuda_device_count = -1
-      skala_state%logged_cuda_nproc = -1
-      skala_state%model_path = ""
-      skala_state%model_stamp = ""
-      skala_state%model_fp64 = .FALSE.
-      skala_state%model_cuda_device = -3
-      skala_state%execution_resolved = .FALSE.
-      skala_state%execution_target = skala_execution_target_type()
-      CALL skala_gpw_features_release_cache()
+      IF (ALLOCATED(st%chunk_layout%row_counts)) THEN
+         DEALLOCATE (st%chunk_layout%row_counts)
+      END IF
+      IF (ALLOCATED(st%chunk_layout%grid_sizes)) THEN
+         DEALLOCATE (st%chunk_layout%grid_sizes)
+      END IF
+      st%chunk_layout%max_rows = -1
+      st%logged_torch_threads = .FALSE.
+      st%logged_cuda_device = -3
+      st%logged_cuda_device_count = -1
+      st%logged_cuda_nproc = -1
+      st%model_path = ""
+      st%model_stamp = ""
+      st%model_fp64 = .FALSE.
+      st%model_cuda_device = -3
+      st%execution_resolved = .FALSE.
+      st%execution_target = skala_execution_target_type()
+      CALL skala_gpw_features_release_cache(st)
    END SUBROUTINE skala_gpw_release_caches
 
 END MODULE skala_gpw_functional

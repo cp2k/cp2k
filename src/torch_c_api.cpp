@@ -565,6 +565,12 @@ static void erase_grad_pool_entry(const torch_c_tensor_t *tensor) {
   if (grad_pinned_pool != nullptr) {
     const auto it = grad_pinned_pool->find(tensor);
     if (it != grad_pinned_pool->end()) {
+      if (pending_grad_copy(tensor)) {
+        // A deferred readback still targets this pinned buffer. Wait for it so
+        // the buffer is not released mid-copy. Lock order matches
+        // evict_grad_pool_locked: grad_pinned_mutex -> pending_grad_mutex.
+        synchronize_pending_grad_copies();
+      }
       if (it->second.pinned) {
         grad_pinned_bytes -= it->second.bytes;
       }
@@ -1227,6 +1233,11 @@ static void grad_batch_impl(const torch_c_tensor_t *const *tensors,
           continue;
         }
         if (it != grad_pinned_pool->end()) {
+          if (pending_grad_copy(tensors[i])) {
+            // Deferred readback into the old pinned buffer is still in flight.
+            // Wait before dropping the last reference to it.
+            synchronize_pending_grad_copies();
+          }
           if (it->second.pinned) {
             grad_pinned_bytes -= it->second.bytes;
           }

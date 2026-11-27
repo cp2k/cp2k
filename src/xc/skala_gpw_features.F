@@ -1792,35 +1792,36 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Release the module-level layout cache.
 ! **************************************************************************************************
-   SUBROUTINE skala_gpw_features_release_cache()
-      IF (.NOT. ASSOCIATED(skala_state)) RETURN
-      CALL release_layout_cache(skala_state%layout)
-      IF (ALLOCATED(skala_state%scratch%local_dynamic)) THEN
-         DEALLOCATE (skala_state%scratch%local_dynamic)
+   SUBROUTINE skala_gpw_features_release_cache(env)
+      TYPE(skala_gpw_state_type), INTENT(INOUT), POINTER :: env
+      IF (.NOT. ASSOCIATED(env)) RETURN
+      CALL release_layout_cache(env%layout)
+      IF (ALLOCATED(env%scratch%local_dynamic)) THEN
+         DEALLOCATE (env%scratch%local_dynamic)
       END IF
-      IF (ALLOCATED(skala_state%scratch%global_dynamic)) THEN
-         DEALLOCATE (skala_state%scratch%global_dynamic)
+      IF (ALLOCATED(env%scratch%global_dynamic)) THEN
+         DEALLOCATE (env%scratch%global_dynamic)
       END IF
-      IF (ALLOCATED(skala_state%scratch%route_send_dynamic)) THEN
-         DEALLOCATE (skala_state%scratch%route_send_dynamic)
+      IF (ALLOCATED(env%scratch%route_send_dynamic)) THEN
+         DEALLOCATE (env%scratch%route_send_dynamic)
       END IF
-      IF (ALLOCATED(skala_state%scratch%route_recv_dynamic)) THEN
-         DEALLOCATE (skala_state%scratch%route_recv_dynamic)
+      IF (ALLOCATED(env%scratch%route_recv_dynamic)) THEN
+         DEALLOCATE (env%scratch%route_recv_dynamic)
       END IF
-      IF (ALLOCATED(skala_state%scratch%route_send_counts)) THEN
-         DEALLOCATE (skala_state%scratch%route_send_counts)
+      IF (ALLOCATED(env%scratch%route_send_counts)) THEN
+         DEALLOCATE (env%scratch%route_send_counts)
       END IF
-      IF (ALLOCATED(skala_state%scratch%route_send_displs)) THEN
-         DEALLOCATE (skala_state%scratch%route_send_displs)
+      IF (ALLOCATED(env%scratch%route_send_displs)) THEN
+         DEALLOCATE (env%scratch%route_send_displs)
       END IF
-      IF (ALLOCATED(skala_state%scratch%route_recv_counts)) THEN
-         DEALLOCATE (skala_state%scratch%route_recv_counts)
+      IF (ALLOCATED(env%scratch%route_recv_counts)) THEN
+         DEALLOCATE (env%scratch%route_recv_counts)
       END IF
-      IF (ALLOCATED(skala_state%scratch%route_recv_displs)) THEN
-         DEALLOCATE (skala_state%scratch%route_recv_displs)
+      IF (ALLOCATED(env%scratch%route_recv_displs)) THEN
+         DEALLOCATE (env%scratch%route_recv_displs)
       END IF
-      skala_state%layout_mode_known = .FALSE.
-      skala_state%layout_mode_full = .FALSE.
+      env%layout_mode_known = .FALSE.
+      env%layout_mode_full = .FALSE.
    END SUBROUTINE skala_gpw_features_release_cache
 
 ! **************************************************************************************************
@@ -2571,7 +2572,7 @@ CONTAINS
 
          IF (requires_coordinate_grad .OR. requires_stress_grad .OR. my_requires_weight_grad) THEN
             grad_mode = 0
-            IF (requires_stress_grad) THEN
+            IF (requires_coordinate_grad .OR. requires_stress_grad) THEN
                grad_mode = 2
             ELSE IF (my_requires_weight_grad) THEN
                grad_mode = 1

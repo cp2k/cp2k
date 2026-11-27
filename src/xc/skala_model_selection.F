@@ -342,7 +342,7 @@ CONTAINS
          CPABORT("Unknown USE_GPU execution-space value.")
       END SELECT
 
-      IF (skala_state%execution_resolved) THEN
+      IF (ASSOCIATED(skala_state) .AND. skala_state%execution_resolved) THEN
          IF (skala_state%execution_target%use_cuda .NEQV. exec_target%use_cuda) THEN
             msg = "Conflicting CPU/GPU execution targets across backends. "// &
                   "All backends must agree; set USE_GPU HOST consistently."
@@ -350,8 +350,10 @@ CONTAINS
          END IF
          exec_target = skala_state%execution_target
       ELSE
-         skala_state%execution_target = exec_target
-         skala_state%execution_resolved = .TRUE.
+         IF (ASSOCIATED(skala_state)) THEN
+            skala_state%execution_target = exec_target
+            skala_state%execution_resolved = .TRUE.
+         END IF
          CALL torch_use_cuda(exec_target%use_cuda)
       END IF
    END SUBROUTINE resolve_skala_execution_target

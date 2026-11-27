@@ -107,14 +107,19 @@ int offload_get_chosen_device(void) { return chosen_device_id; }
  * \author Ole Schuett
  ******************************************************************************/
 void offload_activate_chosen_device(void) {
+  // No device selected: either a deliberate CPU-only run (USE_GPU HOST) or a
+  // CUDA backend whose cuInit(0) failed so offload_get_device_count() reports
+  // zero devices. In both cases there is nothing to activate; the CUDA/HIP
+  // setters would otherwise be called with the sentinel -1 and abort.
+  if (chosen_device_id < 0) {
+    return;
+  }
 #if defined(__OFFLOAD_CUDA)
   OFFLOAD_CHECK(cudaSetDevice(chosen_device_id));
 #elif defined(__OFFLOAD_HIP)
   OFFLOAD_CHECK(hipSetDevice(chosen_device_id));
 #elif defined(__OFFLOAD_OPENCL)
-  if (chosen_device_id >= 0) {
-    OFFLOAD_CHECK(libxstream_device_set_active(chosen_device_id));
-  }
+  OFFLOAD_CHECK(libxstream_device_set_active(chosen_device_id));
 #endif
 }
 

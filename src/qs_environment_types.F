@@ -1724,7 +1724,7 @@ CONTAINS
          DEALLOCATE (qs_env%gauxc_cache)
       END IF
 
-      CALL skala_gpw_release_caches()
+      CALL skala_gpw_release_caches(qs_env%skala)
       CALL skala_env_finalize(qs_env%skala)
 
    END SUBROUTINE qs_env_release
@@ -1958,7 +1958,7 @@ CONTAINS
          DEALLOCATE (qs_env%gauxc_cache)
       END IF
 
-      CALL skala_env_release()
+      CALL skala_env_release(qs_env%skala)
 
    END SUBROUTINE qs_env_part_release
 
