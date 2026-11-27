@@ -613,6 +613,25 @@ void cp_fm_diag_cusolver_sygvd(void **context, const int fortran_comm,
   MPI_Barrier(comm); // Synchronize MPI ranks
 }
 
+/* The solver reads the lower triangle. Skip the upper-right rectangle while
+ * keeping the original leading dimension and block-cyclic layout on device. */
+static void copy_hegvd_input(cuDoubleComplex *dst, const cuDoubleComplex *src,
+                             size_t rows, size_t cols, size_t top_rows,
+                             size_t left_cols, cudaStream_t stream) {
+  const size_t pitch = rows * sizeof(*src);
+  if (left_cols > 0) {
+    CUDA_CHECK(cudaMemcpyAsync(dst, src, left_cols * pitch,
+                               cudaMemcpyHostToDevice, stream));
+  }
+  if (cols > left_cols && rows > top_rows) {
+    const size_t offset = left_cols * rows + top_rows;
+    CUDA_CHECK(cudaMemcpy2DAsync(dst + offset, pitch, src + offset, pitch,
+                                 (rows - top_rows) * sizeof(*src),
+                                 cols - left_cols, cudaMemcpyHostToDevice,
+                                 stream));
+  }
+}
+
 /*******************************************************************************
  * \brief Driver routine to solve A*x = lambda*B*x with cuSOLVERMp hegvd.
  ******************************************************************************/
@@ -668,14 +687,14 @@ void cp_cfm_diag_cusolver_hegvd(
                                             mb_a, nb_a, rsrc_a, csrc_a, ldA));
 
   cuDoubleComplex *dev_A = NULL, *dev_B = NULL;
-  size_t matrix_local_size = ldA * nq_a * sizeof(cuDoubleComplex);
+  const size_t matrix_local_size = (size_t)ldA * nq_a * sizeof(*dev_A);
   CUDA_CHECK(cudaMalloc((void **)&dev_A, matrix_local_size));
   CUDA_CHECK(cudaMalloc((void **)&dev_B, matrix_local_size));
 
-  CUDA_CHECK(cudaMemcpyAsync(dev_A, aMatrix, matrix_local_size,
-                             cudaMemcpyHostToDevice, stream));
-  CUDA_CHECK(cudaMemcpyAsync(dev_B, bMatrix, matrix_local_size,
-                             cudaMemcpyHostToDevice, stream));
+  const int top_rows = cusolverMpNUMROC(n / 2, mb_a, myprow, rsrc_a, nprow);
+  const int left_cols = cusolverMpNUMROC(n / 2, nb_a, mypcol, csrc_a, npcol);
+  copy_hegvd_input(dev_A, aMatrix, ldA, nq_a, top_rows, left_cols, stream);
+  copy_hegvd_input(dev_B, bMatrix, ldB, nq_a, top_rows, left_cols, stream);
 
   cuDoubleComplex *dev_Z = NULL;
   double *eigenvalues_dev = NULL;
