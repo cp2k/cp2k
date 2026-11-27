@@ -260,7 +260,7 @@ spack:
     - "openpmd-api@0.17.1"
     - "pace@2025.12.4.1"
     - "pexsi@2.0.0"
-    - "plumed@2.10.1"
+    - "plumed@2.10.2"
     - "py-torch@2.15.0"
     - "sirius@7.12.0"
     - "spfft@1.1.1"
