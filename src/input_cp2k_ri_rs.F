@@ -176,11 +176,16 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OCC_EMPTY_FRONTIER_ORBITAL_WINDOW", &
-                          description="The exchange contribution to the RI optimization "// &
-                          "objective includes GW levels within the energy window "// &
+                          description="The RI basis is optimized for GW levels from $w$ below "// &
+                          "the HOMO to $w$ above the LUMO, i.e. within the energy window "// &
                           "$[\epsilon_{\mathrm{HOMO}}-w,\epsilon_{\mathrm{LUMO}}+w]$. "// &
-                          "The default of 5 eV is usually sufficient, for example for "// &
-                          "GW-BSE excitations up to 10 eV. GW only: RI_RS_RPA uses the default.", &
+                          "The default of 5 eV suits the typical use, GW levels or a band "// &
+                          "structure around HOMO and LUMO; it is usually sufficient and need "// &
+                          "not be increased. When an RT-BSE follows, the window is adapted "// &
+                          "automatically: below the HOMO the maximum of this value and "// &
+                          "RTBSE%ENERGY_CUTOFF_OCC is used, above the LUMO the maximum of this "// &
+                          "value and RTBSE%ENERGY_CUTOFF_EMPTY; all orbitals are included when "// &
+                          "the RT-BSE cutoff is not set. GW only: RI_RS_RPA uses the default.", &
                           default_r_val=cp_unit_to_cp2k(value=5.0_dp, unit_str="eV"), &
                           unit_str="eV", usage="OCC_EMPTY_FRONTIER_ORBITAL_WINDOW [eV] 5.0")
       CALL section_add_keyword(section, keyword)
