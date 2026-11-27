@@ -329,7 +329,9 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: converged
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_evGW0_band_edges'
+      CHARACTER(LEN=6), DIMENSION(2), PARAMETER :: spin_name = [" alpha", " beta "]
 
+      CHARACTER(LEN=6)                                   :: spin
       INTEGER                                            :: handle, homo, ispin, u
       REAL(KIND=dp)                                      :: max_delta
       REAL(KIND=dp), DIMENSION(3)                        :: band
@@ -360,10 +362,12 @@ CONTAINS
          END IF
 
          IF (u > 0) THEN
-            IF (bs_env%n_spin == 2) WRITE (u, '(T2,A,I0)') 'Spin ', ispin
-            WRITE (u, '(T2,A,T61,F20.3)') 'evGW0 HOMO (eV)', band(1)*evolt
-            WRITE (u, '(T2,A,T61,F20.3)') 'evGW0 LUMO (eV)', band(2)*evolt
-            WRITE (u, '(T2,A,T61,F20.3)') 'evGW0 HOMO-LUMO gap (eV)', band(3)*evolt
+            ! open shell: the lines carry the name of the spin channel
+            spin = ''
+            IF (bs_env%n_spin == 2) spin = spin_name(ispin)
+            WRITE (u, '(T2,3A,T61,F20.3)') 'evGW0', TRIM(spin), ' HOMO (eV)', band(1)*evolt
+            WRITE (u, '(T2,3A,T61,F20.3)') 'evGW0', TRIM(spin), ' LUMO (eV)', band(2)*evolt
+            WRITE (u, '(T2,3A,T61,F20.3)') 'evGW0', TRIM(spin), ' HOMO-LUMO gap (eV)', band(3)*evolt
          END IF
 
          band_prev(:, ispin) = band(:)

@@ -1571,12 +1571,16 @@ class   = 'GenericMatcher'
 pattern = 'G0W0 HOMO-LUMO gap (eV):'
 col     = 5
 
-# open shell: the first HOMO-LUMO gap printed is the one of the alpha channel
+# open shell: the lines of the alpha and of the beta channel carry the name of the channel
 [E_molecule_G0W0_alpha_gap]
 class   = 'GenericMatcher'
-pattern = 'G0W0 HOMO-LUMO gap (eV):'
-col     = 5
-first   = true
+pattern = 'G0W0 alpha HOMO-LUMO gap (eV):'
+col     = 6
+
+[E_molecule_G0W0_beta_gap]
+class   = 'GenericMatcher'
+pattern = 'G0W0 beta HOMO-LUMO gap (eV):'
+col     = 6
 
 # RI-RS RPA with k-points (WF_CORRELATION%RI_RS_RPA)
 [E_RIRS_RPA_EXX]

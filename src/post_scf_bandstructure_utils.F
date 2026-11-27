@@ -3058,7 +3058,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Print the band edges (molecules: HOMO, LUMO and HOMO-LUMO gap). An open-shell system
 !>        without spin-orbit coupling gets the edges of the alpha channel, of the beta channel
-!>        and of both spin channels together.
+!>        and of both spin channels together; the lines of one spin channel carry its name.
 !> \param band_edges edges of both spin channels together
 !> \param scf_gw_soc ...
 !> \param bs_env ...
@@ -3072,11 +3072,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL        :: eigenval_no_soc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_band_edges'
+      CHARACTER(LEN=6), DIMENSION(2), PARAMETER :: spin_name = [" alpha", " beta "]
+      CHARACTER(LEN=14)                                  :: per_unit_cell
+      CHARACTER(LEN=17)                                  :: print_format
+      CHARACTER(LEN=6)                                   :: spin
       CHARACTER(LEN=18), DIMENSION(3), PARAMETER :: &
          channel_name = ["Alpha channel     ", "Beta channel      ", "Both spin channels"]
 
-      CHARACTER(LEN=14)                                  :: per_unit_cell
-      CHARACTER(LEN=17)                                  :: print_format
       INTEGER                                            :: handle, homo, i_channel, n_channel, &
                                                             n_electron, n_mo, u
       TYPE(band_edges_type)                              :: edges
@@ -3084,7 +3086,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! print format
-      print_format = "(T2,2A,T61,F20.3)"
+      print_format = "(T2,3A,T68,F13.3)"
 
       n_channel = 0
       IF (PRESENT(eigenval_no_soc) .AND. bs_env%n_spin == 2) n_channel = 2
@@ -3098,7 +3100,9 @@ CONTAINS
 
       DO i_channel = 1, n_channel + 1
 
+         spin = ''
          IF (i_channel <= n_channel) THEN
+            spin = spin_name(i_channel)
             homo = bs_env%n_occ(i_channel)
             n_electron = bs_env%n_electron(i_channel)
             edges%VBM = MAXVAL(eigenval_no_soc(1:homo, :, i_channel))
@@ -3118,15 +3122,15 @@ CONTAINS
                   n_electron, ' electrons', TRIM(per_unit_cell), '):'
             END IF
             IF (bs_env%do_periodic) THEN
-               WRITE (u, print_format) scf_gw_soc, ' valence band maximum (eV):', edges%VBM*evolt
-               WRITE (u, print_format) scf_gw_soc, ' conduction band minimum (eV):', edges%CBM*evolt
-               WRITE (u, print_format) scf_gw_soc, ' indirect band gap (eV):', edges%IDBG*evolt
-               WRITE (u, print_format) scf_gw_soc, ' direct band gap (eV):', edges%DBG*evolt
+               WRITE (u, print_format) scf_gw_soc, TRIM(spin), ' valence band maximum (eV):', edges%VBM*evolt
+               WRITE (u, print_format) scf_gw_soc, TRIM(spin), ' conduction band minimum (eV):', edges%CBM*evolt
+               WRITE (u, print_format) scf_gw_soc, TRIM(spin), ' indirect band gap (eV):', edges%IDBG*evolt
+               WRITE (u, print_format) scf_gw_soc, TRIM(spin), ' direct band gap (eV):', edges%DBG*evolt
             ELSE
                ! a molecule has no k-points and hence no direct or indirect gap
-               WRITE (u, print_format) scf_gw_soc, ' HOMO (eV):', edges%VBM*evolt
-               WRITE (u, print_format) scf_gw_soc, ' LUMO (eV):', edges%CBM*evolt
-               WRITE (u, print_format) scf_gw_soc, ' HOMO-LUMO gap (eV):', edges%IDBG*evolt
+               WRITE (u, print_format) scf_gw_soc, TRIM(spin), ' HOMO (eV):', edges%VBM*evolt
+               WRITE (u, print_format) scf_gw_soc, TRIM(spin), ' LUMO (eV):', edges%CBM*evolt
+               WRITE (u, print_format) scf_gw_soc, TRIM(spin), ' HOMO-LUMO gap (eV):', edges%IDBG*evolt
             END IF
          END IF
 
