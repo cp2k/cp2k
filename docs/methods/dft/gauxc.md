@@ -52,7 +52,11 @@ a conventional functional evaluated by GauXC:
 ```
 
 A non-`NONE` model selects a GauXC Skala model. The model can be a `.fun` file or an installed model
-name. The underlying functional is optional in this case and defaults to `PBE`:
+name. Only the literal `MODEL SKALA` selects the built-in Skala model (resolved from
+`SKALA_MODEL`/`SKALA_CUDA_MODEL`); an explicit `.fun` path or custom model name is treated as a
+generic OneDFT model and therefore does not receive the built-in-Skala runtime, the Skala D3
+reference, or the missing-dispersion warning. The underlying functional is optional in this case and
+defaults to `PBE`:
 
 ```text
 &XC
@@ -76,9 +80,9 @@ hf download microsoft/skala-1.1 skala-1.1-rev1-cuda.fun --local-dir .
 
 Select a downloaded checkpoint explicitly with `MODEL ./skala-1.1-rev1.fun`. Alternatively, set
 `SKALA_MODEL` to the CPU checkpoint and use `MODEL SKALA` for host execution. For GPU execution, set
-`SKALA_CUDA_MODEL` to the CUDA checkpoint. CP2K falls back to `SKALA_MODEL` for compatibility with
-existing configurations where that variable already points to a device-compatible checkpoint; the
-CPU checkpoint itself is not device-compatible. For the model interface and available checkpoints,
+`SKALA_CUDA_MODEL` to the CUDA checkpoint; it is required for GPU runs and CP2K does not fall back to
+`SKALA_MODEL` (the CPU checkpoint is not device-compatible). An explicit `.fun` path in `MODEL`
+overrides both environment variables. For the model interface and available checkpoints,
 consult
 [GauXC/Skala model documentation](https://microsoft.github.io/skala/gauxc/c-library.html#download-checkpoint-from-huggingface)
 and obtain `.fun` files only from trusted sources.
@@ -123,7 +127,10 @@ CUTLASS support, and otherwise leaves the choice to GauXC. `DEFAULT` always uses
 `SKALA_RUNTIME` and `MODEL_GRADIENT_RUNTIME` select MPI or rank-replicated runtimes; replicated
 runtimes duplicate the model state on every rank, which matters for GPU memory.
 `FORCE_NUMERICAL_GRADIENT` performs six full XC energy evaluations per atom, each of which runs on
-the device when the integrator is on the device.
+the device when the integrator is on the device; the displacement is set by
+`FORCE_NUMERICAL_GRADIENT_DX` (default `1.0E-4` bohr). `MOLECULAR_VIRIAL_DEBUG` and
+`MOLECULAR_VIRIAL_DEBUG_DX` add a finite-difference cross-check of `MOLECULAR_VIRIAL`; they are
+diagnostics and not part of the production force path.
 
 The molecular-quadrature Skala path defaults to `GRID SUPERFINE` and `PRUNING_SCHEME UNPRUNED`
 unless these settings are provided explicitly. These settings are recommended for force checks;
@@ -325,8 +332,9 @@ blocks on distinct visible GPUs.
 
 `ATOM_PARTITION` assigns native-grid rows to atomic feature blocks. `SMOOTH`, the default, uses a
 differentiable Becke-like partition. `HARD` assigns each point to its nearest periodic atom and is
-intended for legacy energy/VXC checks. Force and stress calculations use the smooth partition
-internally because derivatives of the partition weights contribute to the Skala response.
+intended for legacy energy/VXC checks: CP2K aborts if forces or the virial are requested with
+`HARD`. Force and stress calculations therefore require `ATOM_PARTITION SMOOTH`, because
+derivatives of the partition weights contribute to the Skala response.
 
 `GAPW_DENSITY_PARTITION` is independent of that spatial atom partition. It selects the one-center
 primitive-field term for PAW-like `METHOD GAPW` and `METHOD GAPW_XC` calculations.
@@ -335,6 +343,12 @@ kinetic-energy density to the smooth fields before the single nonlinear Skala ev
 `HARD_ONLY`, `SOFT_ONLY`, and `NONE` are diagnostic variants. `DIRECT_VALENCE` uses the
 valence-density route irrespective of `GPW_TYPE`; the legacy `CP2K_DEFAULT` representation may infer
 that route from the kind settings.
+
+The `GAPW_COMPOSITE_REFERENCE`, `GAPW_COMPOSITE_DIRECT_AO`, `GAPW_ATOM_COMPOSITE_REFERENCE`,
+`GAPW_ATOM_COMPOSITE_DIAGNOSTIC`, `GAPW_ATOM_COMPOSITE_COMPONENTS`, and
+`GAPW_ATOM_COMPOSITE_FD_STEP` keywords are diagnostics for validating the atom-composite
+reconstruction (reference/composition toggles and the finite-difference step); they do not change
+the default production path.
 
 For native Skala, `LAYOUT` selects the grid on which the combined primitive fields are formed.
 `ATOM_COMPOSITE`, the default, interpolates the smooth field to GAPW radial/Lebedev grids and adds
