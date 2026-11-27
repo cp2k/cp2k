@@ -14,6 +14,7 @@ QS/regtest-dlaf                                             dlaf spglib
 QS/regtest-dlaf-2                                           dlaf libint
 QS/regtest-openpmd                                          openpmd
 QS/regtest-gauxc-cuda                                       gauxc_cuda libtorch_cuda
+QS/regtest-gauxc-energy-mpi                                 gauxc mpiranks>1
 QS/regtest-pexsi                                            pexsi
 Fist/regtest-deepmd                                         deepmd !lsan
 Fist/regtest-quip                                           quip
@@ -117,6 +118,7 @@ QS/regtest-libxc                                            libxc libint libdftd
 xTB/regtest-1
 QS/regtest-debug-4                                          libint
 QS/regtest-skala-native-gapw-base                           skala
+QS/regtest-skala-native-gapw-mpi                            skala mpiranks%2==0
 QS/regtest-kp-5
 QS/regtest-acc-5-4                                          libint
 QS/regtest-hfx-wfn-fitting                                  libint libxc

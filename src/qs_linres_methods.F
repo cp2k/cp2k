@@ -43,6 +43,7 @@ MODULE qs_linres_methods
                                               cp_print_key_generate_filename,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: do_loc_none,&
                                               op_loc_berry,&
                                               ot_precond_none,&
@@ -398,6 +399,10 @@ CONTAINS
       END DO
       IF (SUM(tr_rz0) < 0.0_dp) CPABORT("tr(r_j*z_j) < 0")
       norm_res = ABS(SUM(tr_rz0))/SQRT(REAL(nspins*nao*maxnmo, dp))
+      IF (.NOT. ieee_is_finite(norm_res)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "The linear response solver produced a non-finite initial residual.")
+      END IF
       !
       alpha = 0.0_dp
       restart = .FALSE.
@@ -463,6 +468,10 @@ CONTAINS
          ELSE
             alpha = SUM(tr_rz0)/SUM(tr_pAp)
          END IF
+         IF (.NOT. ieee_is_finite(alpha)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "The linear response solver produced a non-finite step size.")
+         END IF
          DO ispin = 1, nspins
             !
             ! x_j+1 = x_j + alpha * p_j
@@ -520,6 +529,10 @@ CONTAINS
          END DO
          IF (SUM(tr_rz1) < 0.0_dp) CPABORT("tr(r_j+1*z_j+1) < 0")
          norm_res = SUM(tr_rz1)/SQRT(REAL(nspins*nao*maxnmo, dp))
+         IF (.NOT. ieee_is_finite(norm_res)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "The linear response solver diverged: non-finite residual.")
+         END IF
          !
          ! beta = tr(r_j+1*z_j+1) / tr(r_j*z_j)
          IF (SUM(tr_rz0) < 1.0e-10_dp) THEN

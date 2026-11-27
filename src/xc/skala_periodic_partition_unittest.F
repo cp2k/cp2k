@@ -12,7 +12,6 @@ PROGRAM skala_periodic_partition_unittest
                                               cp2k_init
    USE mathlib,                         ONLY: inv_3x3
    USE skala_periodic_partition,        ONLY: build_periodic_atom_image_layout,&
-                                              periodic_atom_image_partition,&
                                               periodic_atom_image_partition_from_layout,&
                                               skala_periodic_partition_type
 
@@ -104,4 +103,30 @@ PROGRAM skala_periodic_partition_unittest
    IF (derivative_error > 3.e-8_dp) ERROR STOP 'Periodic partition derivatives fail finite differences'
    DEALLOCATE (cell, perturbed)
    CALL cp2k_finalize()
+CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param grid_point ...
+!> \param atom_coords ...
+!> \param cell ...
+!> \param target_atom ...
+!> \param weight ...
+!> \param image_periodicity ...
+! **************************************************************************************************
+   SUBROUTINE periodic_atom_image_partition(grid_point, atom_coords, cell, target_atom, weight, &
+                                            image_periodicity)
+      REAL(dp), INTENT(IN)                               :: grid_point(3), atom_coords(:, :)
+      TYPE(cell_type), POINTER                           :: cell
+      INTEGER, INTENT(IN)                                :: target_atom
+      REAL(dp), INTENT(OUT)                              :: weight
+      INTEGER, INTENT(IN), OPTIONAL                      :: image_periodicity(3)
+
+      INTEGER                                            :: target
+      TYPE(skala_periodic_partition_type)                :: layout
+
+      CALL build_periodic_atom_image_layout(atom_coords, cell, target_atom, image_periodicity, layout, TARGET)
+      CALL periodic_atom_image_partition_from_layout(grid_point, layout, TARGET, weight)
+   END SUBROUTINE periodic_atom_image_partition
+
 END PROGRAM skala_periodic_partition_unittest

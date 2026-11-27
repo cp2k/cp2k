@@ -25,7 +25,9 @@ MODULE input_cp2k_skala
                                               skala_gapw_cp2k_default,&
                                               skala_gapw_direct_valence,&
                                               skala_gapw_paw_one_center,&
-                                              skala_gapw_paw_one_center_split
+                                              skala_gapw_paw_one_center_split,&
+                                              skala_gpw_atom_partition_hard,&
+                                              skala_gpw_atom_partition_smooth
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -171,16 +173,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="MODEL_ATOM_CHUNK_SIZE", &
-                          description="Atom chunk size for GauXC Skala Torch inference. "// &
-                          "A positive value evaluates the Torch model atom block by atom block; "// &
-                          "zero disables chunking; the default leaves GauXC's model-specific policy "// &
-                          "or the GAUXC_ONEDFT_ATOM_CHUNK_SIZE environment variable in control.", &
-                          usage="MODEL_ATOM_CHUNK_SIZE 3", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="PERIODIC_REFERENCE", &
                           description="Explicitly opt into the limited isolated-cell GauXC reference "// &
                           "path for periodic CP2K inputs. This path is restricted to Gamma-only, "// &
@@ -194,7 +186,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MOLECULAR_VIRIAL", &
                           description="Print a molecular XC virial diagnostic computed from GauXC "// &
-                          "nuclear gradients. This is not an analytical periodic stress tensor.", &
+                          "nuclear gradients. Analytical stress with GauXC is not supported; "// &
+                          "use SKALA_NATIVE instead.", &
                           usage="MOLECULAR_VIRIAL T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -302,11 +295,20 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="FORCE_NUMERICAL_GRADIENT", &
                           description="Force central finite differences for the GauXC molecular XC "// &
-                          "nuclear gradient, using a displacement of 1.0E-4 bohr at fixed AO density. "// &
+                          "nuclear gradient, using the displacement given by "// &
+                          "FORCE_NUMERICAL_GRADIENT_DX at fixed AO density. "// &
                           "Diagnostic option; costs six XC energy evaluations per atom. Does not "// &
                           "affect SKALA_NATIVE or the CP2K one-center contribution.", &
                           usage="FORCE_NUMERICAL_GRADIENT T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FORCE_NUMERICAL_GRADIENT_DX", &
+                          description="Displacement in bohr for the FORCE_NUMERICAL_GRADIENT "// &
+                          "central finite differences.", &
+                          usage="FORCE_NUMERICAL_GRADIENT_DX 1.0E-4", &
+                          default_r_val=1.0E-4_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -414,17 +416,18 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ATOM_PARTITION", &
                           description="Atom partition used to build the experimental CP2K-native "// &
                           "SKALA COMMON_GRID feature block. HARD assigns each native grid point to "// &
-                          "the nearest periodic atom and is intended for legacy energy/VXC-only runs. "// &
+                          "the nearest periodic atom and is intended for legacy energy/VXC-only runs; "// &
+                          "CP2K aborts if forces or the virial are requested with HARD. "// &
                           "SMOOTH uses a Becke-like fuzzy-cell partition on the native grid and creates "// &
                           "weighted atom rows. Internal atom-grid weights vanish through a smooth taper "// &
                           "when sparse rows reach the partition cutoff. Analytical atom forces and stress "// &
                           "include both the partition and taper derivatives in the SKALA feature response.", &
                           usage="ATOM_PARTITION SMOOTH", &
                           enum_c_vals=s2a("HARD", "SMOOTH"), &
-                          enum_i_vals=[1, 2], &
+                          enum_i_vals=[skala_gpw_atom_partition_hard, skala_gpw_atom_partition_smooth], &
                           enum_desc=s2a("Assign each grid point to the nearest atom", &
                                         "Use a smooth Becke-like native-grid atom partition"), &
-                          default_i_val=2)
+                          default_i_val=skala_gpw_atom_partition_smooth)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

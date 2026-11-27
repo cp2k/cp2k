@@ -35,6 +35,7 @@ MODULE qs_dispersion_utils
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
+   USE skala_model_selection,           ONLY: model_is_skala
    USE string_utilities,                ONLY: lowercase,&
                                               uppercase
 #include "./base/base_uses.f90"
@@ -98,6 +99,56 @@ CONTAINS
    END SUBROUTINE xc_functional_to_d4_name_int
 
 ! **************************************************************************************************
+!> \brief Detect the dispersion reference functional for a SKALA/GauXC subsection.
+!>
+!> The GAUXC and SKALA_NATIVE subsections are not regular XC functionals, so the
+!> generic expanded-functional detection would report their section names instead of
+!> a reference functional. Resolve them to SKALA (native path or GauXC SKALA model) or
+!> to the GauXC base FUNCTIONAL for conventional GauXC. Inactive subsections are ignored.
+!> \param xc_fun_section ...
+!> \param xc_functional_name ...
+!> \param found ...
+! **************************************************************************************************
+   SUBROUTINE xc_functional_skala_reference(xc_fun_section, xc_functional_name, found)
+      TYPE(section_vals_type), POINTER                   :: xc_fun_section
+      CHARACTER(len=*), INTENT(OUT)                      :: xc_functional_name
+      LOGICAL, INTENT(OUT)                               :: found
+
+      CHARACTER(len=default_string_length)               :: function_name, model_name
+      INTEGER                                            :: i
+      LOGICAL                                            :: section_active
+      TYPE(section_vals_type), POINTER                   :: sub_section
+
+      found = .FALSE.
+      xc_functional_name = ""
+
+      DO i = 1, xc_fun_section%section%n_subsections
+         sub_section => xc_fun_section%subs_vals(i, 1)%section_vals
+         SELECT CASE (TRIM(ADJUSTL(sub_section%section%name)))
+         CASE ("SKALA_NATIVE")
+            CALL section_vals_val_get(sub_section, "_SECTION_PARAMETERS_", l_val=section_active)
+            IF (.NOT. section_active) CYCLE
+            xc_functional_name = "SKALA"
+            found = .TRUE.
+            RETURN
+         CASE ("GAUXC")
+            CALL section_vals_val_get(sub_section, "_SECTION_PARAMETERS_", l_val=section_active)
+            IF (.NOT. section_active) CYCLE
+            CALL section_vals_val_get(sub_section, "MODEL", c_val=model_name)
+            IF (model_is_skala(model_name)) THEN
+               xc_functional_name = "SKALA"
+            ELSE
+               CALL section_vals_val_get(sub_section, "FUNCTIONAL", c_val=function_name)
+               xc_functional_name = ADJUSTL(function_name)
+            END IF
+            found = .TRUE.
+            RETURN
+         END SELECT
+      END DO
+
+   END SUBROUTINE xc_functional_skala_reference
+
+! **************************************************************************************************
 !> \brief ...
 !> \param xc_fun_section ...
 !> \param xc_functional_name ...
@@ -123,6 +174,10 @@ CONTAINS
 
       DO i = 1, xc_fun_section%section%n_subsections
          sub_section => xc_fun_section%subs_vals(i, 1)%section_vals
+         SELECT CASE (TRIM(ADJUSTL(sub_section%section%name)))
+         CASE ("GAUXC", "SKALA_NATIVE")
+            CYCLE
+         END SELECT
          IF (SIZE(sub_section%values, 2) > 0) THEN
             n_explicit = n_explicit + 1
             sub_names(n_explicit) = TRIM(ADJUSTL(sub_section%section%name))
@@ -177,7 +232,7 @@ CONTAINS
 
       CHARACTER(len=default_string_length)               :: xc_functional_name
       INTEGER                                            :: xc_functional_id
-      LOGICAL                                            :: exfun, explicit
+      LOGICAL                                            :: exfun, explicit, skala_reference
       REAL(dp), POINTER                                  :: params(:), scal(:)
       TYPE(section_vals_type), POINTER                   :: nl_section, pp_section, vdw_section, &
                                                             xc_fun_section
@@ -202,7 +257,10 @@ CONTAINS
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=xc_functional_id)
       IF (xc_functional_id == xc_funct_no_shortcut .OR. xc_functional_id == xc_none) THEN
-         CALL xc_functional_detect_expanded(xc_fun_section, xc_functional_name)
+         CALL xc_functional_skala_reference(xc_fun_section, xc_functional_name, skala_reference)
+         IF (.NOT. skala_reference) THEN
+            CALL xc_functional_detect_expanded(xc_fun_section, xc_functional_name)
+         END IF
       ELSE
          CALL xc_functional_to_d4_name_int(xc_functional_id, xc_functional_name)
       END IF

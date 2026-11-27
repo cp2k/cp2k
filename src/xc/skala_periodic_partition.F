@@ -24,7 +24,7 @@ MODULE skala_periodic_partition
       REAL(dp), ALLOCATABLE :: cutoff(:, :), cutoff_gradient(:, :, :)
       INTEGER, ALLOCATABLE :: owner(:, :), self(:)
    END TYPE skala_periodic_partition_type
-   PUBLIC :: build_periodic_atom_image_layout, periodic_atom_image_partition
+   PUBLIC :: build_periodic_atom_image_layout
    PUBLIC :: periodic_atom_image_partition_from_layout
 CONTAINS
 
@@ -48,7 +48,7 @@ CONTAINS
 
       INTEGER                                            :: a, b, base(3), extent(3), i, j, k, n, &
                                                             shift(3)
-      REAL(dp)                                           :: distance
+      REAL(dp)                                           :: delta(3), distance
 
       CPASSERT(ASSOCIATED(cell))
       layout%natom = SIZE(atom_coords, 2)
@@ -71,7 +71,8 @@ CONTAINS
       DO a = 1, layout%natom
          n = 0
          DO b = 1, layout%natom
-            base = NINT(MATMUL(layout%inverse, atom_coords(:, a) - atom_coords(:, b)))*layout%periodicity
+            delta(:) = atom_coords(:, a) - atom_coords(:, b)
+            base = NINT(MATMUL(layout%inverse, delta))*layout%periodicity
             DO k = -extent(3), extent(3)
                DO j = -extent(2), extent(2)
                   DO i = -extent(1), extent(1)
@@ -188,35 +189,6 @@ CONTAINS
    END SUBROUTINE periodic_atom_image_partition_from_layout
 
 ! **************************************************************************************************
-!> \brief Convenience evaluation without retaining a layout between grid points.
-!> \param grid_point Cartesian evaluation point.
-!> \param atom_coords Base-atom coordinates.
-!> \param cell Simulation cell.
-!> \param target_atom Reference-cell atom.
-!> \param weight Normalized reference-image weight.
-!> \param dweight_datom Optional base-atom derivative at fixed grid point and cell.
-!> \param dweight_dstrain Optional cell response at fixed grid point and base atoms.
-!> \param image_periodicity Optional periodic directions.
-! **************************************************************************************************
-   SUBROUTINE periodic_atom_image_partition(grid_point, atom_coords, cell, target_atom, weight, &
-                                            dweight_datom, dweight_dstrain, image_periodicity)
-      REAL(dp), INTENT(IN)                               :: grid_point(3), atom_coords(:, :)
-      TYPE(cell_type), POINTER                           :: cell
-      INTEGER, INTENT(IN)                                :: target_atom
-      REAL(dp), INTENT(OUT)                              :: weight
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: dweight_datom(:, :), &
-                                                            dweight_dstrain(:, :)
-      INTEGER, INTENT(IN), OPTIONAL                      :: image_periodicity(3)
-
-      INTEGER                                            :: target
-      TYPE(skala_periodic_partition_type)                :: layout
-
-      CALL build_periodic_atom_image_layout(atom_coords, cell, target_atom, image_periodicity, layout, TARGET)
-      CALL periodic_atom_image_partition_from_layout(grid_point, layout, TARGET, weight, &
-                                                     dweight_datom, dweight_dstrain)
-   END SUBROUTINE periodic_atom_image_partition
-
-! **************************************************************************************************
 !> \brief Compact quintic window in fractional coordinates.
 !> \param layout Cell geometry and periodic directions.
 !> \param x Cartesian displacement from the window center.
@@ -226,33 +198,38 @@ CONTAINS
    PURE SUBROUTINE compact_window(layout, x, value, gradient)
       TYPE(skala_periodic_partition_type), INTENT(IN)    :: layout
       REAL(dp), INTENT(IN)                               :: x(3)
-      REAL(dp), INTENT(OUT)                              :: value, gradient(3)
+      REAL(dp), INTENT(OUT)                              :: value
+      REAL(dp), INTENT(OUT), OPTIONAL                    :: gradient(3)
 
       INTEGER                                            :: d, j
+      LOGICAL                                            :: want_gradient
       REAL(dp)                                           :: dh(3), f(3), h(3), z
 
+      want_gradient = PRESENT(gradient)
       f = MATMUL(layout%inverse, x)
       h = 1.0_dp
-      dh = 0.0_dp
+      IF (want_gradient) dh = 0.0_dp
       DO d = 1, 3
          IF (layout%periodicity(d) == 0) CYCLE
          z = ABS(f(d)) - REAL(image_shell, dp)
          IF (z >= 1.0_dp) THEN
             value = 0.0_dp
-            gradient = 0.0_dp
+            IF (want_gradient) gradient = 0.0_dp
             RETURN
          END IF
          IF (z <= 0.0_dp) CYCLE
          h(d) = (1.0_dp - z)**3*(1.0_dp + 3.0_dp*z + 6.0_dp*z**2)
-         dh(d) = -30.0_dp*z**2*(1.0_dp - z)**2*SIGN(1.0_dp, f(d))
+         IF (want_gradient) dh(d) = -30.0_dp*z**2*(1.0_dp - z)**2*SIGN(1.0_dp, f(d))
       END DO
       value = PRODUCT(h)
-      DO d = 1, 3
-         DO j = 1, 3
-            IF (j /= d) dh(d) = dh(d)*h(j)
+      IF (want_gradient) THEN
+         DO d = 1, 3
+            DO j = 1, 3
+               IF (j /= d) dh(d) = dh(d)*h(j)
+            END DO
          END DO
-      END DO
-      gradient = MATMUL(TRANSPOSE(layout%inverse), dh)
+         gradient = MATMUL(TRANSPOSE(layout%inverse), dh)
+      END IF
    END SUBROUTINE compact_window
 
 ! **************************************************************************************************
@@ -263,16 +240,25 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE pair_switch(mu, value, derivative)
       REAL(dp), INTENT(IN)                               :: mu
-      REAL(dp), INTENT(OUT)                              :: value, derivative
+      REAL(dp), INTENT(OUT)                              :: value
+      REAL(dp), INTENT(OUT), OPTIONAL                    :: derivative
 
       INTEGER                                            :: i
+      LOGICAL                                            :: want_derivative
 
+      want_derivative = PRESENT(derivative)
       value = 0.5_dp*(1.0_dp - MAX(-1.0_dp, MIN(1.0_dp, mu)))
-      derivative = -0.5_dp
-      DO i = 1, 3
-         derivative = derivative*6.0_dp*value*(1.0_dp - value)
-         value = value**2*(3.0_dp - 2.0_dp*value)
-      END DO
+      IF (want_derivative) THEN
+         derivative = -0.5_dp
+         DO i = 1, 3
+            derivative = derivative*6.0_dp*value*(1.0_dp - value)
+            value = value**2*(3.0_dp - 2.0_dp*value)
+         END DO
+      ELSE
+         DO i = 1, 3
+            value = value**2*(3.0_dp - 2.0_dp*value)
+         END DO
+      END IF
    END SUBROUTINE pair_switch
 
 ! **************************************************************************************************
@@ -293,9 +279,9 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: logarithmic
 
       INTEGER                                            :: k
-      REAL(dp)                                           :: c, dc(3), ds, mu, ri, rj, s
+      REAL(dp)                                           :: c, mu, ri, rj, s
 
-      CALL compact_window(layout, x, c, dc)
+      CALL compact_window(layout, x, c)
       zero = c <= 0.0_dp
       q = 0.0_dp
       IF (zero) RETURN
@@ -306,7 +292,7 @@ CONTAINS
          IF (k == layout%self(atom) .OR. layout%cutoff(k, atom) == 0.0_dp) CYCLE
          rj = NORM2(x - layout%offset(:, k, atom))
          mu = (ri - rj)*layout%inverse_distance(k, atom)
-         CALL pair_switch(mu, s, ds)
+         CALL pair_switch(mu, s)
          s = (1.0_dp - layout%cutoff(k, atom)) + layout%cutoff(k, atom)*s
          IF (s <= 0.0_dp) THEN
             q = 0.0_dp

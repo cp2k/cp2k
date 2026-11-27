@@ -123,8 +123,6 @@ MODULE qs_environment_types
                                               qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               mo_set_type
-   USE qs_native_grid_cache,            ONLY: native_grid_cache_type,&
-                                              release_native_grid_cache
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_oce_types,                    ONLY: deallocate_oce_set,&
                                               oce_matrix_type
@@ -155,6 +153,11 @@ MODULE qs_environment_types
                                               semi_empirical_si_type
    USE semi_empirical_types,            ONLY: se_taper_release,&
                                               se_taper_type
+   USE skala_env_types,                 ONLY: skala_env_create,&
+                                              skala_env_finalize,&
+                                              skala_env_release,&
+                                              skala_gpw_state_type
+   USE skala_gpw_functional,            ONLY: skala_gpw_release_caches
    USE task_list_types,                 ONLY: task_list_type
    USE tblite_types,                    ONLY: deallocate_tblite_type,&
                                               tblite_type
@@ -334,7 +337,7 @@ MODULE qs_environment_types
       ! tblite
       TYPE(tblite_type), POINTER                            :: tb_tblite => Null()
       TYPE(cp_gauxc_cache_type), POINTER                    :: gauxc_cache => NULL()
-      TYPE(native_grid_cache_type)                         :: native_grid_cache
+      TYPE(skala_gpw_state_type), POINTER                   :: skala => NULL()
    END TYPE qs_environment_type
 
 CONTAINS
@@ -1035,6 +1038,8 @@ CONTAINS
       NULLIFY (qs_env%tb_tblite)
       NULLIFY (qs_env%gauxc_cache)
 
+      CALL skala_env_create(qs_env%skala)
+
    END SUBROUTINE init_qs_env
 
 ! **************************************************************************************************
@@ -1719,7 +1724,8 @@ CONTAINS
          DEALLOCATE (qs_env%gauxc_cache)
       END IF
 
-      CALL release_native_grid_cache(qs_env%native_grid_cache)
+      CALL skala_gpw_release_caches(qs_env%skala)
+      CALL skala_env_finalize(qs_env%skala)
 
    END SUBROUTINE qs_env_release
 
@@ -1952,7 +1958,8 @@ CONTAINS
          DEALLOCATE (qs_env%gauxc_cache)
       END IF
 
-      CALL release_native_grid_cache(qs_env%native_grid_cache)
+      CALL skala_gpw_release_caches(qs_env%skala)
+      CALL skala_env_release(qs_env%skala)
 
    END SUBROUTINE qs_env_part_release
 

@@ -22,25 +22,17 @@ MODULE xc_gauxc_interface
       ieee_set_halting_mode
 #endif
    USE iso_c_binding, ONLY: &
-      c_associated, &
       c_bool, &
       c_char, &
       c_double, &
-      c_f_pointer, &
       c_int, &
       c_int32_t, &
       c_int64_t, &
-      c_null_char, &
-      c_null_ptr, &
-      c_ptr, &
       c_size_t
    USE particle_types, ONLY: &
       particle_type
    USE qs_kind_types, ONLY: &
-      get_qs_kind, &
       qs_kind_type
-   USE cp_dbcsr_api, ONLY: &
-      dbcsr_p_type
    USE cp_log_handling, ONLY: &
       cp_logger_get_default_io_unit
 
@@ -48,22 +40,20 @@ MODULE xc_gauxc_interface
 
    USE kinds, ONLY: &
       default_path_length, &
-      default_string_length, &
       dp
-   USE physcon, ONLY: &
-      bohr
    USE atomic_kind_types, ONLY: &
       atomic_kind_type, &
-      get_atomic_kind, &
-      get_atomic_kind_set
+      get_atomic_kind
    USE qs_integral_utils, ONLY: &
       basis_set_list_setup
    USE basis_set_types, ONLY: &
       gto_basis_set_p_type, &
-      gto_basis_set_type, &
-      write_gto_basis_set
+      gto_basis_set_type
    USE periodic_table, ONLY: &
       get_ptable_info
+   USE offload_api, ONLY: &
+      offload_activate_chosen_device, &
+      offload_get_device_count
    USE gauxc_status, ONLY: &
       gauxc_status_message, &
       gauxc_status_type
@@ -90,7 +80,6 @@ MODULE xc_gauxc_interface
    USE gauxc_atom, ONLY: &
       gauxc_atom_type
    USE gauxc_basisset, ONLY: &
-      gauxc_basisset_new, &
       gauxc_basisset_new_from_shells, &
       gauxc_basisset_type, &
       gauxc_delete
@@ -112,7 +101,6 @@ MODULE xc_gauxc_interface
       gauxc_molecular_weights_factory_new, &
       gauxc_molecular_weights_factory_type, &
       gauxc_molecular_weights_modify_weights, &
-      gauxc_molecular_weights_settings, &
       gauxc_molecular_weights_type
    USE gauxc_xc_functional, ONLY: &
       gauxc_delete, &
@@ -122,6 +110,8 @@ MODULE xc_gauxc_interface
       gauxc_delete, &
       gauxc_integrator_eval_exc_grad_rks, &
       gauxc_integrator_eval_exc_grad_uks, &
+      gauxc_integrator_eval_exc_rks, &
+      gauxc_integrator_eval_exc_uks, &
       gauxc_integrator_eval_exc_vxc_rks, &
       gauxc_integrator_eval_exc_vxc_uks, &
       gauxc_integrator_new, &
@@ -161,6 +151,9 @@ MODULE xc_gauxc_interface
    TYPE cp_gauxc_grid_type
    END TYPE cp_gauxc_grid_type
 
+   TYPE cp_gauxc_runtime_type
+   END TYPE cp_gauxc_runtime_type
+
    TYPE cp_gauxc_integrator_type
    END TYPE cp_gauxc_integrator_type
 
@@ -191,9 +184,14 @@ MODULE xc_gauxc_interface
       LOGICAL :: uses_device_runtime = .FALSE.
    END TYPE cp_gauxc_grid_type
 
+   TYPE cp_gauxc_runtime_type
+      TYPE(gauxc_runtime_environment_type) :: rt
+   END TYPE cp_gauxc_runtime_type
+
    TYPE cp_gauxc_integrator_type
       TYPE(gauxc_functional_type) :: func
       TYPE(gauxc_integrator_type) :: integrator
+      LOGICAL :: uses_device_runtime = .FALSE.
    END TYPE cp_gauxc_integrator_type
 
    TYPE cp_gauxc_status_type
@@ -209,10 +207,12 @@ MODULE xc_gauxc_interface
    TYPE cp_gauxc_xc_type
       REAL(c_double) :: exc = 0.0_c_double
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: vxc_scalar, vxc_zeta
+      REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: scratch_rks, scratch_zeta_zero
    END TYPE cp_gauxc_xc_type
 
    TYPE cp_gauxc_xc_gradient_type
       REAL(c_double), ALLOCATABLE, DIMENSION(:) :: exc_grad
+      REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: scratch_rks, scratch_zeta_zero
    END TYPE cp_gauxc_xc_gradient_type
 
    CHARACTER(len=*), PARAMETER :: no_gauxc_message = "Compile CP2K with GauXC to use this functionality!"
@@ -222,6 +222,7 @@ MODULE xc_gauxc_interface
       cp_gauxc_grid_type, &
       cp_gauxc_integrator_type, &
       cp_gauxc_molecule_type, &
+      cp_gauxc_runtime_type, &
       cp_gauxc_status_type, &
       cp_gauxc_xc_gradient_type, &
       cp_gauxc_xc_type, &
@@ -232,34 +233,60 @@ MODULE xc_gauxc_interface
       gauxc_create_grid, &
       gauxc_create_integrator, &
       gauxc_create_molecule, &
+      gauxc_create_shared_runtime, &
       gauxc_destroy_basisset, &
       gauxc_destroy_grid, &
       gauxc_destroy_integrator, &
       gauxc_destroy_molecule, &
+      gauxc_destroy_shared_runtime, &
       gauxc_finalize, &
       gauxc_init, &
       gauxc_write_basisset_hdf5, &
-      gauxc_write_molecule_hdf5
+      gauxc_write_molecule_hdf5, &
+      gauxc_model_active
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Whether a model name selects a GauXC model (non-empty and not NONE).
+!> \param model ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION gauxc_model_active(model) RESULT(active)
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: model
+      LOGICAL                                            :: active
+#ifdef __GAUXC
+      CHARACTER(len=:), ALLOCATABLE                      :: key
+#endif
+
+      active = .FALSE.
+      IF (.NOT. PRESENT(model)) RETURN
+#ifdef __GAUXC
+      key = ADJUSTL(model)
+      CALL uppercase(key)
+      active = (LEN_TRIM(key) > 0 .AND. TRIM(key) /= "NONE")
+#else
+      MARK_USED(model)
+#endif
+
+   END FUNCTION gauxc_model_active
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param status ...
 ! **************************************************************************************************
    SUBROUTINE print_gauxc_status_message(status)
-      ! IMPORT :: c_ptr
-      TYPE(cp_gauxc_status_type)                         :: status
+      TYPE(cp_gauxc_status_type), INTENT(IN)             :: status
 
 #ifdef __GAUXC
-      CHARACTER(kind=c_char), POINTER                    :: s(:)
       CHARACTER(len=32)                                  :: stderr_env
-      INTEGER                                            :: i, ierr, iw
+      INTEGER                                            :: env_status, ierr, iw
       LOGICAL                                            :: print_to_stderr
-      INTEGER, PARAMETER                                 :: status_message_length = 4096
 
       iw = cp_logger_get_default_io_unit()
       ierr = error_unit
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_GAUXC_STATUS_STDERR", stderr_env)
+      stderr_env = ""
+      CALL GET_ENVIRONMENT_VARIABLE("CP2K_GAUXC_STATUS_STDERR", stderr_env, STATUS=env_status)
+      IF (env_status /= 0) stderr_env = ""
       CALL uppercase(stderr_env)
       SELECT CASE (TRIM(stderr_env))
       CASE ("", "0", "FALSE", "F", "OFF", "NO")
@@ -269,42 +296,37 @@ CONTAINS
       CASE DEFAULT
          print_to_stderr = .TRUE.
       END SELECT
-      IF (iw > 0) THEN
-         WRITE (UNIT=iw, FMT='(a,1x,i0)') "GauXC returned with status code", status%status%code
-         IF (c_associated(status%status%message)) THEN
-            WRITE (UNIT=iw, FMT='(a)', ADVANCE='no') "GauXC status message: ["
-
-            CALL c_f_pointer(status%status%message, s, [status_message_length])
-            DO i = 1, SIZE(s)
-               IF (s(i) == c_null_char) EXIT
-               WRITE (UNIT=iw, FMT='(A)', ADVANCE='no') s(i)
-            END DO
-
-            WRITE (UNIT=iw, FMT='(a)') "]"
-         ELSE
-            WRITE (UNIT=iw, FMT='(a)') "GauXC status message: [null]"
-         END IF
-      END IF
-      IF (print_to_stderr) THEN
-         WRITE (UNIT=ierr, FMT='(a,1x,i0)') "GauXC returned with status code", status%status%code
-         IF (c_associated(status%status%message)) THEN
-            WRITE (UNIT=ierr, FMT='(a)', ADVANCE='no') "GauXC status message: ["
-
-            CALL c_f_pointer(status%status%message, s, [status_message_length])
-            DO i = 1, SIZE(s)
-               IF (s(i) == c_null_char) EXIT
-               WRITE (UNIT=ierr, FMT='(A)', ADVANCE='no') s(i)
-            END DO
-
-            WRITE (UNIT=ierr, FMT='(a)') "]"
-         ELSE
-            WRITE (UNIT=ierr, FMT='(a)') "GauXC status message: [null]"
-         END IF
-      END IF
+      IF (iw > 0) CALL write_gauxc_status_message(iw, status)
+      IF (print_to_stderr) CALL write_gauxc_status_message(ierr, status)
 #else
       MARK_USED(status)
 #endif
    END SUBROUTINE print_gauxc_status_message
+
+! **************************************************************************************************
+!> \brief Write the GauXC status code and message to one unit.
+!> \param unit ...
+!> \param status ...
+! **************************************************************************************************
+   SUBROUTINE write_gauxc_status_message(unit, status)
+      INTEGER, INTENT(IN)                                :: unit
+      TYPE(cp_gauxc_status_type), INTENT(IN)             :: status
+
+#ifdef __GAUXC
+      CHARACTER(kind=c_char, len=:), ALLOCATABLE         :: message
+
+      WRITE (UNIT=unit, FMT='(a,1x,i0)') "GauXC returned with status code", status%status%code
+      message = gauxc_status_message(status%status)
+      IF (LEN(message) > 0) THEN
+         WRITE (UNIT=unit, FMT='(a)') "GauXC status message: ["//message//"]"
+      ELSE
+         WRITE (UNIT=unit, FMT='(a)') "GauXC status message: [null]"
+      END IF
+#else
+      MARK_USED(unit)
+      MARK_USED(status)
+#endif
+   END SUBROUTINE write_gauxc_status_message
 
 ! **************************************************************************************************
 !> \brief ...
@@ -414,8 +436,9 @@ CONTAINS
 
 #ifdef __GAUXC
       INTEGER                                            :: iatom, ikind, iprim, iset, ishell, lval, &
-                                                            nkind, npgf, nset, nshell, &
-                                                            nshell_total, shell_index, natoms
+                                                            ncgf_shell, nkind, npgf, nset, &
+                                                            nsgf_shell, nshell_total, shell_index, natoms
+      CHARACTER(len=256)                                 :: error_msg
       REAL(c_double), DIMENSION(3)                       :: shell_origin
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(gauxc_shell_type), ALLOCATABLE, DIMENSION(:)  :: shells
@@ -434,7 +457,6 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind, kind_number=ikind)
          gto_basis => basis_set_list(ikind)%gto_basis_set
          CPASSERT(ASSOCIATED(gto_basis))
-         ! CALL write_gto_basis_set(gto_basis, 6, "–––––GAUXC-CREATE-BASISSET–––––")
          nshell_total = nshell_total + SUM(gto_basis%nshell)
       END DO
 
@@ -455,7 +477,6 @@ CONTAINS
          nset = gto_basis%nset
          CPASSERT(nset == SIZE(gto_basis%nshell))
          DO iset = 1, nset ! for each shell group
-            nshell = gto_basis%nshell(iset)
             npgf = gto_basis%npgf(iset) ! corresponds with nprim of gauxc
 
             DO ishell = 1, gto_basis%nshell(iset) ! for each shell within the shell group
@@ -463,9 +484,21 @@ CONTAINS
                lval = gto_basis%l(ishell, iset)
                res%max_l = MAX(res%max_l, lval)
                shells(shell_index)%l = INT(lval, c_int32_t)
-               ! FIXME hardcoded true param
-               ! pure=1: spherical Gaussians; pure=0: cartesian Gaussians
-               shells(shell_index)%pure = .TRUE._c_bool
+               IF (npgf > SIZE(shells(shell_index)%exponents)) THEN
+                  WRITE (error_msg, '(A,I0,A,I0,A)') "GAUXC basis: contraction with ", npgf, &
+                     " primitives exceeds the GauXC shell limit of ", &
+                     SIZE(shells(shell_index)%exponents), " primitives"
+                  CPABORT(TRIM(error_msg))
+               END IF
+               nsgf_shell = gto_basis%last_sgf(ishell, iset) - gto_basis%first_sgf(ishell, iset) + 1
+               ncgf_shell = gto_basis%last_cgf(ishell, iset) - gto_basis%first_cgf(ishell, iset) + 1
+               IF (nsgf_shell == 2*lval + 1) THEN
+                  shells(shell_index)%pure = .TRUE._c_bool
+               ELSE IF (ncgf_shell == (lval + 1)*(lval + 2)/2) THEN
+                  CPABORT("GAUXC path requires spherical GTO basis functions (cartesian detected)")
+               ELSE
+                  CPABORT("GAUXC basis: inconsistent shell AO dimensions")
+               END IF
                shells(shell_index)%nprim = INT(npgf, c_int32_t)
                shells(shell_index)%origin = shell_origin
 
@@ -499,6 +532,87 @@ CONTAINS
    END FUNCTION gauxc_create_basisset
 
 ! **************************************************************************************************
+!> \brief Create a GauXC runtime that can be shared across several grids.
+!> \param runtime ...
+!> \param mpi_comm ...
+!> \param lb_exec_space ...
+!> \param int_exec_space ...
+!> \param device_runtime_fill_fraction ...
+!> \param status ...
+! **************************************************************************************************
+   SUBROUTINE gauxc_create_shared_runtime(runtime, mpi_comm, lb_exec_space, int_exec_space, &
+                                          device_runtime_fill_fraction, status)
+      TYPE(cp_gauxc_runtime_type), INTENT(OUT)           :: runtime
+      INTEGER, INTENT(IN)                                :: mpi_comm
+      CHARACTER(len=*), INTENT(IN)                       :: lb_exec_space, int_exec_space
+      REAL(c_double), INTENT(IN)                         :: device_runtime_fill_fraction
+      TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
+
+#ifdef __GAUXC
+      LOGICAL                                            :: use_device_runtime
+
+      CALL resolve_runtime_spaces(lb_exec_space, int_exec_space, use_device_runtime)
+      IF (use_device_runtime) THEN
+#ifdef GAUXC_HAS_DEVICE
+         IF (offload_get_device_count() <= 0) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "GPU execution was requested for GauXC, but the offload library "// &
+                          "reports no usable device. Set USE_GPU HOST in the &GAUXC section "// &
+                          "to run on the CPU, or select a valid offload device (check "// &
+                          "CUDA_VISIBLE_DEVICES and the MPI rank-to-device mapping).")
+         END IF
+         CALL offload_activate_chosen_device()
+#if defined(GAUXC_HAS_MPI) && defined(__parallel)
+         runtime%rt = gauxc_device_runtime_environment_new( &
+                      status%status, mpi_comm, device_runtime_fill_fraction)
+#else
+         MARK_USED(mpi_comm)
+         runtime%rt = gauxc_device_runtime_environment_new( &
+                      status%status, device_runtime_fill_fraction)
+#endif
+#else
+         MARK_USED(device_runtime_fill_fraction)
+         MARK_USED(mpi_comm)
+         CPABORT("GauXC was built without device runtime support")
+#endif
+      ELSE
+#if defined(GAUXC_HAS_MPI) && defined(__parallel)
+         runtime%rt = gauxc_runtime_environment_new(status%status, mpi_comm)
+#else
+         MARK_USED(mpi_comm)
+         runtime%rt = gauxc_runtime_environment_new(status%status)
+#endif
+      END IF
+#else
+      MARK_USED(runtime)
+      MARK_USED(mpi_comm)
+      MARK_USED(lb_exec_space)
+      MARK_USED(int_exec_space)
+      MARK_USED(device_runtime_fill_fraction)
+      MARK_USED(status)
+      CPABORT(no_gauxc_message)
+#endif
+   END SUBROUTINE gauxc_create_shared_runtime
+
+! **************************************************************************************************
+!> \brief Destroy a runtime created by gauxc_create_shared_runtime.
+!> \param runtime ...
+!> \param status ...
+! **************************************************************************************************
+   SUBROUTINE gauxc_destroy_shared_runtime(runtime, status)
+      TYPE(cp_gauxc_runtime_type), INTENT(INOUT)         :: runtime
+      TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
+
+#ifdef __GAUXC
+      CALL gauxc_runtime_environment_delete(status%status, runtime%rt)
+#else
+      MARK_USED(runtime)
+      MARK_USED(status)
+      CPABORT(no_gauxc_message)
+#endif
+   END SUBROUTINE gauxc_destroy_shared_runtime
+
+! **************************************************************************************************
 !> \brief ...
 !> \param molecule ...
 !> \param basis ...
@@ -514,6 +628,7 @@ CONTAINS
 !> \param int_exec_space optional integrator execution space; a DEVICE
 !>        integrator also requires a device runtime even when the load
 !>        balancer stays on the host
+!> \param runtime ...
 !> \return ...
 ! **************************************************************************************************
    FUNCTION gauxc_create_grid( &
@@ -528,7 +643,8 @@ CONTAINS
       status, &
       mpi_comm, &
       force_new_runtime, &
-      int_exec_space) RESULT(res)
+      int_exec_space, &
+      runtime) RESULT(res)
 
       TYPE(cp_gauxc_molecule_type), INTENT(IN)           :: molecule
       TYPE(cp_gauxc_basisset_type), INTENT(in)           :: basis
@@ -540,23 +656,21 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: mpi_comm
       LOGICAL, INTENT(IN), OPTIONAL                      :: force_new_runtime
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: int_exec_space
+      TYPE(cp_gauxc_runtime_type), INTENT(IN), OPTIONAL  :: runtime
       TYPE(cp_gauxc_grid_type)                           :: res
 
 #ifdef __GAUXC
       INTEGER(c_int)                                     :: grid_type_local, int_exec_space_local, &
-                                                            int_exec_requested, &
                                                             lb_exec_space_local, &
                                                             pruning_scheme_local, radial_quad_local
-      LOGICAL                                            :: force_new_runtime_local, use_device_runtime
+      LOGICAL                                            :: force_new_runtime_local, use_device_runtime, &
+                                                            use_external_runtime
 
       grid_type_local = read_atomic_grid_size(grid_type)
       radial_quad_local = read_radial_quad(radial_quadrature)
       pruning_scheme_local = read_pruning_scheme(pruning_scheme)
-      lb_exec_space_local = read_execution_space(lb_exec_space)
-      int_exec_requested = read_execution_space("host")
-      IF (PRESENT(int_exec_space)) int_exec_requested = read_execution_space(int_exec_space)
-      use_device_runtime = (lb_exec_space_local == gauxc_executionspace%device) .OR. &
-                           (int_exec_requested == gauxc_executionspace%device)
+      CALL resolve_runtime_spaces(lb_exec_space, int_exec_space, use_device_runtime, &
+                                  lb_exec_space_local)
       IF (use_device_runtime) THEN
          int_exec_space_local = gauxc_executionspace%device
       ELSE
@@ -573,47 +687,78 @@ CONTAINS
 #endif
       force_new_runtime_local = .FALSE.
       IF (PRESENT(force_new_runtime)) force_new_runtime_local = force_new_runtime
+      use_external_runtime = PRESENT(runtime)
+      IF (force_new_runtime_local .AND. use_external_runtime) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "A fresh GauXC runtime cannot be requested together with an "// &
+                       "external runtime.")
+      END IF
       res%owns_rt = .FALSE.
       res%uses_device_runtime = .FALSE.
 
       IF (use_device_runtime) THEN
 #ifdef GAUXC_HAS_DEVICE
-#if defined(GAUXC_HAS_MPI) && defined(__parallel)
-         IF (PRESENT(mpi_comm)) THEN
-            res%rt = gauxc_device_runtime_environment_new( &
-                     status%status, mpi_comm, device_runtime_fill_fraction)
+         IF (use_external_runtime) THEN
+            res%rt = runtime%rt
+            res%owns_rt = .FALSE.
+            res%uses_device_runtime = .TRUE.
          ELSE
+            IF (offload_get_device_count() <= 0) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "GPU execution was requested for GauXC, but the offload library "// &
+                             "reports no usable device. Set USE_GPU HOST in the &GAUXC "// &
+                             "section to run on the CPU, or select a valid offload device "// &
+                             "(check CUDA_VISIBLE_DEVICES and the MPI rank-to-device mapping).")
+            END IF
+            CALL offload_activate_chosen_device()
+#if defined(GAUXC_HAS_MPI) && defined(__parallel)
+            IF (PRESENT(mpi_comm)) THEN
+               res%rt = gauxc_device_runtime_environment_new( &
+                        status%status, mpi_comm, device_runtime_fill_fraction)
+            ELSE
+               res%rt = gauxc_device_runtime_environment_new( &
+                        status%status, device_runtime_fill_fraction)
+            END IF
+#else
+            MARK_USED(mpi_comm)
             res%rt = gauxc_device_runtime_environment_new( &
                      status%status, device_runtime_fill_fraction)
-         END IF
-#else
-         MARK_USED(mpi_comm)
-         res%rt = gauxc_device_runtime_environment_new( &
-                  status%status, device_runtime_fill_fraction)
 #endif
-         GAUXC_RETURN_IF_ERROR(status)
-         res%owns_rt = .TRUE.
-         res%uses_device_runtime = .TRUE.
+            GAUXC_RETURN_IF_ERROR(status)
+            res%owns_rt = .TRUE.
+            res%uses_device_runtime = .TRUE.
+         END IF
 #else
          MARK_USED(device_runtime_fill_fraction)
          CPABORT("GauXC was built without device runtime support")
 #endif
       ELSE
+         IF (use_external_runtime) THEN
+            res%rt = runtime%rt
+            res%owns_rt = .FALSE.
+         ELSE
 #if defined(GAUXC_HAS_MPI) && defined(__parallel)
-         IF (PRESENT(mpi_comm)) THEN
-            ! Reuse the global runtime when the requested communicator matches
-            ! the communicator used during gauxc_init.
-            IF (force_new_runtime_local .OR. .NOT. rt_has_mpi_comm .OR. &
-                mpi_comm /= rt_mpi_comm) THEN
-               res%rt = gauxc_runtime_environment_new(status%status, mpi_comm)
+            IF (PRESENT(mpi_comm)) THEN
+               IF (force_new_runtime_local .OR. .NOT. rt_has_mpi_comm .OR. &
+                   mpi_comm /= rt_mpi_comm) THEN
+                  res%rt = gauxc_runtime_environment_new(status%status, mpi_comm)
+                  GAUXC_RETURN_IF_ERROR(status)
+                  res%owns_rt = .TRUE.
+               END IF
+            ELSE IF (force_new_runtime_local) THEN
+               res%rt = gauxc_runtime_environment_new(status%status)
                GAUXC_RETURN_IF_ERROR(status)
                res%owns_rt = .TRUE.
             END IF
-         END IF
 #else
-         MARK_USED(mpi_comm)
-         MARK_USED(force_new_runtime)
+            MARK_USED(mpi_comm)
+            IF (force_new_runtime_local) THEN
+               res%rt = gauxc_runtime_environment_new(status%status)
+               GAUXC_RETURN_IF_ERROR(status)
+               res%owns_rt = .TRUE.
+            END IF
 #endif
+         END IF
       END IF
 
       res%grid = gauxc_molgrid_new_default( &
@@ -630,7 +775,7 @@ CONTAINS
                 lb_exec_space_local)
       GAUXC_RETURN_IF_ERROR(status)
 
-      IF (res%owns_rt) THEN
+      IF (res%owns_rt .OR. res%uses_device_runtime .OR. use_external_runtime) THEN
          res%lb = gauxc_load_balancer_factory_get_instance( &
                   status%status, &
                   res%lbf, &
@@ -679,6 +824,7 @@ CONTAINS
       MARK_USED(pruning_scheme)
       MARK_USED(radial_quadrature)
       MARK_USED(res)
+      MARK_USED(runtime)
       MARK_USED(status)
       CPABORT(no_gauxc_message)
 #endif
@@ -728,6 +874,7 @@ CONTAINS
                        int_exec_space_local, &
                        local_work_kernel_name=TRIM(lwd_kernel))
       GAUXC_RETURN_IF_ERROR(status)
+      res%uses_device_runtime = grid%uses_device_runtime
 
 #else
       MARK_USED(grid)
@@ -742,49 +889,100 @@ CONTAINS
    END FUNCTION gauxc_create_integrator
 
 ! **************************************************************************************************
+!> \brief Allocate a reused matrix scratch buffer when its shape changes.
+!> \param scratch ...
+!> \param like ...
+!> \param fresh ...
+! **************************************************************************************************
+   SUBROUTINE ensure_matrix_scratch(scratch, like, fresh)
+      REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: scratch
+      REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: like
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: fresh
+
+      IF (PRESENT(fresh)) fresh = .FALSE.
+      IF (ALLOCATED(scratch)) THEN
+         IF (ANY(SHAPE(scratch) /= SHAPE(like))) THEN
+            DEALLOCATE (scratch)
+            IF (PRESENT(fresh)) fresh = .TRUE.
+         END IF
+      END IF
+      IF (.NOT. ALLOCATED(scratch)) THEN
+         ALLOCATE (scratch, mold=like)
+         IF (PRESENT(fresh)) fresh = .TRUE.
+      END IF
+   END SUBROUTINE ensure_matrix_scratch
+
+! **************************************************************************************************
 !> \brief ...
 !> \param integrator ...
 !> \param density_scalar ...
+!> \param res ...
 !> \param density_zeta ...
 !> \param nspins ...
 !> \param status ...
 !> \param model ...
+!> \param energy_only ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION gauxc_compute_xc( &
+   SUBROUTINE gauxc_compute_xc( &
       integrator, &
       density_scalar, &
+      res, &
       density_zeta, &
       nspins, &
       status, &
-      model) RESULT(res)
+      model, &
+      energy_only)
 
       TYPE(cp_gauxc_integrator_type), INTENT(IN)         :: integrator
       REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar
+      TYPE(cp_gauxc_xc_type), INTENT(INOUT)              :: res
       REAL(c_double), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: density_zeta
       INTEGER, INTENT(IN)                                :: nspins
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: model
-      TYPE(cp_gauxc_xc_type)                             :: res
+      LOGICAL, INTENT(IN), OPTIONAL                      :: energy_only
 
 #ifdef __GAUXC
-      CHARACTER(len=default_path_length)                 :: model_key
-      LOGICAL                                            :: use_gauxc_model
-      REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_scalar_rks
+      LOGICAL                                            :: my_energy_only, use_gauxc_model
 #ifdef GAUXC_HAS_ONEDFT
-      REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
 #if defined (__HAS_IEEE_EXCEPTIONS)
       LOGICAL, DIMENSION(5)                              :: ieee_halt
 #endif
       INTEGER                                            :: omp_max_threads_restore
+      LOGICAL                                            :: fresh_scratch
 #endif
 
-      use_gauxc_model = .FALSE.
-      IF (PRESENT(model)) THEN
-         model_key = ADJUSTL(model)
-         CALL uppercase(model_key)
-         use_gauxc_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
+      use_gauxc_model = gauxc_model_active(model)
+      my_energy_only = .FALSE.
+      IF (PRESENT(energy_only)) my_energy_only = energy_only
+
+#ifdef GAUXC_HAS_DEVICE
+      IF (integrator%uses_device_runtime) CALL offload_activate_chosen_device()
+#endif
+
+      IF (my_energy_only .AND. .NOT. use_gauxc_model) THEN
+         IF (nspins == 1) THEN
+            CALL ensure_matrix_scratch(res%scratch_rks, density_scalar)
+            res%scratch_rks(:, :) = 0.5_dp*density_scalar
+            CALL gauxc_integrator_eval_exc_rks( &
+               status%status, &
+               integrator%integrator, &
+               res%scratch_rks, &
+               res%exc)
+         ELSE
+            CPASSERT(PRESENT(density_zeta))
+            CALL gauxc_integrator_eval_exc_uks( &
+               status%status, &
+               integrator%integrator, &
+               density_scalar, &
+               density_zeta, &
+               res%exc)
+         END IF
+         GAUXC_RETURN_IF_ERROR(status)
+         RETURN
       END IF
 
       IF (.NOT. ALLOCATED(res%vxc_scalar)) THEN
@@ -813,18 +1011,17 @@ CONTAINS
          res%vxc_zeta = 0._dp
 
          IF (nspins == 1) THEN
-            ALLOCATE (density_zeta_zero, mold=density_scalar)
-            density_zeta_zero = 0._dp
+            CALL ensure_matrix_scratch(res%scratch_zeta_zero, density_scalar, fresh_scratch)
+            IF (fresh_scratch) res%scratch_zeta_zero = 0._dp
             CALL gauxc_integrator_eval_exc_vxc_onedft_uks( &
                status%status, &
                integrator%integrator, &
                density_scalar, &
-               density_zeta_zero, &
+               res%scratch_zeta_zero, &
                TRIM(model), &
                res%exc, &
                res%vxc_scalar, &
                res%vxc_zeta)
-            DEALLOCATE (density_zeta_zero)
          ELSE
             CPASSERT(PRESENT(density_zeta))
             CALL gauxc_integrator_eval_exc_vxc_onedft_uks( &
@@ -850,22 +1047,21 @@ CONTAINS
          ! xmat factor 2 is applied by both CP2K and GauXC
          ! "unapply" it here to even things back out.
          ! This is NOT necessary in the Skala branch.
-         ALLOCATE (density_scalar_rks, mold=density_scalar)
-         density_scalar_rks(:, :) = 0.5_dp*density_scalar
+         CALL ensure_matrix_scratch(res%scratch_rks, density_scalar)
+         res%scratch_rks(:, :) = 0.5_dp*density_scalar
          CALL gauxc_integrator_eval_exc_vxc_rks( &
             status%status, &
             integrator%integrator, &
-            density_scalar_rks, &
+            res%scratch_rks, &
             res%exc, &
             res%vxc_scalar)
-         DEALLOCATE (density_scalar_rks)
       ELSE
          CPASSERT(PRESENT(density_zeta))
 
          IF (.NOT. ALLOCATED(res%vxc_zeta)) THEN
             ALLOCATE (res%vxc_zeta, mold=density_zeta)
          ELSE
-            CPASSERT(ALL(SHAPE(res%vxc_zeta) == SHAPE(density_scalar)))
+            CPASSERT(ALL(SHAPE(res%vxc_zeta) == SHAPE(density_zeta)))
          END IF
          res%vxc_zeta = 0._dp
 
@@ -889,12 +1085,13 @@ CONTAINS
       MARK_USED(model)
       CPABORT(no_gauxc_message)
 #endif
-   END FUNCTION gauxc_compute_xc
+   END SUBROUTINE gauxc_compute_xc
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param integrator ...
 !> \param density_scalar ...
+!> \param res ...
 !> \param density_zeta ...
 !> \param nspins ...
 !> \param natom ...
@@ -902,45 +1099,50 @@ CONTAINS
 !> \param model ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION gauxc_compute_xc_gradient( &
+   SUBROUTINE gauxc_compute_xc_gradient( &
       integrator, &
       density_scalar, &
+      res, &
       density_zeta, &
       nspins, &
       natom, &
       status, &
-      model) RESULT(res)
+      model)
 
       TYPE(cp_gauxc_integrator_type), INTENT(IN)         :: integrator
       REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar
+      TYPE(cp_gauxc_xc_gradient_type), INTENT(INOUT)     :: res
       REAL(c_double), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: density_zeta
       INTEGER, INTENT(IN)                                :: nspins, natom
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: model
-      TYPE(cp_gauxc_xc_gradient_type)                    :: res
 
 #ifdef __GAUXC
-      CHARACTER(len=default_path_length)                 :: model_key
       LOGICAL                                            :: use_gauxc_model
-      REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_scalar_rks
 #ifdef GAUXC_HAS_ONEDFT
-      REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
 #if defined (__HAS_IEEE_EXCEPTIONS)
       LOGICAL, DIMENSION(5)                              :: ieee_halt
 #endif
       INTEGER                                            :: omp_max_threads_restore
+      LOGICAL                                            :: fresh_scratch
 #endif
 
-      ALLOCATE (res%exc_grad(3*natom))
+      IF (ALLOCATED(res%exc_grad)) THEN
+         IF (SIZE(res%exc_grad) /= 3*natom) THEN
+            DEALLOCATE (res%exc_grad)
+            ALLOCATE (res%exc_grad(3*natom))
+         END IF
+      ELSE
+         ALLOCATE (res%exc_grad(3*natom))
+      END IF
       res%exc_grad = 0._dp
 
-      use_gauxc_model = .FALSE.
-      IF (PRESENT(model)) THEN
-         model_key = ADJUSTL(model)
-         CALL uppercase(model_key)
-         use_gauxc_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
-      END IF
+      use_gauxc_model = gauxc_model_active(model)
+
+#ifdef GAUXC_HAS_DEVICE
+      IF (integrator%uses_device_runtime) CALL offload_activate_chosen_device()
+#endif
 
       IF (use_gauxc_model) THEN
 #ifndef GAUXC_HAS_ONEDFT
@@ -954,16 +1156,15 @@ CONTAINS
          CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
          IF (nspins == 1) THEN
-            ALLOCATE (density_zeta_zero, mold=density_scalar)
-            density_zeta_zero = 0._dp
+            CALL ensure_matrix_scratch(res%scratch_zeta_zero, density_scalar, fresh_scratch)
+            IF (fresh_scratch) res%scratch_zeta_zero = 0._dp
             CALL gauxc_integrator_eval_exc_grad_onedft_uks( &
                status%status, &
                integrator%integrator, &
                density_scalar, &
-               density_zeta_zero, &
+               res%scratch_zeta_zero, &
                TRIM(model), &
                res%exc_grad)
-            DEALLOCATE (density_zeta_zero)
          ELSE
             CPASSERT(PRESENT(density_zeta))
             CALL gauxc_integrator_eval_exc_grad_onedft_uks( &
@@ -984,14 +1185,13 @@ CONTAINS
       END IF
 
       IF (nspins == 1) THEN
-         ALLOCATE (density_scalar_rks, mold=density_scalar)
-         density_scalar_rks(:, :) = 0.5_dp*density_scalar
+         CALL ensure_matrix_scratch(res%scratch_rks, density_scalar)
+         res%scratch_rks(:, :) = 0.5_dp*density_scalar
          CALL gauxc_integrator_eval_exc_grad_rks( &
             status%status, &
             integrator%integrator, &
-            density_scalar_rks, &
+            res%scratch_rks, &
             res%exc_grad)
-         DEALLOCATE (density_scalar_rks)
       ELSE
          CPASSERT(PRESENT(density_zeta))
          CALL gauxc_integrator_eval_exc_grad_uks( &
@@ -1014,7 +1214,7 @@ CONTAINS
       MARK_USED(status)
       CPABORT(no_gauxc_message)
 #endif
-   END FUNCTION gauxc_compute_xc_gradient
+   END SUBROUTINE gauxc_compute_xc_gradient
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1132,10 +1332,35 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param lb_exec_space ...
+!> \param int_exec_space ...
+!> \param use_device ...
+!> \param lb_local ...
+!> \return ...
+! **************************************************************************************************
+   SUBROUTINE resolve_runtime_spaces(lb_exec_space, int_exec_space, use_device, lb_local)
+      CHARACTER(len=*), INTENT(IN)                       :: lb_exec_space
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: int_exec_space
+      LOGICAL, INTENT(OUT)                               :: use_device
+      INTEGER(c_int), INTENT(OUT), OPTIONAL              :: lb_local
+
+      INTEGER(c_int)                                     :: int_val, lb_val
+
+      lb_val = read_execution_space(lb_exec_space)
+      int_val = read_execution_space("host")
+      IF (PRESENT(int_exec_space)) int_val = read_execution_space(int_exec_space)
+      use_device = (lb_val == gauxc_executionspace%device) .OR. &
+                   (int_val == gauxc_executionspace%device)
+      IF (PRESENT(lb_local)) lb_local = lb_val
+
+   END SUBROUTINE resolve_runtime_spaces
+
+! **************************************************************************************************
+!> \brief ...
 !> \param spec ...
 !> \return ...
 ! **************************************************************************************************
-   PURE FUNCTION read_execution_space(spec) RESULT(val)
+   FUNCTION read_execution_space(spec) RESULT(val)
       CHARACTER(len=*), INTENT(IN)                       :: spec
       INTEGER(c_int)                                     :: val
 
@@ -1150,7 +1375,8 @@ CONTAINS
       CASE ("DEVICE")
          val = gauxc_executionspace%device
       CASE DEFAULT
-         val = gauxc_executionspace%host
+         CALL cp_abort(__LOCATION__, &
+                       "Unknown GauXC execution space: '"//TRIM(spec)//"'")
       END SELECT
    END FUNCTION read_execution_space
 
@@ -1159,7 +1385,7 @@ CONTAINS
 !> \param spec ...
 !> \return ...
 ! **************************************************************************************************
-   PURE FUNCTION read_atomic_grid_size(spec) RESULT(val)
+   FUNCTION read_atomic_grid_size(spec) RESULT(val)
       CHARACTER(len=*), INTENT(IN)                       :: spec
       INTEGER(c_int)                                     :: val
 
@@ -1180,7 +1406,8 @@ CONTAINS
       CASE ("GM5")
          val = gauxc_atomicgridsizedefault%gm5
       CASE DEFAULT
-         val = gauxc_atomicgridsizedefault%finegrid
+         CALL cp_abort(__LOCATION__, &
+                       "Unknown GauXC atomic grid size: '"//TRIM(spec)//"'")
       END SELECT
    END FUNCTION read_atomic_grid_size
 
@@ -1189,7 +1416,7 @@ CONTAINS
 !> \param spec ...
 !> \return ...
 ! **************************************************************************************************
-   PURE FUNCTION read_radial_quad(spec) RESULT(val)
+   FUNCTION read_radial_quad(spec) RESULT(val)
       CHARACTER(len=*), INTENT(IN)                       :: spec
       INTEGER(c_int)                                     :: val
 
@@ -1208,7 +1435,8 @@ CONTAINS
       CASE ("MURRAYHANDYLAMING")
          val = gauxc_radialquad%murray_handy_laming
       CASE DEFAULT
-         val = gauxc_radialquad%mura_knowles
+         CALL cp_abort(__LOCATION__, &
+                       "Unknown GauXC radial quadrature: '"//TRIM(spec)//"'")
       END SELECT
    END FUNCTION read_radial_quad
 
@@ -1217,7 +1445,7 @@ CONTAINS
 !> \param spec ...
 !> \return ...
 ! **************************************************************************************************
-   PURE FUNCTION read_pruning_scheme(spec) RESULT(val)
+   FUNCTION read_pruning_scheme(spec) RESULT(val)
       CHARACTER(len=*), INTENT(IN)                       :: spec
       INTEGER(c_int)                                     :: val
 
@@ -1234,7 +1462,8 @@ CONTAINS
       CASE ("TREUTLER")
          val = gauxc_pruningscheme%treutler
       CASE DEFAULT
-         val = gauxc_pruningscheme%robust
+         CALL cp_abort(__LOCATION__, &
+                       "Unknown GauXC pruning scheme: '"//TRIM(spec)//"'")
       END SELECT
    END FUNCTION read_pruning_scheme
 

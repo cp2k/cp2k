@@ -54,8 +54,8 @@ MODULE qs_fxc
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE skala_gpw_functional,            ONLY: native_skala_uses_atom_composite_grid,&
                                               skala_gpw_fxc,&
-                                              skala_gpw_fxc_prep,&
-                                              xc_section_uses_native_skala_grid
+                                              skala_gpw_fxc_prep
+   USE skala_model_selection,           ONLY: xc_section_uses_native_skala_grid
    USE xc,                              ONLY: xc_calc_2nd_deriv_analytical,&
                                               xc_calc_2nd_deriv_numerical,&
                                               xc_prep_2nd_deriv

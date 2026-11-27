@@ -104,4 +104,10 @@ QS/regtest-gauxc-gapw-ecp/H2_NATIVE_SKALA_GAPW_ECP_STRESS_DEBUG.inp
 # ENERGY_FORCE already avoids a second SCF and force evaluation.
 QS/regtest-tddfpt-force-libxc/h2o_mgga_tau_analytic.inp
 
+# The open-shell (UKS) native SKALA polar test solves the full linear response in
+# all three directions, which on the CPU debug CI is under the timeout but above
+# the generic slow threshold. Cheaper settings either lose the two-spin response
+# coverage or make the response solver diverge.
+QS/regtest-skala-native-gapw-base/OH_NATIVE_SKALA_GPW_POLAR_UKS.inp
+
 #EOF

@@ -12,8 +12,8 @@
     &EFIELD
     &END EFIELD
     &MGRID
-      CUTOFF 40
-      REL_CUTOFF 10
+      CUTOFF 60
+      REL_CUTOFF 20
     &END MGRID
     &POISSON
       PERIODIC NONE
