@@ -27,9 +27,14 @@ PROGRAM gapw_unittest
    USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+   USE qs_rho_atom_types,               ONLY: rho_atom_coeff,&
+                                              rho_atom_type
    USE qs_vxc_atom,                     ONLY: add_gapw_atom_grid_interpolation_adjoint,&
                                               atom_grid_image_bounds,&
                                               interpolate_gapw_atom_grid_fields
+   USE qs_vxc_atom_utils,               ONLY: calc_tau_atom,&
+                                              dgaVtaudgb,&
+                                              tau_basis_cache_type
    USE spherical_harmonics,             ONLY: y_lm
 
    IMPLICIT NONE
@@ -44,6 +49,7 @@ PROGRAM gapw_unittest
    CALL cp2k_init()
    io_unit = cp_logger_get_default_io_unit()
    CALL check_1c_basis()
+   CALL check_tau_projection()
    CALL check_atom_grid_adjoint()
    CALL check_atom_grid_images()
    DO i = 1, nr
@@ -97,6 +103,75 @@ PROGRAM gapw_unittest
    IF (ANY(potential /= 0.0_dp)) ERROR STOP "Neutral cell has a background potential"
    CALL cp2k_finalize()
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Compare spin-resolved one-center tau and its potential with direct grid sums.
+! **************************************************************************************************
+   SUBROUTINE check_tau_projection()
+      INTEGER, PARAMETER                                 :: na = 29, nbas = 11, nr = 39, np = na*nr, &
+                                                            ns = 2
+
+      INTEGER                                            :: dir, g, i, j, s
+      REAL(dp)                                           :: coeff(nbas), expected(np), mh, ms, &
+                                                            th(na, nr, ns), ts(na, nr, ns)
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: vh, vs
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: ih, isoft
+      TYPE(rho_atom_type), POINTER                       :: atom
+      TYPE(tau_basis_cache_type)                         :: cache
+
+      cache%na = na
+      cache%nr = nr
+      cache%nsatbas = nbas
+      ALLOCATE (cache%grad(np, nbas, 3), cache%n2oindex(nbas), atom)
+      ALLOCATE (atom%cpc_h(ns), atom%cpc_s(ns), ih(ns), isoft(ns), vh(na, nr, ns), vs(na, nr, ns))
+      cache%n2oindex = [(nbas + 1 - i, i=1, nbas)]
+      DO dir = 1, 3
+         DO i = 1, nbas
+            cache%grad(:, i, dir) = [(REAL(MOD(g*(i + dir) + dir, 23) - 11, dp)/19, g=1, np)]
+         END DO
+      END DO
+      DO s = 1, ns
+         ALLOCATE (atom%cpc_h(s)%r_coef(nbas, nbas), atom%cpc_s(s)%r_coef(nbas, nbas))
+         ALLOCATE (ih(s)%r_coef(nbas, nbas), isoft(s)%r_coef(nbas, nbas))
+         coeff = [(REAL(i + s, dp)/13, i=1, nbas)]
+         DO j = 1, nbas
+            atom%cpc_h(s)%r_coef(:, j) = coeff*coeff(j)
+         END DO
+         atom%cpc_s(s)%r_coef = (0.25_dp*s)*atom%cpc_h(s)%r_coef
+         vh(:, :, s) = RESHAPE([(REAL(MOD(s*g, 17) - 8, dp)/7, g=1, np)], [na, nr])
+         vs(:, :, s) = 0.13_dp - 0.3_dp*vh(:, :, s)
+         ih(s)%r_coef = 1.0_dp
+         isoft(s)%r_coef = -2.0_dp
+      END DO
+
+      CALL calc_tau_atom(th, ts, atom, cache, ns)
+      CALL dgaVtaudgb(vh, vs, ih, isoft, cache, ns)
+      DO s = 1, ns
+         coeff = [(REAL(i + s, dp)/13, i=1, nbas)]
+         expected = 0.0_dp
+         DO dir = 1, 3
+            expected = expected + 0.5_dp*MATMUL(cache%grad(:, :, dir), coeff)**2
+         END DO
+         IF (MAXVAL(ABS(RESHAPE(th(:, :, s), [np]) - expected)) > 1.e-12_dp .OR. &
+             MAXVAL(ABS(RESHAPE(ts(:, :, s), [np]) - (0.25_dp*s)*expected)) > 1.e-12_dp) THEN
+            ERROR STOP "Incorrect one-center kinetic energy density"
+         END IF
+         DO j = 1, nbas
+            DO i = 1, nbas
+               expected = 0.5_dp*SUM(cache%grad(:, i, :)*cache%grad(:, j, :), DIM=2)
+               mh = 1.0_dp + DOT_PRODUCT(expected, RESHAPE(vh(:, :, s), [np]))
+               ms = -2.0_dp + DOT_PRODUCT(expected, RESHAPE(vs(:, :, s), [np]))
+               IF (ABS(ih(s)%r_coef(cache%n2oindex(i), cache%n2oindex(j)) - mh) > 1.e-11_dp .OR. &
+                   ABS(isoft(s)%r_coef(cache%n2oindex(i), cache%n2oindex(j)) - ms) > 1.e-11_dp) THEN
+                  ERROR STOP "Incorrect one-center tau potential"
+               END IF
+            END DO
+         END DO
+         DEALLOCATE (atom%cpc_h(s)%r_coef, atom%cpc_s(s)%r_coef, ih(s)%r_coef, isoft(s)%r_coef)
+      END DO
+      DEALLOCATE (atom%cpc_h, atom%cpc_s)
+      DEALLOCATE (atom, ih, isoft, vh, vs, cache%n2oindex)
+   END SUBROUTINE check_tau_projection
 
 ! **************************************************************************************************
 !> \brief Check that one-centre basis extension retains diffuse exponents without duplicates.
