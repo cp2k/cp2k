@@ -217,7 +217,7 @@ spack:
 
   repos:
     builtin:
-      commit: 04ec59ab6f4327a17a986a2a83e4a521fbead3ef # 2026-11-23
+      commit: 6269388cd226f278d6d201d8d5ab19bfb98cb8dd # 2026-11-27
 
   specs:
     # Build tools
@@ -260,7 +260,7 @@ spack:
     - "openpmd-api@0.17.1"
     - "pace@2025.12.4.1"
     - "pexsi@2.0.0"
-    - "plumed@2.10.1"
+    - "plumed@2.10.2"
     - "py-torch@2.15.0"
     - "sirius@7.12.0"
     - "spfft@1.1.1"
