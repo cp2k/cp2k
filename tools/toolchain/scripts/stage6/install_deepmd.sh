@@ -38,19 +38,24 @@ case "$with_deepmd" in
 
       mkdir build
       cd build
-      # DeePMD's unused helper executable dp_ipi links with -z defs, while the
-      # distro libtorch leaves some c10/torch symbols unresolved in
-      # libdeepmd_cc.so. CP2K only uses libdeepmd_c, so allow unresolved
-      # symbols from shared libraries for the helper executables.
+      # DeePMD's unused helper executable dp_ipi links with -z defs, while
+      # libtorch leaves some c10/torch symbols unresolved in libdeepmd_cc.so.
+      # CP2K only uses libdeepmd_c, so allow unresolved symbols from shared
+      # libraries for the helper executables.
       deepmd_linker_flags=()
       if [ "$(uname -s)" = "Linux" ]; then
         deepmd_linker_flags+=("-DCMAKE_EXE_LINKER_FLAGS=-Wl,--allow-shlib-undefined")
       fi
+      # DeePMD derives its C++ ABI from TORCH_CXX_FLAGS and falls back to the
+      # old ABI (0) when that variable is empty. Recent libtorch TorchConfig
+      # files no longer set TORCH_CXX_FLAGS, so force the new ABI (1) to match
+      # the libtorch build.
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_CXX_STANDARD=11 \
         -DCMAKE_CXX_STANDARD_REQUIRED=TRUE \
         -DENABLE_PYTORCH=TRUE \
+        -DOP_CXX_ABI=1 \
         "${deepmd_linker_flags[@]}" \
         .. > cmake.log 2>&1 || tail_excerpt cmake.log
       make -j deepmd_c > make.log 2>&1 || tail_excerpt make.log
