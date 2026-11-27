@@ -1145,7 +1145,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_parameters_from_qs_env'
 
-      INTEGER                                            :: color_sub, handle, homo, n_ao, n_atom, &
+      INTEGER                                            :: color_sub, handle, n_ao, n_atom, &
                                                             nelectron, u
       INTEGER, DIMENSION(3)                              :: periodic
       REAL(KIND=dp)                                      :: maxocc
@@ -1169,21 +1169,21 @@ CONTAINS
       IF (bs_env%n_spin == 1) bs_env%spin_degeneracy = 2.0_dp
       IF (bs_env%n_spin == 2) bs_env%spin_degeneracy = 1.0_dp
 
-      CALL get_mo_set(mo_set=mos(1), nao=n_ao, homo=homo, nelectron=nelectron, maxocc=maxocc)
+      ! GW, BSE and the band edges use integer occupations: the number of occupied levels is
+      ! the electron count and not the HOMO index of the SCF, which under smearing is the
+      ! highest level with a non-zero fractional occupation
+      CALL get_mo_set(mo_set=mos(1), nao=n_ao, nelectron=nelectron, maxocc=maxocc)
       bs_env%n_ao = n_ao
-      bs_env%n_occ_nosmear(1:2) = NINT(nelectron/maxocc) !fix for moire large-cell Gamma
       bs_env%n_electron(1:2) = nelectron
       ! lowered by the diagonalization below if the canonical orthogonalization removes modes
       bs_env%n_mo_retained = n_ao
-      bs_env%n_occ(1:2) = homo
-      bs_env%n_vir(1:2) = n_ao - homo
+      bs_env%n_occ(1:2) = NINT(nelectron/maxocc)
       IF (bs_env%n_spin == 2) THEN
-         CALL get_mo_set(mo_set=mos(2), homo=homo, nelectron=nelectron, maxocc=maxocc)
-         bs_env%n_occ_nosmear(2) = NINT(nelectron/maxocc)
-         bs_env%n_occ(2) = homo
-         bs_env%n_vir(2) = n_ao - homo
+         CALL get_mo_set(mo_set=mos(2), nelectron=nelectron, maxocc=maxocc)
+         bs_env%n_occ(2) = NINT(nelectron/maxocc)
          bs_env%n_electron(2) = nelectron
       END IF
+      bs_env%n_vir(1:2) = n_ao - bs_env%n_occ(1:2)
       bs_env%eps_eigval_mat_s = scf_control%eps_eigval
       ! reuse the ground-state SCF's &SMEAR settings (if any) for the metal-capable Fermi
       ! level search (get_fermi_level_1c/2c); SMEAR_ENERGY_WINDOW and SMEAR_LIST are not
@@ -1259,9 +1259,9 @@ CONTAINS
 
       IF (u > 0) THEN
          WRITE (u, FMT="(T2,2A,T73,I8)") "Number of occupied molecular orbitals (MOs) ", &
-            "= Number of occupied bands", homo
+            "= Number of occupied bands", bs_env%n_occ(bs_env%n_spin)
          WRITE (u, FMT="(T2,2A,T73,I8)") "Number of unoccupied (= virtual) MOs ", &
-            "= Number of unoccupied bands", n_ao - homo
+            "= Number of unoccupied bands", bs_env%n_vir(bs_env%n_spin)
          WRITE (u, FMT="(T2,A,T73,I8)") "Number of Gaussian basis functions for MOs", n_ao
          IF (bs_env%gw_implementation == tensor_small_cell_full_kp .OR. &
              bs_env%gw_implementation == ri_rs_small_cell_full_kp) THEN
@@ -1406,12 +1406,12 @@ CONTAINS
       ELSE
 
          IF (bs_env%n_spin == 1) THEN
-            homo = bs_env%n_occ_nosmear(1)
+            homo = bs_env%n_occ(1)
             band_edges_scf_guess%VBM = bs_env%eigenval_scf_Gamma(homo, 1)
             band_edges_scf_guess%CBM = bs_env%eigenval_scf_Gamma(homo + 1, 1)
          ELSE
-            homo_1 = bs_env%n_occ_nosmear(1)
-            homo_2 = bs_env%n_occ_nosmear(2)
+            homo_1 = bs_env%n_occ(1)
+            homo_2 = bs_env%n_occ(2)
             band_edges_scf_guess%VBM = MAX(bs_env%eigenval_scf_Gamma(homo_1, 1), &
                                            bs_env%eigenval_scf_Gamma(homo_2, 2))
             band_edges_scf_guess%CBM = MIN(bs_env%eigenval_scf_Gamma(homo_1 + 1, 1), &
@@ -1524,7 +1524,7 @@ CONTAINS
          CALL cp_cfm_create(cfm_s_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
          CALL cp_cfm_create(cfm_spinor_wf_ikp, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
 
-         homo_spinor = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
+         homo_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
 
          SELECT CASE (bs_env%n_spin)
          CASE (1)
@@ -1677,7 +1677,7 @@ CONTAINS
 
             END IF
 
-            homo = bs_env%n_occ_nosmear(ispin)
+            homo = bs_env%n_occ(ispin)
 
             E_VBM_at_ikp = MAX(E_VBM_at_ikp, eigenval(homo))
             E_CBM_at_ikp = MIN(E_CBM_at_ikp, eigenval(homo + 1))
@@ -1785,7 +1785,7 @@ CONTAINS
       IF (bs_env%do_soc) THEN
          band_edges_scf_SOC%IDBG = band_edges_scf_SOC%CBM - band_edges_scf_SOC%VBM
          ! SOC merges both spins into 2*n_ao spinor states, each holding at most one
-         ! electron (maxocc=1); homo_spinor = n_occ_nosmear(1)+n_occ_nosmear(n_spin) is the total spinor
+         ! electron (maxocc=1); homo_spinor = n_occ(1)+n_occ(n_spin) is the total spinor
          ! electron count, same quantity SOC_ev uses to locate the occupied/unoccupied edge
          CALL get_fermi_level_1c(bs_env, eigenval_spinor_all_scf, &
                                  n_el_spinor, 1.0_dp, &
@@ -2199,7 +2199,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       n_ao = bs_env%n_ao
-      homo_spinor = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
+      homo_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
       CALL get_qs_env(qs_env, nkind=nkind)
 
       CALL cp_cfm_create(cfm_ks_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
@@ -2350,25 +2350,25 @@ CONTAINS
 
       ! Energy window per k-point: keep the non-SOC states in [E_HOMO(k) - SOC_DIAG_OCC, E_HOMO(k)]
       ! and [E_LUMO(k), E_LUMO(k) + SOC_DIAG_VIRT], where E_HOMO(k)/E_LUMO(k) are the k-local
-      ! non-SOC edges at the smearing-independent electron count n_occ_nosmear. Eigenvalues are
+      ! non-SOC edges at the smearing-independent electron count n_occ. Eigenvalues are
       ! ascending, so the counts give contiguous index ranges; both spins share one window size
       ! (the larger of the two counts). An unset (<= 0) SOC_DIAG_OCC or SOC_DIAG_VIRT keeps all
       ! occupied or all virtual states, respectively.
-      CPASSERT(bs_env%n_occ_nosmear(1) >= 1 .AND. bs_env%n_occ_nosmear(1) < n_ao)
-      CPASSERT(bs_env%n_occ_nosmear(2) >= 1 .AND. bs_env%n_occ_nosmear(2) < n_ao)
-      e_homo_k = MAX(eigenval_no_SOC(bs_env%n_occ_nosmear(1), ikp, 1), &
-                     eigenval_no_SOC(bs_env%n_occ_nosmear(bs_env%n_spin), ikp, bs_env%n_spin))
-      e_lumo_k = MIN(eigenval_no_SOC(bs_env%n_occ_nosmear(1) + 1, ikp, 1), &
-                     eigenval_no_SOC(bs_env%n_occ_nosmear(bs_env%n_spin) + 1, ikp, bs_env%n_spin))
+      CPASSERT(bs_env%n_occ(1) >= 1 .AND. bs_env%n_occ(1) < n_ao)
+      CPASSERT(bs_env%n_occ(2) >= 1 .AND. bs_env%n_occ(2) < n_ao)
+      e_homo_k = MAX(eigenval_no_SOC(bs_env%n_occ(1), ikp, 1), &
+                     eigenval_no_SOC(bs_env%n_occ(bs_env%n_spin), ikp, bs_env%n_spin))
+      e_lumo_k = MIN(eigenval_no_SOC(bs_env%n_occ(1) + 1, ikp, 1), &
+                     eigenval_no_SOC(bs_env%n_occ(bs_env%n_spin) + 1, ikp, bs_env%n_spin))
       e_occ_min = -HUGE(1.0_dp)
       IF (bs_env%soc_diag_occ > 0.0_dp) e_occ_min = e_homo_k - bs_env%soc_diag_occ
       e_virt_max = HUGE(1.0_dp)
       IF (bs_env%soc_diag_virt > 0.0_dp) e_virt_max = e_lumo_k + bs_env%soc_diag_virt
-      nocc_sp1 = COUNT(eigenval_no_SOC(1:bs_env%n_occ_nosmear(1), ikp, 1) >= e_occ_min)
-      nocc_sp2 = COUNT(eigenval_no_SOC(1:bs_env%n_occ_nosmear(bs_env%n_spin), ikp, bs_env%n_spin) >= &
+      nocc_sp1 = COUNT(eigenval_no_SOC(1:bs_env%n_occ(1), ikp, 1) >= e_occ_min)
+      nocc_sp2 = COUNT(eigenval_no_SOC(1:bs_env%n_occ(bs_env%n_spin), ikp, bs_env%n_spin) >= &
                        e_occ_min)
-      nvirt_sp1 = COUNT(eigenval_no_SOC(bs_env%n_occ_nosmear(1) + 1:n_ao, ikp, 1) <= e_virt_max)
-      nvirt_sp2 = COUNT(eigenval_no_SOC(bs_env%n_occ_nosmear(bs_env%n_spin) + 1:n_ao, ikp, bs_env%n_spin) <= &
+      nvirt_sp1 = COUNT(eigenval_no_SOC(bs_env%n_occ(1) + 1:n_ao, ikp, 1) <= e_virt_max)
+      nvirt_sp2 = COUNT(eigenval_no_SOC(bs_env%n_occ(bs_env%n_spin) + 1:n_ao, ikp, bs_env%n_spin) <= &
                         e_virt_max)
       ! safety net only: with the k-local reference both counts are >= 1 by construction
       nocc = MAX(nocc_sp1, nocc_sp2, 1)
@@ -2380,14 +2380,14 @@ CONTAINS
             ' virt states per spin  (E_HOMO(k), E_LUMO(k) =', e_homo_k*evolt, ',', &
             e_lumo_k*evolt, ' eV)'
       END IF
-      CPASSERT(nocc <= bs_env%n_occ_nosmear(1))
-      CPASSERT(nocc <= bs_env%n_occ_nosmear(bs_env%n_spin))
-      CPASSERT(nvirt <= n_ao - bs_env%n_occ_nosmear(1))
-      CPASSERT(nvirt <= n_ao - bs_env%n_occ_nosmear(bs_env%n_spin))
+      CPASSERT(nocc <= bs_env%n_occ(1))
+      CPASSERT(nocc <= bs_env%n_occ(bs_env%n_spin))
+      CPASSERT(nvirt <= n_ao - bs_env%n_occ(1))
+      CPASSERT(nvirt <= n_ao - bs_env%n_occ(bs_env%n_spin))
       CPASSERT(.NOT. bs_env%do_dos_pdos)
 
-      mo_index_start_1 = bs_env%n_occ_nosmear(1) - nocc + 1
-      mo_index_start_2 = bs_env%n_occ_nosmear(bs_env%n_spin) - nocc + 1
+      mo_index_start_1 = bs_env%n_occ(1) - nocc + 1
+      mo_index_start_2 = bs_env%n_occ(bs_env%n_spin) - nocc + 1
       n_window = nocc + nvirt
       n_window2tot = 2*n_window
 
@@ -2487,7 +2487,7 @@ CONTAINS
       ! 7. valence band max. (VBM), conduction band min. (CBM) and direct bandgap (DBG),
       !    taken from the merged spectrum at the smearing-independent spinor electron count
       !    (not a window-local index): SOC can move states across the occupied/virtual boundary.
-      homo_used = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
+      homo_used = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
       band_edges%VBM = MAX(band_edges%VBM, eigenval_spinor(homo_used))
       band_edges%CBM = MIN(band_edges%CBM, eigenval_spinor(homo_used + 1))
       band_edges%DBG = MIN(band_edges%DBG, eigenval_spinor(homo_used + 1) - eigenval_spinor(homo_used))
@@ -3006,7 +3006,7 @@ CONTAINS
             WRITE (iunit, "(A8,A12,A22)") "n", "k", "ϵ_nk^DFT+SOC (eV)"
          END IF
 
-         n_occ_spinor = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
+         n_occ_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
 
          DO i_mo = 1, SIZE(eigenval_spinor)
             IF (i_mo <= n_occ_spinor) occ_vir = 'occ'
@@ -4369,7 +4369,7 @@ CONTAINS
          WRITE (iunit, "(A)") " "
          WRITE (iunit, "(A5,A8,A4,A16,7A10)") "n", "", "deg", "E (eV)", "<S_x>", "<S_y>", "<S_z>", &
             "w_A", "<S_x>_A", "<S_y>_A", "<S_z>_A"
-         n_occ_spinor = bs_env%n_occ_nosmear(1) + bs_env%n_occ_nosmear(bs_env%n_spin)
+         n_occ_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
          DO j = 1, nwf
             occ_vir = 'vir'
             IF (bs_env%soc_wf_state_index(j) <= n_occ_spinor) occ_vir = 'occ'

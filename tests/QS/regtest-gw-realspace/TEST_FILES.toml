@@ -69,4 +69,11 @@
   {matcher = "E_molecule_G0W0_HOMO", tol = 1e-03, ref = -6.796},
   {matcher = "E_molecule_G0W0_gap", tol = 1e-03, ref = 23.423}
 ]
+
+# Fermi-Dirac smearing in the SCF (5000 K): GW uses integer occupations (9 alpha, 7 beta levels),
+# not the SCF HOMO index, which counts the two fractionally occupied beta levels as occupied.
+"16_RIRS_G0W0_PBE0_O2_SMEAR.inp" = [
+  {matcher = "E_molecule_G0W0_gap", tol = 1e-03, ref = 17.376},
+  {matcher = "E_molecule_G0W0_beta_gap", tol = 1e-03, ref = 21.627}
+]
 #EOF
