@@ -45,6 +45,7 @@ MODULE xc_gauxc_functional
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE skala_model_selection,           ONLY: find_single_functional_subsection,&
+                                              model_is_skala,&
                                               model_key_is_none,&
                                               resolve_skala_execution_target,&
                                               resolve_skala_model_path,&
@@ -1392,8 +1393,7 @@ CONTAINS
          "GauXC does not support non-local VDW_POTENTIAL corrections. "// &
          "Use an additive PAIR_POTENTIAL dispersion correction or disable GauXC."
 
-      CHARACTER(len=default_path_length)                 :: model_key, model_name, output_path, &
-                                                            resolved_model
+      CHARACTER(len=default_path_length)                 :: model_name, output_path, resolved_model
       CHARACTER(len=default_string_length) :: gradient_runtime, gradient_runtime_key, grid_key, &
          int_exec_space_key, lb_exec_space_key, lwd_kernel_key, pruning_key, skala_runtime, &
          skala_runtime_key
@@ -1653,8 +1653,6 @@ CONTAINS
          "OUTPUT_PATH", &
          c_val=output_path)
 
-      model_key = ADJUSTL(model_name)
-      CALL uppercase(model_key)
       skala_runtime_key = ADJUSTL(skala_runtime)
       CALL uppercase(skala_runtime_key)
       gradient_runtime_key = ADJUSTL(gradient_runtime)
@@ -1664,10 +1662,9 @@ CONTAINS
       int_exec_space_key = ADJUSTL(params%int_exec_space)
       CALL uppercase(int_exec_space_key)
       params%use_gauxc_model = .NOT. model_key_is_none(model_name, params%xc_fun_name)
-      ! The built-in SKALA runtime selector is the literal MODEL keyword; unlike
-      ! model_is_skala, arbitrary custom model paths that merely contain "SKALA"
-      ! must not opt into the SKALA-native runtime behaviour here.
-      use_skala_model = (TRIM(model_key) == "SKALA")
+      ! Single definition of "is the built-in SKALA model" (the literal MODEL
+      ! keyword); custom TorchScript paths are generic OneDFT models everywhere.
+      use_skala_model = model_is_skala(model_name)
       lwd_kernel_key = ADJUSTL(params%lwd_kernel)
       CALL uppercase(lwd_kernel_key)
       IF (TRIM(lwd_kernel_key) == "AUTO") THEN

@@ -245,10 +245,10 @@ CONTAINS
    END FUNCTION xc_section_uses_skala_model
 
 ! **************************************************************************************************
-!> \brief Return true if a GAUXC MODEL key selects or names a SKALA model.
-!>        Matches both the "SKALA" keyword and model paths/names containing SKALA.
-!>        Use this for presence/dispersion detection; the runtime-selection path in
-!>        xc_gauxc_functional deliberately requires the literal "SKALA" keyword.
+!> \brief Return true if a GAUXC MODEL key is the built-in SKALA model keyword.
+!>        Only the literal "SKALA" selects the built-in Skala model; custom
+!>        TorchScript model paths are treated as generic OneDFT models by all
+!>        callers (runtime selection, dispersion reference and warnings).
 !> \param model_name the MODEL keyword value
 !> \return ...
 ! **************************************************************************************************
@@ -260,7 +260,7 @@ CONTAINS
 
       model_key = ADJUSTL(model_name)
       CALL uppercase(model_key)
-      is_skala = (INDEX(TRIM(model_key), "SKALA") > 0)
+      is_skala = (TRIM(model_key) == "SKALA")
    END FUNCTION model_is_skala
 
 ! **************************************************************************************************
