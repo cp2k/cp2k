@@ -31,6 +31,32 @@ elif [[ "${PROFILE}" =~ ^ubuntu ]] || [[ "${PROFILE}" =~ ^minimal ]]; then
   source "${TOOLCHAIN_DIR}/install/setup"
 fi
 
+# Disable libtorch-dependent features that are not provided by the toolchain.
+# This keeps CP2K_USE_EVERYTHING usable for images that intentionally build
+# without libtorch (e.g. MPICH images that must not link a libtorch built
+# against OpenMPI).
+toolchain_feature_flags=()
+if [[ "${PROFILE}" =~ ^toolchain ]]; then
+  if [[ -z "${LIBTORCH_ROOT}" ]]; then
+    toolchain_feature_flags+=("-DCP2K_USE_LIBTORCH=OFF" "-DCP2K_USE_SKALA_FTORCH=OFF")
+  fi
+  if [[ -z "${GAUXC_ROOT}" ]]; then
+    toolchain_feature_flags+=("-DCP2K_USE_GAUXC=OFF")
+  fi
+  if [[ -z "${DEEPMD_ROOT}" ]]; then
+    toolchain_feature_flags+=("-DCP2K_USE_DEEPMD=OFF")
+  fi
+  if [[ -n "${LIBTORCH_ROOT}" ]]; then
+    # Torch is linked PRIVATE into libcp2k, but the shared library keeps
+    # unresolved torch/c10 symbols (libtorch.so is a thin wrapper). Allow those
+    # undefined shared-library symbols when linking the CP2K executables; the
+    # toolchain setup puts the torch libraries on LD_LIBRARY_PATH at runtime.
+    toolchain_feature_flags+=(
+      "-DCMAKE_EXE_LINKER_FLAGS=-Wl,--allow-shlib-undefined"
+    )
+  fi
+fi
+
 # Run CMake
 [[ -d build ]] && rm -rf build
 mkdir build
@@ -49,6 +75,7 @@ if [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "pdbg" ]]; then
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_OPENPMD=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -62,6 +89,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
     -DCP2K_USE_MPI=OFF \
     -DCP2K_USE_OPENPMD=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -75,6 +103,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_OPENPMD=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -87,6 +116,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_MPI=OFF \
     -DCP2K_USE_OPENPMD=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -107,6 +137,7 @@ elif [[ "${PROFILE}" == "toolchain_mkl" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_DLAF=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -126,6 +157,7 @@ elif [[ "${PROFILE}" == "toolchain_mkl" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_DLAF=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -144,6 +176,7 @@ elif [[ "${PROFILE}" == "toolchain_intel" ]] && [[ "${VERSION}" == "psmp" ]]; th
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_DLAF=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -162,6 +195,7 @@ elif [[ "${PROFILE}" == "toolchain_intel" ]] && [[ "${VERSION}" == "ssmp" ]]; th
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_DLAF=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -180,6 +214,7 @@ elif [[ "${PROFILE}" == "toolchain_arm64" ]] && [[ "${VERSION}" == "psmp" ]]; th
     -DCP2K_USE_SKALA_FTORCH=OFF \
     -DCP2K_USE_OPENPMD=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -211,6 +246,7 @@ elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; t
     -DCP2K_USE_OPENPMD=OFF \
     -DCP2K_USE_SIRIUS=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -239,6 +275,7 @@ elif [[ "${PROFILE}" == "toolchain_generic" ]] && [[ "${VERSION}" == "psmp" ]]; 
     -DCP2K_USE_GAUXC=OFF \
     -DCP2K_USE_SKALA_FTORCH=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -253,6 +290,7 @@ elif [[ "${PROFILE}" == "toolchain_conventions" ]] && [[ "${VERSION}" == "psmp" 
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_OPENPMD=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -266,6 +304,7 @@ elif [[ "${PROFILE}" == "toolchain_coverage" ]] && [[ "${VERSION}" == "psmp" ]];
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_OPENPMD=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -282,6 +321,7 @@ elif [[ "${PROFILE}" == "toolchain_asan" ]] && [[ "${VERSION}" == "psmp" ]]; the
     -DCP2K_USE_GREENX=OFF \
     -DCP2K_USE_OPENPMD=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -312,6 +352,7 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_SKALA_FTORCH=OFF \
     -DCP2K_USE_OPENPMD=OFF \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -322,6 +363,7 @@ elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "sdbg" ]]; then
     -DCMAKE_BUILD_TYPE="Debug" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -Werror=dev \
+    "${toolchain_feature_flags[@]}" \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 

@@ -5,6 +5,30 @@
 
 FROM docker.io/ubuntu:26.04
 
+# Provide OpenMPI from the distribution and libtorch from the
+# official CPU pip wheel. OpenBLAS is built by the toolchain.
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update -qq && \
+    apt-get install -qq --no-install-recommends \
+    binutils \
+    ca-certificates \
+    python3 \
+    python3-pip \
+    openmpi-bin \
+    libopenmpi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Fetch the official CPU wheel for a fixed Python ABI and unpack it; CP2K only
+# uses the C++ library. An empty libkineto.a keeps TorchConfig.cmake from
+# emitting a missing-library CMake warning (CI treats warnings as errors).
+RUN python3 -m pip download --no-deps --only-binary=:all: \
+      --python-version 313 --implementation cp --abi cp313 \
+      --platform manylinux_2_28_x86_64 \
+      --index-url https://download.pytorch.org/whl/cpu \
+      -d /tmp/torch-wheel "torch==2.9.1+cpu" && \
+    python3 -c "import glob, zipfile; zipfile.ZipFile(glob.glob('/tmp/torch-wheel/torch-*.whl')[0]).extractall('/opt/libtorch')" && \
+    rm -rf /tmp/torch-wheel && \
+    [ -e "/opt/libtorch/torch/lib/libkineto.a" ] || ar rcs "/opt/libtorch/torch/lib/libkineto.a"
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
 COPY ./tools/toolchain/install_requirements*.sh ./
@@ -23,6 +47,10 @@ RUN ./install_cp2k_toolchain.sh \
     --mpi-mode=openmpi \
     --with-dbcsr \
     --with-gcc=system \
+    --with-libtorch=/opt/libtorch/torch \
+    --with-gauxc=install \
+    --with-deepmd=install \
+    --with-openmpi=system \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
