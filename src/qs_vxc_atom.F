@@ -376,12 +376,12 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL :: accint, atom_composite_active, atom_composite_diagnostic, &
-         atom_composite_reference, comp_geometry_valid, direct_valence_atom_composite, donlcc, &
-         evaluate_hard, evaluate_soft, gradient_f, lsd, my_calculate_forces, &
-         native_grid_diagnostics, nlcc, one_center_kind, paw_atom, paw_pseudopotentials, &
-         requested_atom_composite_grid, rho_g_valid, skala_atom_grid, source_matrix_local, tau_f, &
-         tau_r_valid, use_atom_composite_density, use_atom_composite_gradient, &
-         use_atom_composite_tau, use_virial
+         atom_composite_reference, comp_geometry_valid, composite_partition_layout_valid, &
+         direct_valence_atom_composite, donlcc, evaluate_hard, evaluate_soft, gradient_f, lsd, &
+         my_calculate_forces, native_grid_diagnostics, nlcc, one_center_kind, paw_atom, &
+         paw_pseudopotentials, requested_atom_composite_grid, rho_g_valid, skala_atom_grid, &
+         source_matrix_local, tau_f, tau_r_valid, use_atom_composite_density, &
+         use_atom_composite_gradient, use_atom_composite_tau, use_virial
       REAL(dp) :: agr, alpha, atom_composite_exc, atom_composite_nelec, coefficient, &
          composite_cross_cutoff_max, composite_cross_density_max, composite_cross_grad_max, &
          composite_cross_kin_max, composite_density_max, composite_density_min, &
@@ -470,8 +470,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input, model_section, my_xc_section, &
                                                             native_section, xc_fun_section
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
-      TYPE(skala_periodic_partition_type) :: composite_partition_image_coords, &
-         local_partition_layout
+      TYPE(skala_periodic_partition_type)                :: composite_partition_layout
       TYPE(tau_basis_cache_type)                         :: tau_basis_cache
       TYPE(virial_type), POINTER                         :: virial
       TYPE(xc_derivative_set_type)                       :: deriv_set
@@ -481,6 +480,7 @@ CONTAINS
 ! -------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
+      composite_partition_layout_valid = .FALSE.
 
       NULLIFY (atom_list)
       NULLIFY (auxbas_pw_pool)
@@ -818,7 +818,8 @@ CONTAINS
                ! the target atom, so build it once and share it across threads.
                CALL build_periodic_atom_image_layout( &
                   composite_atom_coords, cell, 1, composite_image_periodicity, &
-                  composite_partition_image_coords, composite_partition_target_image)
+                  composite_partition_layout, composite_partition_target_image)
+               composite_partition_layout_valid = .TRUE.
 !$OMP PARALLEL DO SCHEDULE(DYNAMIC) DEFAULT(NONE) &
 !$OMP PRIVATE(composite_local_atom, iatom, grid_atom, nr, na, &
 !$OMP         composite_partition_target_image, ir, ia, composite_row, composite_point, &
@@ -826,7 +827,7 @@ CONTAINS
 !$OMP SHARED(cell, composite_atom_coords, composite_atom_end, composite_atom_kind, &
 !$OMP        composite_atom_start, composite_base_grid_weights, composite_grid_coords, &
 !$OMP        composite_grid_weights, composite_image_periodicity, composite_local_atoms, &
-!$OMP        composite_local_natom, composite_partition_image_coords, my_kind_set, particle_set)
+!$OMP        composite_local_natom, composite_partition_layout, my_kind_set, particle_set)
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
                   composite_partition_target_image = iatom
@@ -843,7 +844,7 @@ CONTAINS
                         composite_point(3) = particle_set(iatom)%r(3) + &
                                              grid_atom%rad(ir)*grid_atom%cos_pol(ia)
                         CALL periodic_atom_image_partition_from_layout( &
-                           composite_point, composite_partition_image_coords, &
+                           composite_point, composite_partition_layout, &
                            composite_partition_target_image, partition_weight)
                         composite_grid_coords(:, composite_row) = composite_point
                         composite_base_grid_weights(composite_row) = grid_atom%weight(ia, ir)
@@ -1618,9 +1619,12 @@ CONTAINS
 !$OMP END PARALLEL DO
                ! The periodic image layout only depends on the geometry, not on
                ! the target atom, so build it once and share it across threads.
-               CALL build_periodic_atom_image_layout(composite_atom_coords, cell, 1, &
-                                                     composite_image_periodicity, &
-                                                     local_partition_layout, local_partition_target_image)
+               IF (.NOT. composite_partition_layout_valid) THEN
+                  CALL build_periodic_atom_image_layout(composite_atom_coords, cell, 1, &
+                                                        composite_image_periodicity, &
+                                                        composite_partition_layout, local_partition_target_image)
+                  composite_partition_layout_valid = .TRUE.
+               END IF
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP PRIVATE(composite_row, itask, &
 !$OMP         gth_potential, iatom, idir, ispin, jdir, &
@@ -1641,7 +1645,7 @@ CONTAINS
 !$OMP        composite_kin_grad, composite_local_atoms, composite_local_natom, &
 !$OMP        composite_moving_smooth_force, &
 !$OMP        composite_nlcc_center_force, composite_nlcc_target_force, composite_partition_force, &
-!$OMP        local_partition_layout, lsd, my_kind_set, ntasks, &
+!$OMP        composite_partition_layout, lsd, my_kind_set, ntasks, &
 !$OMP        nlcc, particle_set, qs_env, smooth_rho_r)
                ALLOCATE (composite_nlcc_center_force_local(3, SIZE(particle_set)), &
                          composite_partition_force_local(3, SIZE(particle_set)), &
@@ -1738,7 +1742,7 @@ CONTAINS
                         END DO
                      END IF
                      CALL periodic_atom_image_partition_from_layout( &
-                        composite_grid_coords(:, composite_row), local_partition_layout, &
+                        composite_grid_coords(:, composite_row), composite_partition_layout, &
                         local_partition_target_image, local_partition_weight, &
                         local_partition_datom, local_partition_dstrain)
                      target_partition_adjoint = composite_base_grid_weights(composite_row)* &
