@@ -623,18 +623,18 @@ CONTAINS
          chunk_atom_begin, chunk_atom_end, chunk_feature_counts, chunk_feature_displs, cursor, &
          dist_counts, dist_cursor, dist_displs, dist_recv_counts, dist_recv_displs, &
          dist_send_counts, dist_send_displs, feature_counts, feature_displs, global_owner, &
-         global_source_points, local_feature_counts_tmp, local_owner, local_source_global, &
-         local_source_points, point_counts, point_displs, static_counts, static_displs
+         global_source_points, local_feature_counts_tmp, local_feature_start, local_owner, &
+         local_source_global, local_source_points, point_counts, point_displs, static_counts, &
+         static_displs
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: has_weights, nonperiodic
       REAL(KIND=dp)                                      :: atomic_base_weight, base_weight, &
                                                             included_sum, partition_weight, &
                                                             weight_sum, weight_sumsq
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dist_recv_buffer, dist_send_buffer, &
-                                                            distances, global_static, &
-                                                            local_static, partition_weights
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc, pair_distances, &
-                                                            partition_atom_coords
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dist_recv_buffer, dist_send_buffer, distances, &
+         global_static, local_static, pair_distances, partition_weights
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc, partition_atom_coords, &
+                                                            point_partition_weights
       REAL(KIND=dp), DIMENSION(3)                        :: grid_point
 
       CALL release_layout_cache(skala_state%layout)
@@ -655,17 +655,19 @@ CONTAINS
       END IF
 
       max_local_features = nflat_local
-      IF (my_atom_partition == skala_gpw_atom_partition_smooth) THEN
-         max_local_features = nflat_local*natom
-      END IF
-      ALLOCATE (local_owner(max_local_features), &
-                local_static(nstatic_per_point*max_local_features), &
-                local_feature_counts_tmp(nflat_local), feature_counts(nproc), &
+      ALLOCATE (local_feature_counts_tmp(nflat_local), feature_counts(nproc), &
                 feature_displs(nproc), static_counts(nproc), static_displs(nproc), &
                 atom_coords_pbc(3, natom))
       IF (needs_full_static_tensors) THEN
-         ALLOCATE (local_source_points(max_local_features), point_counts(nproc), &
-                   point_displs(nproc))
+         ALLOCATE (point_counts(nproc), point_displs(nproc))
+      END IF
+      ! The hard partition has exactly one feature per grid point; the smooth
+      ! partition sizes its compact feature buffers after counting the included
+      ! atoms per point (see below).
+      IF (my_atom_partition == skala_gpw_atom_partition_hard) THEN
+         ALLOCATE (local_owner(max_local_features), &
+                   local_static(nstatic_per_point*max_local_features))
+         IF (needs_full_static_tensors) ALLOCATE (local_source_points(max_local_features))
       END IF
       local_feature_counts_tmp = 0
       DO iatom = 1, natom
@@ -673,17 +675,17 @@ CONTAINS
       END DO
       nonperiodic = ALL(cell%perd == 0)
       IF (my_atom_partition == skala_gpw_atom_partition_smooth .AND. nonperiodic) THEN
-         ALLOCATE (pair_distances(natom, natom))
+         ! Packed strict upper triangle of the atom-atom distance matrix.
+         ALLOCATE (pair_distances(MAX(natom*(natom - 1)/2, 0)))
          pair_distances = 0.0_dp
          DO iatom = 1, natom - 1
             DO jatom = iatom + 1, natom
-               pair_distances(iatom, jatom) = &
+               pair_distances(pair_index(iatom, jatom, natom)) = &
                   SQRT(SUM((atom_coords_pbc(:, iatom) - atom_coords_pbc(:, jatom))**2))
-               pair_distances(jatom, iatom) = pair_distances(iatom, jatom)
             END DO
          END DO
       ELSE
-         ALLOCATE (pair_distances(0, 0))
+         ALLOCATE (pair_distances(0))
       END IF
 
       CALL timeset("skala_gpw_layout_local", phase_handle)
@@ -720,14 +722,15 @@ CONTAINS
          END DO
 !$OMP END PARALLEL DO
       ELSE
+         ! Pass 1: evaluate the smooth partition once per point and keep only
+         ! the normalized per-point weights, then size the compact feature
+         ! buffers from the actual number of included atoms.
+         ALLOCATE (point_partition_weights(natom, nflat_local))
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(atom_coords_pbc, bo, skala_state, cell, local_feature_counts_tmp, local_owner, &
-!$OMP        local_source_points, local_static, natom, needs_full_static_tensors, nonperiodic, &
-!$OMP        nx, ny, pair_distances, pw_grid, weights) &
-!$OMP PRIVATE(atomic_base_weight, base_weight, distances, feature_slot, grid_point, i, iatom, &
-!$OMP         included_sum, j, k, local_feature, local_row, owner, partition_weight, &
-!$OMP         partition_atom_coords, partition_weights, static_base)
-         ! Keep point-local scratch outside the hot loop and private to each thread.
+!$OMP SHARED(atom_coords_pbc, bo, cell, local_feature_counts_tmp, natom, nonperiodic, &
+!$OMP        nx, ny, pair_distances, point_partition_weights, pw_grid) &
+!$OMP PRIVATE(distances, grid_point, i, iatom, included_sum, j, k, local_feature, local_row, &
+!$OMP         owner, partition_atom_coords, partition_weights)
          ALLOCATE (distances(natom), partition_atom_coords(3, natom), partition_weights(natom))
 !$OMP DO COLLAPSE(3)
          DO k = bo(1, 3), bo(2, 3)
@@ -736,11 +739,6 @@ CONTAINS
                   local_row = i - bo(1, 1) + 1 + &
                               nx*(j - bo(1, 2) + ny*(k - bo(1, 3)))
                   grid_point = grid_coordinate(pw_grid, [i, j, k])
-                  atomic_base_weight = pw_grid%dvol
-                  base_weight = pw_grid%dvol
-                  IF (PRESENT(weights)) THEN
-                     IF (ASSOCIATED(weights)) base_weight = base_weight*weights%array(i, j, k)
-                  END IF
                   IF (nonperiodic) THEN
                      CALL smooth_atom_partition(grid_point, atom_coords_pbc, cell, &
                                                 partition_weights, partition_atom_coords, distances, &
@@ -758,18 +756,13 @@ CONTAINS
                   END IF
                   local_feature = 0
                   DO iatom = 1, natom
-                     IF (partition_weights(iatom) <= smooth_partition_eps) CYCLE
-                     partition_weight = partition_weights(iatom)/included_sum
-                     local_feature = local_feature + 1
-                     feature_slot = natom*(local_row - 1) + local_feature
-                     local_owner(feature_slot) = iatom
-                     IF (needs_full_static_tensors) local_source_points(feature_slot) = local_row
-                     static_base = nstatic_per_point*(feature_slot - 1)
-                     local_static(static_base + 1:static_base + 3) = grid_point
-                     local_static(static_base + 4) = base_weight*partition_weight
-                     local_static(static_base + 5) = atomic_base_weight* &
-                                                     smooth_partition_atomic_weight_scale( &
-                                                     partition_weight)
+                     IF (partition_weights(iatom) <= smooth_partition_eps) THEN
+                        point_partition_weights(iatom, local_row) = 0.0_dp
+                     ELSE
+                        local_feature = local_feature + 1
+                        point_partition_weights(iatom, local_row) = &
+                           partition_weights(iatom)/included_sum
+                     END IF
                   END DO
                   local_feature_counts_tmp(local_row) = local_feature
                END DO
@@ -779,23 +772,58 @@ CONTAINS
          DEALLOCATE (distances, partition_atom_coords, partition_weights)
 !$OMP END PARALLEL
 
-         ! Compact the conflict-free row slots while preserving the serial row/atom order.
-         nfeature_local = 0
-         DO local_row = 1, nflat_local
-            CPASSERT(local_feature_counts_tmp(local_row) > 0)
-            DO local_feature = 1, local_feature_counts_tmp(local_row)
-               nfeature_local = nfeature_local + 1
-               feature_slot = natom*(local_row - 1) + local_feature
-               IF (feature_slot == nfeature_local) CYCLE
-               local_owner(nfeature_local) = local_owner(feature_slot)
-               IF (needs_full_static_tensors) local_source_points(nfeature_local) = &
-                  local_source_points(feature_slot)
-               local_static(nstatic_per_point*(nfeature_local - 1) + 1: &
-                            nstatic_per_point*nfeature_local) = &
-                  local_static(nstatic_per_point*(feature_slot - 1) + 1: &
-                               nstatic_per_point*feature_slot)
+         ! Row-major compact offsets, matching the previous compaction order.
+         ALLOCATE (local_feature_start(nflat_local))
+         local_feature_start(1) = 1
+         DO local_row = 1, nflat_local - 1
+            local_feature_start(local_row + 1) = local_feature_start(local_row) + &
+                                                 local_feature_counts_tmp(local_row)
+         END DO
+         nfeature_local = local_feature_start(nflat_local) + &
+                          local_feature_counts_tmp(nflat_local) - 1
+         ALLOCATE (local_owner(nfeature_local), &
+                   local_static(nstatic_per_point*nfeature_local))
+         IF (needs_full_static_tensors) ALLOCATE (local_source_points(nfeature_local))
+
+         ! Pass 2: fill the compact feature tensors from the stored weights.
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(bo, local_feature_start, local_owner, local_source_points, local_static, natom, &
+!$OMP        needs_full_static_tensors, nx, ny, point_partition_weights, pw_grid, weights) &
+!$OMP PRIVATE(atomic_base_weight, base_weight, feature_slot, grid_point, i, iatom, j, k, &
+!$OMP         local_feature, local_row, partition_weight, static_base)
+!$OMP DO COLLAPSE(3)
+         DO k = bo(1, 3), bo(2, 3)
+            DO j = bo(1, 2), bo(2, 2)
+               DO i = bo(1, 1), bo(2, 1)
+                  local_row = i - bo(1, 1) + 1 + &
+                              nx*(j - bo(1, 2) + ny*(k - bo(1, 3)))
+                  grid_point = grid_coordinate(pw_grid, [i, j, k])
+                  atomic_base_weight = pw_grid%dvol
+                  base_weight = pw_grid%dvol
+                  IF (PRESENT(weights)) THEN
+                     IF (ASSOCIATED(weights)) base_weight = base_weight*weights%array(i, j, k)
+                  END IF
+                  local_feature = 0
+                  DO iatom = 1, natom
+                     partition_weight = point_partition_weights(iatom, local_row)
+                     IF (partition_weight <= 0.0_dp) CYCLE
+                     local_feature = local_feature + 1
+                     feature_slot = local_feature_start(local_row) + local_feature - 1
+                     local_owner(feature_slot) = iatom
+                     IF (needs_full_static_tensors) local_source_points(feature_slot) = local_row
+                     static_base = nstatic_per_point*(feature_slot - 1)
+                     local_static(static_base + 1:static_base + 3) = grid_point
+                     local_static(static_base + 4) = base_weight*partition_weight
+                     local_static(static_base + 5) = atomic_base_weight* &
+                                                     smooth_partition_atomic_weight_scale( &
+                                                     partition_weight)
+                  END DO
+               END DO
             END DO
          END DO
+!$OMP END DO
+!$OMP END PARALLEL
+         DEALLOCATE (point_partition_weights)
       END IF
       CALL timestop(phase_handle)
 
@@ -1100,6 +1128,7 @@ CONTAINS
                   global_owner, global_source_points, global_static, local_feature_counts_tmp, &
                   local_owner, local_static, pair_distances, static_counts, static_displs)
       IF (ALLOCATED(local_source_points)) DEALLOCATE (local_source_points)
+      IF (ALLOCATED(local_feature_start)) DEALLOCATE (local_feature_start)
       IF (ALLOCATED(point_counts)) DEALLOCATE (point_counts)
       IF (ALLOCATED(point_displs)) DEALLOCATE (point_displs)
       IF (ALLOCATED(atom_position)) DEALLOCATE (atom_position)
@@ -2676,8 +2705,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: weights
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: partition_atom_coords
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: distances
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
-         OPTIONAL                                        :: pair_distances
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: pair_distances
 
       INTEGER                                            :: iatom, jatom, natom
       REAL(KIND=dp)                                      :: mu, rab, rsum, switch, total
@@ -2707,7 +2735,7 @@ CONTAINS
       DO iatom = 1, natom - 1
          DO jatom = iatom + 1, natom
             IF (PRESENT(pair_distances)) THEN
-               rab = pair_distances(iatom, jatom)
+               rab = pair_distances(pair_index(iatom, jatom, natom))
             ELSE
                rij = partition_atom_coords(:, iatom) - partition_atom_coords(:, jatom)
                rab = SQRT(SUM(rij**2))
@@ -2738,6 +2766,24 @@ CONTAINS
       END IF
 
    END SUBROUTINE smooth_atom_partition
+
+! **************************************************************************************************
+!> \brief Linear index into the packed strict upper triangle of an (natom, natom) matrix.
+!> \param iatom first atom
+!> \param jatom second atom
+!> \param natom number of atoms
+!> \return 1-based index of the (min,max) pair
+! **************************************************************************************************
+   PURE FUNCTION pair_index(iatom, jatom, natom) RESULT(idx)
+      INTEGER, INTENT(IN)                                :: iatom, jatom, natom
+      INTEGER                                            :: idx
+
+      INTEGER                                            :: i, j
+
+      i = MIN(iatom, jatom)
+      j = MAX(iatom, jatom)
+      idx = (i - 1)*natom - (i - 1)*i/2 + (j - i)
+   END FUNCTION pair_index
 
 ! **************************************************************************************************
 !> \brief Build normalized smooth atom partition weights.
