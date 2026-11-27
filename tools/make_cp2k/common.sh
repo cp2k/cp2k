@@ -69,3 +69,16 @@ activate_spack_env() {
   fi
   eval "$(spack env activate --sh "${CP2K_ENV}")"
 }
+
+# Set the array CMAKE_WERROR_FLAGS to treat CMake developer warnings as errors except
+# for the non-target-directive warnings introduced with CMake 4.5. This warning
+# category is only specified for CMake 4.5 or newer, because CMake 4.4 rejects
+# unknown warning categories with an error.
+set_cmake_werror_flags() {
+  local cmake_version
+  cmake_version="$(cmake --version | awk 'NR==1 {print $3}')"
+  CMAKE_WERROR_FLAGS=(-Werror=dev)
+  if [[ "$(printf '%s\n' 4.5 "${cmake_version}" | sort -V | head -n 1)" == "4.5" ]]; then
+    CMAKE_WERROR_FLAGS+=(-Wno-error=non-target-directive)
+  fi
+}

@@ -57,6 +57,7 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
   GROMACS_BUILD_PATH="${GROMACS_ROOT}"/build
   mkdir -p "${GROMACS_BUILD_PATH}"
   echo -e "\n*** Performing CMake configuration for GROMACS ${GROMACS_VERSION} ***\n"
+  set_cmake_werror_flags
   cmake -S "${GROMACS_ROOT}" -B "${GROMACS_BUILD_PATH}" \
     -DBUILD_SHARED_LIBS="OFF" \
     -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
@@ -70,8 +71,7 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
     -DGMX_INSTALL_NBLIB_API="OFF" \
     -DGMX_MPI="${USE_MPI}" \
     -DGMXAPI="OFF" \
-    -Werror=dev \
-    -Wno-error=non-target-directive \
+    "${CMAKE_WERROR_FLAGS[@]}" \
     &> "${GROMACS_BUILD_PATH}/cmake.log"
   EXIT_CODE=$?
   if ((EXIT_CODE != 0)); then
