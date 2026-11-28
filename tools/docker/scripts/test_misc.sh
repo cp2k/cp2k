@@ -34,6 +34,7 @@ run_test ./tools/docker/generate_dockerfiles.py --check
 run_test python3 -m unittest discover -s ./tools/blue_moon -p 'test_*.py'
 run_test python3 -m unittest discover -s ./tools/band_structure -p 'test_*.py'
 run_test python3 ./tools/regtesting/test_compare_wannier90_mmn.py
+run_test python3 ./tools/test_rixs_postprocess.py
 
 # Test pao-ml training.
 # Passing example.pao twice to have enough samples to split off 20% for validation.
