@@ -84,6 +84,9 @@ MODULE gw_auto_ri_generate_RI_basis
    REAL(KIND=dp), PARAMETER :: conditioned_negative_eigenval_tolerance = SQRT(EPSILON(1.0_dp))
    ! Largest accepted deviation of the periodic AA metric from the identity after refinement.
    REAL(KIND=dp), PARAMETER :: eps_metric_defect = 1.0E-7_dp
+   ! Target eigenvalues that agree to this relative tolerance belong to one degenerate multiplet
+   ! (site symmetry of an atom, symmetry-equivalent atoms); a multiplet is kept as a whole.
+   REAL(KIND=dp), PARAMETER :: degenerate_eigenval_tolerance = 1.0E-6_dp
 
    PUBLIC :: generate_auto_ri_basis
 
@@ -855,6 +858,7 @@ CONTAINS
             block = (indices(i) - 1)/nmode + 1
             sizes_RI_selected(block) = sizes_RI_selected(block) + 1
          END DO
+         CALL complete_degenerate_multiplets(eigenval_by_block, sizes_RI_selected)
       END IF
 
       CALL timestop(handle)
@@ -2346,10 +2350,49 @@ CONTAINS
                CPASSERT(remaining == 0)
             END IF
          END DO
+         CALL complete_degenerate_multiplets(eigenval_by_block, sizes_RI_selected)
       END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE select_RI_sizes_periodic
+
+! **************************************************************************************************
+!> \brief Extends the selected sizes such that no degenerate multiplet is split: a block also takes
+!>        its next mode while that eigenvalue equals the smallest selected eigenvalue of any block
+!>        within degenerate_eigenval_tolerance. A split multiplet would make the RI basis depend on
+!>        the arbitrary eigenvectors inside the multiplet and break the symmetry between equivalent
+!>        atoms.
+!> \param eigenval_by_block descending eigenvalues; zero pads unavailable modes
+!> \param sizes_RI_selected number of modes selected from each block, extended on return
+! **************************************************************************************************
+   SUBROUTINE complete_degenerate_multiplets(eigenval_by_block, sizes_RI_selected)
+      REAL(KIND=dp), INTENT(IN)                          :: eigenval_by_block(:, :)
+      INTEGER, INTENT(INOUT)                             :: sizes_RI_selected(:)
+
+      INTEGER                                            :: iblock, jblock
+      LOGICAL                                            :: extended
+      REAL(KIND=dp)                                      :: next_eigenval, smallest_selected
+
+      extended = .TRUE.
+      DO WHILE (extended)
+         extended = .FALSE.
+         DO iblock = 1, SIZE(sizes_RI_selected)
+            IF (sizes_RI_selected(iblock) >= SIZE(eigenval_by_block, 1)) CYCLE
+            next_eigenval = eigenval_by_block(sizes_RI_selected(iblock) + 1, iblock)
+            IF (next_eigenval <= 0.0_dp) CYCLE
+            DO jblock = 1, SIZE(sizes_RI_selected)
+               IF (sizes_RI_selected(jblock) == 0) CYCLE
+               smallest_selected = eigenval_by_block(sizes_RI_selected(jblock), jblock)
+               IF (ABS(next_eigenval - smallest_selected) <= degenerate_eigenval_tolerance*smallest_selected) THEN
+                  sizes_RI_selected(iblock) = sizes_RI_selected(iblock) + 1
+                  extended = .TRUE.
+                  EXIT
+               END IF
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE complete_degenerate_multiplets
 
 END MODULE gw_auto_ri_generate_RI_basis
