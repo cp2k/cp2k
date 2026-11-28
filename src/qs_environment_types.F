@@ -166,6 +166,8 @@ MODULE qs_environment_types
                                               xas_environment_type
    USE xc_gauxc_cache,                  ONLY: cp_gauxc_cache_type,&
                                               gauxc_cache_release
+   USE xtb_ewald,                       ONLY: release_xtb_ewald,&
+                                              xtb_ewald_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -335,6 +337,7 @@ MODULE qs_environment_types
       TYPE(tblite_type), POINTER                            :: tb_tblite => Null()
       TYPE(cp_gauxc_cache_type), POINTER                    :: gauxc_cache => NULL()
       TYPE(native_grid_cache_type)                         :: native_grid_cache
+      TYPE(xtb_ewald_type)                                  :: xtb_ewald_cache
    END TYPE qs_environment_type
 
 CONTAINS
@@ -1720,6 +1723,7 @@ CONTAINS
       END IF
 
       CALL release_native_grid_cache(qs_env%native_grid_cache)
+      CALL release_xtb_ewald(qs_env%xtb_ewald_cache)
 
    END SUBROUTINE qs_env_release
 
@@ -1953,6 +1957,7 @@ CONTAINS
       END IF
 
       CALL release_native_grid_cache(qs_env%native_grid_cache)
+      CALL release_xtb_ewald(qs_env%xtb_ewald_cache)
 
    END SUBROUTINE qs_env_part_release
 

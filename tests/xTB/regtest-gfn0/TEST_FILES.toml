@@ -61,7 +61,7 @@
   {matcher = "DEBUG_force_sum", tol = 1.0E-6, ref = 0.0000000},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 2}
 ]
-"ch2o_eeq.inp"                        = [{matcher = "E_total", tol = 1.0E-11, ref = -7.84498764690316}]
+"ch2o_eeq.inp"                        = [{matcher = "E_total", tol = 1.0E-11, ref = -7.844936151664}]
 "ch2o_eloc.inp"                       = []
 "ch2o_eper.inp"                       = []
 "ch2o_ls1.inp"                        = [{matcher = "E_total", tol = 1.0E-12, ref = -6.46515972057403}]

@@ -52,8 +52,10 @@ MODULE xtb_ehess_force
                                               neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_type
    USE virial_types,                    ONLY: virial_type
-   USE xtb_coulomb,                     ONLY: dgamma_rab_sr,&
-                                              gamma_rab_sr
+   USE xtb_coulomb,                     ONLY: build_xtb_ewald,&
+                                              dgamma_rab_sr,&
+                                              gamma_rab_sr,&
+                                              use_xtb_full_ewald
    USE xtb_spinpol,                     ONLY: xtb_spinpol_hforce
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
@@ -102,7 +104,8 @@ CONTAINS
       INTEGER, DIMENSION(25)                             :: laoa, laob
       INTEGER, DIMENSION(3)                              :: cellind, periodic
       LOGICAL                                            :: calculate_forces, defined, do_ewald, &
-                                                            found, just_energy, use_virial
+                                                            found, full_ewald, just_energy, &
+                                                            use_virial
       REAL(KIND=dp)                                      :: alpha, deth, dr, etaa, etab, fi, gmij0, &
                                                             gmij1, kg, rcut, rcuta, rcutb
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: xgamma
@@ -176,55 +179,61 @@ CONTAINS
       ALLOCATE (gmcharge1(natom, nmat))
       gmcharge1 = 0._dp
 
-      ! short range contribution (gamma)
-      ! loop over all atom pairs (sab_xtbe)
-      kg = xtb_control%kg
-      NULLIFY (n_list)
-      CALL get_qs_env(qs_env=qs_env, sab_xtbe=n_list)
-      CALL neighbor_list_iterator_create(nl_iterator, n_list)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, r=rij, cell=cellind)
-         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
-         CALL get_xtb_atom_param(xtb_atom_a, defined=defined, natorb=natorb_a)
-         IF (.NOT. defined .OR. natorb_a < 1) CYCLE
-         CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
-         CALL get_xtb_atom_param(xtb_atom_b, defined=defined, natorb=natorb_b)
-         IF (.NOT. defined .OR. natorb_b < 1) CYCLE
-         ! atomic parameters
-         CALL get_xtb_atom_param(xtb_atom_a, eta=etaa, lmax=lmaxa, kappa=kappaa, rcut=rcuta)
-         CALL get_xtb_atom_param(xtb_atom_b, eta=etab, lmax=lmaxb, kappa=kappab, rcut=rcutb)
-         ! gamma matrix
-         ni = lmaxa + 1
-         nj = lmaxb + 1
-         ALLOCATE (gammab(ni, nj))
-         rcut = rcuta + rcutb
-         dr = SQRT(SUM(rij(:)**2))
-         CALL gamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
-         gchrg0(iatom, 1:ni, 1) = gchrg0(iatom, 1:ni, 1) + MATMUL(gammab, charges0(jatom, 1:nj))
-         gchrg1(iatom, 1:ni, 1) = gchrg1(iatom, 1:ni, 1) + MATMUL(gammab, charges1(jatom, 1:nj))
-         IF (iatom /= jatom) THEN
-            gchrg0(jatom, 1:nj, 1) = gchrg0(jatom, 1:nj, 1) + MATMUL(charges0(iatom, 1:ni), gammab)
-            gchrg1(jatom, 1:nj, 1) = gchrg1(jatom, 1:nj, 1) + MATMUL(charges1(iatom, 1:ni), gammab)
-         END IF
-         IF (dr > 1.e-6_dp) THEN
-            CALL dgamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
-            DO i = 1, 3
-               gchrg0(iatom, 1:ni, i + 1) = gchrg0(iatom, 1:ni, i + 1) &
-                                            + MATMUL(gammab, charges0(jatom, 1:nj))*rij(i)/dr
-               gchrg1(iatom, 1:ni, i + 1) = gchrg1(iatom, 1:ni, i + 1) &
-                                            + MATMUL(gammab, charges1(jatom, 1:nj))*rij(i)/dr
-               IF (iatom /= jatom) THEN
-                  gchrg0(jatom, 1:nj, i + 1) = gchrg0(jatom, 1:nj, i + 1) &
-                                               - MATMUL(charges0(iatom, 1:ni), gammab)*rij(i)/dr
-                  gchrg1(jatom, 1:nj, i + 1) = gchrg1(jatom, 1:nj, i + 1) &
-                                               - MATMUL(charges1(iatom, 1:ni), gammab)*rij(i)/dr
-               END IF
-            END DO
-         END IF
-         DEALLOCATE (gammab)
-      END DO
-      CALL neighbor_list_iterator_release(nl_iterator)
+      full_ewald = use_xtb_full_ewald(xtb_control, cell)
+      IF (full_ewald) THEN
+         CALL build_xtb_ewald(qs_env, charges0, gchrg0, .FALSE.)
+         CALL build_xtb_ewald(qs_env, charges1, gchrg1, .FALSE.)
+      ELSE
+         ! short range contribution (gamma)
+         ! loop over all atom pairs (sab_xtbe)
+         kg = xtb_control%kg
+         NULLIFY (n_list)
+         CALL get_qs_env(qs_env=qs_env, sab_xtbe=n_list)
+         CALL neighbor_list_iterator_create(nl_iterator, n_list)
+         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                   iatom=iatom, jatom=jatom, r=rij, cell=cellind)
+            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+            CALL get_xtb_atom_param(xtb_atom_a, defined=defined, natorb=natorb_a)
+            IF (.NOT. defined .OR. natorb_a < 1) CYCLE
+            CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
+            CALL get_xtb_atom_param(xtb_atom_b, defined=defined, natorb=natorb_b)
+            IF (.NOT. defined .OR. natorb_b < 1) CYCLE
+            ! atomic parameters
+            CALL get_xtb_atom_param(xtb_atom_a, eta=etaa, lmax=lmaxa, kappa=kappaa, rcut=rcuta)
+            CALL get_xtb_atom_param(xtb_atom_b, eta=etab, lmax=lmaxb, kappa=kappab, rcut=rcutb)
+            ! gamma matrix
+            ni = lmaxa + 1
+            nj = lmaxb + 1
+            ALLOCATE (gammab(ni, nj))
+            rcut = rcuta + rcutb
+            dr = SQRT(SUM(rij(:)**2))
+            CALL gamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
+            gchrg0(iatom, 1:ni, 1) = gchrg0(iatom, 1:ni, 1) + MATMUL(gammab, charges0(jatom, 1:nj))
+            gchrg1(iatom, 1:ni, 1) = gchrg1(iatom, 1:ni, 1) + MATMUL(gammab, charges1(jatom, 1:nj))
+            IF (iatom /= jatom) THEN
+               gchrg0(jatom, 1:nj, 1) = gchrg0(jatom, 1:nj, 1) + MATMUL(charges0(iatom, 1:ni), gammab)
+               gchrg1(jatom, 1:nj, 1) = gchrg1(jatom, 1:nj, 1) + MATMUL(charges1(iatom, 1:ni), gammab)
+            END IF
+            IF (dr > 1.e-6_dp) THEN
+               CALL dgamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
+               DO i = 1, 3
+                  gchrg0(iatom, 1:ni, i + 1) = gchrg0(iatom, 1:ni, i + 1) &
+                                               + MATMUL(gammab, charges0(jatom, 1:nj))*rij(i)/dr
+                  gchrg1(iatom, 1:ni, i + 1) = gchrg1(iatom, 1:ni, i + 1) &
+                                               + MATMUL(gammab, charges1(jatom, 1:nj))*rij(i)/dr
+                  IF (iatom /= jatom) THEN
+                     gchrg0(jatom, 1:nj, i + 1) = gchrg0(jatom, 1:nj, i + 1) &
+                                                  - MATMUL(charges0(iatom, 1:ni), gammab)*rij(i)/dr
+                     gchrg1(jatom, 1:nj, i + 1) = gchrg1(jatom, 1:nj, i + 1) &
+                                                  - MATMUL(charges1(iatom, 1:ni), gammab)*rij(i)/dr
+                  END IF
+               END DO
+            END IF
+            DEALLOCATE (gammab)
+         END DO
+         CALL neighbor_list_iterator_release(nl_iterator)
+      END IF
 
       ! 1/R contribution
 
@@ -295,11 +304,11 @@ CONTAINS
          IF (do_ewald) THEN
             ! add self charge interaction and background charge contribution
             gmcharge0(:, 1) = gmcharge0(:, 1) - 2._dp*alpha*oorootpi*mcharge0(:)
-            IF (ANY(periodic(:) == 1)) THEN
+            IF (.NOT. full_ewald .AND. ANY(periodic(:) == 1)) THEN
                gmcharge0(:, 1) = gmcharge0(:, 1) - pi/alpha**2/deth
             END IF
             gmcharge1(:, 1) = gmcharge1(:, 1) - 2._dp*alpha*oorootpi*mcharge1(:)
-            IF (ANY(periodic(:) == 1)) THEN
+            IF (.NOT. full_ewald .AND. ANY(periodic(:) == 1)) THEN
                gmcharge1(:, 1) = gmcharge1(:, 1) - pi/alpha**2/deth
             END IF
          END IF
