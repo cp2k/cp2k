@@ -226,7 +226,8 @@ MODULE qs_scf_post_gpw
    USE qs_wannier90,                    ONLY: wannier90_interface
    USE s_square_methods,                ONLY: compute_s_square,&
                                               compute_s_square_kp
-   USE scf_control_types,               ONLY: scf_control_type
+   USE scf_control_types,               ONLY: has_fixed_ot_virtuals,&
+                                              scf_control_type
    USE stm_images,                      ONLY: th_stm_image
    USE transport,                       ONLY: qs_scf_post_transport
    USE trexio_utils,                    ONLY: write_trexio
@@ -1276,24 +1277,29 @@ CONTAINS
 !> \param unoccupied_evals ...
 !> \param nlumo ...
 !> \param nlumos ...
+!> \param append_to_mos return only states beyond the stored SCF virtuals, for combined output
 ! **************************************************************************************************
-   SUBROUTINE make_lumo_gpw(qs_env, scf_env, unoccupied_orbs, unoccupied_evals, nlumo, nlumos)
+   SUBROUTINE make_lumo_gpw(qs_env, scf_env, unoccupied_orbs, unoccupied_evals, nlumo, nlumos, append_to_mos)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: unoccupied_orbs
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT), &
+         TARGET                                          :: unoccupied_orbs
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals
       INTEGER, INTENT(IN)                                :: nlumo
       INTEGER, INTENT(OUT)                               :: nlumos
+      LOGICAL, INTENT(IN), OPTIONAL                      :: append_to_mos
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'make_lumo_gpw'
 
       INTEGER                                            :: handle, homo, ispin, n, nao, nmo, &
-                                                            output_unit
+                                                            nstored, output_unit
+      LOGICAL                                            :: append, reuse_virtuals
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), POINTER                          :: lumo_coeff, mo_coeff
+      TYPE(cp_fm_type), TARGET                           :: extra_orbs
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1318,24 +1324,52 @@ CONTAINS
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
 
+      reuse_virtuals = has_fixed_ot_virtuals(scf_control, dft_control%smear)
+      append = .FALSE.
+      IF (PRESENT(append_to_mos)) append = append_to_mos
       DO ispin = 1, dft_control%nspins
          NULLIFY (unoccupied_evals(ispin)%array)
-         IF (output_unit > 0) WRITE (output_unit, *) " "
-         IF (output_unit > 0) WRITE (output_unit, *) &
-            " Using OT eigensolver for additional unoccupied orbitals spin ", ispin
-         IF (output_unit > 0) WRITE (output_unit, *) &
-            " Lowest Eigenvalues of the unoccupied subspace spin ", ispin
-         IF (output_unit > 0) WRITE (output_unit, FMT='(1X,A)') "-----------------------------------------------------"
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo)
          CALL cp_fm_get_info(mo_coeff, nrow_global=n)
-         nlumos = MAX(1, MIN(nlumo, nao - nmo))
-         IF (nlumo == -1) nlumos = nao - nmo
+         nstored = 0
+         IF (reuse_virtuals) THEN
+            nlumos = nao - homo
+            IF (nlumo /= -1) nlumos = MAX(0, MIN(nlumo, nlumos))
+            nstored = MIN(nlumos, nmo - homo)
+            IF (append) THEN
+               nlumos = nlumos - nstored
+               nstored = 0
+            END IF
+         ELSE
+            nlumos = nao - nmo
+            IF (nlumo /= -1) nlumos = MAX(1, MIN(nlumo, nlumos))
+         END IF
          ALLOCATE (unoccupied_evals(ispin)%array(nlumos))
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=n, ncol_global=nlumos)
          CALL cp_fm_create(unoccupied_orbs(ispin), fm_struct_tmp, name="lumos")
          CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_init_random(unoccupied_orbs(ispin), nlumos)
+         IF (nstored > 0) THEN
+            CALL cp_fm_to_fm(mo_coeff, unoccupied_orbs(ispin), nstored, homo + 1, 1)
+            unoccupied_evals(ispin)%array(1:nstored) = mos(ispin)%eigenvalues(homo + 1:homo + nstored)
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, '(/,A,I0)') " Reusing SCF unoccupied orbitals for spin ", ispin
+               WRITE (output_unit, '(4(1X,F16.8))') unoccupied_evals(ispin)%array(1:nstored)
+            END IF
+         END IF
+         IF (nstored == nlumos) CYCLE
+         lumo_coeff => unoccupied_orbs(ispin)
+         IF (nstored > 0) THEN
+            CALL cp_fm_create(extra_orbs, unoccupied_orbs(ispin)%matrix_struct, ncol=nlumos - nstored)
+            lumo_coeff => extra_orbs
+         END IF
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, *) " "
+            WRITE (output_unit, *) " Using OT eigensolver for additional unoccupied orbitals spin ", ispin
+            WRITE (output_unit, *) " Lowest Eigenvalues of the unoccupied subspace spin ", ispin
+            WRITE (output_unit, '(1X,A)') "-----------------------------------------------------"
+         END IF
+         CALL cp_fm_init_random(lumo_coeff, nlumos - nstored)
 
          ! FULL_ALL has column-dependent occupied-state weights and cannot be reused here.
          NULLIFY (local_preconditioner)
@@ -1355,16 +1389,20 @@ CONTAINS
          END IF
 
          CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix, matrix_s=matrix_s(1)%matrix, &
-                             matrix_c_fm=unoccupied_orbs(ispin), &
+                             matrix_c_fm=lumo_coeff, &
                              matrix_orthogonal_space_fm=mo_coeff, &
                              eps_gradient=scf_control%eps_lumos, &
                              preconditioner=local_preconditioner, &
                              iter_max=scf_control%max_iter_lumos, &
                              size_ortho_space=nmo)
 
-         CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin), ks_rmpv(ispin)%matrix, &
-                                             unoccupied_evals(ispin)%array, scr=output_unit, &
+         CALL calculate_subspace_eigenvalues(lumo_coeff, ks_rmpv(ispin)%matrix, &
+                                             unoccupied_evals(ispin)%array(nstored + 1:nlumos), scr=output_unit, &
                                              ionode=output_unit > 0)
+         IF (nstored > 0) THEN
+            CALL cp_fm_to_fm(lumo_coeff, unoccupied_orbs(ispin), nlumos - nstored, 1, nstored + 1)
+            CALL cp_fm_release(extra_orbs)
+         END IF
 
          ! If we do ADMM, we restore the original Kohn-Sham matrix
          IF (dft_control%do_admm) THEN
@@ -2297,7 +2335,7 @@ CONTAINS
                                                             nlumo_required, nlumos, output_unit
       LOGICAL                                            :: defer_molden, do_curve, do_dos, &
                                                             do_kpoints, do_pdos, do_projected_dos, &
-                                                            explicit
+                                                            explicit, scf_virtuals
       REAL(KIND=dp)                                      :: s_square, s_square_ideal, &
                                                             total_abs_spin_dens, total_spin_dens
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -2358,6 +2396,8 @@ CONTAINS
       CALL get_qs_env(qs_env, rho=rho)
       CALL qs_rho_get(rho, rho_r=rho_r)
 
+      scf_virtuals = has_fixed_ot_virtuals(scf_control, dft_control%smear)
+
       ! k points
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
 
@@ -2387,7 +2427,7 @@ CONTAINS
             END IF
             IF (.NOT. defer_molden) THEN
                CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section, cell=cell, &
-                                     qs_env=qs_env, calc_energies=.TRUE.)
+                                     qs_env=qs_env, calc_energies=.NOT. scf_virtuals)
             END IF
             ! Write Chargemol .wfx
             IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%CHARGEMOL"), &
@@ -2444,10 +2484,10 @@ CONTAINS
                   ALLOCATE (unoccupied_orbs(dft_control%nspins))
                   ALLOCATE (unoccupied_evals(dft_control%nspins))
                   CALL make_lumo_gpw(qs_env, scf_env, unoccupied_orbs, unoccupied_evals, &
-                                     nlumo_required, nlumos)
+                                     nlumo_required, nlumos, append_to_mos=.TRUE.)
                END IF
 
-               IF (do_dos .OR. do_projected_dos) THEN
+               IF ((do_dos .OR. do_projected_dos) .AND. .NOT. scf_virtuals) THEN
                   DO ispin = 1, dft_control%nspins
                      ! With ADMM, temporarily modify the Kohn-Sham matrix while updating the
                      ! eigenvalues and rotating the occupied OT subspace.
@@ -2482,7 +2522,7 @@ CONTAINS
                CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section, cell=cell, &
                                      unoccupied_orbs=unoccupied_orbs, &
                                      unoccupied_evals=unoccupied_evals, &
-                                     qs_env=qs_env, calc_energies=.TRUE.)
+                                     qs_env=qs_env, calc_energies=.NOT. scf_virtuals)
             END IF
          END IF
 

@@ -81,7 +81,8 @@ MODULE qs_scf_output
    USE qs_scf_types,                    ONLY: ot_method_nr,&
                                               qs_scf_env_type,&
                                               special_diag_method_nr
-   USE scf_control_types,               ONLY: scf_control_type
+   USE scf_control_types,               ONLY: has_fixed_ot_virtuals,&
+                                              scf_control_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -203,9 +204,8 @@ CONTAINS
                                                             nspin, numo
       INTEGER, DIMENSION(2)                              :: kp_range, nmos_occ
       INTEGER, DIMENSION(:), POINTER                     :: mo_index_range
-      LOGICAL                                            :: do_kpoints, do_printout, print_eigvals, &
-                                                            print_eigvecs, print_mo_info, &
-                                                            print_occup, print_occup_stats
+      LOGICAL :: do_kpoints, do_printout, print_eigvals, print_eigvecs, print_mo_info, &
+         print_occup, print_occup_stats, scf_virtuals
       REAL(KIND=dp)                                      :: flexible_electron_count, maxocc, n_el_f, &
                                                             occup_stats_occ_threshold
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, umo_eigenvalues
@@ -266,6 +266,7 @@ CONTAINS
       END IF
 
       do_printout = .TRUE.
+      scf_virtuals = has_fixed_ot_virtuals(scf_control, dft_control%smear)
       nspin = dft_control%nspins
       nmos_occ = 0
 
@@ -366,20 +367,20 @@ CONTAINS
                   END IF
 
                   ! Update the eigenvalues of the occupied orbitals
-                  CALL calculate_subspace_eigenvalues(orbitals=mo_coeff, &
-                                                      ks_matrix=matrix_ks, &
-                                                      evals_arg=mo_eigenvalues, &
-                                                      co_rotate_dbcsr=mo_coeff_deriv)
-                  CALL set_mo_occupation(mo_set=mo_set)
+                  IF (.NOT. scf_virtuals) THEN
+                     CALL calculate_subspace_eigenvalues(orbitals=mo_coeff, &
+                                                         ks_matrix=matrix_ks, &
+                                                         evals_arg=mo_eigenvalues, &
+                                                         co_rotate_dbcsr=mo_coeff_deriv)
+                     CALL set_mo_occupation(mo_set=mo_set)
+                  END IF
 
                   ! Retrieve the index of the last MO for which a printout is requested
                   mo_index_range => section_get_ivals(dft_section, "PRINT%MO%MO_INDEX_RANGE")
                   CPASSERT(ASSOCIATED(mo_index_range))
-                  IF (mo_index_range(2) < 0) THEN
-                     numo = nao - homo
-                  ELSE
-                     numo = MIN(mo_index_range(2) - homo, nao - homo)
-                  END IF
+                  numo = nao
+                  IF (mo_index_range(2) >= 0) numo = MIN(mo_index_range(2), nao)
+                  numo = numo - MERGE(nmo, homo, scf_virtuals)
 
                   ! Calculate the unoccupied MO set (umo_set) with OT if needed
                   IF (numo > 0) THEN

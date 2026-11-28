@@ -155,19 +155,24 @@ CONTAINS
 !>        to kp%ot_hmat. Since the rotation is internal to a uniformly occupied subspace, it does
 !>        not change the density represented by the orbitals.
 !> \param kpoints K-point environment containing the orbitals and transferred Hamiltonians.
+!> \param virtuals Also canonicalize the optimized virtual subspace, separately from occupied states.
 ! **************************************************************************************************
-   SUBROUTINE qs_kpoint_state_canonicalize_fixed(kpoints)
+   SUBROUTINE qs_kpoint_state_canonicalize_fixed(kpoints, virtuals)
       TYPE(kpoint_type), POINTER                         :: kpoints
+      LOGICAL, INTENT(IN), OPTIONAL                      :: virtuals
 
-      INTEGER                                            :: ikpoint_local, ispin, nao, nmo, nocc
+      INTEGER                                            :: block, first, ikpoint_local, ispin, n, &
+                                                            nao, nblocks, nmo, nocc
       LOGICAL                                            :: use_real_wfn
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ritz_values
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues_re
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(cp_fm_struct_type), POINTER                   :: active_struct, square_struct
+      TYPE(cp_cfm_type), POINTER                         :: cmo_coeff
       TYPE(cp_cfm_type)                                  :: coeff, eigenvectors, hblock, hc, &
                                                             matrix_h, rotated
-      TYPE(cp_cfm_type), POINTER                         :: cmo_coeff
-      TYPE(cp_fm_struct_type), POINTER                   :: active_struct, square_struct
-      TYPE(kpoint_env_type), POINTER                     :: kp
+      REAL(KIND=dp), DIMENSION(SIZE(kpoints%kp_env(1)%&
+         kpoint_env%mos))                                :: mu
 
       NULLIFY (active_struct, cmo_coeff, eigenvalues_re, kp, &
                square_struct)
@@ -178,6 +183,11 @@ CONTAINS
       IF (use_real_wfn) THEN
          CPABORT("Fixed-density k-point OT canonicalization requires complex wavefunctions.")
       END IF
+      nblocks = 1
+      IF (PRESENT(virtuals)) THEN
+         IF (virtuals) nblocks = 2
+      END IF
+      mu(:) = -HUGE(0.0_dp)
 
       DO ikpoint_local = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(ikpoint_local)%kpoint_env
@@ -196,41 +206,54 @@ CONTAINS
             CPASSERT(ASSOCIATED(cmo_coeff))
             CPASSERT(ASSOCIATED(eigenvalues_re))
             CPASSERT(nocc >= 1 .AND. nocc <= nmo)
-            CPASSERT(SIZE(eigenvalues_re) >= nocc)
+            CPASSERT(SIZE(eigenvalues_re) >= nmo)
 
-            CALL cp_fm_struct_create(active_struct, template_fmstruct=cmo_coeff%matrix_struct, &
-                                     ncol_global=nocc)
-            CALL cp_cfm_create(coeff, active_struct, name="fixed-density Ritz orbitals")
-            CALL cp_cfm_create(hc, active_struct, name="fixed-density Ritz HC")
-            CALL cp_cfm_create(rotated, active_struct, name="fixed-density Ritz rotated orbitals")
-            CALL cp_cfm_create(hblock, active_struct, nrow=nocc, ncol=nocc, &
-                               name="fixed-density projected Hamiltonian")
-            CALL cp_cfm_create(eigenvectors, active_struct, nrow=nocc, ncol=nocc, &
-                               name="fixed-density Ritz eigenvectors")
             CALL cp_fm_to_cfm(kp%ot_hmat(1, ispin), kp%ot_hmat(2, ispin), matrix_h)
             IF (ALLOCATED(kpoints%lowdin_v)) CALL lowdin_kp_apply(kp, kpoints%lowdin_v(:, ispin), cmat=matrix_h)
-            CALL cp_cfm_to_cfm(cmo_coeff, coeff, nocc)
+            DO block = 1, nblocks
+               first = 1
+               n = nocc
+               IF (block == 2) THEN
+                  first = nocc + 1
+                  n = nmo - nocc
+               END IF
+               IF (n <= 0) CYCLE
+               CALL cp_fm_struct_create(active_struct, template_fmstruct=cmo_coeff%matrix_struct, ncol_global=n)
+               CALL cp_cfm_create(coeff, active_struct, name="fixed-density Ritz orbitals")
+               CALL cp_cfm_create(hc, active_struct, name="fixed-density Ritz HC")
+               CALL cp_cfm_create(rotated, active_struct, name="fixed-density Ritz rotated orbitals")
+               CALL cp_cfm_create(hblock, active_struct, nrow=n, ncol=n, name="fixed-density projected Hamiltonian")
+               CALL cp_cfm_create(eigenvectors, active_struct, nrow=n, ncol=n, name="fixed-density Ritz eigenvectors")
+               CALL cp_cfm_to_cfm(cmo_coeff, coeff, n, source_start=first)
 
-            CALL parallel_gemm('N', 'N', nao, nocc, nao, z_one, matrix_h, coeff, z_zero, hc)
-            CALL parallel_gemm('C', 'N', nocc, nocc, nao, z_one, coeff, hc, z_zero, hblock)
-            ALLOCATE (ritz_values(nocc))
-            CALL cp_cfm_heevd(hblock, eigenvectors, ritz_values)
-            CALL parallel_gemm('N', 'N', nao, nocc, nocc, z_one, coeff, eigenvectors, &
-                               z_zero, rotated)
-            CALL cp_cfm_to_cfm(rotated, cmo_coeff, nocc)
-            eigenvalues_re(1:nocc) = ritz_values
-            DEALLOCATE (ritz_values)
+               CALL parallel_gemm('N', 'N', nao, n, nao, z_one, matrix_h, coeff, z_zero, hc)
+               CALL parallel_gemm('C', 'N', n, n, nao, z_one, coeff, hc, z_zero, hblock)
+               ALLOCATE (ritz_values(n))
+               CALL cp_cfm_heevd(hblock, eigenvectors, ritz_values)
+               CALL parallel_gemm('N', 'N', nao, n, n, z_one, coeff, eigenvectors, z_zero, rotated)
+               CALL cp_cfm_to_cfm(rotated, cmo_coeff, n, target_start=first)
+               eigenvalues_re(first:first + n - 1) = ritz_values(:)
+               DEALLOCATE (ritz_values)
 
-            CALL cp_cfm_release(eigenvectors)
-            CALL cp_cfm_release(hblock)
-            CALL cp_cfm_release(rotated)
-            CALL cp_cfm_release(hc)
-            CALL cp_cfm_release(coeff)
-            CALL cp_fm_struct_release(active_struct)
+               CALL cp_cfm_release(eigenvectors)
+               CALL cp_cfm_release(hblock)
+               CALL cp_cfm_release(rotated)
+               CALL cp_cfm_release(hc)
+               CALL cp_cfm_release(coeff)
+               CALL cp_fm_struct_release(active_struct)
+            END DO
+            mu(ispin) = MAX(mu(ispin), eigenvalues_re(nocc))
          END DO
 
          CALL cp_cfm_release(matrix_h)
       END DO
+      IF (nblocks == 2) THEN
+         ! Fixed occupations remain unchanged; use the global HOMO as the zero-temperature label.
+         CALL kpoints%para_env_inter_kp%max(mu)
+         DO ikpoint_local = 1, SIZE(kpoints%kp_env)
+            kpoints%kp_env(ikpoint_local)%kpoint_env%mos(:)%mu = mu(:)
+         END DO
+      END IF
 
    END SUBROUTINE qs_kpoint_state_canonicalize_fixed
 

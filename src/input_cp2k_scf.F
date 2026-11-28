@@ -843,6 +843,8 @@ CONTAINS
          description="Initial stepsize used for the line search, sometimes this parameter can be reduced to stabilize DIIS"// &
          " or to improve the CG behavior in the first few steps."// &
          " The optimal value depends on the quality of the preconditioner."// &
+         " With fixed-occupation ADDED_MOS, flat or uphill energy models fall back to this step,"// &
+         " and line-search steps are bounded by four times this value."// &
          " A negative values leaves the choice to CP2K depending on the preconditioner.", &
          usage="STEPSIZE 0.4", &
          default_r_val=-1.0_dp)
@@ -868,6 +870,7 @@ CONTAINS
                          "FULL_KINETIC", "FULL_S_INVERSE", "NONE"), &
          enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "// &
                        "requires the ENERGY_GAP parameter to be an underestimate of the HOMO-LUMO gap. "// &
+                       "With OT ROTATION, each active orbital uses its own Rayleigh quotient. "// &
                        "This preconditioner is recommended for almost all systems, except very large systems where "// &
                        "make_preconditioner would dominate the total computational cost.", &
                        "Experimental rotationally covariant bounded spectral preconditioner. It applies an "// &
@@ -1039,10 +1042,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ROTATION", &
-                          description="Introduce additional variables so that rotations of the occupied"// &
-                          " subspace are allowed as well, only needed for cases where the energy is not invariant under"// &
-                          " a rotation of the occupied subspace such as non-singlet restricted calculations"// &
-                          " or fractional occupations. This variable is not used by DIAGONALIZATION%OT, "// &
+                          description="Introduce variables for rotations within the optimized orbital subspace. "// &
+                          "Required for orbitals with different occupations, including ADDED_MOS, "// &
+                          "fractional occupations, and non-singlet restricted calculations. "// &
+                          "This variable is not used by DIAGONALIZATION%OT, "// &
                           "which canonicalizes the converged eigenspace explicitly.", &
                           usage="ROTATION", lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
@@ -1061,8 +1064,10 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="OCCUPATION_PRECONDITIONER", &
                           description="Augment the direct SCF%OT orbital metric with coupled fixed-N "// &
                           "occupation response. This augments the independently selected orbital "// &
-                          "preconditioner. It is not used by DIAGONALIZATION%OT, where occupations are "// &
-                          "assigned after the eigensolver has converged.", &
+                          "preconditioner. With fixed-occupation ADDED_MOS, the unweighted orbital search "// &
+                          "is always used and no occupation response is needed. It is not used by "// &
+                          "DIAGONALIZATION%OT, where occupations are assigned after the eigensolver "// &
+                          "has converged.", &
                           usage="OCCUPATION_PRECONDITIONER", lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -1862,7 +1867,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="REUSE_PRECOND", &
                           description="Reuse a previously built OT preconditioner between subsequent CDFT SCF iterations "// &
                           "if the inner OT SCF loop converged in PRECOND_FREQ steps or less. Intended mainly for MD "// &
-                          "simulations with the FULL_ALL preconditioner to speed up the final iterations of the CDFT SCF loop.", &
+                          "simulations with the FULL_ALL preconditioner to speed up the final iterations of the CDFT SCF loop. "// &
+                          "Gamma-point FULL_ALL with OT ROTATION is rebuilt for each new orbital reference.", &
                           usage="REUSE_PRECOND yes", repeats=.FALSE., n_var=1, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)

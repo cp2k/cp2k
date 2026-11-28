@@ -14,9 +14,7 @@
 ! **************************************************************************************************
 MODULE preconditioner
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_triangular_invert,&
-                                              cp_cfm_triangular_multiply
-   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_triangular_multiply
    USE cp_cfm_diag,                     ONLY: cp_cfm_diag_workspace_type,&
                                               cp_cfm_heevd_local,&
                                               cp_cfm_local_workspace_prepare
@@ -706,13 +704,14 @@ CONTAINS
 !> \param energy_gap ...
 !> \param convert_precond_to_dbcsr ...
 !> \param chol_type ...
+!> \param full_all_rotation use all physical OT columns and their Rayleigh quotients
 !> \par History
 !>      09.2014 removed some unused or unfinished methods
 !>              removed sparse preconditioners and the
 !>              sparse approximate inverse at rev 14341 [Florian Schiffmann]
 ! **************************************************************************************************
    SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, matrix_h, matrix_s, &
-                                  matrix_t, mo_set, energy_gap, convert_precond_to_dbcsr, chol_type)
+                                  matrix_t, mo_set, energy_gap, convert_precond_to_dbcsr, chol_type, full_all_rotation)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       INTEGER, INTENT(IN)                                :: precon_type, solver_type
@@ -722,27 +721,31 @@ CONTAINS
       REAL(KIND=dp)                                      :: energy_gap
       LOGICAL, INTENT(IN), OPTIONAL                      :: convert_precond_to_dbcsr
       INTEGER, INTENT(IN), OPTIONAL                      :: chol_type
+      LOGICAL, INTENT(IN), OPTIONAL                      :: full_all_rotation
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner'
 
       INTEGER                                            :: handle, k, max_rank, my_solver_type, &
-                                                            nao, nhomo, output_unit
-      LOGICAL                                            :: my_convert_precond_to_dbcsr, &
-                                                            needs_full_spectrum, needs_homo, &
-                                                            use_mo_coeff_b
+                                                            nao, nref, output_unit
+      LOGICAL                                            :: keep_ot_reference, &
+                                                            my_convert_precond_to_dbcsr, &
+                                                            needs_full_spectrum, use_mo_coeff_b
       REAL(KIND=dp)                                      :: energy_homo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues_ot
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: mo_occ
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), TARGET                           :: mo_occ
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
 
       CALL timeset(routineN, handle)
 
-      CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b, homo=nhomo)
-      use_mo_coeff_b = mo_set%use_mo_coeff_b
+      CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b, homo=nref)
       CALL cp_fm_get_info(mo_coeff, ncol_global=k, nrow_global=nao)
+      keep_ot_reference = .FALSE.
+      IF (PRESENT(full_all_rotation)) keep_ot_reference = full_all_rotation
+      IF (keep_ot_reference) nref = k
+      use_mo_coeff_b = mo_set%use_mo_coeff_b .AND. .NOT. keep_ot_reference
 
       ! Starting some matrix mess, check where to store the result in preconditioner_env, fm or dbcsr_matrix
       my_convert_precond_to_dbcsr = .FALSE.
@@ -762,18 +765,14 @@ CONTAINS
       END IF
 
       needs_full_spectrum = .FALSE.
-      needs_homo = .FALSE.
 
       SELECT CASE (precon_type)
       CASE (ot_precond_full_all, ot_precond_fermi_low_rank, ot_precond_full_all_covariant)
-         needs_full_spectrum = .TRUE.
-         ! both of them need the coefficients as fm's, more matrix mess
+         needs_full_spectrum = .NOT. keep_ot_reference
          IF (use_mo_coeff_b) THEN
             CALL copy_dbcsr_to_fm(mo_coeff_b, mo_coeff)
          END IF
       CASE (ot_precond_full_single)
-         needs_homo = .TRUE.
-         ! XXXX to be removed if homo estimate only is implemented
          needs_full_spectrum = .TRUE.
       CASE (ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_full_single_inverse)
          ! these should be happy without an estimate for the homo energy
@@ -782,15 +781,9 @@ CONTAINS
          CPABORT("The preconditioner is unknown ...")
       END SELECT
 
-      ALLOCATE (eigenvalues_ot(k))
       energy_homo = 0.0_dp
       IF (needs_full_spectrum) THEN
-         ! XXXXXXXXXXXXXXXX do not touch the initial MOs, could be harmful for either
-         !                  the case of non-equivalent MOs but also for the derivate
-         ! we could already have all eigenvalues e.g. full_all and we could skip this
-         ! to be optimised later.
-         ! one flaw is that not all SCF methods (i.e. that go over mo_derivs directly)
-         ! have a 'valid' matrix_h... (we even don't know what evals are in that case)
+         ALLOCATE (eigenvalues_ot(k))
          IF (use_mo_coeff_b) THEN
             CALL calculate_subspace_eigenvalues(mo_coeff_b, matrix_h, &
                                                 eigenvalues_ot, do_rotation=.FALSE., &
@@ -801,12 +794,8 @@ CONTAINS
                                                 eigenvalues_ot, do_rotation=.FALSE.)
          END IF
          IF (k > 0) THEN
-            CPASSERT(nhomo > 0 .AND. nhomo <= k)
-            energy_homo = eigenvalues_ot(nhomo)
-         END IF
-      ELSE
-         IF (needs_homo) THEN
-            CPABORT("Not yet implemented")
+            CPASSERT(nref > 0 .AND. nref <= k)
+            energy_homo = eigenvalues_ot(nref)
          END IF
       END IF
 
@@ -817,7 +806,6 @@ CONTAINS
       preconditioner_env%in_use = precon_type
       preconditioner_env%cholesky_use = cholesky_reduce
       IF (PRESENT(chol_type)) preconditioner_env%cholesky_use = chol_type
-      preconditioner_env%in_use = precon_type
       preconditioner_env%lattice_fft_active = .FALSE.
       preconditioner_env%lattice_corrected_projection_error = 0.0_dp
       IF (ALLOCATED(preconditioner_env%lattice_inverse_k)) THEN
@@ -850,37 +838,33 @@ CONTAINS
       IF (ALLOCATED(preconditioner_env%lattice_state_local_coarse_inverse)) THEN
          DEALLOCATE (preconditioner_env%lattice_state_local_coarse_inverse)
       END IF
-      IF (nhomo == k) THEN
-         CALL make_preconditioner_matrix(preconditioner_env, matrix_h, matrix_s, matrix_t, mo_coeff, &
-                                         energy_homo, eigenvalues_ot, energy_gap, my_solver_type)
-      ELSE
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nhomo, &
+      IF (nref /= k) THEN
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nref, &
                                   context=preconditioner_env%ctxt, &
                                   para_env=preconditioner_env%para_env)
          CALL cp_fm_create(mo_occ, fm_struct)
-         CALL cp_fm_to_fm(mo_coeff, mo_occ, nhomo)
+         CALL cp_fm_to_fm(mo_coeff, mo_occ, nref)
          CALL cp_fm_struct_release(fm_struct)
-         !
-         CALL make_preconditioner_matrix(preconditioner_env, matrix_h, matrix_s, matrix_t, mo_occ, &
-                                         energy_homo, eigenvalues_ot(1:nhomo), energy_gap, my_solver_type)
-         !
-         CALL cp_fm_release(mo_occ)
+         mo_coeff => mo_occ
       END IF
+      CALL make_preconditioner_matrix(preconditioner_env, matrix_h, matrix_s, matrix_t, mo_coeff, &
+                                      energy_homo, eigenvalues_ot, energy_gap, my_solver_type)
+      IF (nref /= k) CALL cp_fm_release(mo_occ)
 
       IF (preconditioner_env%lattice_fft_mode /= ot_lattice_fft_off) THEN
          SELECT CASE (precon_type)
          CASE (ot_precond_full_kinetic)
             CPASSERT(ASSOCIATED(preconditioner_env%sparse_matrix))
             CALL prepare_lattice_operator(preconditioner_env, preconditioner_env%sparse_matrix, &
-                                          "FULL_KINETIC", nhomo)
+                                          "FULL_KINETIC", nref)
          CASE (ot_precond_full_single_inverse)
             CPASSERT(ASSOCIATED(preconditioner_env%sparse_matrix))
             CALL prepare_lattice_operator(preconditioner_env, preconditioner_env%sparse_matrix, &
-                                          "FULL_SINGLE_INVERSE", nhomo)
+                                          "FULL_SINGLE_INVERSE", nref)
          CASE (ot_precond_s_inverse)
             CPASSERT(ASSOCIATED(preconditioner_env%sparse_matrix))
             CALL prepare_lattice_operator(preconditioner_env, preconditioner_env%sparse_matrix, &
-                                          "FULL_S_INVERSE", nhomo)
+                                          "FULL_S_INVERSE", nref)
          CASE (ot_precond_full_all_covariant)
             CPASSERT(PRESENT(matrix_s))
             CPASSERT(ASSOCIATED(matrix_s))
@@ -901,9 +885,9 @@ CONTAINS
             MAX(fermi_low_rank_min_window, fermi_low_rank_gap_factor*preconditioner_env%energy_gap)
          preconditioner_env%spectral_base_scale = 1.0_dp/preconditioner_env%spectral_window
          max_rank = preconditioner_env%spectral_max_rank
-         IF (max_rank == -1) max_rank = SIZE(preconditioner_env%full_evals) - nhomo
+         IF (max_rank == -1) max_rank = SIZE(preconditioner_env%full_evals) - nref
          preconditioner_env%spectral_rank = low_rank_select_rank( &
-                                            preconditioner_env%full_evals, nhomo, max_rank, &
+                                            preconditioner_env%full_evals, nref, max_rank, &
                                             fermi_low_rank_degeneracy_tolerance)
          CALL prepare_low_rank_base(preconditioner_env, matrix_s)
          IF (preconditioner_env%lattice_fft_active) THEN
@@ -911,7 +895,7 @@ CONTAINS
             ! This preserves positive definiteness independently of the projection error.
             DO WHILE (preconditioner_env%spectral_rank > 0)
                IF (low_rank_inverse_weight( &
-                   preconditioner_env%full_evals(nhomo + preconditioner_env%spectral_rank), &
+                   preconditioner_env%full_evals(nref + preconditioner_env%spectral_rank), &
                    preconditioner_env%spectral_reference, preconditioner_env%energy_gap) >= &
                    preconditioner_env%spectral_base_scale) EXIT
                preconditioner_env%spectral_rank = preconditioner_env%spectral_rank - 1
@@ -945,8 +929,6 @@ CONTAINS
                                       preconditioner_env%para_env, preconditioner_env%ctxt)
          END IF
       END IF
-
-      DEALLOCATE (eigenvalues_ot)
 
       CALL timestop(handle)
 
@@ -1060,11 +1042,6 @@ CONTAINS
             CALL prepare_complex_full_all(p, work(j)%c, work(j)%h, work(j)%s, work(j)%a, work(j)%b, &
                                           energy_gap=energy_gap)
             n = SIZE(p%full_evals)
-            ! Match the existing Cholesky reduction and back transformation exactly.
-            CALL cp_cfm_cholesky_decompose(work(j)%b)
-            CALL cp_cfm_triangular_invert(work(j)%b)
-            CALL cp_cfm_triangular_multiply(work(j)%b, work(j)%a, side='R')
-            CALL cp_cfm_triangular_multiply(work(j)%b, work(j)%a, transa_tr='C')
             CALL cp_cfm_local_workspace_prepare(work(j)%solver, n, work(j)%a%local_data)
             CALL cp_cfm_release(work(j)%s)
             CALL cp_cfm_release(work(j)%h)
@@ -1516,16 +1493,18 @@ CONTAINS
 !> \param fermi_low_rank_max_rank ...
 !> \param lattice_fft ...
 !> \param lattice_fft_local_cells ...
+!> \param full_all_rotation build FULL_ALL in the current OT orbital gauge
 ! **************************************************************************************************
    SUBROUTINE prepare_preconditioner(qs_env, mos, matrix_ks, matrix_s, &
                                      ot_preconditioner, prec_type, solver_type, &
                                      energy_gap, nspins, has_unit_metric, &
                                      convert_to_dbcsr, chol_type, full_mo_set, chebyshev_degree, &
                                      low_rank_base, fermi_low_rank_max_rank, lattice_fft, &
-                                     lattice_fft_local_cells)
+                                     lattice_fft_local_cells, full_all_rotation)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT), &
+         TARGET                                          :: mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
       INTEGER, INTENT(IN)                                :: prec_type, solver_type
@@ -1537,22 +1516,25 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: chebyshev_degree, low_rank_base, &
                                                             fermi_low_rank_max_rank, lattice_fft, &
                                                             lattice_fft_local_cells
+      LOGICAL, INTENT(IN), OPTIONAL                      :: full_all_rotation
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_preconditioner'
 
       CHARACTER(LEN=default_string_length)               :: msg
       INTEGER :: handle, icall, ispin, my_chebyshev_degree, my_fermi_low_rank_max_rank, &
-         my_lattice_fft, my_lattice_fft_local_cells, my_low_rank_base, n_loops
+         my_lattice_fft, my_lattice_fft_local_cells, my_low_rank_base
       INTEGER, DIMENSION(5)                              :: nocc, norb
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
-      LOGICAL :: do_co_rotate, do_kpoints, my_convert_to_dbcsr, my_full_mo_set, &
-         my_has_unit_metric, use_covariant_full_all, use_mo_coeff_b
+      LOGICAL :: do_co_rotate, do_kpoints, keep_ot_reference, my_convert_to_dbcsr, my_full_mo_set, &
+         my_has_unit_metric, use_mo_coeff_b
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: kinetic
       TYPE(dbcsr_type), POINTER                          :: matrix_t, mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: canonical_mos
+      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:), &
+         TARGET                                          :: canonical_mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: reference_mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: input, subsys_section
 
@@ -1577,7 +1559,9 @@ CONTAINS
       IF (PRESENT(lattice_fft_local_cells)) my_lattice_fft_local_cells = lattice_fft_local_cells
       IF (my_lattice_fft_local_cells < 0) CPABORT("LATTICE_FFT_LOCAL_CELLS must not be negative")
       do_kpoints = .FALSE.
-      use_covariant_full_all = prec_type == ot_precond_full_all_covariant
+      keep_ot_reference = .FALSE.
+      IF (PRESENT(full_all_rotation)) keep_ot_reference = full_all_rotation
+      reference_mos => mos
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -1673,15 +1657,7 @@ CONTAINS
             CALL set_mo_set(mo_set=mos(ispin), homo=norb(ispin))
          END DO
       END IF
-      !determines how often make preconditioner is called, spin dependent methods have to be called twice
-      n_loops = 1
-      IF (prec_type == ot_precond_full_single_inverse) n_loops = nspins
-      ! check whether we need the ev and rotate the MOs
-      SELECT CASE (prec_type)
-      CASE (ot_precond_full_all)
-         ! FULL_ALL needs canonical occupied eigenstates and one preconditioner per spin.
-         n_loops = nspins
-
+      IF (prec_type == ot_precond_full_all .AND. .NOT. keep_ot_reference) THEN
          do_co_rotate = ASSOCIATED(qs_env%mo_derivs)
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff_b=mo_coeff_b, mo_coeff=mo_coeff)
@@ -1702,15 +1678,10 @@ CONTAINS
                                                    do_rotation=.TRUE.)
             END IF
          END DO
-      CASE (ot_precond_fermi_low_rank)
-         ! The common-reference low-rank operator depends only on the occupied projector.
-         ! Keep the input gauge unchanged so that OT ROTATION remains well defined.
-         n_loops = nspins
-      CASE (ot_precond_full_all_covariant)
-         ! Diagonalize a private occupied copy. The physical MOs and their
-         ! derivatives remain in the user-selected gauge.
-         n_loops = nspins
+      ELSE IF (prec_type == ot_precond_full_all_covariant) THEN
+         ! Diagonalize a private occupied copy and retain its rotation.
          ALLOCATE (canonical_mos(nspins))
+         reference_mos => canonical_mos
          DO ispin = 1, nspins
             CALL duplicate_mo_set(canonical_mos(ispin), mos(ispin))
             CALL get_mo_set(mo_set=canonical_mos(ispin), mo_coeff_b=mo_coeff_b, mo_coeff=mo_coeff)
@@ -1722,9 +1693,7 @@ CONTAINS
                                             mo_coeff, matrix_ks(ispin)%matrix, &
                                             canonical_mos(ispin)%homo)
          END DO
-      CASE DEFAULT
-         ! No need to rotate the MOs
-      END SELECT
+      END IF
 
       ! check whether we have a preconditioner
       SELECT CASE (prec_type)
@@ -1733,7 +1702,7 @@ CONTAINS
             ot_preconditioner(ispin)%preconditioner%in_use = 0
          END DO
       CASE DEFAULT
-         DO icall = 1, n_loops
+         DO icall = 1, SIZE(ot_preconditioner)
             ot_preconditioner(icall)%preconditioner%polynomial_degree = my_chebyshev_degree
             ot_preconditioner(icall)%preconditioner%low_rank_base = my_low_rank_base
             ot_preconditioner(icall)%preconditioner%lattice_fft_mode = my_lattice_fft
@@ -1745,38 +1714,15 @@ CONTAINS
             END IF
             ot_preconditioner(icall)%preconditioner%spectral_max_rank = my_fermi_low_rank_max_rank
             IF (my_has_unit_metric) THEN
-               IF (use_covariant_full_all) THEN
-                  CALL make_preconditioner(ot_preconditioner(icall)%preconditioner, &
-                                           prec_type, solver_type, &
-                                           matrix_h=matrix_ks(icall)%matrix, &
-                                           mo_set=canonical_mos(icall), &
-                                           energy_gap=energy_gap, &
-                                           convert_precond_to_dbcsr=my_convert_to_dbcsr)
-               ELSE
-                  CALL make_preconditioner(ot_preconditioner(icall)%preconditioner, &
-                                           prec_type, solver_type, &
-                                           matrix_h=matrix_ks(icall)%matrix, &
-                                           mo_set=mos(icall), &
-                                           energy_gap=energy_gap, &
-                                           convert_precond_to_dbcsr=my_convert_to_dbcsr)
-               END IF
+               CALL make_preconditioner(ot_preconditioner(icall)%preconditioner, prec_type, solver_type, &
+                                        matrix_h=matrix_ks(icall)%matrix, mo_set=reference_mos(icall), &
+                                        energy_gap=energy_gap, convert_precond_to_dbcsr=my_convert_to_dbcsr, &
+                                        full_all_rotation=keep_ot_reference)
             ELSE
-               IF (use_covariant_full_all) THEN
-                  CALL make_preconditioner(ot_preconditioner(icall)%preconditioner, &
-                                           prec_type, solver_type, &
-                                           matrix_h=matrix_ks(icall)%matrix, &
-                                           matrix_s=matrix_s(1)%matrix, matrix_t=matrix_t, &
-                                           mo_set=canonical_mos(icall), &
-                                           energy_gap=energy_gap, &
-                                           convert_precond_to_dbcsr=my_convert_to_dbcsr, chol_type=chol_type)
-               ELSE
-                  CALL make_preconditioner(ot_preconditioner(icall)%preconditioner, &
-                                           prec_type, solver_type, &
-                                           matrix_h=matrix_ks(icall)%matrix, &
-                                           matrix_s=matrix_s(1)%matrix, matrix_t=matrix_t, &
-                                           mo_set=mos(icall), energy_gap=energy_gap, &
-                                           convert_precond_to_dbcsr=my_convert_to_dbcsr, chol_type=chol_type)
-               END IF
+               CALL make_preconditioner(ot_preconditioner(icall)%preconditioner, prec_type, solver_type, &
+                                        matrix_h=matrix_ks(icall)%matrix, matrix_s=matrix_s(1)%matrix, matrix_t=matrix_t, &
+                                        mo_set=reference_mos(icall), energy_gap=energy_gap, chol_type=chol_type, &
+                                        convert_precond_to_dbcsr=my_convert_to_dbcsr, full_all_rotation=keep_ot_reference)
             END IF
          END DO
       END SELECT
