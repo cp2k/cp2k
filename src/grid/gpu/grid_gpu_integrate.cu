@@ -162,7 +162,7 @@ __global__ __launch_bounds__(64) void compute_hab(const kernel_params dev_) {
     fill_smem_task_coef(dev_, task_id, task);
 
     T *__restrict__ coef_ = reinterpret_cast<T *>(__builtin_assume_aligned(
-        &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset], 32));
+        &dev_.buffers_dev.coef[dev_.coef_offsets[task_id]], 32));
 
     __syncthreads();
     cxyz_to_cab_factorized(task, coef_, smem_cab);
@@ -233,7 +233,7 @@ __global__ __launch_bounds__(64) void compute_hab_two_steps(
     fill_smem_task_coef(dev_, task_id, task);
 
     T *__restrict__ coef_ = reinterpret_cast<T *>(__builtin_assume_aligned(
-        &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset], 32));
+        &dev_.buffers_dev.coef[dev_.coef_offsets[task_id]], 32));
 
     __syncthreads();
     cxyz_to_cab_factorized(task, coef_, smem_cab);
@@ -342,8 +342,7 @@ __launch_bounds__(64) void compute_hab_forces(const kernel_params dev_) {
       continue;
     fill_smem_task_coef(dev_, task_id, task);
 
-    T *__restrict__ coef_ =
-        &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset];
+    T *__restrict__ coef_ = &dev_.buffers_dev.coef[dev_.coef_offsets[task_id]];
     __syncthreads();
     cxyz_to_cab_factorized(task, coef_, smem_cab);
     __syncthreads();
@@ -461,7 +460,7 @@ __global__ __launch_bounds__(64) void compute_hab_forces_two_steps(
     fill_smem_task_coef(dev_, task_id, task);
 
     T *__restrict__ coef_ = reinterpret_cast<T *>(__builtin_assume_aligned(
-        &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset], 32));
+        &dev_.buffers_dev.coef[dev_.coef_offsets[task_id]], 32));
 
     __syncthreads();
     cxyz_to_cab_factorized(task, coef_, smem_cab);
@@ -614,7 +613,8 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
   // the gaussian along x is tabulated
   constexpr bool tables_ = axis_aligned_ && !chunked_;
 
-  const task_info &glb_task = dev_.tasks[dev_.first_task + block_index()];
+  const int task_id = dev_.first_task + block_index();
+  const task_info &glb_task = dev_.tasks[task_id];
   if (sep_skip_task<chunked_>(glb_task, mc))
     return;
 
@@ -637,7 +637,7 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
   double *B = A + yrows * ls; // chunked_ only
 
   __shared__ smem_task_reduced<double, double3> task;
-  fill_smem_task_reduced(dev_, dev_.first_task + block_index(), task);
+  fill_smem_task_reduced(dev_, task_id, task);
   if (tid == 0) {
     setup_task_cube_center<double, double3, distributed__>(dev_, task);
   }
@@ -859,7 +859,7 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
   // the dgemm backend uses the same trick.
   //
 
-  double *coef = &dev_.buffers_dev.coef[glb_task.coef_offset];
+  double *coef = &dev_.buffers_dev.coef[dev_.coef_offsets[task_id]];
   if (axis_aligned_) {
     for (int i = tid; i < ncoef; i += 64)
       coef[i] = acc[i];
@@ -976,6 +976,9 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
 
   *lp_diff = smem_params.lp_diff();
   init_constant_memory();
+  // the coefficient workspace is laid out for the whole operation by
+  // prepare_integrate_workspace, before the loop over the grid levels
+  cp_assert(coef_lp_diff_ == smem_params.lp_diff());
 
   kernel_params params = set_kernel_parameters(level, smem_params);
 
@@ -1022,6 +1025,19 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
   }
 }
 
+/*******************************************************************************
+ * \brief Lays out the coefficient workspace for the integrate operation
+ *        selected by calculate_forces, calculate_virial and compute_tau. Must
+ *        be called once per operation, before the loop over the grid levels:
+ *        the coefficients written by integrate_one_grid_level for all the
+ *        levels are read by compute_hab_coefficients.
+ ******************************************************************************/
+void context_info::prepare_integrate_workspace() {
+  const ldiffs_value ldiffs =
+      process_get_ldiffs(calculate_forces, calculate_virial, compute_tau);
+  prepare_coef_workspace(ldiffs.la_max_diff + ldiffs.lb_max_diff);
+}
+
 void context_info::compute_hab_coefficients() {
 
   cp_assert(!calculate_virial || calculate_forces);
@@ -1033,6 +1049,7 @@ void context_info::compute_hab_coefficients() {
   smem_parameters smem_params(ldiffs, lmax());
   init_constant_memory();
   prepare_cab_workspace(ldiffs.la_max_diff, ldiffs.lb_max_diff);
+  cp_assert((ntasks == 0) || (coef_lp_diff_ == smem_params.lp_diff()));
 
   kernel_params params = set_kernel_parameters(-1, smem_params);
 

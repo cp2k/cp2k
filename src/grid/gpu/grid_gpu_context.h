@@ -435,8 +435,6 @@ struct task_info {
   double rab2;
   double zeta, zetb, zetp, prefactor, off_diag_twice;
   double rab[3];
-  int lp_max{0};
-  size_t coef_offset{0};
   int la_max, lb_max, la_min, lb_min, first_coseta, first_cosetb, ncoseta,
       ncosetb, nsgfa, nsgfb, nsgf_seta, nsgf_setb, maxcoa, maxcob;
   int sgfa, sgfb, subblock_offset;
@@ -488,6 +486,7 @@ struct kernel_params {
   char lb_max_diff{0};
   enum grid_func func;
   kernel_buffers buffers_dev;
+  const size_t *coef_offsets{nullptr};
   double **sphi_dev{nullptr};
   int ntasks{0};
   int *task_sorted_by_blocks_dev{nullptr};
@@ -522,6 +521,9 @@ public:
   gpu_vector<int> block_offsets_dev;
   gpu_vector<int> cab_block_offset_dev;
   gpu_vector<double> coef_dev_;
+  gpu_vector<size_t> coef_offsets_dev_;
+  std::vector<int> task_lp_; // basis angular momentum la_max + lb_max per task
+  int coef_lp_diff_{-1};
   gpu_vector<double> cab_dev_;
   // largest basis set la_max / lb_max of the tasks of each block (-1 for an
   // empty block), used to size the cab workspace of each block
@@ -571,6 +573,8 @@ public:
         block_offsets_dev{std::move(other.block_offsets_dev)},
         cab_block_offset_dev{std::move(other.cab_block_offset_dev)},
         coef_dev_{std::move(other.coef_dev_)},
+        coef_offsets_dev_{std::move(other.coef_offsets_dev_)},
+        task_lp_{std::move(other.task_lp_)}, coef_lp_diff_{other.coef_lp_diff_},
         cab_dev_{std::move(other.cab_dev_)},
         block_la_max_{std::move(other.block_la_max_)},
         block_lb_max_{std::move(other.block_lb_max_)},
@@ -643,6 +647,9 @@ public:
       block_offsets_dev = std::move(other.block_offsets_dev);
       cab_block_offset_dev = std::move(other.cab_block_offset_dev);
       coef_dev_ = std::move(other.coef_dev_);
+      coef_offsets_dev_ = std::move(other.coef_offsets_dev_);
+      task_lp_ = std::move(other.task_lp_);
+      coef_lp_diff_ = other.coef_lp_diff_;
       cab_dev_ = std::move(other.cab_dev_);
       block_la_max_ = std::move(other.block_la_max_);
       block_lb_max_ = std::move(other.block_lb_max_);
@@ -698,6 +705,9 @@ public:
     block_offsets_dev.reset();
     cab_block_offset_dev.reset();
     coef_dev_.reset();
+    coef_offsets_dev_.reset();
+    task_lp_.clear();
+    coef_lp_diff_ = -1;
     cab_dev_.reset();
     block_la_max_.clear();
     block_lb_max_.clear();
@@ -806,6 +816,7 @@ public:
                                 int *lp_diff);
   void integrate_one_grid_level(const int level, int *lp_diff);
   void compute_hab_coefficients();
+  void prepare_integrate_workspace();
   /* basic checksum computation for simple verification that the object is sane
    */
   void compute_checksum() { checksum_ = compute_checksum_(); }
@@ -817,6 +828,7 @@ public:
     }
   }
   void calculate_all_coefficients(const enum grid_func func, int *lp_diff);
+  void prepare_coef_workspace(const int lp_diff);
   void prepare_cab_workspace(const int la_max_diff, const int lb_max_diff);
 
 private:
