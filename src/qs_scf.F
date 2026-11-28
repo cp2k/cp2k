@@ -626,6 +626,32 @@ CONTAINS
 
             IF (.NOT. just_energy) scf_env%iter_count = scf_env%iter_count + 1
             iter_count = iter_count + 1
+            IF (scf_control%gce%do_gce) THEN
+               scf_control%gce%scf_iter = scf_control%gce%scf_iter + 1
+               ! end of the canonical GCE warm-up: WARMUP_STEPS iterations done and, if
+               ! WARMUP_EPS_SCF is set, the SCF error of the previous iteration below it
+               ! (or WARMUP_MAX_STEPS reached)
+               IF (scf_control%gce%in_warmup .AND. &
+                   scf_control%gce%scf_iter > scf_control%gce%warmup_steps) THEN
+                  IF (scf_control%gce%warmup_eps_scf <= 0.0_dp .OR. &
+                      scf_env%iter_delta < scf_control%gce%warmup_eps_scf .OR. &
+                      scf_control%gce%scf_iter > scf_control%gce%warmup_max_steps) THEN
+                     scf_control%gce%in_warmup = .FALSE.
+                     IF (scf_control%gce%scf_iter > 2) THEN
+                        ! the density-mixing history of a canonical warm-up of more than one
+                        ! iteration belongs to a different occupation rule and destabilises the
+                        ! grand-canonical iterations: restart the mixing here
+                        IF (ASSOCIATED(scf_env%mixing_store)) THEN
+                           scf_env%mixing_store%ncall = 0
+                           scf_env%mixing_store%ncall_p = 0
+                        END IF
+                        IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(T8,A,I0,A,ES10.2)") &
+                           "GCE| warm-up finished after ", scf_control%gce%scf_iter - 1, &
+                           " iterations, SCF error ", scf_env%iter_delta
+                     END IF
+                  END IF
+               END IF
+            END IF
             CALL cp_iterate(logger%iter_info, last=.FALSE., iter_nr=iter_count)
 
             IF (output_unit > 0) CALL m_flush(output_unit)
