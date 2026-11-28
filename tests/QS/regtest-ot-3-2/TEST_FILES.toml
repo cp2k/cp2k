@@ -5,21 +5,21 @@
 #      for details see cp2k/tools/do_regtest
 "Al-kpoint-mermin-gaussian.inp"           = [
   {matcher = "E_total", tol = 1e-9, ref = -2.201247329326454},
-  {matcher = "NO_TEXT", text = "K-point smearing includes the first band"},
-  {matcher = "NO_TEXT", text = "K-point smearing includes the last band"}
+  {matcher = "TEXT", present = false, text = "K-point smearing includes the first band"},
+  {matcher = "TEXT", present = false, text = "K-point smearing includes the last band"}
 ]
 "Al-kpoint-mermin-methfessel-paxton.inp"  = [
   {matcher = "E_total", tol = 1e-9, ref = -2.200056176959800},
-  {matcher = "NO_TEXT", text = "K-point smearing includes the first band"},
-  {matcher = "NO_TEXT", text = "K-point smearing includes the last band"}
+  {matcher = "TEXT", present = false, text = "K-point smearing includes the first band"},
+  {matcher = "TEXT", present = false, text = "K-point smearing includes the last band"}
 ]
 "Al-kpoint-mermin-marzari-vanderbilt.inp" = [
   {matcher = "E_total", tol = 1e-9, ref = -2.199902246256291},
-  {matcher = "NO_TEXT", text = "K-point smearing includes the first band"},
-  {matcher = "NO_TEXT", text = "K-point smearing includes the last band"}
+  {matcher = "TEXT", present = false, text = "K-point smearing includes the first band"},
+  {matcher = "TEXT", present = false, text = "K-point smearing includes the last band"}
 ]
 "Al-kpoint-mermin-auto.inp"               = [
   {matcher = "E_total", tol = 1e-9, ref = -3.00420815559582},
-  {matcher = "OT_added_mos_auto_grow"},
+  {matcher = "TEXT", text = "K-point ADDED_MOS AUTO: growing virtual-space buffer"},
 ]
 #EOF

@@ -48,13 +48,13 @@
   {matcher = "E_total", tol = 1e-13, ref = -4.34524388359536},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1},
   {matcher = "WANNIER90_SCF_MO_REUSE"},
-  {matcher = "WANNIER90_DEGENERATE_SUBSPACE_ALIGN"}
+  {matcher = "TEXT", text = "degenerate SCF MO subspace(s)"}
 ]
 "h_fcc_macdonald_wannier90_spglib.inp"               = [
   {matcher = "E_total", tol = 1e-13, ref = -4.34524388359536},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1},
   {matcher = "WANNIER90_SCF_MO_REUSE"},
-  {matcher = "WANNIER90_DEGENERATE_SUBSPACE_ALIGN"}
+  {matcher = "TEXT", text = "degenerate SCF MO subspace(s)"}
 ]
 "h_fcc_general_spglib_method_k290_backend.inp"       = [
   {matcher = "E_total", tol = 1e-13, ref = -4.34524388359536},
@@ -72,9 +72,9 @@
   {matcher = "E_total", tol = 1e-13, ref = -4.30964310650676},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4},
   {matcher = "WANNIER90_SCF_MO_REUSE"},
-  {matcher = "WANNIER90_DEGENERATE_SUBSPACE_ALIGN"},
-  {matcher = "WANNIER90_USE_BLOCH_PHASES"},
-  {matcher = "WANNIER90_BLOCH_PHASE_GAUGE"},
-  {matcher = "WANNIER90_REUSE_VALIDATION"}
+  {matcher = "TEXT", text = "degenerate SCF MO subspace(s)"},
+  {matcher = "TEXT", text = "WANNIER90| Wrote identity projections for Bloch-phase complete band subspaces."},
+  {matcher = "TEXT", text = "WANNIER90| Applied Bloch phase gauge to reused overlaps"},
+  {matcher = "TEXT", text = "WANNIER90| Reused MO validation: subspace deviation"}
 ]
 #EOF

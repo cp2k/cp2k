@@ -1,7 +1,7 @@
 # The exports run without a linked Wannier90 library.
 "he2_hexagonal.inp"             = [
   {matcher = "WANNIER90_SCF_MO_REUSE"},
-  {matcher = "WANNIER90_REUSE_VALIDATION"},
+  {matcher = "TEXT", text = "WANNIER90| Reused MO validation: subspace deviation"},
   {matcher = "WANNIER90_PROJECTION_MIN_SVALUE", tol = 1e-4, ref = 0.49884}
 ]
 "he2_hexagonal_diagonalize.inp" = [{matcher = "WANNIER90_PROJECTION_MIN_SVALUE", tol = 1e-4, ref = 0.49884}]

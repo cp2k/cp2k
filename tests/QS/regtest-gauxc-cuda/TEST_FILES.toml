@@ -1,9 +1,15 @@
+# Fail the -cuda regtests when Torch silently falls back to the CPU.  This
+# exact substring is printed only when a visible CUDA device was selected for
+# rank 0; the fallback line says 'no Torch CUDA device is visible'.
 "H2_GAUXC_SKALA_GAPW_GTH_COMPOSITE.inp" = [
   {matcher = "E_total", tol = 1e-8, ref = -0.96822272191673},
   {matcher = "M072", tol = 1e-4, ref = 3.69018359E-04},
-  {matcher = "SKALA_native_cuda_device"}
+  {matcher = "TEXT", text = "SKALA_GPW| Native grid Torch CUDA device 0 of"}
 ]
+# Covers INT_EXECUTION_SPACE DEVICE with the default LB_EXECUTION_SPACE HOST:
+# the device integrator needs a device runtime even though the load balancer
+# stays on the host.
 "H2_GAUXC_SKALA_ENERGY_DEVICE.inp"      = [
-  {matcher = "GAUXC_integrator_device"},
+  {matcher = "TEXT", text = "GAUXC| Execution spaces: LB HOST, INT DEVICE, runtime DEVICE"},
   {matcher = "E_total", tol = 1e-4, ref = -0.979366068078563}
 ]

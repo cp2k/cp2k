@@ -1,3 +1,10 @@
+# TODO:
+# - Deduplicate entries whenever possible
+# - Mark corresponding write statement in the source code
+
+[TEXT]
+class = 'TextMatcher'
+
 [GW_orbital_self_energy]
 class = 'GWOrbitalSelfEnergyMatcher'
 
@@ -217,22 +224,10 @@ class   = 'GenericMatcher'
 pattern = 'SS-DIMER| Joint-force norm [au]'
 col     = 5
 
-[Ssdimer_completed]
-class = 'TextPresenceMatcher'
-text  = 'GEOMETRY OPTIMIZATION COMPLETED'
-
 [M011]
 class   = 'GenericMatcher'
 pattern = 'ENERGY| Total FORCE_EVAL'
 col     = 9
-
-[Geometry_optimization_converged]
-class = 'TextPresenceMatcher'
-text  = 'GEOMETRY OPTIMIZATION COMPLETED'
-
-[NEB_optimization_converged]
-class = 'TextPresenceMatcher'
-text  = 'BAND TASK COMPLETED'
 
 [FIST_periodic_dipole_x]
 class   = 'GenericMatcher'
@@ -274,58 +269,6 @@ col     = 5
 class   = 'GenericMatcher'
 pattern = 'Number of molecular orbitals:'
 col     = 5
-
-[QS_cartesian_mo_output]
-class = 'TextPresenceMatcher'
-text  = 'CARTESIAN EIGENVECTORS'
-
-[QS_MO_OCCUPATION_STATS]
-class = 'TextPresenceMatcher'
-text  = 'MO| Total occupied (ALPHA):'
-
-[OT_lbfgs_skipped_update]
-class = 'TextPresenceMatcher'
-text  = 'OT LSKIP'
-
-[OT_lbfgs_update]
-class = 'TextPresenceMatcher'
-text  = 'OT LBFGS'
-
-[OT_diis_update]
-class = 'TextPresenceMatcher'
-text  = 'OT DIIS'
-
-[OT_mermin_response_update]
-class = 'TextPresenceMatcher'
-text  = 'OT CG-R'
-
-[OT_mermin_exact_hxc]
-class = 'TextPresenceMatcher'
-text  = 'apply_hxc_kernel_kp'
-
-[OT_mermin_lbfgs_response_update]
-class = 'TextPresenceMatcher'
-text  = 'OT L-R'
-
-[OT_kpoint_ref_refresh]
-class = 'TextPresenceMatcher'
-text  = 'K-point OT: rebuilding physical virtual subspace'
-
-[OT_added_mos_auto_grow]
-class = 'TextPresenceMatcher'
-text  = 'K-point ADDED_MOS AUTO: growing virtual-space buffer'
-
-[OT_lattice_fft_selected]
-class = 'TextPresenceMatcher'
-text  = 'selected: T'
-
-[OT_lattice_fft_fallback]
-class = 'TextPresenceMatcher'
-text  = 'selected: F'
-
-[OT_lattice_local_correction]
-class = 'TextPresenceMatcher'
-text  = 'Balanced local correction cells:'
 
 [Kubo_sigma_iso]
 class   = 'GenericMatcher'
@@ -468,18 +411,6 @@ pattern = 'NONLINEAR_OPTICS\| Band transition width:\s+([-+0-9.EeDd]+)\s+meV'
 col     = 1
 regex   = true
 
-[Kubo_internal_diag]
-class = 'TextPresenceMatcher'
-text  = 'internal diagonalization'
-
-[Kubo_reused_mos]
-class = 'TextPresenceMatcher'
-text  = 'CP2K canonical MOs'
-
-[Kubo_reference]
-class = 'TextPresenceMatcher'
-text  = 'https://doi.org/10.1016/j.aop.2020.168290'
-
 [SKALA_GPW_feature_electrons]
 class   = 'GenericMatcher'
 pattern = 'SKALA_GPW| Native grid feature electrons'
@@ -500,27 +431,8 @@ class   = 'GenericMatcher'
 pattern = 'SKALA_GPW| Active atom-composite electrons'
 col     = 5
 
-# Fail the -cuda regtests when Torch silently falls back to the CPU.  This
-# exact substring is printed only when a visible CUDA device was selected for
-# rank 0; the fallback line says 'no Torch CUDA device is visible'.
-[SKALA_native_cuda_device]
-class = 'TextPresenceMatcher'
-text  = 'SKALA_GPW| Native grid Torch CUDA device 0 of'
-
-# Fail the GauXC device regtests when the device runtime is not used.
-[GAUXC_device_execution]
-class = 'TextPresenceMatcher'
-text  = 'GAUXC| Execution spaces: LB DEVICE, INT DEVICE, runtime DEVICE'
-
-# Covers INT_EXECUTION_SPACE DEVICE with the default LB_EXECUTION_SPACE HOST:
-# the device integrator needs a device runtime even though the load balancer
-# stays on the host.
-[GAUXC_integrator_device]
-class = 'TextPresenceMatcher'
-text  = 'GAUXC| Execution spaces: LB HOST, INT DEVICE, runtime DEVICE'
-
 [WANNIER90_SCF_MO_REUSE]
-class = 'TextPresenceMatcher'
+class = 'TextMatcher'
 text  = 'WANNIER90| Reused SCF MO coefficients for the Wannier90 full k-point mesh.'
 
 [WANNIER90_PROJECTION_MIN_SVALUE]
@@ -533,22 +445,6 @@ class   = 'GenericMatcher'
 pattern = 'WANNIER90| Exported hybrid projection candidates'
 col     = 6
 
-[WANNIER90_FULL_MESH_DIAG]
-class = 'TextPresenceMatcher'
-text  = 'WANNIER90| Falling back to full-mesh diagonalization for the Wannier90 files.'
-
-[TOPOLOGY_SURFACE_CONVERGED]
-class = 'TextPresenceMatcher'
-text  = 'TOPOLOGY| Wilson surface sampling converged.'
-
-[TOPOLOGY_Z2_TRIVIAL]
-class = 'TextPresenceMatcher'
-text  = 'TOPOLOGY| Converged Z2 invariant: 0'
-
-[TOPOLOGY_CHERN_TRIVIAL]
-class = 'TextPresenceMatcher'
-text  = 'TOPOLOGY| Converged first Chern number: 0'
-
 [TQC_PARITY_INDEX]
 class   = 'GenericMatcher'
 pattern = 'TQC| Fu-Kane parity index:'
@@ -559,35 +455,11 @@ class   = 'GenericMatcher'
 pattern = 'TQC| Inversion Z4 (sum odd pairs mod 4):'
 col     = 9
 
-[TQC_ATOMIC_SIGNATURE]
-class = 'TextPresenceMatcher'
-text  = 'TQC| Nonnegative atomic signature: T'
-
 [TOPOLOGY_BERRY_PHASE]
 class     = 'GenericMatcher'
 pattern   = 'Berry phase [rad]:'
 col       = 7
 abs_value = true
-
-[WANNIER90_DEGENERATE_GUARD]
-class = 'TextPresenceMatcher'
-text  = 'degenerate atom/AO W90 reuse guarded'
-
-[WANNIER90_DEGENERATE_SUBSPACE_ALIGN]
-class = 'TextPresenceMatcher'
-text  = 'degenerate SCF MO subspace(s)'
-
-[WANNIER90_USE_BLOCH_PHASES]
-class = 'TextPresenceMatcher'
-text  = 'WANNIER90| Wrote identity projections for Bloch-phase complete band subspaces.'
-
-[WANNIER90_BLOCH_PHASE_GAUGE]
-class = 'TextPresenceMatcher'
-text  = 'WANNIER90| Applied Bloch phase gauge to reused overlaps'
-
-[WANNIER90_REUSE_VALIDATION]
-class = 'TextPresenceMatcher'
-text  = 'WANNIER90| Reused MO validation: subspace deviation'
 
 [WANNIER90_CANDIDATE_METRIC_DEVIATION]
 class   = 'GenericMatcher'
@@ -1070,30 +942,11 @@ pattern = 'GAUXC\|\s+Molecular XC gradient virial 1/3 Trace\s+([-+0-9.EeDd]+)'
 col     = 8
 regex   = true
 
-[GAUXC_analytical_gradient]
-class = 'TextPresenceMatcher'
-text  = 'GAUXC| Molecular XC gradient method: ANALYTICAL'
-
-[GAUXC_numerical_gradient]
-class = 'TextPresenceMatcher'
-text  = 'GAUXC| Molecular XC gradient method: FD'
-
-[GAUXC_self_gradient]
-class = 'TextPresenceMatcher'
-text  = 'GAUXC| Molecular XC gradient runtime: SELF'
-
 [GAUXC_molecular_xc_virial_fd_diff]
 class   = 'GenericMatcher'
 pattern = 'GAUXC\|\s+Molecular XC virial FD 1/3 Trace\s+[-+0-9.EeDd]+\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)'
 col     = 9
 regex   = true
-
-[XTB_reference_cli_failed]
-class = 'TextPresenceMatcher'
-text  = 'tblite reference CLI check failed to run.'
-
-[NO_TEXT]
-class = 'TextAbsenceMatcher'
 
 [M083]
 class   = 'GenericMatcher'
@@ -1160,10 +1013,6 @@ class   = 'GenericMatcher'
 pattern = 'FCIDUMP| Checksum:'
 col     = 3
 
-[AS_NMIXING_deprecated]
-class = 'TextPresenceMatcher'
-text  = 'NMIXING has no effect'
-
 [AS_embedding_iterations]
 class   = 'GenericMatcher'
 pattern = 'rs-DFT embedding run converged in'
@@ -1179,10 +1028,6 @@ regex   = true
 class   = 'GenericMatcher'
 pattern = 'FCIDUMP| Reference determinant energy offset [hartree]:'
 col     = 7
-
-[ROKS_FCIDUMP_spin_warning]
-class = 'TextPresenceMatcher'
-text  = 'ROKS FCIDUMP spin blocks'
 
 [M093]
 class   = 'GenericMatcher'
@@ -1667,14 +1512,6 @@ class   = 'GenericMatcher'
 pattern = 'U_MINUS_J [eV]'
 col     = 4
 
-[MTLR_REFERENCE_MOS]
-class = 'TextPresenceMatcher'
-text  = ' MTLR| Perturbation initial guess:                               REFERENCE MOs'
-
-[WFN_RESTART_READ]
-class = 'TextPresenceMatcher'
-text  = 'WFN_RESTART| Restart file'
-
 # NNP MD matchers. M_INIT_ENERGY passes first=true because ENERGY|Total
 # FORCE_EVAL is printed once per MD step, and the default (last-line)
 # strategy would return step N rather than the step-0 initial value.
@@ -1713,10 +1550,6 @@ class   = 'GenericMatcher'
 pattern = 'i\s*=\s*(\d+)'
 col     = 1
 regex   = true
-
-[REFTRAJ_force_file]
-class = 'TextPresenceMatcher'
-text  = 'ATOMIC FORCES'
 
 # STRUCTURE_DATA uses the same torsion sign convention as the TORSION COLVAR.
 [STRUCTURE_DATA_dihedral_angle]
@@ -1808,10 +1641,6 @@ col     = 4
 class   = 'GenericMatcher'
 pattern = 'SPECTRAL_LOCALIZER| Z2 index:'
 col     = 4
-
-[LOCALIZER_UNRESOLVED]
-class = 'TextPresenceMatcher'
-text  = 'SPECTRAL_LOCALIZER| UNRESOLVED:'
 
 [Band_first_eigenvalue]
 class   = 'GenericMatcher'
