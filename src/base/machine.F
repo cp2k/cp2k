@@ -565,8 +565,6 @@ CONTAINS
          MemFree = c_free
          MemLikelyFree = c_likely_free
       END IF
-      ! a batch system (e.g., Slurm) may limit the job to part of the memory of the node
-      CALL restrict_memory_to_cgroup_limit(MemTotal, MemLikelyFree)
 
    CONTAINS
 
@@ -820,102 +818,5 @@ CONTAINS
       IF (istat /= 0) omp_stacksize = "default"
 
    END SUBROUTINE m_omp_get_stacksize
-
-! **************************************************************************************************
-!> \brief Restricts total and free memory of the node to the memory limits of the cgroup of this
-!>        process and of all its parent cgroups (cgroup v1 memory controller or cgroup v2), as set
-!>        by a batch system for a job that gets only part of a node. Free memory of a limited
-!>        cgroup = limit - usage + inactive file cache (reclaimable).
-!> \param MemTotal total memory of the node in bytes, lowered to the smallest limit
-!> \param MemLikelyFree free memory of the node in bytes, lowered to the smallest free memory of a
-!>        limited cgroup
-! **************************************************************************************************
-   SUBROUTINE restrict_memory_to_cgroup_limit(MemTotal, MemLikelyFree)
-      INTEGER(KIND=int_8), INTENT(INOUT)                 :: MemTotal, MemLikelyFree
-
-      CHARACTER(LEN=default_path_length)                 :: cgroup_dir, cgroup_root, controllers, &
-                                                            inactive_field, limit_file, line, &
-                                                            usage_file
-      INTEGER                                            :: first_colon, ios, second_colon, unit_nr
-      INTEGER(KIND=int_8)                                :: inactive_file, limit, node_total, usage
-
-      cgroup_dir = ""
-      OPEN (NEWUNIT=unit_nr, FILE="/proc/self/cgroup", STATUS="OLD", ACTION="READ", IOSTAT=ios)
-      IF (ios /= 0) RETURN
-      ! lines "hierarchy:controllers:path"; cgroup v2 has no controllers, v1 has a memory hierarchy
-      DO
-         READ (unit_nr, '(A)', IOSTAT=ios) line
-         IF (ios /= 0) EXIT
-         first_colon = INDEX(line, ":")
-         IF (first_colon == 0) CYCLE
-         second_colon = INDEX(line(first_colon + 1:), ":") + first_colon
-         IF (second_colon == first_colon) CYCLE
-         controllers = line(first_colon + 1:second_colon - 1)
-         IF (INDEX(","//TRIM(controllers)//",", ",memory,") > 0) THEN
-            cgroup_root = "/sys/fs/cgroup/memory"
-            cgroup_dir = TRIM(cgroup_root)//line(second_colon + 1:)
-            limit_file = "memory.limit_in_bytes"
-            usage_file = "memory.usage_in_bytes"
-            inactive_field = "total_inactive_file"
-            EXIT
-         ELSE IF (LEN_TRIM(controllers) == 0) THEN
-            cgroup_root = "/sys/fs/cgroup"
-            cgroup_dir = TRIM(cgroup_root)//line(second_colon + 1:)
-            limit_file = "memory.max"
-            usage_file = "memory.current"
-            inactive_field = "inactive_file"
-         END IF
-      END DO
-      CLOSE (unit_nr)
-      IF (LEN_TRIM(cgroup_dir) == 0) RETURN
-      node_total = MemTotal
-      ! from the cgroup of the process up to the root; "max" (cgroup v2) reads as no limit
-      DO WHILE (LEN_TRIM(cgroup_dir) > LEN_TRIM(cgroup_root))
-         limit = cgroup_file_value(TRIM(cgroup_dir)//"/"//TRIM(limit_file), "")
-         IF (limit > 0 .AND. (limit < node_total .OR. node_total <= 0)) THEN
-            usage = cgroup_file_value(TRIM(cgroup_dir)//"/"//TRIM(usage_file), "")
-            inactive_file = MAX(cgroup_file_value(TRIM(cgroup_dir)//"/memory.stat", TRIM(inactive_field)), 0_int_8)
-            IF (usage >= 0) THEN
-               MemTotal = MIN(MemTotal, limit)
-               MemLikelyFree = MIN(MemLikelyFree, MAX(limit - usage + inactive_file, 0_int_8))
-            END IF
-         END IF
-         cgroup_dir(INDEX(cgroup_dir, "/", BACK=.TRUE.):) = ""
-      END DO
-
-   END SUBROUTINE restrict_memory_to_cgroup_limit
-
-! **************************************************************************************************
-!> \brief Integer in a cgroup file: the first value of the file, or the value after field (a line
-!>        "field value" as in memory.stat).
-!> \param file_name cgroup file
-!> \param field name of the line, empty for the first value of the file
-!> \return the value, -1 if the file or the field cannot be read
-! **************************************************************************************************
-   INTEGER(KIND=int_8) FUNCTION cgroup_file_value(file_name, field)
-      CHARACTER(LEN=*), INTENT(IN)                       :: file_name, field
-
-      CHARACTER(LEN=default_path_length)                 :: line
-      INTEGER                                            :: ios, unit_nr
-
-      cgroup_file_value = -1
-      OPEN (NEWUNIT=unit_nr, FILE=file_name, STATUS="OLD", ACTION="READ", IOSTAT=ios)
-      IF (ios /= 0) RETURN
-      DO
-         READ (unit_nr, '(A)', IOSTAT=ios) line
-         IF (ios /= 0) EXIT
-         IF (LEN(field) == 0) THEN
-            READ (line, *, IOSTAT=ios) cgroup_file_value
-            IF (ios /= 0) cgroup_file_value = -1
-            EXIT
-         ELSE IF (line(1:LEN(field) + 1) == field//" ") THEN
-            READ (line(LEN(field) + 2:), *, IOSTAT=ios) cgroup_file_value
-            IF (ios /= 0) cgroup_file_value = -1
-            EXIT
-         END IF
-      END DO
-      CLOSE (unit_nr)
-
-   END FUNCTION cgroup_file_value
 
 END MODULE machine

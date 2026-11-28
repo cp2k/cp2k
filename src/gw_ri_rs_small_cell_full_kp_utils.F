@@ -1422,7 +1422,8 @@ CONTAINS
          ALLOCATE (G_grid_k(fft_stencil_work%n_pairs, 1, bs_env%nkp_scf_desymm))
          ALLOCATE (V_grid_R(fft_stencil_work%n_pairs, 1, SIZE(full_cells, 2)))
          ALLOCATE (Sigma_grid_R, MOLD=V_grid_R)
-         CALL project_auxiliary_q_to_fft_pairs(gwkp_env%Z_lP_q, coulomb_q, 1, bs_env%para_env, fft_stencil_work, G_grid_k)
+         CALL project_auxiliary_q_to_fft_pairs(n_grid, bs_env%n_RI, gwkp_env%Z_lP_q, coulomb_q, 1, bs_env%para_env, &
+                                               fft_stencil_work, G_grid_k)
          CALL q_mesh_and_gamma_shell_average(bs_env, values_q=G_grid_k, q_order=fft_stencil_work%input_to_native)
          CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, values_R=V_grid_R)
          CALL add_gamma_corr_pairs(bs_env, full_cells, head_cell_factor, &
@@ -1498,7 +1499,8 @@ CONTAINS
       ALLOCATE (V_q(n_pairs_local, 1, bs_env%nkp_scf_desymm), D_k(n_pairs_local, 1, bs_env%nkp_scf_desymm))
       CALL coulomb_factor_to_interaction(gwkp_env%metric_coulomb_factor, coulomb_q)
       DEALLOCATE (gwkp_env%metric_coulomb_factor)
-      CALL project_auxiliary_q_to_fft_pairs(gwkp_env%Z_lP_q, coulomb_q, 1, bs_env%para_env, fft_stencil_work, V_q)
+      CALL project_auxiliary_q_to_fft_pairs(n_grid, bs_env%n_RI, gwkp_env%Z_lP_q, coulomb_q, 1, bs_env%para_env, &
+                                            fft_stencil_work, V_q)
       DEALLOCATE (coulomb_q)
       ALLOCATE (V_R(n_pairs_local, 1, SIZE(full_cells, 2)), D_R(n_pairs_local, 1, SIZE(full_cells, 2)))
       CALL k_to_grid_pairs(V_q, fft_stencil_work, values_R=V_R)
@@ -1667,7 +1669,7 @@ CONTAINS
          ALLOCATE (Sigma_grid_R, MOLD=W_grid_R)
          DO i_t = gwkp_env%my_group + 1, bs_env%num_time_freq_points, gwkp_env%ngroups
             i_time_local = (i_t - gwkp_env%my_group - 1)/gwkp_env%ngroups + 1
-            CALL project_auxiliary_q_to_fft_pairs(gwkp_env%Z_lP_q, gwkp_env%W_PQ_tau, i_time_local, &
+            CALL project_auxiliary_q_to_fft_pairs(n_grid, bs_env%n_RI, gwkp_env%Z_lP_q, gwkp_env%W_PQ_tau, i_time_local, &
                                                   gwkp_env%group_env, fft_stencil_work, G_grid_k)
             CALL q_mesh_and_gamma_shell_average(bs_env, values_q=G_grid_k, q_order=fft_stencil_work%input_to_native)
             CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, values_R=W_grid_R)
@@ -3622,6 +3624,8 @@ CONTAINS
 !> are Z (Z_l' X)^H, so X is applied to the rows of Z of the batch columns only.
 !> D(q) and d(q) come from real-space real coefficients, so the RI fit obeys Z(-q)=Z(q)*.
 !> Apply the same conjugation to the projected W after exchanging it with the grid-pair owners.
+!> \param n_grid number of RI-RS grid points
+!> \param n_RI number of RI functions
 !> \param Z_q ...
 !> \param interaction_q Compact local Hermitian matrices X(q) in real storage
 !> \param itime ...
@@ -3629,8 +3633,10 @@ CONTAINS
 !> \param work shared geometry and exchange layout
 !> \param fft_pairs ...
 ! **************************************************************************************************
-   SUBROUTINE project_auxiliary_q_to_fft_pairs(Z_q, interaction_q, itime, para_env, work, fft_pairs)
-      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN), TARGET   :: Z_q(:, :, :)
+   SUBROUTINE project_auxiliary_q_to_fft_pairs(n_grid, n_RI, Z_q, interaction_q, itime, para_env, work, &
+                                               fft_pairs)
+      INTEGER, INTENT(IN)                                :: n_grid, n_RI
+      COMPLEX(KIND=dp), INTENT(IN)                       :: Z_q(n_grid, n_RI, *)
       TYPE(ri_q_matrix_block_type), INTENT(IN)           :: interaction_q(:)
       INTEGER, INTENT(IN)                                :: itime
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -3641,21 +3647,18 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: panel(:, :), sent(:), X_columns(:, :), &
                                                             ZX(:, :, :)
-      INTEGER :: first_col, handle, i_first, i_q, i_z, n_aux_cols, n_cols, n_grid, n_owned, &
-         n_pairs, n_q, n_q_local, n_rank, n_RI, n_round, n_rows, n_scheduled, n_threads, ri_block
+      INTEGER :: first_col, handle, i_first, i_q, i_z, n_aux_cols, n_cols, n_owned, n_pairs, n_q, &
+         n_q_local, n_rank, n_round, n_rows, n_scheduled, n_threads, ri_block
       INTEGER, ALLOCATABLE                               :: jobs(:), recv_counts(:), recv_displs(:)
 
       CALL timeset(routineN, handle)
 
-      n_grid = SIZE(Z_q, 1)
-      n_RI = SIZE(Z_q, 2)
-      n_q_local = SIZE(Z_q, 3)
+      n_q_local = SIZE(interaction_q)
       n_q = SIZE(fft_pairs, 3)
       n_rank = para_env%num_pe
       n_pairs = SUM(work%pair_counts)
       CPASSERT(SIZE(fft_pairs, 1) == work%pair_counts(para_env%mepos))
       CPASSERT(ALLOCATED(work%q_source))
-      CPASSERT(SIZE(interaction_q) == n_q_local)
       n_rows = work%last_col - work%first_col + 1
       ALLOCATE (sent(MAX(1, n_pairs*MIN(n_q_local, work%k_batch))), ZX(n_rows, n_RI, MIN(n_q_local, work%k_batch)), &
                 jobs(work%k_batch), recv_counts(0:n_rank - 1), recv_displs(0:n_rank - 1))
