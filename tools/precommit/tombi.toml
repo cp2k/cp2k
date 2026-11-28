@@ -1,8 +1,5 @@
 toml-version = "v1.0.0"
 
-[files]
-include = ["**/TEST_FILES.toml"]
-
 # Test execution order and matcher order must not change.
 [schema]
 enabled = false

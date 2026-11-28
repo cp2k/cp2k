@@ -1,7 +1,7 @@
 "H2_NATIVE_SKALA_GAPW_AE_ATOM_COMPOSITE.inp"     = [
   {matcher = "E_total", tol = 1e-8, ref = -0.92138855864519},
   {matcher = "M072", tol = 1e-4, ref = 1.73941953E-03},
-  {matcher = "SKALA_native_cuda_device"}
+  {matcher = "TEXT", text = "SKALA_GPW| Native grid Torch CUDA device 0 of"}
 ]
 "H2_NATIVE_SKALA_GPW_GTH_KP_INV_STRESS.inp"      = [
   {matcher = "E_total", tol = 1e-8, ref = -0.80886154056422},

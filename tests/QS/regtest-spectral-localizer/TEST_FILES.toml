@@ -8,7 +8,7 @@
   {matcher = "LOCALIZER_CHERN", tol = 0, ref = 0},
   {matcher = "LOCALIZER_GAP", tol = 2e-6, ref = 3.06186032815457e-3}
 ]
-"h2-unresolved.inp"     = [{matcher = "LOCALIZER_UNRESOLVED", tol = 0, ref = 1}]
+"h2-unresolved.inp"     = [{matcher = "TEXT", text = "SPECTRAL_LOCALIZER| UNRESOLVED:"}]
 "bismuth-soc.inp"       = [
   {matcher = "LOCALIZER_Z2", tol = 0, ref = 0},
   {matcher = "LOCALIZER_GAP", tol = 2e-6, ref = 6.81101299873304e-2}

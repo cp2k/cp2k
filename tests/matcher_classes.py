@@ -45,7 +45,7 @@ class GenericMatcher(Matcher):
 
     def run(self, output: str, **kwargs: Any) -> MatchResult:
         tol, ref = kwargs["tol"], kwargs["ref"]
-        assert isinstance(tol, float) or isinstance(ref, int)
+        assert isinstance(tol, float) or isinstance(tol, int)
         assert isinstance(ref, float) or isinstance(ref, int)
         # grep result
         lines = output.split("\n")
@@ -85,28 +85,23 @@ class GenericMatcher(Matcher):
 
 
 # ======================================================================================
-class TextPresenceMatcher(Matcher):
-    def __init__(self, text: str):
+class TextMatcher(Matcher):
+    def __init__(
+        self,
+        text: str = "",
+        present: bool = True,
+    ):
         self.text = text
-
-    def run(self, output: str, **kwargs: Any) -> MatchResult:
-        if self.text not in output:
-            return MatchResult(
-                "WRONG RESULT", f"Text not found: '{self.text}'.\n", value=None
-            )
-        return MatchResult("OK", error=None, value=None)
-
-
-# ======================================================================================
-class TextAbsenceMatcher(Matcher):
-    def __init__(self, text: Optional[str] = None):
-        self.text = text
+        self.present = present
 
     def run(self, output: str, **kwargs: Any) -> MatchResult:
         text = kwargs.get("text", self.text)
+        # Note: TOML formatter recognizes only true/false, not True/False
+        present = kwargs.get("present", self.present)
         assert isinstance(text, str) and text
+        assert isinstance(present, bool)
         count = output.count(text)
-        if count > 0:
+        if count > 0 and not present:
             first_context = ""
             for line_nr, line in enumerate(output.splitlines(), start=1):
                 if text in line:
@@ -118,6 +113,10 @@ class TextAbsenceMatcher(Matcher):
                 "WRONG RESULT",
                 f"Forbidden text found {count} time(s): '{text}'.\n{first_context}",
                 value=None,
+            )
+        if count == 0 and present:
+            return MatchResult(
+                "WRONG RESULT", f"Text not found: '{text}'.\n", value=None
             )
         return MatchResult("OK", error=None, value=None)
 
@@ -200,8 +199,7 @@ class GWOrbitalSelfEnergyMatcher(Matcher):
 # ======================================================================================
 MATCHER_CLASSES: Dict[str, Callable[..., Matcher]] = {
     "GenericMatcher": GenericMatcher,
-    "TextPresenceMatcher": TextPresenceMatcher,
-    "TextAbsenceMatcher": TextAbsenceMatcher,
+    "TextMatcher": TextMatcher,
     "GWOrbitalSelfEnergyMatcher": GWOrbitalSelfEnergyMatcher,
 }
 

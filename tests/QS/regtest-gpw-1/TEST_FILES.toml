@@ -26,7 +26,7 @@
 "K2.inp"                       = [{matcher = "E_total", tol = 8e-12, ref = -0.37652979317666}]
 "H2.inp"                       = [
   {matcher = "E_total", tol = 2e-14, ref = -1.06345574964568},
-  {matcher = "QS_MO_OCCUPATION_STATS"}
+  {matcher = "TEXT", text = "MO| Total occupied (ALPHA):"}
 ]
 # printing of structure data
 "H2O-geoopt.inp"               = [{matcher = "E_total", tol = 8e-14, ref = -17.15265559026891}]

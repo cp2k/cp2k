@@ -25,6 +25,6 @@
 "h4_torsion_structure_data.inp" = [{matcher = "STRUCTURE_DATA_dihedral_angle", tol = 1.0E-12, ref = 90.0}]
 "ch2o_cartesian_mos.inp"        = [
   {matcher = "QS_number_of_molecular_orbitals", tol = 0.0, ref = 7.0},
-  {matcher = "QS_cartesian_mo_output"}
+  {matcher = "TEXT", text = "CARTESIAN EIGENVECTORS"}
 ]
 #EOF

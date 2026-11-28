@@ -13,14 +13,14 @@
 "Al-kpoint-diag-reference.inp"         = [{matcher = "E_total", tol = 1e-9, ref = -2.903015361392054}]
 "Al-kpoint-otdiag.inp"                 = [
   {matcher = "E_total", tol = 1e-8, ref = -2.06393459533834},
-  {matcher = "NO_TEXT", text = "K-point smearing includes the first band"},
-  {matcher = "NO_TEXT", text = "K-point smearing includes the last band"},
+  {matcher = "TEXT", present = false, text = "K-point smearing includes the first band"},
+  {matcher = "TEXT", present = false, text = "K-point smearing includes the last band"},
 ]
 "Al-kpoint-otdiag-strict-full-all.inp" = [
   {matcher = "E_total", tol = 1e-8, ref = -2.171132526114770},
-  {matcher = "NO_TEXT", text = "Complex STRICT tangent metric is not positive definite"},
-  {matcher = "NO_TEXT", text = "K-point smearing includes the first band"},
-  {matcher = "NO_TEXT", text = "K-point smearing includes the last band"},
+  {matcher = "TEXT", present = false, text = "Complex STRICT tangent metric is not positive definite"},
+  {matcher = "TEXT", present = false, text = "K-point smearing includes the first band"},
+  {matcher = "TEXT", present = false, text = "K-point smearing includes the last band"},
 ]
 "Al-kpoint-mermin-smoke.inp"           = [
   {matcher = "E_total", tol = 1e-9, ref = -2.903015358408708},
@@ -29,12 +29,12 @@
 ]
 "Al-kpoint-mermin-fermi-low-rank.inp"  = [
   {matcher = "E_total", tol = 1e-9, ref = -2.171129071510264},
-  {matcher = "NO_TEXT", text = "K-point smearing includes the first band"},
-  {matcher = "NO_TEXT", text = "K-point smearing includes the last band"},
+  {matcher = "TEXT", present = false, text = "K-point smearing includes the first band"},
+  {matcher = "TEXT", present = false, text = "K-point smearing includes the last band"},
 ]
 "Al-kpoint-mermin-covariant.inp"       = [
   {matcher = "E_total", tol = 1e-9, ref = -2.975637281997639},
-  {matcher = "NO_TEXT", text = "K-point smearing includes the first band"},
-  {matcher = "NO_TEXT", text = "K-point smearing includes the last band"},
+  {matcher = "TEXT", present = false, text = "K-point smearing includes the first band"},
+  {matcher = "TEXT", present = false, text = "K-point smearing includes the last band"},
 ]
 #EOF

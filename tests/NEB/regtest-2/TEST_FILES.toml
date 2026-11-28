@@ -15,7 +15,7 @@
 ]
 "argon_sidpp.inp"       = [{matcher = "SIDPP_min_distance", tol = 0.03, ref = 2.786}]
 "argon_fire2.inp"       = [
-  {matcher = "NEB_optimization_converged"},
+  {matcher = "TEXT", text = "BAND TASK COMPLETED"},
   {matcher = "M010", tol = 1e-6, ref = -0.0284450152}
 ]
 #EOF
