@@ -12,7 +12,6 @@
 MODULE gw_ri_rs_small_cell_full_kp_types
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp,&
-                                              int_1,&
                                               int_8
    USE kpoint_transform,                ONLY: kp_transform_plan_type
    USE message_passing,                 ONLY: mp_para_env_type
@@ -40,10 +39,11 @@ MODULE gw_ri_rs_small_cell_full_kp_types
       REAL(KIND=dp), ALLOCATABLE :: values(:, :)
    END TYPE gamma_atom_projection_type
 
-   !> values(P,Q,j) stores one q point, with j an imaginary frequency or time.
+   !> values(P,Q,j) stores the Hermitian matrix A(q) of one q point in real numbers, with j an
+   !> imaginary frequency or time: Re A_PQ at (P,Q) and Im A_PQ at (Q,P) for P <= Q.
    !> Each q allocation can be released after its last use independently.
    TYPE ri_q_matrix_block_type
-      COMPLEX(KIND=dp), ALLOCATABLE :: values(:, :, :)
+      REAL(KIND=dp), ALLOCATABLE :: values(:, :, :)
    END TYPE ri_q_matrix_block_type
 
    ! One matrix job per native inversion pair; every target keeps its own orbital.
@@ -51,9 +51,8 @@ MODULE gw_ri_rs_small_cell_full_kp_types
       INTEGER, ALLOCATABLE :: jobs(:, :), counts(:), mesh_index(:), partner(:), partner_slot(:)
       COMPLEX(KIND=dp), ALLOCATABLE :: partner_orbitals(:, :, :, :)
       INTEGER :: first_image(3) = 0, last_image(3) = 0
-      INTEGER, ALLOCATABLE :: offmesh_slot(:), image_shift(:, :)
-      INTEGER(KIND=int_1), ALLOCATABLE :: image_tie(:, :)
-      REAL(KIND=dp), ALLOCATABLE :: displacement(:, :), image_weights(:, :, :), phase_cos(:, :), phase_sin(:, :)
+      INTEGER, ALLOCATABLE :: offmesh_slot(:)
+      REAL(KIND=dp), ALLOCATABLE :: image_weights(:, :, :), phase_cos(:, :), phase_sin(:, :)
    END TYPE sigma_projection_type
 
    ! Work data shared by the periodic GW stages; input settings remain in bs_env.
@@ -82,7 +81,9 @@ MODULE gw_ri_rs_small_cell_full_kp_types
       TYPE(gamma_correction_type)               :: gamma_correction
       ! Keep q <= q_partner(q). q_slot maps native indices to compact world-owner columns.
       INTEGER, ALLOCATABLE                      :: q_partner(:), q_slot(:)
-      TYPE(ri_q_matrix_block_type), ALLOCATABLE :: chi_q_frequency(:), metric_coulomb_factor(:), W_PQ_tau(:)
+      TYPE(ri_q_matrix_block_type), ALLOCATABLE :: chi_q_frequency(:), W_PQ_tau(:)
+      ! K(q) = M(q)^-1 V(q)^1/2 of the q points of this rank, in the order of q_slot
+      COMPLEX(dp), ALLOCATABLE                  :: metric_coulomb_factor(:, :, :)
       ! AO image operators retained only until the Gamma-correction contraction.
       TYPE(dbcsr_p_type), POINTER               :: gamma_corr_d(:, :) => NULL(), &
                                                    gamma_corr_h(:, :) => NULL(), gamma_corr_s(:, :) => NULL()

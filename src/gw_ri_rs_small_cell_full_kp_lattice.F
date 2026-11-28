@@ -153,18 +153,21 @@ CONTAINS
 !> \param first first column of the panel
 !> \param width number of columns
 !> \param left A
-!> \param right B; the caller supplies a Hermitian product
+!> \param right rows first, ..., first+width-1 of B; the caller supplies a Hermitian product
+!> \param ld_right leading dimension of right
 !> \param panel ...
 ! **************************************************************************************************
-   SUBROUTINE grid_pair_gemm_panel(n, ninner, first, width, left, right, panel)
+   SUBROUTINE grid_pair_gemm_panel(n, ninner, first, width, left, right, ld_right, panel)
       INTEGER, INTENT(IN)                                :: n, ninner, first, width
-      COMPLEX(KIND=dp), INTENT(IN)                       :: left(n, ninner), right(n, ninner)
+      COMPLEX(KIND=dp), INTENT(IN)                       :: left(n, ninner)
+      INTEGER, INTENT(IN)                                :: ld_right
+      COMPLEX(KIND=dp), INTENT(IN)                       :: right(ld_right, ninner)
       COMPLEX(KIND=dp), INTENT(OUT)                      :: panel(n, width)
 
       INTEGER                                            :: col, row
 
       CALL zgemm('N', 'C', first + width - 1, width, ninner, z_one, left, n, &
-                 right(first, 1), n, z_zero, panel, n)
+                 right, ld_right, z_zero, panel, n)
       DO col = 1, width
          row = first + col - 1
          panel(row, col) = CMPLX(REAL(panel(row, col), dp), 0.0_dp, dp)

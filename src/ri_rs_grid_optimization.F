@@ -444,7 +444,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_cluster_3c_int'
 
       INTEGER :: first_ri, handle, iatom, icenter, icluster, iimage, ij, ik, ikind, imu, inu, ip, &
-         jatom, katom, last_ri, my_group, nao, ngroups, nlocal, nri, p_first, p_last, patom
+         jatom, katom, last_ri, my_group, n_ranks_over_memory, nao, ngroups, nlocal, nri, p_first, &
+         p_last, patom
       INTEGER, ALLOCATABLE                               :: ao_offset(:), cells(:, :), ri_offset(:), &
                                                             sizes_ri(:)
       REAL(KIND=dp)                                      :: available_GB, integral_bytes, &
@@ -471,6 +472,7 @@ CONTAINS
       CALL gw_3c_ws_create(workspace, integral_context)
       CALL mp_mem_avail_per_rank_GB(bs_env%para_env, available_GB)
       resident_bytes = 0.0_dp
+      n_ranks_over_memory = 0
       icluster = 0
       DO icenter = 1, bs_env%n_atom
          IF (MOD(icenter - 1, ngroups) /= my_group) CYCLE
@@ -494,7 +496,7 @@ CONTAINS
          integral_bytes = REAL(dp_size, dp)*REAL(nao, dp)**2*REAL(last_ri - first_ri + 1, dp)
          IF (available_GB > 0.0_dp .AND. &
              resident_bytes + integral_bytes > integral_memory_share*available_GB*bytes_per_GB) THEN
-            CPABORT('Distributed RI-RS cluster integrals exceed available memory per rank')
+            n_ranks_over_memory = 1
          END IF
          ALLOCATE (cluster_3c_int(icluster)%Int_3c(nao, nao, first_ri:last_ri), SOURCE=0.0_dp)
          DO ip = 1, SIZE(cells, 2)
@@ -544,6 +546,10 @@ CONTAINS
          resident_bytes = resident_bytes + integral_bytes
          DEALLOCATE (ao_offset, ri_offset, cells)
       END DO
+      CALL bs_env%para_env%sum(n_ranks_over_memory)
+      IF (n_ranks_over_memory > 0) THEN
+         CPWARN("RI-RS grid optimization: integrals exceed the available memory per rank")
+      END IF
       CALL gw_3c_ws_release(workspace)
       CALL gw_3c_ctx_release(integral_context)
 
