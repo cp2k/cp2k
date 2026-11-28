@@ -85,6 +85,26 @@ typedef struct {
 #endif
 
 /*******************************************************************************
+ * \brief Private routine for the CPU options of the validating (host) multiply:
+ *        results of the GPU are checked against any CPU kernel (LIBXS), but
+ *        results of the CPU kernels (incl. hybrid) are checked against BLAS.
+ * \author Hans Pabst
+ ******************************************************************************/
+static int validation_cpu_options(void) {
+  static int options = -1; // racing threads store the same value
+  if (0 > options) {
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
+    // BLAS per small task serializes on the BLAS library's buffer management
+    options = (0 == dbm_multiply_gpu_hybrid() ? DBM_MULTIPLY_TASK_REORDER
+                                              : DBM_MULTIPLY_BLAS_LIBRARY);
+#else
+    options = DBM_MULTIPLY_BLAS_LIBRARY;
+#endif
+  }
+  return options;
+}
+
+/*******************************************************************************
  * \brief Private routine for initializing the multiplication backend.
  * \author Ole Schuett
  ******************************************************************************/
@@ -180,9 +200,13 @@ static void backend_process_batch(dbm_batch_t *batch, const double alpha,
                                   backend_context_t *ctx) {
   if (NULL != ctx) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
-    backend_order_batch(batch);
-    dbm_multiply_gpu_process_batch(batch, alpha, shard_c, kshard, finish,
-                                   &ctx->gpu);
+    if (!dbm_multiply_gpu_process_batch_host(batch, alpha, pack_a, pack_b,
+                                             shard_c, kshard, finish,
+                                             ctx->cpu_options, &ctx->gpu)) {
+      backend_order_batch(batch);
+      dbm_multiply_gpu_process_batch(batch, alpha, shard_c, kshard, finish,
+                                     &ctx->gpu);
+    }
 #else
     (void)kshard; // mark as used
     (void)finish;
@@ -191,7 +215,7 @@ static void backend_process_batch(dbm_batch_t *batch, const double alpha,
 #endif
   } else { // Validate against host (aka CPU).
     dbm_multiply_cpu_process_batch(batch, alpha, pack_a, pack_b, shard_c,
-                                   DBM_MULTIPLY_BLAS_LIBRARY);
+                                   validation_cpu_options());
   }
   batch->max_m = batch->max_n = batch->max_k = 0;
   batch->flops = 0;
