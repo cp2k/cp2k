@@ -470,7 +470,7 @@ CONTAINS
       TYPE(atom_basis_type)                              :: gbasis
       TYPE(opt_state_type)                               :: ostate
 
-      IF (upf_pot%is_paw .OR. upf_pot%is_coulomb) THEN
+      IF (upf_pot%is_coulomb) THEN
          sgp_pot%has_nonlocal = .FALSE.
          sgp_pot%n_nonlocal = 0
          sgp_pot%has_local = .FALSE.
@@ -545,7 +545,7 @@ CONTAINS
       CALL release_atom_basis(gbasis)
       !
       ptype = ADJUSTL(TRIM(upf_pot%pseudo_type))
-      IF (ptype(1:2) == "NC" .OR. ptype(1:2) == "US") THEN
+      IF (ptype(1:2) == "NC" .OR. ptype(1:2) == "US" .OR. ptype(1:2) == "PA") THEN
          nl_trans = .FALSE.
       ELSE IF (ptype(1:2) == "SL") THEN
          nl_trans = .TRUE.
@@ -554,7 +554,7 @@ CONTAINS
       END IF
 
       ! purely local pseudopotentials
-      IF (upf_pot%l_max < 0 .OR. upf_pot%is_ultrasoft) THEN
+      IF (upf_pot%l_max < 0 .OR. upf_pot%is_ultrasoft .OR. upf_pot%is_paw) THEN
          sgp_pot%n_nonlocal = 0
          sgp_pot%lmax = -1
          sgp_pot%has_nonlocal = .FALSE.
@@ -862,7 +862,7 @@ CONTAINS
 
       hnl = 0._dp
       ptype = ADJUSTL(TRIM(upf_pot%pseudo_type))
-      IF (ptype(1:2) == "NC" .OR. ptype(1:2) == "US") THEN
+      IF (ptype(1:2) == "NC" .OR. ptype(1:2) == "US" .OR. ptype(1:2) == "PA") THEN
          ! non local pseudopotential
          n = MAXVAL(gbasis%nbas(:))
          m = upf_pot%number_of_proj

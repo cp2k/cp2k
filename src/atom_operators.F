@@ -677,7 +677,7 @@ CONTAINS
       CALL numpot_matrix(integrals%core, potential%upf_pot%vlocal, gbasis, 0)
 
       ptype = ADJUSTL(TRIM(potential%upf_pot%pseudo_type))
-      IF (ptype(1:2) == "NC" .OR. ptype(1:2) == "US") THEN
+      IF (ptype(1:2) == "NC" .OR. ptype(1:2) == "US" .OR. ptype(1:2) == "PA") THEN
          ! non local pseudopotential
          n = MAXVAL(integrals%n(:))
          m = potential%upf_pot%number_of_proj

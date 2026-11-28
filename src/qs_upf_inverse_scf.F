@@ -7,7 +7,7 @@
 
 ! **************************************************************************************************
 !> \brief Explicit inverse-orbital attachment to native Quickstep density and operator consumers.
-!>        Scalar semilocal GPW at Gamma, with original full-wave USPP data.
+!>        Scalar semilocal GPW at Gamma with USPP and PAW datasets.
 ! **************************************************************************************************
 MODULE qs_upf_inverse_scf
    USE basis_set_types,                 ONLY: gto_basis_set_type
@@ -25,8 +25,13 @@ MODULE qs_upf_inverse_scf
                                               uspp_method_direct,&
                                               uspp_method_inverse,&
                                               uspp_method_inverse_1c
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_transitional,             ONLY: set_1d_pointer
+   USE lebedev,                         ONLY: deallocate_lebedev_grids,&
+                                              init_lebedev_grids
    USE mathlib,                         ONLY: invmat
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
@@ -62,6 +67,9 @@ MODULE qs_upf_inverse_scf
                                               qs_upf_inverse_grid_response,&
                                               qs_upf_inverse_matrix_gather,&
                                               qs_upf_inverse_matrix_scatter
+   USE qs_upf_inverse_paw,              ONLY: qs_upf_inverse_paw_evaluate,&
+                                              qs_upf_inverse_paw_init,&
+                                              qs_upf_inverse_paw_response
    USE qs_upf_inverse_types,            ONLY: qs_upf_inverse_augmentation_type,&
                                               qs_upf_inverse_grid_type,&
                                               qs_upf_inverse_scf_release,&
@@ -80,6 +88,7 @@ MODULE qs_upf_inverse_scf
    PUBLIC :: qs_upf_inverse_scf_prepare, qs_upf_inverse_scf_active
    PUBLIC :: qs_upf_inverse_scf_collocate, qs_upf_inverse_scf_integrate, qs_upf_inverse_scf_core
    PUBLIC :: qs_upf_inverse_scf_initialize, qs_upf_inverse_scf_reset
+   PUBLIC :: qs_upf_inverse_scf_paw_evaluate, qs_upf_inverse_scf_add_paw
    PUBLIC :: qs_upf_inverse_scf_core_response
    PUBLIC :: qs_upf_inverse_scf_response
 CONTAINS
@@ -102,7 +111,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: atom_local, direct
 
       INTEGER                                            :: ikind
-      LOGICAL                                            :: do_kpoints
+      LOGICAL                                            :: do_kpoints, has_paw
       TYPE(dbcsr_p_type), POINTER                        :: kinetic(:), metric(:), overlap(:)
       TYPE(dbcsr_type)                                   :: imaginary
       TYPE(dft_control_type), POINTER                    :: control
@@ -128,18 +137,34 @@ CONTAINS
         control%qs_control%rigpw .OR. control%qs_control%lrigpw .OR. control%dft_plus_u .OR. control%sic_method_id /= sic_none) THEN
          CPABORT("Unsupported inverse SCF density consumer")
       END IF
+      has_paw = .FALSE.
       DO ikind = 1, SIZE(kinds)
          IF (kinds(ikind)%ghost) CYCLE
          CPASSERT(ASSOCIATED(kinds(ikind)%sgp_potential))
          CPASSERT(ALLOCATED(kinds(ikind)%sgp_potential%upf_data))
-         IF (.NOT. kinds(ikind)%sgp_potential%upf_data%is_ultrasoft) THEN
-            CPABORT("Missing mixed NC inverse nonlocal operator")
+         IF (.NOT. kinds(ikind)%sgp_potential%upf_data%is_ultrasoft .AND. &
+             .NOT. kinds(ikind)%sgp_potential%upf_data%is_paw) THEN
+            CPABORT("Mixed NC and augmented UPF potentials are not implemented")
          END IF
+         has_paw = has_paw .OR. kinds(ikind)%sgp_potential%upf_data%is_paw
       END DO
       ALLOCATE (state)
       IF (PRESENT(direct)) state%native_gaussian = direct
       IF (state%native_gaussian) THEN
          CALL direct_prepare(ks_env, state)
+      END IF
+      IF (has_paw) THEN
+         ALLOCATE (state%paw(SIZE(kinds)))
+         CALL init_lebedev_grids()
+         DO ikind = 1, SIZE(kinds)
+            IF (kinds(ikind)%ghost) CYCLE
+            ASSOCIATE (pot => kinds(ikind)%sgp_potential)
+               IF (.NOT. pot%upf_data%is_paw) CYCLE
+               CALL qs_upf_inverse_paw_init(pot%upf_data, pot%upf_projectors, kinds(ikind)%ngrid_ang, &
+                                            state%paw(ikind))
+            END ASSOCIATE
+         END DO
+         CALL deallocate_lebedev_grids()
       END IF
       IF (do_kpoints) THEN
          CPABORT("Inverse USPP k-point consumers are not included in this implementation")
@@ -178,6 +203,77 @@ CONTAINS
       CALL qs_upf_inverse_scf_core(ks_env)
       CALL qs_ks_did_change(ks_env, s_mstruct_changed=.TRUE., rho_changed=.TRUE., potential_changed=.TRUE.)
    END SUBROUTINE qs_upf_inverse_scf_prepare
+
+! **************************************************************************************************
+!> \brief Evaluate the original PAW one-center functional from the accepted native Gaussian density.
+!>        All spin densities enter the same atomic functional before differentiation.
+!> \param ks_env Current inverse state and native density.
+!> \param xc_section Activated native XC section, including its density and gradient cutoffs.
+!> \param energies PAW Hartree, XC and frozen-core constant, each counted once per atom.
+! **************************************************************************************************
+   SUBROUTINE qs_upf_inverse_scf_paw_evaluate(ks_env, xc_section, energies)
+      TYPE(qs_ks_env_type), INTENT(IN)                   :: ks_env
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      REAL(dp), INTENT(OUT)                              :: energies(3)
+
+      COMPLEX(dp), ALLOCATABLE                           :: gamma(:, :)
+      INTEGER                                            :: nao, ns, spin
+      REAL(dp)                                           :: density_cutoff, gradient_cutoff
+      TYPE(dbcsr_p_type), POINTER                        :: density(:, :)
+      TYPE(dft_control_type), POINTER                    :: control
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_upf_inverse_scf_type), POINTER             :: state
+      TYPE(section_vals_type), POINTER                   :: functional
+
+      energies = 0.0_dp
+      CALL get_ks_env(ks_env, upf_inverse=state, rho=rho, dft_control=control)
+      IF (.NOT. ASSOCIATED(state)) RETURN
+      IF (.NOT. ALLOCATED(state%paw)) RETURN
+      CALL check_geometry(ks_env, state)
+      ns = control%nspins
+      nao = SIZE(state%frame%ao%coefficients, 2)
+      CALL qs_rho_get(rho, rho_ao_kp=density)
+      IF (ALLOCATED(state%paw_density)) DEALLOCATE (state%paw_density, state%paw_operator)
+      ALLOCATE (state%paw_density(nao, nao, 1, ns), state%paw_operator(nao, nao, 1, ns))
+      DO spin = 1, ns
+         CALL qs_upf_inverse_matrix_gather(state%frame%ao, density(spin, 1)%matrix, gamma)
+         state%paw_density(:, :, 1, spin) = gamma
+      END DO
+      functional => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      CALL section_vals_val_get(xc_section, "DENSITY_CUTOFF", r_val=density_cutoff)
+      CALL section_vals_val_get(xc_section, "GRADIENT_CUTOFF", r_val=gradient_cutoff)
+      CALL qs_upf_inverse_paw_evaluate(state%paw, [state%frame], state%paw_density, [1.0_dp], &
+                                       functional, density_cutoff, gradient_cutoff, energies, &
+                                       state%paw_operator, state%paw_potential)
+      state%paw_density_evaluation = state%density_evaluations
+   END SUBROUTINE qs_upf_inverse_scf_paw_evaluate
+
+! **************************************************************************************************
+!> \brief Add PAW operators once after the smooth operators have been assembled.
+!> \param ks_env Current inverse state and newly assembled native spin Hamiltonians.
+! **************************************************************************************************
+   SUBROUTINE qs_upf_inverse_scf_add_paw(ks_env)
+      TYPE(qs_ks_env_type), INTENT(INOUT)                :: ks_env
+
+      INTEGER                                            :: spin
+      TYPE(dbcsr_p_type), POINTER                        :: source(:, :)
+      TYPE(dbcsr_type)                                   :: imaginary, real_part
+      TYPE(qs_upf_inverse_scf_type), POINTER             :: state
+
+      CALL get_ks_env(ks_env, upf_inverse=state, matrix_ks_kp=source)
+      IF (.NOT. ASSOCIATED(state)) RETURN
+      IF (.NOT. ALLOCATED(state%paw_operator)) RETURN
+      CALL check_geometry(ks_env, state)
+      CPASSERT(state%paw_density_evaluation == state%density_evaluations)
+      DO spin = 1, SIZE(source, 1)
+         CALL qs_upf_inverse_matrix_scatter(state%frame%ao, state%paw_operator(:, :, 1, spin), &
+                                            source(spin, 1)%matrix, real_part, imaginary)
+         CALL check_real(state, real_part, imaginary)
+         CALL dbcsr_add(source(spin, 1)%matrix, real_part, 1.0_dp, 1.0_dp)
+         CALL dbcsr_release(real_part)
+         CALL dbcsr_release(imaginary)
+      END DO
+   END SUBROUTINE qs_upf_inverse_scf_add_paw
 
 ! **************************************************************************************************
 !> \brief Test explicit attachment; full-wave data alone never activates this representation.
@@ -515,6 +611,12 @@ CONTAINS
             metric_response = metric_response - weight*REAL(SUM(energy_weighted(:, :, ik)*TRANSPOSE(metric(:, :, ik))), dp)
          END DO
       END DO
+      IF (ALLOCATED(state%paw_potential)) THEN
+         CPASSERT(state%paw_density_evaluation == state%density_evaluations)
+         CALL qs_upf_inverse_paw_response([state%frame], state%paw_density, [1.0_dp], &
+                                          state%paw_potential, atom_response, cell_response, reduced_k_response, weight)
+         response = response + weight
+      END IF
       response = response + metric_response
       CALL zero%release()
       DO axis = 1, 3
@@ -735,13 +837,14 @@ CONTAINS
       DO ikind = 1, SIZE(kinds)
          IF (kinds(ikind)%ghost) CYCLE
          IF (.NOT. ASSOCIATED(kinds(ikind)%sgp_potential)) THEN
-            CPABORT("Inverse USPP mixed potentials are not implemented")
+            CPABORT("Mixed NC and augmented UPF potentials are not implemented")
          END IF
          IF (.NOT. ALLOCATED(kinds(ikind)%sgp_potential%upf_data)) THEN
-            CPABORT("Inverse USPP mixed potentials are not implemented")
+            CPABORT("Mixed NC and augmented UPF potentials are not implemented")
          END IF
-         IF (.NOT. kinds(ikind)%sgp_potential%upf_data%is_ultrasoft) THEN
-            CPABORT("Inverse USPP mixed potentials are not implemented")
+         IF (.NOT. kinds(ikind)%sgp_potential%upf_data%is_ultrasoft .AND. &
+             .NOT. kinds(ikind)%sgp_potential%upf_data%is_paw) THEN
+            CPABORT("Mixed NC and augmented UPF potentials are not implemented")
          END IF
          CALL upf_inverse_fields_init(kinds(ikind)%sgp_potential%upf_data, beta, delta, &
                                       control%qs_control%uspp_method == uspp_method_direct)

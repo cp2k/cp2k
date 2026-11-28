@@ -43,6 +43,7 @@ MODULE upf_projector_integrals
    END TYPE upf_projector_type
 
    PUBLIC :: upf_projector_type, upf_projector_init, upf_projector_overlap
+   PUBLIC :: upf_projector_angular_init, upf_projector_product_gaunt
 
    INTERFACE
       FUNCTION scaled_bessel(n, x) RESULT(value) BIND(C, name="libgrpp_modified_bessel_scaled")
@@ -66,23 +67,15 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: degree
       TYPE(upf_projector_type), INTENT(OUT)              :: projectors
 
-      INTEGER                                            :: a, b, i, j, k, l, lambda, m, n, p, &
-                                                            powers(3), q, s
-      REAL(KIND=dp), ALLOCATABLE                         :: moments(:, :), weights(:)
+      INTEGER                                            :: i, j, n, p, q
+      REAL(dp), ALLOCATABLE                              :: weights(:)
 
       CPASSERT(degree >= 0)
       IF (pot%has_so) THEN
          CPABORT("Spin-orbit UPF projectors are not supported")
       END IF
       CPASSERT(pot%number_of_proj > 0)
-      CPASSERT(ALL(pot%lbeta >= 0))
-      projectors%degree = degree
-      projectors%lmax = MAXVAL(pot%lbeta)
-      projectors%harmonic_max = degree + projectors%lmax
-      ! Both the factorial and bundled Bessel tables cover this range.
-      CPASSERT(projectors%harmonic_max <= MIN(20, maxfac/2))
-      CALL init_orbital_pointers(projectors%harmonic_max)
-      CALL init_spherical_harmonics(projectors%harmonic_max, -1)
+      CALL upf_projector_angular_init(pot%lbeta, degree, projectors)
       CALL libgrpp_init()
 
       n = SIZE(pot%r)
@@ -92,9 +85,8 @@ CONTAINS
       CPASSERT(SIZE(pot%beta, 2) == pot%number_of_proj)
       CPASSERT(ALL(pot%r(2:) > pot%r(:n - 1)))
       CPASSERT(ALL(pot%rab > 0.0_dp))
-      ALLOCATE (projectors%r(n), projectors%lbeta(pot%number_of_proj))
+      ALLOCATE (projectors%r(n))
       projectors%r(:) = pot%r
-      projectors%lbeta(:) = pot%lbeta
       ALLOCATE (weights(n))
       weights(:) = upf_radial_weights(pot)*pot%r**2
       ALLOCATE (projectors%weighted_beta(n, pot%number_of_proj))
@@ -108,17 +100,6 @@ CONTAINS
          END DO
       END DO
 
-      projectors%nproj = SUM(2*pot%lbeta + 1)
-      ALLOCATE (projectors%radial_index(projectors%nproj), projectors%angular_index(projectors%nproj))
-      p = 0
-      DO i = 1, pot%number_of_proj
-         l = pot%lbeta(i)
-         DO m = 1, 2*l + 1
-            p = p + 1
-            projectors%radial_index(p) = i
-            projectors%angular_index(p) = l*l + m
-         END DO
-      END DO
       ALLOCATE (projectors%d(projectors%nproj, projectors%nproj))
       projectors%d = 0.0_dp
       DO p = 1, projectors%nproj
@@ -133,6 +114,43 @@ CONTAINS
          END DO
       END DO
 
+   END SUBROUTINE upf_projector_init
+
+! **************************************************************************************************
+!> \brief Prepare only the native real-harmonic mapping and angular product coefficients.
+!>        This also supports occupied core orbitals without manufacturing radial projectors.
+!> \param lbeta Radial-channel angular momenta, in the requested original channel order.
+!> \param degree Largest Cartesian degree; at least max(lbeta) for harmonic products.
+!> \param projectors Angular cache; radial and coupling arrays remain unallocated.
+! **************************************************************************************************
+   SUBROUTINE upf_projector_angular_init(lbeta, degree, projectors)
+      INTEGER, INTENT(IN)                                :: lbeta(:), degree
+      TYPE(upf_projector_type), INTENT(OUT)              :: projectors
+
+      INTEGER                                            :: a, b, i, k, l, lambda, m, p, powers(3), s
+      REAL(dp), ALLOCATABLE                              :: moments(:, :)
+
+      CPASSERT(degree >= 0 .AND. SIZE(lbeta) > 0)
+      CPASSERT(ALL(lbeta >= 0))
+      projectors%degree = degree
+      projectors%lmax = MAXVAL(lbeta)
+      projectors%harmonic_max = degree + projectors%lmax
+      ! Both the factorial and bundled Bessel tables cover this range.
+      CPASSERT(projectors%harmonic_max <= MIN(20, maxfac/2))
+      CALL init_orbital_pointers(projectors%harmonic_max)
+      CALL init_spherical_harmonics(projectors%harmonic_max, -1)
+      ALLOCATE (projectors%lbeta, SOURCE=lbeta)
+      projectors%nproj = SUM(2*lbeta + 1)
+      ALLOCATE (projectors%radial_index(projectors%nproj), projectors%angular_index(projectors%nproj))
+      p = 0
+      DO i = 1, SIZE(lbeta)
+         l = lbeta(i)
+         DO m = 1, 2*l + 1
+            p = p + 1
+            projectors%radial_index(p) = i
+            projectors%angular_index(p) = l*l + m
+         END DO
+      END DO
       ! G(s,lm,lambda*nu) = integral Omega**s Y_lm(Omega) Y_lambda,nu(Omega).
       ALLOCATE (projectors%gaunt(ncoset(degree), (projectors%lmax + 1)**2, &
                                  (projectors%harmonic_max + 1)**2))
@@ -140,7 +158,7 @@ CONTAINS
       DO s = 1, ncoset(degree)
          k = SUM(indco(:, s))
          DO l = 0, projectors%lmax
-            IF (.NOT. ANY(pot%lbeta == l)) CYCLE
+            IF (.NOT. ANY(lbeta == l)) CYCLE
             DO lambda = MAX(0, l - k), l + k
                IF (MODULO(k + l + lambda, 2) /= 0) CYCLE
                ALLOCATE (moments(nco(l), nco(lambda)))
@@ -159,7 +177,34 @@ CONTAINS
             END DO
          END DO
       END DO
-   END SUBROUTINE upf_projector_init
+   END SUBROUTINE upf_projector_angular_init
+
+! **************************************************************************************************
+!> \brief Angular product coefficients for two native real-harmonic projectors.
+!> \param projectors Prepared projectors with Cartesian degree at least their largest l.
+!> \param gaunt Integral of Y_p Y_q Y_LM, in magnetic-projector order.
+! **************************************************************************************************
+   SUBROUTINE upf_projector_product_gaunt(projectors, gaunt)
+      TYPE(upf_projector_type), INTENT(IN)               :: projectors
+      REAL(dp), ALLOCATABLE, INTENT(OUT)                 :: gaunt(:, :, :)
+
+      INTEGER                                            :: l, m, nlm, p, q, s
+
+      CPASSERT(projectors%degree >= projectors%lmax)
+      nlm = (2*projectors%lmax + 1)**2
+      ALLOCATE (gaunt(projectors%nproj, projectors%nproj, nlm))
+      gaunt = 0.0_dp
+      DO q = 1, projectors%nproj
+         l = projectors%lbeta(projectors%radial_index(q))
+         m = projectors%angular_index(q) - l*l
+         DO p = 1, projectors%nproj
+            DO s = 1, nco(l)
+               gaunt(p, q, :) = gaunt(p, q, :) + orbtramat(l)%slm(m, s)* &
+                                projectors%gaunt(ncoset(l - 1) + s, projectors%angular_index(p), :nlm)
+            END DO
+         END DO
+      END DO
+   END SUBROUTINE upf_projector_product_gaunt
 
 ! **************************************************************************************************
 !> \brief Evaluate <Cartesian Gaussian|beta_i Y_lm> and AO-center derivatives.

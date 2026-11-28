@@ -55,7 +55,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(qs_kind_set(ikind)%sgp_potential)) CYCLE
          ASSOCIATE (potential => qs_kind_set(ikind)%sgp_potential)
             IF (.NOT. ALLOCATED(potential%upf_data)) CYCLE
-            active(ikind) = potential%upf_data%is_ultrasoft
+            active(ikind) = potential%upf_data%is_ultrasoft .OR. potential%upf_data%is_paw
          END ASSOCIATE
       END DO
       IF (.NOT. ANY(active)) RETURN

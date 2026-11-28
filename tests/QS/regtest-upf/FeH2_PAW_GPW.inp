@@ -1,0 +1,58 @@
+&GLOBAL
+  PROJECT FeH2_PAW_GPW
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QUICKSTEP
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT_UZH_2026.2
+    &MGRID
+      CUTOFF 35
+      REL_CUTOFF 15
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.E-10
+      METHOD GPW
+      USPP_METHOD DIRECT
+    &END QS
+    &SCF
+      EPS_SCF 1.E-8
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 1
+      SCF_GUESS ATOMIC
+      &OT
+        ENERGY_GAP 0.05
+        MINIMIZER LBFGS
+        PRECONDITIONER FULL_ALL
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [bohr] 10 10 10
+    &END CELL
+    &COORD
+      UNIT bohr
+      Fe  5.00  5.00  5.00
+      H   7.95  5.27  4.92
+      H   5.12  7.91  5.33
+    &END COORD
+    &KIND Fe
+      BASIS_SET DZVP-MOLOPT-PBE-GTH-q16
+      LEBEDEV_GRID 26
+      POTENTIAL UPF ../../SIRIUS/regtest-1/Fe.pbe-spn-kjpaw_psl.0.2.1.UPF
+      RADIAL_GRID 12
+    &END KIND
+    &KIND H
+      BASIS_SET DZVP-MOLOPT-PBE-GTH-q1
+      LEBEDEV_GRID 26
+      POTENTIAL UPF H.us.pbe.z_1.ld1.psl.v1.0.0-high-full-waves.upf
+      RADIAL_GRID 10
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
