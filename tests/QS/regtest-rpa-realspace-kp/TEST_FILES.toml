@@ -15,4 +15,10 @@
   {matcher = "E_RIRS_RPA_EXX", tol = 1e-5, ref = -0.6503690208},
   {matcher = "E_RIRS_RPA_correlation", tol = 1e-5, ref = -0.0662313417}
 ]
+# AUTO_RI with a requested RI size that cuts the threefold degenerate p multiplet of He on a
+# cubic site: the whole multiplet is kept (4 instead of 3 RI functions), which changes E_c.
+"04_RIRS_RPA_PBE_He_AUTO_RI_multiplet.inp"     = [
+  {matcher = "E_RIRS_RPA_EXX", tol = 1e-5, ref = -0.9266802343},
+  {matcher = "E_RIRS_RPA_correlation", tol = 1e-5, ref = -0.0373400711}
+]
 #EOF
