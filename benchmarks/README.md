@@ -8,7 +8,7 @@ files, please refer to the [Input Reference Manual](https://manual.cp2k.org/). P
 generating the scaling graphs are provided in [tools/benchmark_plots/](../tools/benchmark_plots).
 
 **Note:** the benchmark names make common use of acronyms. For explanations, please refer to the
-[Glossary of Acronyms and Abbreviations](https://www.cp2k.org/acronyms).
+[Glossary of Acronyms and Abbreviations](https://manual.cp2k.org/trunk/acronyms.html).
 
 ## Introduction
 
@@ -28,18 +28,28 @@ with performance numbers.
 Benchmarks currently available:
 
 - [Fayalite-FIST](Fayalite-FIST)
+- [GROMACS](GROMACS)
+- [QMMM](QMMM)
 - [QS](QS)
-- [QS_DM_LS](QS_DM_LS)
-- [QS_HFX](QS_HFX)
 - [QS_diag](QS_diag)
+- [QS_DM_LS](QS_DM_LS)
+- [QS_kp](QS_kp)
+- [QS_LiH_HFX](QS_LiH_HFX)
+- [QS_low_scaling_GW](QS_low_scaling_GW)
+- [QS_low_scaling_postHF](QS_low_scaling_postHF)
 - [QS_mp2_rpa](QS_mp2_rpa)
 - [QS_ot_ls](QS_ot_ls)
+- [QS_ot_metals](QS_ot_metals)
+- [QS_reference](QS_reference)
 - [QS_pao_ml_tio2](QS_pao_ml_tio2)
 - [QS_rubri](QS_rubri)
 - [QS_single_node](QS_single_node)
 - [QS_stmv](QS_stmv)
 
 ### Run Benchmarks
+
+To reduce the size of CP2K package, several large files for chemical structures are provided in a
+compressed `*.bz2` form. Use `bunzip2` to decompress them as instructed in the relevant `README.md`.
 
 Some benchmarks require a preliminary step to generate an input file, e.g. a wavefunction. When that
 is the case, it is specified in the `README.md` inside the benchmark's sub-directory.

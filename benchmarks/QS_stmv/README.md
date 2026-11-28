@@ -7,6 +7,12 @@ structure of the STMV virus was simulated based on DFT and subsystem DFT. Here, 
 tight-binding method is employed. The input is realistic in its input settings and might be useful
 to set up similar systems.
 
+Before running the benchmark, decompress the coord file with `bunzip2`.
+
+```shell
+bunzip2 ./coord_mol.coord.bz2
+```
+
 ## Properties of the benchmark
 
 The benchmark exercises in particular the sparse matrix handling and linear scaling algorithms in
