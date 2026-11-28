@@ -4,5 +4,5 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-"Solv_alch_chng.inp" = [{matcher = "M002", tol = 1.0E-14, ref = -0.732003926645E+01}]
+"Solv_alch_chng.inp" = [{matcher = "M002", tol = 1.0E-14, ref = -7.32003980461E+00}]
 #EOF

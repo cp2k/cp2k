@@ -7,16 +7,17 @@
 
 MODULE trajana_twopt_thermodynamics
    USE, INTRINSIC :: ieee_arithmetic, ONLY: ieee_is_finite
+   USE trajana_constants,               ONLY: avogadro => n_avogadro,&
+                                              boltzmann,&
+                                              c_light,&
+                                              planck => h_planck
    USE trajana_kinds,                   ONLY: dp
 
    IMPLICIT NONE
    PRIVATE
 
-   REAL(dp), PARAMETER, PUBLIC :: gas_constant = 8.31446261815324_dp
-   REAL(dp), PARAMETER :: avogadro = 6.02214076E23_dp
-   REAL(dp), PARAMETER :: boltzmann = 1.380649E-23_dp
-   REAL(dp), PARAMETER :: light_speed_cm_s = 2.99792458E10_dp
-   REAL(dp), PARAMETER :: planck = 6.62607015E-34_dp
+   REAL(dp), PARAMETER, PUBLIC :: gas_constant = avogadro*boltzmann
+   REAL(dp), PARAMETER :: light_speed_cm_s = 100.0_dp*c_light
 
    TYPE, PUBLIC :: twopt_channel_type
       REAL(dp) :: dof = 0.0_dp
@@ -275,28 +276,29 @@ CONTAINS
       END IF
    END FUNCTION integration_weight
 
-   SUBROUTINE rotational_temperatures(inertia_amu_angstrom2, linear, temperatures)
-      REAL(dp), INTENT(IN)                               :: inertia_amu_angstrom2(3)
+   SUBROUTINE rotational_temperatures(inertia_g_mol_angstrom2, linear, temperatures)
+      REAL(dp), INTENT(IN)                               :: inertia_g_mol_angstrom2(3)
       LOGICAL, INTENT(IN)                                :: linear
       REAL(dp), INTENT(OUT)                              :: temperatures(3)
 
       INTEGER                                            :: axis, source
-      REAL(dp), PARAMETER                                :: amu_angstrom2_to_kg_m2 = 1.66053906660E-47_dp
+      ! Mass files use g/mol. Convert molar inertia to the inertia of one molecule.
+      REAL(dp), PARAMETER                                :: molar_inertia_to_kg_m2 = 1.0E-23_dp/avogadro
 
       temperatures = 0.0_dp
       IF (linear) THEN
          DO axis = 1, 2
             source = axis + 1
-            IF (inertia_amu_angstrom2(source) > 0.0_dp) &
+            IF (inertia_g_mol_angstrom2(source) > 0.0_dp) &
                temperatures(axis) = planck**2/(8.0_dp*ACOS(-1.0_dp)**2* &
-                                    inertia_amu_angstrom2(source)*amu_angstrom2_to_kg_m2*boltzmann)
+                                    inertia_g_mol_angstrom2(source)*molar_inertia_to_kg_m2*boltzmann)
          END DO
          temperatures(3) = -1.0_dp
       ELSE
          DO axis = 1, 3
-            IF (inertia_amu_angstrom2(axis) > 0.0_dp) &
+            IF (inertia_g_mol_angstrom2(axis) > 0.0_dp) &
                temperatures(axis) = planck**2/(8.0_dp*ACOS(-1.0_dp)**2* &
-                                    inertia_amu_angstrom2(axis)*amu_angstrom2_to_kg_m2*boltzmann)
+                                    inertia_g_mol_angstrom2(axis)*molar_inertia_to_kg_m2*boltzmann)
          END DO
       END IF
    END SUBROUTINE rotational_temperatures

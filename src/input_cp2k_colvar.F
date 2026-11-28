@@ -41,6 +41,7 @@ MODULE input_cp2k_colvar
                                               lchar_t,&
                                               real_t
    USE kinds,                           ONLY: dp
+   USE physcon,                         ONLY: angstrom
    USE string_utilities,                ONLY: newline,&
                                               s2a
 #include "./base/base_uses.f90"
@@ -2101,7 +2102,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Parameter used for computing the cutoff radius for searching "// &
                           "the wannier centres around an atom", &
-                          usage="RCUT <REAL>", default_r_val=0.529177208590000_dp, unit_str="angstrom", &
+                          usage="RCUT <REAL>", default_r_val=angstrom, unit_str="angstrom", &
                           type_of_var=real_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2141,7 +2142,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Parameter used for computing the cutoff radius for searching "// &
                           "the wannier centres around an atom", &
-                          usage="RCUT <REAL>", default_r_val=0.529177208590000_dp, unit_str="angstrom", &
+                          usage="RCUT <REAL>", default_r_val=angstrom, unit_str="angstrom", &
                           type_of_var=real_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

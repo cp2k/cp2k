@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 # tests GAPW GTH and ALL
 #XAS
-"CO.inp"                  = [{matcher = "E_total", tol = 2e-12, ref = -113.27555193628908}]
+"CO.inp"                  = [{matcher = "E_total", tol = 2e-12, ref = -113.27555193675656}]
 "CO_xastpxhh.inp"         = [{matcher = "E_total", tol = 1e-10, ref = -103.60211898340968}]
 "CO_xastpval.inp"         = [{matcher = "E_total", tol = 3e-11, ref = -113.27555193676139}]
 "CO_xastpxhh_loclist.inp" = [{matcher = "E_total", tol = 2e-08, ref = -89.944402143822472}]

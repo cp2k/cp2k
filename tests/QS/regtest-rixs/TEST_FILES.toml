@@ -40,13 +40,13 @@
 ]
 
 "Ne-LDA-e_range.inp" = [
-  {matcher = "XAS_excit_ener", tol = 1e-08, ref = 829.640319},
+  {matcher = "XAS_excit_ener", tol = 1e-08, ref = 829.640392},
   {matcher = "TDDFPT_Check_Energy", tol = 5.0E-06, ref = 1.1162587},
   {matcher = "TDDFPT_Check_Osc_Strength", tol = 1.0E-06, ref = 0.20377297}
 ]
 
 "SiH4-PBE0-admm-pseudo.inp" = [
-  {matcher = "XAS_excit_ener", tol = 1e-08, ref = 1803.939974},
+  {matcher = "XAS_excit_ener", tol = 1e-08, ref = 1803.940133},
   {matcher = "TDDFPT_Check_Energy", tol = 5.0E-06, ref = 0.52370352},
   {matcher = "TDDFPT_Check_Osc_Strength", tol = 1.0E-06, ref = 0.32678429}
 ]

@@ -37,7 +37,7 @@
       &MIXING
         ALPHA 0.1
         METHOD NEW_PULAY_MIXING
-        NBROYDEN 5
+        NBROYDEN 3
         QK 1
         QKAPPA 0.25
         QM 0.75

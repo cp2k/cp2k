@@ -3,9 +3,9 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"NEB-MIXED.inp"                       = [{matcher = "M010", tol = 8e-14, ref = -25.757218922609201}]
+"NEB-MIXED.inp"                       = [{matcher = "M010", tol = 8e-14, ref = -25.75722467537222}]
 "2gly_IT-NEB-CV.inp"                  = [{matcher = "M010", tol = 1e-06, ref = -1.7874528752835901}]
-"2gly_IT-NEB-CV-res.inp"              = [{matcher = "M010", tol = 5e-07, ref = -1.79824839162552}]
-"UO2-2x2x2-CI-NEB-core-shell.inp"     = [{matcher = "M010", tol = 1e-11, ref = -462.84379294835571}]
-"UO2-2x2x2-CI-NEB-core-shell-res.inp" = [{matcher = "M010", tol = 5e-06, ref = -462.84445967163998}]
+"2gly_IT-NEB-CV-res.inp"              = [{matcher = "M010", tol = 5e-07, ref = -1.79825253118904}]
+"UO2-2x2x2-CI-NEB-core-shell.inp"     = [{matcher = "M010", tol = 1e-11, ref = -462.843921540845}]
+"UO2-2x2x2-CI-NEB-core-shell-res.inp" = [{matcher = "M010", tol = 5e-06, ref = -462.85229835758264}]
 #EOF

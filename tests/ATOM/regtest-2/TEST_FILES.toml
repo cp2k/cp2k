@@ -42,9 +42,9 @@
 "slater_9.inp"  = [{matcher = "M046", tol = 1e-12, ref = -525.7615443522}]
 "slater_10.inp" = [{matcher = "M035", tol = 1e-12, ref = -2.841058209720}]
 #
-"Hg.inp"        = [{matcher = "M035", tol = 1e-12, ref = -19601.624766751498}]
+"Hg.inp"        = [{matcher = "M035", tol = 1e-12, ref = -19601.62477704653}]
 "C.inp"         = [{matcher = "M035", tol = 1e-12, ref = -37.799871796427}]
-"C_ADMM.inp"    = [{matcher = "M035", tol = 1e-12, ref = -37.758721798835}]
+"C_ADMM.inp"    = [{matcher = "M035", tol = 1e-12, ref = -37.758721798937}]
 #
 "C_tpss.inp"    = [{matcher = "M035", tol = 1e-12, ref = -37.801438870661}]
 #EOF

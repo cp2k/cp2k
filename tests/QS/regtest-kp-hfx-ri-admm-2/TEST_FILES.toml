@@ -1,11 +1,11 @@
-"hBN_gpw_pbe0.inp"                        = [{matcher = "M011", tol = 1.0E-10, ref = -8.627502943957275}]
+"hBN_gpw_pbe0.inp"                        = [{matcher = "M011", tol = 1.0E-10, ref = -8.627502955674512}]
 "LiH_gapw_pbex.inp"                       = [{matcher = "M011", tol = 2.0E-9, ref = -7.774042140474399}]
-"LiH_gpw_none.inp"                        = [{matcher = "M011", tol = 1.0E-10, ref = -6.358898999330950}]
-"LiH_gpw_none_kpsym.inp"                  = [{matcher = "M011", tol = 1.0E-10, ref = -6.358898999330950}]
-"hBN_gapw_lsd_stress.inp"                 = [{matcher = "M031", tol = 1.0E-8, ref = -1.24549024995E+04}]
+"LiH_gpw_none.inp"                        = [{matcher = "M011", tol = 1.0E-10, ref = -6.358899000964498}]
+"LiH_gpw_none_kpsym.inp"                  = [{matcher = "M011", tol = 1.0E-10, ref = -6.358899000964498}]
+"hBN_gapw_lsd_stress.inp"                 = [{matcher = "M031", tol = 1.0E-8, ref = -1.24549048091E+04}]
 "diamond_admmp.inp"                       = [{matcher = "M011", tol = 4.5E-9, ref = -8.244883910014904}]
 "diamond_admms.inp"                       = [{matcher = "M011", tol = 1.0E-10, ref = -79.738004880335254}]
-"diamond_admmq.inp"                       = [{matcher = "M031", tol = 1.0E-8, ref = -5.01809671085E+04}]
+"diamond_admmq.inp"                       = [{matcher = "M031", tol = 1.0E-8, ref = -5.01809764406E+04}]
 "H_debug.inp"                             = []
 "H2_admm_kpsym.inp"                       = [
   {matcher = "M011", tol = 1.0E-7, ref = -0.546176445420311},

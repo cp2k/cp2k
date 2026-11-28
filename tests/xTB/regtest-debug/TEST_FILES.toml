@@ -3,17 +3,17 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"ch2o_t01.inp"             = [{matcher = "M086", tol = 1.0E-12, ref = 0.108915750509E+01}]
-"ch2o_t02.inp"             = [{matcher = "M086", tol = 1.0E-12, ref = 0.108915750509E+01}]
-"ch2o_t03.inp"             = [{matcher = "M086", tol = 1.0E-12, ref = 0.112728364232E+01}]
-"ch2o_t04.inp"             = [{matcher = "M086", tol = 1.0E-12, ref = 0.109828925085E+01}]
-"ch2o_t05.inp"             = [{matcher = "M087", tol = 1.0E-12, ref = 0.226843652139E+02}]
-"ch2o_t06.inp"             = [{matcher = "M087", tol = 1.0E-12, ref = 0.229748436012E+02}]
-"ch2o_t07.inp"             = [{matcher = "M086", tol = 1.0E-12, ref = 0.954101834854E+00}]
-"ch2o_t08.inp"             = [{matcher = "M086", tol = 1.0E-12, ref = 0.963121521336E+00}]
+"ch2o_t01.inp"             = [{matcher = "M086", tol = 1.0E-12, ref = 1.08915743543E+00}]
+"ch2o_t02.inp"             = [{matcher = "M086", tol = 1.0E-12, ref = 1.08915743543E+00}]
+"ch2o_t03.inp"             = [{matcher = "M086", tol = 1.0E-12, ref = 1.12728357128E+00}]
+"ch2o_t04.inp"             = [{matcher = "M086", tol = 1.0E-12, ref = 1.09828918101E+00}]
+"ch2o_t05.inp"             = [{matcher = "M087", tol = 1.0E-12, ref = 2.26843661091E+01}]
+"ch2o_t06.inp"             = [{matcher = "M087", tol = 1.0E-12, ref = 2.29748445222E+01}]
+"ch2o_t07.inp"             = [{matcher = "M086", tol = 1.0E-12, ref = 9.54101776555E-01}]
+"ch2o_t08.inp"             = [{matcher = "M086", tol = 1.0E-12, ref = 9.6312146272E-01}]
 "ch2o_t10.inp"             = []
 "ch2o_t11.inp"             = []
-"ch3br_nonbond_2.inp"      = [{matcher = "E_total", tol = 1.0E-12, ref = -11.78062819239937}]
-"ch3br_nonbond.inp"        = [{matcher = "E_total", tol = 1.0E-12, ref = -11.78062802277786}]
-"ch3br_atprop_nonbond.inp" = [{matcher = "E_total", tol = 1.0E-10, ref = -11.78112904505415}]
+"ch3br_nonbond_2.inp"      = [{matcher = "E_total", tol = 1.0E-12, ref = -11.78062714870448}]
+"ch3br_nonbond.inp"        = [{matcher = "E_total", tol = 1.0E-12, ref = -11.78062697908295}]
+"ch3br_atprop_nonbond.inp" = [{matcher = "E_total", tol = 1.0E-10, ref = -11.78112800129107}]
 #EOF

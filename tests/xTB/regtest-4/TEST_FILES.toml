@@ -3,21 +3,21 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"H2O-32-xtb-ls-1.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -46.14044075497907}]
-"H2O-32-xtb-ls-2.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -46.14989722262835}]
-"H2O-32-xtb-ls-3.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -92.31466214904637}]
-"H2O-32-xtb-ls-4.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -92.31466097075523}]
-"H2O-32-xtb-ls-5.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -92.31466181585652}]
-"H2O-32-xtb-ls-6.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -92.31466097075523}]
-"H2O-32-xtb-ls-7.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -92.314661795316}]
-"H2O-32-xtb-ls-8.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -92.31466181855758}]
-"H2O-xtb-tc2-1.inp"       = [{matcher = "M011", tol = 1.0E-12, ref = -92.3146631041455}]
-"H2O-xtb-tc2-2.inp"       = [{matcher = "M011", tol = 1.0E-12, ref = -92.31466310414011}]
-"H2O-32-xtb-trs4.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -46.14989725305168}]
-"H2O-32-xtb-trs4-dyn.inp" = [{matcher = "M011", tol = 1.0E-12, ref = -46.14989725305168}]
+"H2O-32-xtb-ls-1.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -46.140436651462196}]
+"H2O-32-xtb-ls-2.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -46.14989310679461}]
+"H2O-32-xtb-ls-3.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -92.3146539165805}]
+"H2O-32-xtb-ls-4.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -92.31465273829008}]
+"H2O-32-xtb-ls-5.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -92.31465358339138}]
+"H2O-32-xtb-ls-6.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -92.31465273829008}]
+"H2O-32-xtb-ls-7.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -92.3146535628508}]
+"H2O-32-xtb-ls-8.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -92.31465358609242}]
+"H2O-xtb-tc2-1.inp"       = [{matcher = "M011", tol = 1.0E-12, ref = -92.31465487167881}]
+"H2O-xtb-tc2-2.inp"       = [{matcher = "M011", tol = 1.0E-12, ref = -92.31465487167337}]
+"H2O-32-xtb-trs4.inp"     = [{matcher = "M011", tol = 1.0E-12, ref = -46.149893137217845}]
+"H2O-32-xtb-trs4-dyn.inp" = [{matcher = "M011", tol = 1.0E-12, ref = -46.149893137217845}]
 "h2o_vib.inp"             = [
   {matcher = "Vib_freq", tol = 8.0E-06, ref = 1465.6104041},
   {matcher = "Vib_frc_const", tol = 1.0E-04, ref = 0.087927}
 ]
-"tmol.inp"                = [{matcher = "M011", tol = 1.0E-12, ref = -41.90845660799823}]
+"tmol.inp"                = [{matcher = "M011", tol = 1.0E-12, ref = -41.90845289157429}]
 #EOF

@@ -27,7 +27,7 @@
 # changing the diagonalization rank count shifts the final energy by ~1e-7 Ha.
 # Allow this spread with a 1e-8 relative tolerance while keeping the reference.
 "h2o_lda_analytic.inp"           = [{matcher = "E_total", tol = 1.0E-08, ref = -17.12647008678879}]
-"h2o_gga_analytic.inp"           = [{matcher = "E_total", tol = 1.0E-11, ref = -17.22346825004372}]
+"h2o_gga_analytic.inp"           = [{matcher = "E_total", tol = 1.0E-11, ref = -17.22346824972148}]
 "h2o_mgga_tau_analytic.inp"      = [
   {matcher = "E_total", tol = 1.0E-07, ref = -17.24684298922764},
   {matcher = "M011", tol = 1.0E-07, ref = -16.914406563626816},
